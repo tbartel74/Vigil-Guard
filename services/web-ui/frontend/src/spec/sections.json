@@ -1,0 +1,39 @@
+{
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "description": "Quick access to the most critical security settings and system status",
+      "overview": "This section provides a dashboard view of your security configuration with the most important settings that affect overall system behavior. Use this for quick adjustments and monitoring.",
+      "groups": ["quick"]
+    },
+    {
+      "id": "detection",
+      "title": "Detection & Sensitivity",
+      "description": "Configure when and how aggressively the system detects and responds to threats",
+      "overview": "Control the sensitivity of threat detection by adjusting scoring thresholds and bloom filter settings. Higher sensitivity catches more threats but may increase false positives. These settings directly impact when content gets allowed, sanitized, or blocked.",
+      "groups": ["detect"]
+    },
+    {
+      "id": "performance",
+      "title": "Performance & Limits",
+      "description": "Resource management, timeouts, and processing constraints",
+      "overview": "Optimize system performance by configuring processing timeouts, input limits, and memory usage. Higher limits allow more thorough analysis but consume more resources. Adjust bloom filter size to balance memory usage with accuracy.",
+      "groups": ["perf"]
+    },
+    {
+      "id": "advanced",
+      "title": "Advanced Processing",
+      "description": "Text normalization, sanitization policies, and pattern analysis",
+      "overview": "Fine-tune how the system processes and normalizes input text. These settings control Unicode normalization, whitespace handling, HTML decoding, and sanitization behavior. Advanced users can adjust n-gram analysis and whitelist patterns.",
+      "groups": ["adv"]
+    },
+    {
+      "id": "file-manager",
+      "title": "File Manager",
+      "description": "Download and upload configuration files with audit logging",
+      "overview": "Manage configuration files directly by downloading current versions or uploading modified files. All file operations are logged in the audit log for security and compliance tracking.",
+      "groups": []
+    }
+  ]
+}

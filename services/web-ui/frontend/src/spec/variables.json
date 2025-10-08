@@ -1,0 +1,364 @@
+{
+  "groups": [
+    {
+      "id": "quick",
+      "label": "Quick Settings",
+      "description": "Frequently used toggles and message",
+      "order": 1
+    },
+    {
+      "id": "detect",
+      "label": "Detection Tuning",
+      "description": "Scoring and bloom thresholds",
+      "order": 2
+    },
+    {
+      "id": "perf",
+      "label": "Performance",
+      "description": "Performance and limits",
+      "order": 3
+    },
+    {
+      "id": "adv",
+      "label": "Advanced",
+      "description": "Normalization, sanitization, whitelists",
+      "order": 4
+    }
+  ],
+  "variables": [
+    {
+      "name": "BLOCK_MESSAGE",
+      "groupId": "quick",
+      "label": "Block Message",
+      "type": "string",
+      "required": true,
+      "help": "Message shown to users when content is blocked",
+      "default": "Content blocked by security policy. Please rephrase without instructing how to respond.",
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "enforcement.block_message"
+        }
+      ]
+    },
+    {
+      "name": "ALLOW_MAX",
+      "groupId": "detect",
+      "label": "Allow.max",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 29,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.allow.max"
+        }
+      ]
+    },
+    {
+      "name": "SL_MIN",
+      "groupId": "detect",
+      "label": "Light Sanitize.min",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 30,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.sanitize_light.min"
+        }
+      ]
+    },
+    {
+      "name": "SL_MAX",
+      "groupId": "detect",
+      "label": "Light Sanitize.max",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 55,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.sanitize_light.max"
+        }
+      ]
+    },
+    {
+      "name": "SH_MIN",
+      "groupId": "detect",
+      "label": "Heavy Sanitize.min",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 56,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.sanitize_heavy.min"
+        }
+      ]
+    },
+    {
+      "name": "SH_MAX",
+      "groupId": "detect",
+      "label": "Heavy Sanitize.max",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 75,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.sanitize_heavy.max"
+        }
+      ]
+    },
+    {
+      "name": "BLOCK_MIN",
+      "groupId": "detect",
+      "label": "Block.min",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 76,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "scoring.ranges.block.min"
+        }
+      ]
+    },
+    {
+      "name": "BLOOM_ROUTE_TO_AC",
+      "groupId": "detect",
+      "label": "Bloom route_to_ac_threshold",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 10,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "bloom_decisions.route_to_ac_threshold"
+        }
+      ]
+    },
+    {
+      "name": "BLOOM_HARD_BLOCK",
+      "groupId": "detect",
+      "label": "Bloom hard_block_threshold",
+      "type": "number",
+      "required": true,
+      "help": "0-100",
+      "default": 50,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "bloom_decisions.hard_block_threshold"
+        }
+      ]
+    },
+    {
+      "name": "BLOOM_REQUIRE_EXTRA",
+      "groupId": "detect",
+      "label": "Require additional signals",
+      "type": "boolean",
+      "required": true,
+      "help": "boolean",
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "bloom_decisions.require_zusatz_signals"
+        }
+      ],
+      "default": true
+    },
+    {
+      "name": "BLOOM_M",
+      "groupId": "perf",
+      "label": "Bloom filter size (m)",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "bloom.m"
+        }
+      ],
+      "default": 32768
+    },
+    {
+      "name": "BLOOM_K",
+      "groupId": "perf",
+      "label": "Bloom hash functions (k)",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "bloom.k"
+        }
+      ],
+      "default": 5
+    },
+    {
+      "name": "REMOVE_ZERO_WIDTH",
+      "groupId": "adv",
+      "label": "Remove zero-width",
+      "type": "boolean",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "normalization.remove_zero_width"
+        }
+      ],
+      "default": true
+    },
+    {
+      "name": "COLLAPSE_WS",
+      "groupId": "adv",
+      "label": "Normalize spaces",
+      "type": "boolean",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "normalization.collapse_whitespace"
+        }
+      ],
+      "default": true
+    },
+    {
+      "name": "DECODE_ENTITIES",
+      "groupId": "adv",
+      "label": "Decode HTML entities",
+      "type": "boolean",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "normalization.decode_entities"
+        }
+      ],
+      "default": true
+    },
+    {
+      "name": "UNICODE_FORM",
+      "groupId": "adv",
+      "label": "Unicode normalization form",
+      "type": "select",
+      "required": true,
+      "help": "NFC / NFD / NFKC / NFKD",
+      "options": [
+        {
+          "value": "NFC",
+          "label": "NFC - Basic composition"
+        },
+        {
+          "value": "NFD",
+          "label": "NFD - Basic decomposition"
+        },
+        {
+          "value": "NFKC",
+          "label": "NFKC - Aggressive composition (recommended)"
+        },
+        {
+          "value": "NFKD",
+          "label": "NFKD - Aggressive decomposition"
+        }
+      ],
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "normalization.unicode_form"
+        }
+      ],
+      "default": "NFKC"
+    },
+    {
+      "name": "HEAVY_MAX_REMOVAL",
+      "groupId": "adv",
+      "label": "Heavy sanitization: max removal %",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "sanitization.heavy.max_removal_percent"
+        }
+      ],
+      "default": 60
+    },
+    {
+      "name": "HEAVY_POLICY",
+      "groupId": "adv",
+      "label": "Over-limit policy",
+      "type": "select",
+      "required": true,
+      "help": "sanitize_if_exceeds | block_if_exceeds",
+      "options": [
+        {
+          "value": "sanitize_if_exceeds",
+          "label": "Continue sanitizing (recommended)"
+        },
+        {
+          "value": "block_if_exceeds",
+          "label": "Block if exceeds limit"
+        }
+      ],
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "sanitization.heavy.policy"
+        }
+      ],
+      "default": "sanitize_if_exceeds"
+    },
+    {
+      "name": "NGRAM_MIN",
+      "groupId": "adv",
+      "label": "N-gram min",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "prefilter.ngram.min"
+        }
+      ],
+      "default": 3
+    },
+    {
+      "name": "NGRAM_MAX",
+      "groupId": "adv",
+      "label": "N-gram max",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "prefilter.ngram.max"
+        }
+      ],
+      "default": 6
+    },
+    {
+      "name": "NGRAM_PREFIX_WINDOW",
+      "groupId": "adv",
+      "label": "N-gram prefix window",
+      "type": "number",
+      "required": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "prefilter.ngram.prefix_window"
+        }
+      ],
+      "default": 96
+    }
+  ]
+}

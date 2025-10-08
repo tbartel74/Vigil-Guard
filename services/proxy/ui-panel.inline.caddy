@@ -1,0 +1,20 @@
+  # ===== BEGIN ui-panel (reverse proxy for /ui and /ui/api) =====
+  @ui_api path /ui/api*
+  handle @ui_api {
+    # zdejmij tylko /ui -> backend dostaje /api/...
+    handle_path /ui* {
+      reverse_proxy local_backend:8787
+    }
+  }
+
+  @ui_front path /ui*
+  handle @ui_front {
+    # zdejmij /ui -> frontend dostaje / (Vite ma base="/ui/")
+    handle_path /ui* {
+      reverse_proxy local_frontend:5173
+    }
+  }
+
+  # pomocniczy redirect
+  redir /ui /ui/
+  # ===== END ui-panel =====

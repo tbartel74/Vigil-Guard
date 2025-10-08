@@ -1,0 +1,175 @@
+{
+  "version": "4.1.2",
+  "normalization": {
+    "unicode_form": "NFKC",
+    "max_iterations": 3,
+    "remove_zero_width": true,
+    "collapse_whitespace": true,
+    "decode_entities": true,
+    "homoglyph_map": "normalize.conf",
+    "leet_map": "normalize.conf"
+  },
+  "sanitization": {
+    "light": {
+      "remove_patterns": [
+        "\\bdo\\s+not\\s+refuse\\b",
+        "\\bnever\\s+say\\s+(?:sorry|i\\s*can't|i\\s*cannot)\\b",
+        "\\bnie\\s+odmawiaj\\b",
+        "\\bnie\\s+m\\s*o\\s*w\\s+\\s*\\s+\\w*przykro\\w*\\b",
+        "\\bzawsze\\s+odpowiadaj\\s+w\\s+(?:markdown|json|yaml)\\b"
+      ],
+      "redact_token": "[removed]"
+    },
+    "heavy": {
+      "remove_patterns": [
+        "\\b(?:ignore|forget|override).*?instructions\\b",
+        "\\bzignoruj\\s+(?:wszystkie|wcze(?:s|\\u015B)niejsze)\\s+instrukcje\\b",
+        "\\bpomi(?:n|\\u0144)\\s+zasady\\b",
+        "\\byou\\s+are\\s+now.*?\\b",
+        "\\brespond\\s+only\\s+in.*?\\b",
+        "\\bbegin\\s+(?:every\\s+)?(?:response|output)\\s+with\\b",
+        "\\bformat\\s+like\\s+this\\b",
+        "\\bconvert(?:ing)?\\s+all\\s+output\\s+to\\b",
+        "\\brozpcz(?:nij|\\u0105c)\\s+odpowied\\w*\\s+od\\b",
+        "(?:\\.-){2,}\\.-",
+        "\\\\P\\\\L\\\\I\\\\N\\\\Y"
+      ],
+      "redact_token": "[REDACTED]",
+      "max_removal_percent": 60,
+      "policy": "sanitize_if_exceeds"
+    }
+  },
+  "whitelist": {
+    "domains": [
+      "api.example.com",
+      "docs.example.com"
+    ],
+    "patterns": [
+      "^cit\\. z dokumentacji:",
+      "^Example code:"
+    ]
+  },
+  "enforcement": {
+    "dry_run": false,
+    "audit_log": true,
+    "block_message": "Content blocked by security policy. Please rephrase without instructing how to respond.",
+    "audit_fields": [
+      "input_hash",
+      "normalized_hash",
+      "detections",
+      "score_breakdown",
+      "final_decision",
+      "processing_ms"
+    ]
+  },
+  "performance": {
+    "timeout_ms": 5000,
+    "max_input_length": 10000,
+    "cache_ttl_ms": 60000
+  },
+  "bloom": {
+    "m": 32768,
+    "k": 5,
+    "seed": 1337,
+    "match_mod": 97,
+    "min_matched_bits": 2
+  },
+  "prefilter": {
+    "ngram": {
+      "min": 3,
+      "max": 6,
+      "prefix_window": 96
+    },
+    "sample_limit": 800,
+    "obf_signals": {
+      "min_count": 2
+    },
+    "dangerous_patterns": [
+      "ignore all instructions",
+      "ignore previous instructions",
+      "disregard instructions",
+      "override system",
+      "you are now",
+      "act as dan",
+      "jailbreak",
+      "developer mode",
+      "godmode enabled",
+      "love pliny",
+      "im free",
+      "system prompt",
+      "reveal instructions",
+      "print your instructions",
+      "show your prompt",
+      "<|system|>",
+      "<|/system|>",
+      "{{system}}",
+      "[[system]]",
+      "forget everything",
+      "reset instructions",
+      "new instructions",
+      "you must now",
+      "from now on",
+      "ignore above",
+      "disregard above",
+      "bypass safety",
+      "no restrictions",
+      "unlimited mode"
+    ]
+  },
+  "bloom_decisions": {
+    "route_to_ac_threshold": 10,
+    "hard_block_threshold": 50,
+    "require_zusatz_signals": true
+  },
+  "created": "2025-09-29",
+  "description": "Unified policy. Patterns and scoring ranges are loaded from rules.config.json and thresholds.config.json.",
+  "references": {
+    "rules_file": "rules.config.json",
+    "thresholds_file": "thresholds.config.json",
+    "normalize_conf": "normalize.conf",
+    "pii_conf": "pii.conf"
+  },
+  "scoring": {
+    "ranges": {
+      "allow": {
+        "min": 0,
+        "max": 29
+      },
+      "sanitize_light": {
+        "min": 30,
+        "max": 55
+      },
+      "sanitize_heavy": {
+        "min": 56,
+        "max": 75
+      },
+      "block": {
+        "min": 76,
+        "max": 100
+      }
+    },
+    "categories": {
+      "$ref_rules": "rules.config.json"
+    }
+  },
+  "prompt_guard_policy": {
+    "enabled": true,
+    "risk_levels": {
+      "CRITICAL": {
+        "threshold_min": 0.9,
+        "threshold_max": 1.0,
+        "risk_score": 0.95,
+        "policy": "block",
+        "description": "Immediate blocking for prompt injection attacks detected by Llama Prompt Guard"
+      },
+      "MINIMAL": {
+        "threshold_min": 0.0,
+        "threshold_max": 0.1,
+        "risk_score": 0.01,
+        "policy": "allow",
+        "description": "Safe requests without malicious content"
+      }
+    },
+    "notes": "Binary classification: CRITICAL (is_attack=true, risk_score=0.95) or MINIMAL (is_attack=false, risk_score=0.01). Model returns boolean decision with high confidence."
+  }
+}

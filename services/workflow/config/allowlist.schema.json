@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sanitizer Allowlist Schema",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": ["string", "null"]
+    },
+    "chat_payload": {
+      "type": "object",
+      "properties": {
+        "chatInput": { "type": "string" },
+        "action": { "type": ["string", "null"] }
+      },
+      "required": ["chatInput"]
+    },
+    "config": {
+      "type": "object"
+    },
+    "normalization": {
+      "type": "object",
+      "properties": {
+        "original": { "type": "string" },
+        "normalized": { "type": "string" },
+        "canonical": { "type": "string" },
+        "leetDecoded": { "type": ["string", "null"] },
+        "steps": { "type": "array" },
+        "obfuscationSignals": { "type": "array" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "properties": {
+        "decision": { "type": "string" },
+        "score": { "type": "number" },
+        "scoreBreakdown": { "type": "object" },
+        "auditTrail": { "type": ["object", "null"] }
+      }
+    }
+  },
+  "required": ["chat_payload"]
+}

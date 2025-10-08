@@ -1,0 +1,138 @@
+{
+  "BLOCK_MESSAGE": {
+    "title": "Block Message",
+    "description": "Message displayed to users when their content is blocked. Should be informative but not reveal security mechanisms.",
+    "impact": "Low",
+    "category": "User Experience"
+  },
+  "ALLOW_MAX": {
+    "title": "Allow Maximum Score",
+    "description": "Maximum security score (0-100) for content to be allowed without any processing. Lower values = stricter security.",
+    "impact": "High",
+    "category": "Detection Sensitivity"
+  },
+  "SL_MIN": {
+    "title": "Light Sanitization Minimum",
+    "description": "Score threshold where light content removal begins. Should be higher than Allow Max to avoid gaps.",
+    "impact": "Medium",
+    "category": "Detection Sensitivity"
+  },
+  "SL_MAX": {
+    "title": "Light Sanitization Maximum",
+    "description": "Score threshold where light sanitization ends and heavy sanitization begins.",
+    "impact": "Medium",
+    "category": "Detection Sensitivity"
+  },
+  "SH_MIN": {
+    "title": "Heavy Sanitization Minimum",
+    "description": "Score threshold where aggressive content removal begins. Should align with Light Sanitization Max.",
+    "impact": "High",
+    "category": "Detection Sensitivity"
+  },
+  "SH_MAX": {
+    "title": "Heavy Sanitization Maximum",
+    "description": "Score threshold where heavy sanitization ends and blocking begins.",
+    "impact": "High",
+    "category": "Detection Sensitivity"
+  },
+  "BLOCK_MIN": {
+    "title": "Block Minimum Score",
+    "description": "Minimum score to block content entirely. Should align with Heavy Sanitization Max.",
+    "impact": "High",
+    "category": "Detection Sensitivity"
+  },
+  "BLOOM_ROUTE_TO_AC": {
+    "title": "Bloom Filter Additional Checks Threshold",
+    "description": "Percentage match (0-100) in bloom filter to trigger additional validation. Lower values = more sensitive early detection.",
+    "impact": "Medium",
+    "category": "Early Detection"
+  },
+  "BLOOM_HARD_BLOCK": {
+    "title": "Bloom Filter Hard Block Threshold",
+    "description": "Percentage match (0-100) in bloom filter to immediately block without further analysis. Higher values = fewer false positives.",
+    "impact": "High",
+    "category": "Early Detection"
+  },
+  "BLOOM_REQUIRE_EXTRA": {
+    "title": "Require Additional Signals",
+    "description": "When enabled, requires multiple indicators before blocking content. Reduces false positives but may miss sophisticated attacks.",
+    "impact": "High",
+    "category": "Early Detection"
+  },
+  "BLOOM_M": {
+    "title": "Bloom Filter Size",
+    "description": "Bits allocated (8192-131072) for bloom filter. Larger sizes reduce false positives but use more memory.",
+    "impact": "Medium",
+    "category": "Performance"
+  },
+  "BLOOM_K": {
+    "title": "Bloom Filter Hash Functions",
+    "description": "Number of hash functions (3-10) used in bloom filter. More functions increase accuracy but slow processing.",
+    "impact": "Low",
+    "category": "Performance"
+  },
+  "REMOVE_ZERO_WIDTH": {
+    "title": "Remove Invisible Characters",
+    "description": "Strips zero-width Unicode characters often used for obfuscation. Recommended for security.",
+    "impact": "Medium",
+    "category": "Text Normalization"
+  },
+  "COLLAPSE_WS": {
+    "title": "Normalize Whitespace",
+    "description": "Merges multiple spaces, tabs, and newlines into single spaces. Prevents whitespace-based obfuscation.",
+    "impact": "Medium",
+    "category": "Text Normalization"
+  },
+  "DECODE_ENTITIES": {
+    "title": "Decode HTML Entities",
+    "description": "Converts HTML entities (&lt; to <, etc.) to reveal hidden content. Essential for web input security.",
+    "impact": "High",
+    "category": "Text Normalization"
+  },
+  "UNICODE_FORM": {
+    "title": "Unicode Normalization Form",
+    "description": "Strength of Unicode normalization. NFKC (recommended) is most aggressive against obfuscation.",
+    "impact": "High",
+    "category": "Text Normalization",
+    "options": {
+      "NFC": "Basic composition - least aggressive",
+      "NFD": "Basic decomposition",
+      "NFKC": "Aggressive composition - recommended for security",
+      "NFKD": "Aggressive decomposition"
+    }
+  },
+  "HEAVY_MAX_REMOVAL": {
+    "title": "Heavy Sanitization Max Removal",
+    "description": "Maximum percentage (0-100) of text that can be removed during heavy sanitization. Higher values allow more aggressive cleaning.",
+    "impact": "Medium",
+    "category": "Sanitization Policy"
+  },
+  "HEAVY_POLICY": {
+    "title": "Over-limit Sanitization Policy",
+    "description": "Action when sanitization would exceed max removal percentage.",
+    "impact": "High",
+    "category": "Sanitization Policy",
+    "options": {
+      "sanitize_if_exceeds": "Continue sanitizing even if exceeds limit (recommended)",
+      "block_if_exceeds": "Block content if would exceed removal limit"
+    }
+  },
+  "NGRAM_MIN": {
+    "title": "N-gram Minimum Size",
+    "description": "Shortest substring (2-10 chars) to analyze for patterns. Smaller values catch more patterns but increase processing time.",
+    "impact": "Low",
+    "category": "Pattern Analysis"
+  },
+  "NGRAM_MAX": {
+    "title": "N-gram Maximum Size",
+    "description": "Longest substring (2-20 chars) to analyze for patterns. Larger values catch longer patterns but increase memory usage.",
+    "impact": "Low",
+    "category": "Pattern Analysis"
+  },
+  "NGRAM_PREFIX_WINDOW": {
+    "title": "N-gram Prefix Window",
+    "description": "Number of characters (100-10000) to analyze at the beginning of input for pattern matching.",
+    "impact": "Low",
+    "category": "Pattern Analysis"
+  }
+}

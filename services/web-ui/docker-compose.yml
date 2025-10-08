@@ -1,0 +1,44 @@
+networks:
+  vigil-net:
+    external: true
+    name: vigil-net
+
+services:
+  vigil-web-ui-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vigil-web-ui-frontend
+    command: ["npm","run","dev","--","--host","0.0.0.0"]
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - vigil-net
+
+  vigil-web-ui-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vigil-web-ui-backend
+    command: ["npm","run","dev"]
+    ports:
+      - "8787:8787"
+    environment:
+      - NODE_ENV=development
+      - TARGET_DIR=${TARGET_DIR:-../../vigil_data/workflow/config}
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-vigil-clickhouse}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-n8n_logs}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ../../vigil_data/workflow/config:/config:rw
+    networks:
+      - vigil-net

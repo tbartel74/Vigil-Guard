@@ -1,0 +1,76 @@
+{
+  "name": "vigil-guard",
+  "version": "1.0.0",
+  "description": "Enterprise-grade prompt injection detection and defense platform for Large Language Model applications",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "services/web-ui/frontend",
+    "services/web-ui/backend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd services/web-ui/backend && npm install",
+    "install:frontend": "cd services/web-ui/frontend && npm install",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd services/web-ui/backend && npm run build",
+    "build:frontend": "cd services/web-ui/frontend && npm run build",
+    "dev": "docker-compose up",
+    "dev:backend": "cd services/web-ui/backend && npm run dev",
+    "dev:frontend": "cd services/web-ui/frontend && npm run dev",
+    "start": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "restart": "npm run stop && npm run start",
+    "logs": "docker-compose logs -f",
+    "logs:n8n": "docker-compose logs -f n8n",
+    "logs:clickhouse": "docker-compose logs -f clickhouse",
+    "logs:grafana": "docker-compose logs -f grafana",
+    "logs:web-ui": "docker-compose logs -f web-ui-backend web-ui-frontend",
+    "clean": "npm run clean:docker && npm run clean:node",
+    "clean:docker": "docker-compose down -v",
+    "clean:node": "rm -rf node_modules services/*/node_modules services/*/*/node_modules",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd services/web-ui/backend && npm test",
+    "test:frontend": "cd services/web-ui/frontend && npm test",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd services/web-ui/backend && npx tsc --noEmit",
+    "lint:frontend": "cd services/web-ui/frontend && npx tsc --noEmit",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "check-format": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "docker:build": "docker-compose build",
+    "docker:pull": "docker-compose pull",
+    "backup": "./scripts/backup.sh",
+    "restore": "./scripts/restore.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vigil-guard.git"
+  },
+  "keywords": [
+    "llm",
+    "security",
+    "prompt-injection",
+    "content-filtering",
+    "ai-safety",
+    "n8n",
+    "workflow",
+    "monitoring",
+    "grafana",
+    "clickhouse",
+    "docker",
+    "microservices"
+  ],
+  "author": "Tomasz Bartel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/vigil-guard/issues"
+  },
+  "homepage": "https://github.com/yourusername/vigil-guard#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  }
+}

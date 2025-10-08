@@ -1,0 +1,190 @@
+# Main orchestration file for Vigil Guard
+# This file starts all services in the correct order
+
+name: vigil-guard
+
+networks:
+  vigil-net:
+    driver: bridge
+    name: vigil-net
+
+services:
+  # ============================================
+  # MONITORING STACK (Start first)
+  # ============================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: vigil-clickhouse
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_TCP_PORT:-9000}:9000"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-n8n_logs}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-admin}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-admin123}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:-1}
+    volumes:
+      - ./vigil_data/clickhouse:/var/lib/clickhouse
+      - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
+      - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/02-create-views.sql:ro
+    networks:
+      - vigil-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vigil-grafana
+    environment:
+      GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-vertamedia-clickhouse-datasource}
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ALLOW_EMBEDDING: ${GF_SECURITY_ALLOW_EMBEDDING:-true}
+      GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-false}
+    ports:
+      - "${GF_SERVER_HTTP_PORT:-3001}:3000"
+    volumes:
+      - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./vigil_data/grafana:/var/lib/grafana
+    networks:
+      - vigil-net
+    restart: unless-stopped
+    depends_on:
+      - clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # WORKFLOW ENGINE
+  # ============================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: vigil-n8n
+    user: "node"
+    working_dir: /home/node
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-UTC}
+      - GENERIC_TIMEZONE=${TZ:-UTC}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - NODE_ENV=${NODE_ENV:-production}
+      - N8N_RELEASE_TYPE=${N8N_RELEASE_TYPE:-stable}
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - ./vigil_data/n8n:/home/node/.n8n
+      - ./services/workflow/config:/home/node/config:ro
+      - ./services/workflow/workflows:/home/node/workflows:ro
+    networks:
+      - vigil-net
+    depends_on:
+      - clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # WEB UI (Configuration Panel)
+  # ============================================
+  web-ui-backend:
+    build: ./services/web-ui/backend
+    container_name: vigil-web-ui-backend
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=8787
+      - TARGET_DIR=${TARGET_DIR:-/config}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:*}
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-key-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - DATABASE_PATH=/app/data/users.db
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-vigil-clickhouse}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-n8n_logs}
+    ports:
+      - "${BACKEND_PORT:-8787}:8787"
+    volumes:
+      - ./services/workflow/config:/config:rw
+      - ./vigil_data/web-ui:/app/data
+    networks:
+      - vigil-net
+    restart: unless-stopped
+    depends_on:
+      - clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web-ui-frontend:
+    build: ./services/web-ui/frontend
+    container_name: vigil-web-ui-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - vigil-net
+    restart: unless-stopped
+    depends_on:
+      - web-ui-backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # PROMPT GUARD API
+  # ============================================
+  prompt-guard-api:
+    build: ./prompt-guard-api
+    container_name: vigil-prompt-guard-api
+    ports:
+      - "${PROMPT_GUARD_PORT:-8000}:8000"
+    volumes:
+      - ./vigil_data/prompt-guard-cache:/root/.cache/huggingface
+      - ./Llama-Prompt-Guard-2-86M:/app/model:ro
+    networks:
+      - vigil-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # REVERSE PROXY (Main entry point)
+  # ============================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: vigil-caddy
+    restart: unless-stopped
+    ports:
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
+    networks:
+      - vigil-net
+    volumes:
+      - ./services/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./vigil_data/caddy-data:/data
+      - ./vigil_data/caddy-config:/config
+    depends_on:
+      - n8n
+      - web-ui-frontend
+      - grafana
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/ui/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

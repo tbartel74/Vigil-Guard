@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "ranges": {
+    "allow": {
+      "min": 0,
+      "max": 29
+    },
+    "sanitize_light": {
+      "min": 30,
+      "max": 64
+    },
+    "sanitize_heavy": {
+      "min": 65,
+      "max": 84
+    },
+    "block": {
+      "min": 85,
+      "max": 100
+    }
+  },
+  "notes": "Adjusted thresholds: light sanitize up to 64, heavy sanitize 65-84, block starts at 85. These are conservative to reduce false positives on normal chat."
+}

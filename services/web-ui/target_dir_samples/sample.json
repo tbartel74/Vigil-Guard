@@ -1,0 +1,8 @@
+{
+  "auth": {
+    "apiKey": "REPLACE_WITH_32+_CHARS________________________________"
+  },
+  "normalization": {
+    "unicode_form": "NFKC"
+  }
+}

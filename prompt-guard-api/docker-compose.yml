@@ -1,0 +1,22 @@
+services:
+  vigil-prompt-guard-api:
+    build: .
+    container_name: vigil-prompt-guard-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../vigil_data/prompt-guard-cache:/root/.cache/huggingface
+      - ../Llama-Prompt-Guard-2-86M:/app/model:ro
+    restart: unless-stopped
+    networks:
+      - Vigil_Net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  Vigil_Net:
+    external: true
+    name: Vigil_Net

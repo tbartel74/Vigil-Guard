@@ -1,0 +1,60 @@
+:80 {
+    encode gzip
+
+    log {
+        output stdout
+        format console
+    }
+
+    # Redirect root to /ui/ (landing page)
+    @root path /
+    redir @root /ui/ 308
+
+    # Redirect /ui -> /ui/
+    @ui_root path /ui
+    redir @ui_root /ui/ 308
+    
+    # API - proxy to backend
+    handle /ui/api/* {
+        uri strip_prefix /ui
+        reverse_proxy web-ui-backend:8787
+    }
+
+    # Frontend - proxy to nginx (production) or Vite (development)
+    # Production: web-ui-frontend:80 (nginx serving static files)
+    # Development: web-ui-frontend:5173 (vite dev server - requires override)
+    handle /ui/* {
+        uri strip_prefix /ui
+        reverse_proxy web-ui-frontend:80 {
+            # Health check
+            health_uri /
+            health_interval 30s
+            health_timeout 5s
+        }
+    }
+    
+    # Pozostałe serwisy
+    handle_path /n8n/* {
+        reverse_proxy n8n:5678
+    }
+    
+    handle_path /grafana/* {
+        reverse_proxy grafana:3000
+    }
+    
+    handle_path /clickhouse/* {
+        reverse_proxy clickhouse:8123
+    }
+    
+    # WAŻNE: Zakomentuj lub usuń file_server!
+    # To powoduje że zwraca "GUI działa"
+    
+    # root * /Users/tomaszbartel/Documents/n8n-mydata/public-ui
+    # try_files {path} /index.html  
+    # file_server browse
+    
+    # Zamiast tego - konkretny błąd
+    handle {
+        respond "404 - Path not found: {path}" 404
+    }
+}

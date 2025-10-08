@@ -1,0 +1,654 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 90,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "right",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  time,\n  concat(toString(bucket), '–', toString(bucket + 10), '%') AS bucket_label,\n  count() AS cnt\nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS time,\n    \n    floor( if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent) / 10 ) * 10 AS bucket\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n    AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\n)\nGROUP BY time, bucket\nORDER BY time, bucket",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "SELECT\n  time,\n  concat(toString(bucket), '–', toString(bucket + 10), '%') AS bucket_label,\n  count() AS cnt\nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS time,\n    -- normalizacja do 0..100: jeśli wartości w 0..1 → mnożymy x100\n    floor( if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent) / 10 ) * 10 AS bucket\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64($from, 3, 'UTC')\n    AND timestamp <= toDateTime64($to,   3, 'UTC')\n)\nGROUP BY time, bucket\nORDER BY time, bucket",
+          "refId": "A",
+          "round": "0s",
+          "showFormattedSQL": true,
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "Histogram \"Time Series\" (Stacked)",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "colorByField": "time",
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        },
+        "xField": "events",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  JSONExtractString(d, 'category') AS category,\n  sum( toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) ) ) AS score_sum,\n  count() AS events\nFROM n8n_logs.events_processed\nARRAY JOIN JSONExtractArrayRaw(scoring_json, 'match_details') AS d\nWHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\nGROUP BY category\nORDER BY score_sum DESC NULLS LAST\nLIMIT 10",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "SELECT\n  JSONExtractString(d, 'category') AS category,\n  sum( toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) ) ) AS score_sum,\n  count() AS events\nFROM n8n_logs.events_processed\nARRAY JOIN JSONExtractArrayRaw(scoring_json, 'match_details') AS d\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to,   3, 'UTC')\nGROUP BY category\nORDER BY score_sum DESC NULLS LAST\nLIMIT 10",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "TOP-10 Detection Categories (Total Score)",
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 3,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "right",
+          "showLegend": false
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\n\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  'avg' AS metric,\n  avg(\n    greatest(\n      \n      least(100.0, greatest(0.0, if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent))),\n      \n      toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0))\n    )\n  ) AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759822937, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759909337,   3, 'UTC')\nGROUP BY time\n\nUNION ALL\n\n\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  'p95' AS metric,\n  quantileExact(0.95)(\n    greatest(\n      least(100.0, greatest(0.0, if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent))),\n      toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0))\n    )\n  ) AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759822937, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759909337,   3, 'UTC')\nGROUP BY time\n\nORDER BY time, metric",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "-- AVG\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  'avg' AS metric,\n  avg(\n    greatest(\n      -- pg_score_percent → 0..100\n      least(100.0, greatest(0.0, if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent))),\n      -- sanitizer_score z scoring_json (0..100)\n      toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0))\n    )\n  ) AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to,   3, 'UTC')\nGROUP BY time\n\nUNION ALL\n\n-- P95\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  'p95' AS metric,\n  quantileExact(0.95)(\n    greatest(\n      least(100.0, greatest(0.0, if(pg_score_percent <= 1, pg_score_percent * 100.0, pg_score_percent))),\n      toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0))\n    )\n  ) AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to,   3, 'UTC')\nGROUP BY time\n\nORDER BY time, metric",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "Maliciousness Trend — AVG & P95 Score",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "bars",
+            "fillOpacity": 90,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "right",
+          "showLegend": false
+        },
+        "timezone": [
+          "browser"
+        ],
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  time_label,              \n  block_rate_pct           \nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS bucket_ts,\n    formatDateTime(\n      toTimeZone(bucket_ts, 'Europe/Warsaw'),\n      '%Y-%m-%d %H:%M'\n    ) AS time_label,\n    (sum(final_status = 'BLOCKED') / count()) * 100.0 AS block_rate_pct\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n    AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\n  GROUP BY bucket_ts\n)\nORDER BY bucket_ts",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "SELECT\n  time_label,              -- kategoria na osi X\n  block_rate_pct           -- wartość słupka\nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS bucket_ts,\n    formatDateTime(\n      toTimeZone(bucket_ts, 'Europe/Warsaw'),\n      '%Y-%m-%d %H:%M'\n    ) AS time_label,\n    (sum(final_status = 'BLOCKED') / count()) * 100.0 AS block_rate_pct\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64($from, 3, 'UTC')\n    AND timestamp <= toDateTime64($to,   3, 'UTC')\n  GROUP BY bucket_ts\n)\nORDER BY bucket_ts",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "Block Rate % Over Time",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "time_series",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  final_status,\n  count() AS cnt\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\nGROUP BY time, final_status\nORDER BY time",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "SELECT\n  toStartOfMinute(timestamp) AS time,\n  final_status,\n  count() AS cnt\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to,   3, 'UTC')\nGROUP BY time, final_status\nORDER BY time",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "Volume + Decision Status (Stacked)",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "lg",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "12.1.1",
+      "targets": [
+        {
+          "adHocFilters": [],
+          "adHocValuesQuery": "",
+          "add_metadata": true,
+          "contextWindowSize": "10",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "deynclhe8wqv4c"
+          },
+          "editorMode": "builder",
+          "extrapolate": true,
+          "format": "table",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nWITH\n  JSONExtractArrayRaw(scoring_json, 'match_details') AS details,\n  arrayMap(\n    d -> (\n      JSONExtractString(d, 'category'),\n      toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) )\n    ),\n    details\n  ) AS catscores,\n  arraySort(x -> -x.2, catscores) AS sorted_catscores\nSELECT\n  \n  toTimeZone(timestamp, 'Europe/Warsaw')                        AS time,\n  JSONExtractString(pipeline_flow_json, 'input_raw')            AS original_prompt,\n  JSONExtractString(pipeline_flow_json, 'output_final')         AS output_after_decision,\n  final_status,\n  multiIf(\n    positionCaseInsensitive(final_action, 'SANITIZER')    > 0, 'SANITIZER',\n    positionCaseInsensitive(final_action, 'PROMPT_GUARD') > 0, 'PROMPT_GUARD',\n    final_action\n  )                                                             AS decision_source,\n  arrayStringConcat(\n    arraySlice(arrayMap(x -> x.1, sorted_catscores), 1, 2),\n    ' + '\n  )                                                             AS main_criteria\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759823003, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759909403,   3, 'UTC')\nORDER BY time DESC\nLIMIT 10",
+          "interval": "",
+          "intervalFactor": 1,
+          "nullifySparse": false,
+          "query": "WITH\n  JSONExtractArrayRaw(scoring_json, 'match_details') AS details,\n  arrayMap(\n    d -> (\n      JSONExtractString(d, 'category'),\n      toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) )\n    ),\n    details\n  ) AS catscores,\n  arraySort(x -> -x.2, catscores) AS sorted_catscores\nSELECT\n  -- tylko lokalny czas\n  toTimeZone(timestamp, 'Europe/Warsaw')                        AS time,\n  JSONExtractString(pipeline_flow_json, 'input_raw')            AS original_prompt,\n  JSONExtractString(pipeline_flow_json, 'output_final')         AS output_after_decision,\n  final_status,\n  multiIf(\n    positionCaseInsensitive(final_action, 'SANITIZER')    > 0, 'SANITIZER',\n    positionCaseInsensitive(final_action, 'PROMPT_GUARD') > 0, 'PROMPT_GUARD',\n    final_action\n  )                                                             AS decision_source,\n  arrayStringConcat(\n    arraySlice(arrayMap(x -> x.1, sorted_catscores), 1, 2),\n    ' + '\n  )                                                             AS main_criteria\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to,   3, 'UTC')\nORDER BY time DESC\nLIMIT 10",
+          "rawQuery": "/* grafana dashboard='Vigil', user='1' */\nWITH\n  JSONExtractArrayRaw(scoring_json, 'match_details') AS details,\n  arrayMap(\n    d -> (\n      JSONExtractString(d, 'category'),\n      toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) )\n    ),\n    details\n  ) AS catscores,\n  arraySort(x -> -x.2, catscores) AS sorted_catscores\nSELECT\n  \n  toTimeZone(timestamp, 'Europe/Warsaw')                        AS time,\n  JSONExtractString(pipeline_flow_json, 'input_raw')            AS original_prompt,\n  JSONExtractString(pipeline_flow_json, 'output_final')         AS output_after_decision,\n  final_status,\n  multiIf(\n    positionCaseInsensitive(final_action, 'SANITIZER')    > 0, 'SANITIZER',\n    positionCaseInsensitive(final_action, 'PROMPT_GUARD') > 0, 'PROMPT_GUARD',\n    final_action\n  )                                                             AS decision_source,\n  arrayStringConcat(\n    arraySlice(arrayMap(x -> x.1, sorted_catscores), 1, 2),\n    ' + '\n  )                                                             AS main_criteria\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759636658, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759658258,   3, 'UTC')\nORDER BY time DESC\nLIMIT 10",
+          "refId": "A",
+          "round": "0s",
+          "skip_comments": true,
+          "useWindowFuncForMacros": true
+        }
+      ],
+      "title": "Input/Output Processing Table",
+      "transparent": true,
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 41,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Vigil",
+  "uid": "6cf14bba-9b61-45d7-82c3-04e1005dea38",
+  "version": 17
+}

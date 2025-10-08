@@ -1,0 +1,16 @@
+@ui_api path /ui/api*
+handle @ui_api {
+  handle_path /ui/api* {
+    reverse_proxy local_backend:8787
+  }
+}
+
+@ui_front path /ui*
+handle @ui_front {
+  handle_path /ui* {
+    reverse_proxy local_frontend:5173
+  }
+}
+
+# pomocniczy redirect
+redir /ui /ui/

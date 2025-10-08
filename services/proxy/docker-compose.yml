@@ -1,0 +1,19 @@
+networks:
+  vigil-net:
+    external: true
+    name: vigil-net
+
+services:
+  vigil-caddy:
+    image: caddy:2-alpine
+    container_name: vigil-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # - "443:443"   # odkomentuj, jeśli dodasz domenę i chcesz TLS/LE
+    networks:
+      - vigil-net
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../vigil_data/caddy-data:/data
+      - ../../vigil_data/caddy-config:/config

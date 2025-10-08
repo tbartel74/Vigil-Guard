@@ -1,0 +1,85 @@
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# package-lock.json - REMOVED: Required for Docker builds with npm ci
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs
+logs/
+*.log
+audit.log
+production_install.log
+final_production_install.log
+dry_run*.log
+install*.log
+
+# Docker
+docker-compose.override.yml
+
+# Backup files
+*.bak
+*.backup
+*__*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.vite/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Vigil Guard Data Directory (persistent volumes)
+vigil_data/
+
+# LLM Models (must be downloaded separately)
+# Keep the directory structure but ignore model files
+Llama-Prompt-Guard-2-86M/*
+!Llama-Prompt-Guard-2-86M/DOWNLOAD_INSTRUCTIONS.md
+!Llama-Prompt-Guard-2-86M/.gitkeep
+!Llama-Prompt-Guard-2-86M/download-here.sh
+vigil-llm-models/
+
+# Claude Code artifacts
+.claude/
+CLAUDE.md

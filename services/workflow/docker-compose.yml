@@ -1,0 +1,36 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: vigil-n8n
+    user: "node"
+    working_dir: /home/node
+    restart: unless-stopped
+
+    environment:
+      - TZ=${TZ:-UTC}
+      - GENERIC_TIMEZONE=${TZ:-UTC}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - NODE_ENV=${NODE_ENV:-production}
+      - N8N_RELEASE_TYPE=${N8N_RELEASE_TYPE:-stable}
+
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+
+    volumes:
+      - ../../vigil_data/n8n:/home/node/.n8n
+      - ./config:/home/node/config:ro
+      - ./workflows:/home/node/workflows:ro
+
+    networks:
+      - vigil-net
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  vigil-net:
+    external: true
+    name: vigil-net
