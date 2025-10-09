@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import pipeline
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,6 +11,7 @@ app = FastAPI(title="Prompt Guard API")
 
 # Model załaduje się przy pierwszym uruchomieniu
 classifier = None
+mock_mode = os.getenv("MOCK_MODEL", "false").lower() == "true"
 
 class DetectRequest(BaseModel):
     text: str
@@ -17,6 +19,13 @@ class DetectRequest(BaseModel):
 @app.on_event("startup")
 async def load_model():
     global classifier
+
+    if mock_mode:
+        logger.warning("⚠️  MOCK_MODEL=true - Running in mock mode for testing")
+        logger.warning("⚠️  Mock classifier will return dummy responses")
+        classifier = "mock"  # Signal that we're in mock mode
+        return
+
     logger.info("Loading model from local directory...")
     try:
         classifier = pipeline(
@@ -36,12 +45,27 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "model_loaded": classifier is not None}
+    return {
+        "status": "healthy",
+        "model_loaded": classifier is not None,
+        "mock_mode": mock_mode
+    }
 
 @app.post("/detect")
 def detect(request: DetectRequest):
     if classifier is None:
         raise HTTPException(status_code=503, detail="Model not loaded - check volume configuration.")
+
+    # Mock mode: return deterministic dummy response
+    if mock_mode:
+        is_attack = "ignore" in request.text.lower() or "malicious" in request.text.lower()
+        return {
+            "text": request.text[:100],
+            "is_attack": is_attack,
+            "risk_score": 0.95 if is_attack else 0.01,
+            "confidence": 0.99,
+            "verdict": "ATTACK DETECTED (MOCK)" if is_attack else "SAFE (MOCK)"
+        }
 
     result = classifier(request.text)[0]
 

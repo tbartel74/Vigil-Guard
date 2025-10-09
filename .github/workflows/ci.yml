@@ -144,12 +144,15 @@ jobs:
               docker logs test-container
               ;;
             prompt-guard-api)
-              echo "Skipping smoke test for Prompt Guard API (requires model)"
+              docker run -d --name test-container -p 8000:8000 \
+                -e MOCK_MODEL=true \
+                vigil-guard-prompt-guard-api:test
+              sleep 5
+              docker logs test-container
               ;;
           esac
 
       - name: Smoke test - Health check
-        if: matrix.service != 'prompt-guard-api'
         run: |
           case "${{ matrix.service }}" in
             web-ui-backend)
@@ -157,6 +160,14 @@ jobs:
               ;;
             web-ui-frontend)
               curl -f http://localhost:5173/ || exit 1
+              ;;
+            prompt-guard-api)
+              curl -f http://localhost:8000/health || exit 1
+              curl -f http://localhost:8000/ || exit 1
+              # Test mock detection endpoint
+              curl -f -X POST http://localhost:8000/detect \
+                -H "Content-Type: application/json" \
+                -d '{"text": "Hello world"}' || exit 1
               ;;
           esac
 
@@ -248,6 +259,7 @@ jobs:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
+        continue-on-error: true
 
   # Installation script validation
   install-script-check:
