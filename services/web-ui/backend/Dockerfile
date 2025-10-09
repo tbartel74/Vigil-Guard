@@ -33,8 +33,9 @@ RUN npm install --only=production
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Create necessary directories
-RUN mkdir -p /config /app/logs
+# Create necessary directories with proper permissions
+RUN mkdir -p /config /app/logs /app/data && \
+    chown -R node:node /config /app
 
 # Expose port
 EXPOSE 8787
