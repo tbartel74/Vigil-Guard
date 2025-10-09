@@ -21,6 +21,7 @@ services:
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-n8n_logs}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-admin}
+      # trufflehog:ignore - Default password for local development, override via .env
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-admin123}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:-1}
     volumes:
@@ -42,6 +43,7 @@ services:
     environment:
       GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-vertamedia-clickhouse-datasource}
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      # trufflehog:ignore - Default Grafana password for local development, override via .env
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
       GF_SECURITY_ALLOW_EMBEDDING: ${GF_SECURITY_ALLOW_EMBEDDING:-true}
       GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-false}

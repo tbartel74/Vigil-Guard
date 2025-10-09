@@ -148,6 +148,7 @@ class UserDatabase {
     ).get('admin') as { count: number };
 
     if (adminExists.count === 0) {
+      // trufflehog:ignore - Default demo password, user prompted to change on first login
       const defaultPassword = 'admin123';
       const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 

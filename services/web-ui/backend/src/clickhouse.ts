@@ -8,6 +8,7 @@ export function getClickHouseClient(): ClickHouseClient {
     const port = process.env.CLICKHOUSE_PORT ? parseInt(process.env.CLICKHOUSE_PORT) : 8123;
     const database = process.env.CLICKHOUSE_DATABASE || 'n8n_logs';
     const username = process.env.CLICKHOUSE_USER || 'admin';
+    // trufflehog:ignore - Default ClickHouse password for local development
     const password = process.env.CLICKHOUSE_PASSWORD || 'admin123';
 
     clickhouseClient = createClient({

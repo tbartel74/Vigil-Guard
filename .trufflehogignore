@@ -1,0 +1,20 @@
+# =============================================================================
+# TruffleHog Ignore Patterns
+# =============================================================================
+# This file excludes known demo/development credentials from secret scanning.
+# These credentials are documented in docs/INSTALLATION.md and MUST be changed
+# in production environments (enforced by install.sh interactive prompts).
+# =============================================================================
+
+# Default admin credentials (demo/development only)
+admin123
+
+# ClickHouse default password (used in docker-compose.yml and config files)
+clickhouse.*admin123
+CLICKHOUSE_PASSWORD.*admin123
+
+# Documentation and example files containing demo credentials
+docs/.*admin123
+.env.example
+README.md
+QUICKSTART.md
