@@ -7,7 +7,7 @@ import { listFiles, readFileRaw, parseFile, saveChanges } from "./fileOps.js";
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats24h, getPromptList, getPromptDetails } from "./clickhouse.js";
+import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails } from "./clickhouse.js";
 
 const app = express();
 const PORT = 8787;
@@ -45,7 +45,9 @@ app.use("/api/auth", authRoutes);
 // Stats endpoint - requires authentication
 app.get("/api/stats/24h", authenticate, async (req, res) => {
   try {
-    const stats = await getQuickStats24h();
+    const timeRange = (req.query.timeRange as string) || '24h';
+    const interval = convertTimeRangeToInterval(timeRange);
+    const stats = await getQuickStats(interval);
     res.json(stats);
   } catch (e: any) {
     console.error("Error fetching stats from ClickHouse:", e);

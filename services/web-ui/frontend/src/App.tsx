@@ -17,6 +17,7 @@ export default function App() {
           {user?.can_manage_users && (
             <NavLink to="/administration" className={({ isActive }) => `px-3 py-2 rounded-lg ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Administration</NavLink>
           )}
+          <NavLink to="/help" className={({ isActive }) => `px-3 py-2 rounded-lg ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Help</NavLink>
         </nav>
       }
     >

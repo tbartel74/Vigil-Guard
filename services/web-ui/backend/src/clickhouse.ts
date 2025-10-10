@@ -30,7 +30,7 @@ export interface QuickStats {
   content_sanitized: number;
 }
 
-export async function getQuickStats24h(): Promise<QuickStats> {
+export async function getQuickStats(timeRange: string = '24 HOUR'): Promise<QuickStats> {
   const client = getClickHouseClient();
 
   try {
@@ -40,7 +40,7 @@ export async function getQuickStats24h(): Promise<QuickStats> {
         countIf(final_status = 'BLOCKED') AS threats_blocked,
         countIf(final_status = 'SANITIZED') AS content_sanitized
       FROM n8n_logs.events_processed
-      WHERE timestamp >= now() - INTERVAL 24 HOUR
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
     `;
 
     const resultSet = await client.query({
@@ -69,6 +69,11 @@ export async function getQuickStats24h(): Promise<QuickStats> {
       content_sanitized: 0,
     };
   }
+}
+
+// Keep old function name for backward compatibility (will be deprecated)
+export async function getQuickStats24h(): Promise<QuickStats> {
+  return getQuickStats('24 HOUR');
 }
 
 export interface PromptDetails {

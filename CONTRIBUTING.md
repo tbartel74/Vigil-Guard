@@ -175,7 +175,7 @@ When adding new features:
 1. **Update relevant documentation** in `docs/`
 2. **Add inline code comments** for complex logic
 3. **Update API documentation** if adding/modifying endpoints
-4. **Update CLAUDE.md** if changing architecture
+4. **Update architecture documentation** if changing architecture
 
 ## 🐛 Bug Reports
 

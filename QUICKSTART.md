@@ -197,7 +197,7 @@ lsof -i :3001  # Grafana
 - **Documentation**: [docs/README.md](docs/README.md)
 - **Scripts Guide**: [scripts/README.md](scripts/README.md)
 - **Architecture**: [docs/technical/architecture.md](docs/technical/architecture.md)
-- **Issues**: [GitHub Issues](https://github.com/your-org/vigil-guard/issues)
+- **Issues**: [GitHub Issues](https://github.com/tbartel74/Vigil-Guard/issues)
 
 ## 🎯 Development Mode
 

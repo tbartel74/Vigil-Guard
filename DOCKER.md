@@ -334,5 +334,5 @@ docker-compose exec web-ui-backend sh -c 'touch /app/data/test && rm /app/data/t
 
 For issues and questions:
 - Documentation: [docs/](./docs/)
-- GitHub Issues: [Report Issue](https://github.com/your-org/vigil-guard/issues)
+- GitHub Issues: [Report Issue](https://github.com/tbartel74/Vigil-Guard/issues)
 - Authentication Guide: [docs/AUTHENTICATION.md](./docs/AUTHENTICATION.md)

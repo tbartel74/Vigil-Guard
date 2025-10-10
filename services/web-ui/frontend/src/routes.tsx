@@ -8,6 +8,7 @@ import PromptAnalyzer from "./components/PromptAnalyzer";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
+import Documentation from "./components/Documentation";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import * as api from "./lib/api";
 
@@ -21,7 +22,7 @@ const Monitoring = () => {
   // Fetch stats from API
   const fetchStats = async () => {
     try {
-      const data = await api.fetchStats24h();
+      const data = await api.fetchStats24h(timeRange);
       setStats({
         requests_processed: Number(data.requests_processed) || 0,
         threats_blocked: Number(data.threats_blocked) || 0,
@@ -40,7 +41,7 @@ const Monitoring = () => {
     setPromptGuardStatus(isHealthy ? 'active' : 'down');
   };
 
-  // Fetch stats on mount and when refreshInterval changes
+  // Fetch stats on mount and when refreshInterval or timeRange changes
   React.useEffect(() => {
     fetchStats();
     checkPromptGuard();
@@ -52,7 +53,7 @@ const Monitoring = () => {
       }, refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [refreshInterval]);
+  }, [refreshInterval, timeRange]);
 
   return (
     <div className="p-8">
@@ -228,7 +229,13 @@ const Monitoring = () => {
       <div className="rounded-2xl border border-slate-700 p-4">
         <div className="mb-4">
           <h3 className="text-md font-semibold text-white">Quick Stats</h3>
-          <p className="text-xs text-slate-400">Last 24 hours</p>
+          <p className="text-xs text-slate-400">
+            {timeRange === '1h' && 'Last 1 hour'}
+            {timeRange === '6h' && 'Last 6 hours'}
+            {timeRange === '12h' && 'Last 12 hours'}
+            {timeRange === '24h' && 'Last 24 hours'}
+            {timeRange === '7d' && 'Last 7 days'}
+          </p>
         </div>
         <div className="bg-slate-900/50 rounded-lg p-4">
           {statsLoading ? (
@@ -304,7 +311,8 @@ export const router = createBrowserRouter(
           ]
         },
         { path: "/administration", element: <UserManagement /> },
-        { path: "/settings", element: <Settings /> }
+        { path: "/settings", element: <Settings /> },
+        { path: "/help", element: <Documentation /> }
       ]
     },
     {

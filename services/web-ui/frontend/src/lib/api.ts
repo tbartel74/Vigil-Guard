@@ -148,8 +148,11 @@ export async function updateSettings(settings: { timezone: string }) {
   return r.json();
 }
 
-export async function fetchStats24h() {
-  const r = await authenticatedFetch(`${API}/stats/24h`);
+export async function fetchStats24h(timeRange?: string) {
+  const url = timeRange
+    ? `${API}/stats/24h?timeRange=${encodeURIComponent(timeRange)}`
+    : `${API}/stats/24h`;
+  const r = await authenticatedFetch(url);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

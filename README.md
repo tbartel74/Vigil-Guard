@@ -86,7 +86,7 @@ vigil-guard/
 
 ```bash
 # Clone the repository first
-git clone https://github.com/your-org/vigil-guard.git
+git clone https://github.com/tbartel74/Vigil-Guard.git
 cd vigil-guard
 
 # Run the automated download script
@@ -422,7 +422,7 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 ## 🆘 Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-org/vigil-guard/issues)
+- **Issues**: [GitHub Issues](https://github.com/tbartel74/Vigil-Guard/issues)
 - **Security**: Report security vulnerabilities privately
 
 ## 🙏 Acknowledgments
