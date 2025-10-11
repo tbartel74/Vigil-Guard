@@ -185,16 +185,14 @@
       "options": {
         "barRadius": 0,
         "barWidth": 0.97,
-        "colorByField": "time",
+        "colorByField": "score_sum",
         "fullHighlight": false,
         "groupWidth": 0.7,
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
+          "calcs": [],
+          "displayMode": "hidden",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "orientation": "auto",
         "showValue": "auto",
@@ -204,8 +202,8 @@
           "mode": "single",
           "sort": "none"
         },
-        "xField": "events",
-        "xTickLabelRotation": 0,
+        "xField": "category",
+        "xTickLabelRotation": -45,
         "xTickLabelSpacing": 0
       },
       "pluginVersion": "12.1.1",
@@ -217,7 +215,7 @@
           "contextWindowSize": "10",
           "editorMode": "builder",
           "extrapolate": true,
-          "format": "time_series",
+          "format": "table",
           "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  JSONExtractString(d, 'category') AS category,\n  sum( toInt32( ifNull(JSONExtract(d, 'score', 'Int32'), 0) ) ) AS score_sum,\n  count() AS events\nFROM n8n_logs.events_processed\nARRAY JOIN JSONExtractArrayRaw(scoring_json, 'match_details') AS d\nWHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\nGROUP BY category\nORDER BY score_sum DESC NULLS LAST\nLIMIT 10",
           "interval": "",
           "intervalFactor": 1,
@@ -409,7 +407,7 @@
         "legend": {
           "calcs": [],
           "displayMode": "hidden",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": false
         },
         "timezone": [
@@ -431,11 +429,11 @@
           "editorMode": "builder",
           "extrapolate": true,
           "format": "time_series",
-          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  time_label,              \n  block_rate_pct           \nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS bucket_ts,\n    formatDateTime(\n      toTimeZone(bucket_ts, 'Europe/Warsaw'),\n      '%Y-%m-%d %H:%M'\n    ) AS time_label,\n    (sum(final_status = 'BLOCKED') / count()) * 100.0 AS block_rate_pct\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n    AND timestamp <= toDateTime64(1759908315,   3, 'UTC')\n  GROUP BY bucket_ts\n)\nORDER BY bucket_ts",
+          "formattedQuery": "/* grafana dashboard='Vigil', user=1 */\nSELECT\n  toStartOfMinute(timestamp) AS time,\n  'Block Rate %' AS metric,\n  (sum(final_status = 'BLOCKED') / count()) * 100.0 AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64(1759821915, 3, 'UTC')\n  AND timestamp <= toDateTime64(1759908315, 3, 'UTC')\nGROUP BY time\nORDER BY time",
           "interval": "",
           "intervalFactor": 1,
           "nullifySparse": false,
-          "query": "SELECT\n  time_label,              -- kategoria na osi X\n  block_rate_pct           -- wartość słupka\nFROM\n(\n  SELECT\n    toStartOfMinute(timestamp) AS bucket_ts,\n    formatDateTime(\n      toTimeZone(bucket_ts, 'Europe/Warsaw'),\n      '%Y-%m-%d %H:%M'\n    ) AS time_label,\n    (sum(final_status = 'BLOCKED') / count()) * 100.0 AS block_rate_pct\n  FROM n8n_logs.events_processed\n  WHERE timestamp >= toDateTime64($from, 3, 'UTC')\n    AND timestamp <= toDateTime64($to,   3, 'UTC')\n  GROUP BY bucket_ts\n)\nORDER BY bucket_ts",
+          "query": "SELECT\n  toStartOfMinute(timestamp) AS time,\n  'Block Rate %' AS metric,\n  (sum(final_status = 'BLOCKED') / count()) * 100.0 AS value\nFROM n8n_logs.events_processed\nWHERE timestamp >= toDateTime64($from, 3, 'UTC')\n  AND timestamp <= toDateTime64($to, 3, 'UTC')\nGROUP BY time\nORDER BY time",
           "refId": "A",
           "round": "0s",
           "skip_comments": true,
@@ -465,7 +463,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -483,7 +481,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -504,7 +502,53 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ALLOWED"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SANITIZED"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BLOCKED"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -516,13 +560,13 @@
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "table",
+          "displayMode": "hidden",
           "placement": "right",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
