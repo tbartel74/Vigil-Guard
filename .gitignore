@@ -53,6 +53,7 @@ docker-compose.override.yml
 *.bak
 *.backup
 *__*
+backup/
 
 # Temporary files
 *.tmp
