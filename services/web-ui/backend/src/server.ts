@@ -22,7 +22,7 @@ app.use(session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+}) as express.RequestHandler);
 
 // Browser origin will be http://localhost (Caddy on :80)
 // We also allow :8080 in case you expose a dev-port
