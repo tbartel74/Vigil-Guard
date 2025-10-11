@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as api from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import { formatTimestamp, formatTimestampCompact } from '../lib/dateUtils';
 
 interface PromptListItem {
   id: string;
@@ -25,11 +27,15 @@ interface PromptAnalyzerProps {
 }
 
 export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
+  const { user } = useAuth();
   const [promptList, setPromptList] = useState<PromptListItem[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [promptDetails, setPromptDetails] = useState<PromptDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Get user's timezone preference, default to UTC
+  const userTimezone = user?.timezone || 'UTC';
 
   // Fetch list of prompts when timeRange changes
   useEffect(() => {
@@ -143,7 +149,7 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
           ) : (
             promptList.map((prompt) => (
               <option key={prompt.id} value={prompt.id}>
-                [{new Date(prompt.timestamp).toLocaleString()}] {getStatusIcon(prompt.final_status)} {prompt.preview}...
+                [{formatTimestampCompact(prompt.timestamp, userTimezone)}] {getStatusIcon(prompt.final_status)} {prompt.preview}...
               </option>
             ))
           )}
@@ -171,7 +177,7 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
           <div className="grid grid-cols-2 gap-4 p-3 bg-slate-900/50 rounded-lg">
             <div>
               <span className="text-xs text-slate-400">Timestamp:</span>
-              <p className="text-sm text-white">{new Date(promptDetails.timestamp).toLocaleString()}</p>
+              <p className="text-sm text-white">{formatTimestamp(promptDetails.timestamp, userTimezone)}</p>
             </div>
             <div>
               <span className="text-xs text-slate-400">Event ID:</span>
@@ -187,7 +193,7 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
             </div>
             <div>
               <span className="text-xs text-slate-400">Prompt Guard Score:</span>
-              <p className="text-sm text-white">{(promptDetails.pg_score_percent * 100).toFixed(2)}%</p>
+              <p className="text-sm text-white">{promptDetails.pg_score_percent.toFixed(2)}%</p>
             </div>
             <div>
               <span className="text-xs text-slate-400">Sanitizer Score:</span>

@@ -106,7 +106,7 @@ export async function getPromptList(timeRange: string): Promise<PromptListItem[]
     const query = `
       SELECT
         concat(sessionId, '-', toString(toUnixTimestamp64Milli(ts))) AS id,
-        formatDateTime(ts, '%Y-%m-%d %H:%i:%S') AS timestamp,
+        concat(formatDateTime(ts, '%Y-%m-%dT%H:%i:%S'), 'Z') AS timestamp,
         final_status,
         substring(JSONExtractString(pipeline_flow_json, 'input_raw'), 1, 100) AS preview
       FROM (
@@ -153,7 +153,7 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
     const query = `
       SELECT
         concat(sessionId, '-', toString(toUnixTimestamp64Milli(ts))) AS id,
-        formatDateTime(ts, '%Y-%m-%d %H:%i:%S') AS timestamp,
+        concat(formatDateTime(ts, '%Y-%m-%dT%H:%i:%S'), 'Z') AS timestamp,
         input_raw,
         output_final,
         final_status,
