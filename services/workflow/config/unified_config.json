@@ -117,9 +117,10 @@
     ]
   },
   "bloom_decisions": {
-    "route_to_ac_threshold": 10,
+    "route_to_ac_threshold": 15,
     "hard_block_threshold": 50,
-    "require_zusatz_signals": true
+    "require_zusatz_signals": true,
+    "phrase_match_bonus": 20
   },
   "created": "2025-09-29",
   "description": "Unified policy. Patterns and scoring ranges are loaded from rules.config.json and thresholds.config.json.",

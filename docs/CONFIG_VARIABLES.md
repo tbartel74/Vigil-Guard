@@ -27,9 +27,10 @@ description: "Early detection thresholds for suspicious patterns"
 
 | Setting | Field | Default | Range | Description |
 |---------|-------|---------|-------|-------------|
-| **Route to Additional Checks** | `route_to_ac_threshold` | 10 | 0-100 | % match to trigger extra validation |
+| **Route to Additional Checks** | `route_to_ac_threshold` | 15 | 0-100 | % match to trigger extra validation |
 | **Immediate Block** | `hard_block_threshold` | 50 | 0-100 | % match to block immediately |
 | **Require Additional Signals** | `require_zusatz_signals` | true | boolean | Need multiple indicators to block |
+| **Phrase Match Bonus** | `phrase_match_bonus` | 20 | 0-100 | Points added per exact phrase match |
 
 ---
 

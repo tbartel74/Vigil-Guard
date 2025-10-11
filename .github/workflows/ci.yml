@@ -238,10 +238,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            services/web-ui/backend/package-lock.json
-            services/web-ui/frontend/package-lock.json
 
       - name: Backend security audit
         working-directory: services/web-ui/backend

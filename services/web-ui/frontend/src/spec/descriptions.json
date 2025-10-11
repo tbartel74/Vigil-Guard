@@ -59,6 +59,12 @@
     "impact": "High",
     "category": "Early Detection"
   },
+  "BLOOM_PHRASE_BONUS": {
+    "title": "Bloom Filter Phrase Match Bonus",
+    "description": "Points (0-100) added to suspicious score for each exact dangerous phrase match. Higher values make phrase detection more aggressive. Each matched phrase adds this many points to the total score.",
+    "impact": "Medium",
+    "category": "Early Detection"
+  },
   "BLOOM_M": {
     "title": "Bloom Filter Size",
     "description": "Bits allocated (8192-131072) for bloom filter. Larger sizes reduce false positives but use more memory.",
