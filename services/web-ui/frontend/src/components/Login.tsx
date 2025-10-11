@@ -33,7 +33,7 @@ export function Login() {
           {/* Logo Section */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">
             <img
-              src="/ui/vigil_logo.jpg"
+              src="/ui/vigil_logo.png"
               alt="Vigil Guard"
               className="w-32 h-32 mx-auto rounded-full shadow-lg mb-4 object-cover"
             />

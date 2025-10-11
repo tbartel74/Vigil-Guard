@@ -1,8 +1,12 @@
-# Vigil Guard
+<div align="center">
+  <img src="./vigil_logo.png" alt="Vigil Guard Logo" width="200" height="200" />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/docker-required-blue)](https://www.docker.com/)
+  # Vigil Guard
+
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+  [![Docker](https://img.shields.io/badge/docker-required-blue)](https://www.docker.com/)
+</div>
 
 > **Enterprise-grade prompt injection detection and defense platform with real-time monitoring and configuration management for Large Language Model applications.**
 

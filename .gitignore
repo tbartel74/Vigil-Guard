@@ -83,3 +83,9 @@ vigil-llm-models/
 # Claude Code artifacts
 .claude/
 CLAUDE.md
+
+# Project management and scripts (not for repository)
+IMPLEMENTATION_TODO.md
+update_logo.sh
+logo_backup_*/
+vigil_logo_new.png

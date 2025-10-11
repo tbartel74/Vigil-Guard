@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import vigilLogo from "../assets/vigil_logo.jpg";
+import vigilLogo from "../assets/vigil_logo.png";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
