@@ -181,8 +181,8 @@ VITE_GRAFANA_URL=http://localhost:3001
 
 ```bash
 # Copy logo from project root
-cp ../logo/vigil_logo.png public/
-cp ../logo/vigil_logo.png src/assets/
+cp ../docs/pic/vigil_logo.png public/
+cp ../docs/pic/vigil_logo.png src/assets/
 
 # Verify assets
 ls -la public/ src/assets/

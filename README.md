@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./vigil_logo.png" alt="Vigil Guard Logo" width="200" height="200" />
+  <img src="./docs/pic/vigil_logo.png" alt="Vigil Guard Logo" width="200" height="200" />
 
   # Vigil Guard
 
@@ -30,12 +30,12 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 ### n8n Workflow Pipeline
 The complete processing pipeline with 34 nodes handling threat detection, sanitization, and logging:
 
-![n8n Workflow Pipeline](docs/screenshots/workflow-pipeline.png)
+![n8n Workflow Pipeline](docs/pic/workflow-pipeline.png)
 
 ### Monitoring Dashboard
 Real-time analytics with Grafana dashboards showing threat detection, processing volumes, and system health:
 
-![Monitoring Dashboard](docs/screenshots/monitoring-dashboard.png)
+![Monitoring Dashboard](docs/pic/monitoring-dashboard.png)
 
 ## 📁 Project Structure
 
