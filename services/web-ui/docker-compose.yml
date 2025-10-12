@@ -9,9 +9,8 @@ services:
   vigil-web-ui-frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: vigil-web-ui-frontend
-    command: ["npm","run","dev","--","--host","0.0.0.0"]
     ports:
       - "5173:5173"
     volumes:
