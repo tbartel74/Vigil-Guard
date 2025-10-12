@@ -25,6 +25,18 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 - 📈 **ClickHouse Logging** - High-performance data storage and analytics
 - 🎯 **Risk-based Actions** - ALLOW, SANITIZE (Light/Heavy), BLOCK decisions
 
+## 📸 Visual Overview
+
+### n8n Workflow Pipeline
+The complete processing pipeline with 34 nodes handling threat detection, sanitization, and logging:
+
+![n8n Workflow Pipeline](docs/screenshots/workflow-pipeline.png)
+
+### Monitoring Dashboard
+Real-time analytics with Grafana dashboards showing threat detection, processing volumes, and system health:
+
+![Monitoring Dashboard](docs/screenshots/monitoring-dashboard.png)
+
 ## 📁 Project Structure
 
 ```
