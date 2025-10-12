@@ -194,7 +194,7 @@
           "placement": "bottom",
           "showLegend": false
         },
-        "orientation": "auto",
+        "orientation": "horizontal",
         "showValue": "auto",
         "stacking": "none",
         "tooltip": {
@@ -203,7 +203,7 @@
           "sort": "none"
         },
         "xField": "category",
-        "xTickLabelRotation": -45,
+        "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
       },
       "pluginVersion": "12.1.1",
