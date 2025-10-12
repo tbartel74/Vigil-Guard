@@ -37,9 +37,16 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
   // Get user's timezone preference, default to UTC
   const userTimezone = user?.timezone || 'UTC';
 
-  // Fetch list of prompts when timeRange changes
+  // Fetch list of prompts when timeRange changes or every 10 seconds
   useEffect(() => {
     fetchPromptList();
+
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(() => {
+      fetchPromptList();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [timeRange]);
 
   // Fetch details when selected prompt changes
@@ -212,7 +219,7 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
           </div>
 
           {/* Output after processing */}
-          {promptDetails.output_final && promptDetails.output_final !== promptDetails.input_raw && (
+          {promptDetails.output_final && (promptDetails.final_status === 'SANITIZED' || promptDetails.output_final !== promptDetails.input_raw) && (
             <div>
               <label className="text-xs text-slate-400 block mb-2">
                 Output After Decision {promptDetails.final_status === 'SANITIZED' && '(Sanitized)'}
