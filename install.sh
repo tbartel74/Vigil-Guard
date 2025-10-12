@@ -257,13 +257,19 @@ start_all_services() {
 initialize_clickhouse() {
     print_header "6/8 Initializing ClickHouse Database"
 
-    # Load ClickHouse credentials from .env
+    # Load ClickHouse configuration from .env
     if [ -f .env ]; then
+        CLICKHOUSE_CONTAINER_NAME=$(grep "^CLICKHOUSE_CONTAINER_NAME=" .env | cut -d'=' -f2)
         CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
         CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+        CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
+        CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
     fi
+    CLICKHOUSE_CONTAINER_NAME=${CLICKHOUSE_CONTAINER_NAME:-vigil-clickhouse}
     CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
     CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+    CLICKHOUSE_DB=${CLICKHOUSE_DB:-n8n_logs}
+    CLICKHOUSE_HTTP_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
 
     log_info "Waiting for ClickHouse to be ready..."
 
@@ -271,7 +277,7 @@ initialize_clickhouse() {
     RETRY_COUNT=0
     MAX_RETRIES=30
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        if curl -s -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} "http://localhost:8123/ping" >/dev/null 2>&1; then
+        if curl -s -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} "http://localhost:${CLICKHOUSE_HTTP_PORT}/ping" >/dev/null 2>&1; then
             log_success "ClickHouse is ready"
             break
         fi
@@ -285,9 +291,9 @@ initialize_clickhouse() {
     done
 
     # Create database
-    log_info "Creating n8n_logs database..."
-    if docker exec -i vigil-clickhouse clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF >/dev/null 2>&1
-CREATE DATABASE IF NOT EXISTS n8n_logs;
+    log_info "Creating ${CLICKHOUSE_DB} database..."
+    if docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF >/dev/null 2>&1
+CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
 EOF
     then
         log_success "Database created"
@@ -298,7 +304,7 @@ EOF
 
     # Execute table creation script
     log_info "Creating tables..."
-    if cat services/monitoring/sql/01-create-tables.sql | docker exec -i vigil-clickhouse clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    if cat services/monitoring/sql/01-create-tables.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
         log_success "Tables created"
     else
         log_error "Failed to create tables"
@@ -307,7 +313,7 @@ EOF
 
     # Execute views creation script
     log_info "Creating views..."
-    if cat services/monitoring/sql/02-create-views.sql | docker exec -i vigil-clickhouse clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    if cat services/monitoring/sql/02-create-views.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
         log_success "Views created"
     else
         log_error "Failed to create views"
@@ -316,7 +322,7 @@ EOF
 
     # Verify installation
     log_info "Verifying database structure..."
-    TABLE_COUNT=$(docker exec vigil-clickhouse clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --database n8n_logs -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
+    TABLE_COUNT=$(docker exec $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --database $CLICKHOUSE_DB -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
     if [ "$TABLE_COUNT" -ge 5 ]; then
         log_success "ClickHouse initialized successfully ($TABLE_COUNT tables/views)"
@@ -331,11 +337,15 @@ EOF
 initialize_grafana() {
     print_header "7/8 Initializing Grafana"
 
-    # Load Grafana password from .env
+    # Load Grafana configuration from .env
     if [ -f .env ]; then
+        GRAFANA_CONTAINER_NAME=$(grep "^GRAFANA_CONTAINER_NAME=" .env | cut -d'=' -f2)
         GRAFANA_PASSWORD=$(grep "^GF_SECURITY_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+        GRAFANA_PORT=$(grep "^GRAFANA_PORT=" .env | cut -d'=' -f2)
     fi
+    GRAFANA_CONTAINER_NAME=${GRAFANA_CONTAINER_NAME:-vigil-grafana}
     GRAFANA_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    GRAFANA_PORT=${GRAFANA_PORT:-3001}
 
     log_info "Waiting for Grafana to be ready..."
     sleep 15
@@ -345,7 +355,7 @@ initialize_grafana() {
     RETRY_COUNT=0
     MAX_RETRIES=10
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:${GRAFANA_PORT}/api/health | grep -q "200"; then
             log_success "Grafana is ready"
             break
         fi
@@ -360,7 +370,7 @@ initialize_grafana() {
 
     # Reset admin password to ensure it matches .env
     log_info "Setting Grafana admin password..."
-    if docker exec vigil-grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" >/dev/null 2>&1; then
+    if docker exec $GRAFANA_CONTAINER_NAME grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" >/dev/null 2>&1; then
         log_success "Admin password configured"
     else
         log_warning "Failed to set admin password (may already be set correctly)"
@@ -369,7 +379,7 @@ initialize_grafana() {
     # Verify datasource provisioning
     log_info "Verifying ClickHouse datasource..."
     sleep 5
-    DATASOURCE_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" http://localhost:3001/api/datasources/name/ClickHouse 2>/dev/null)
+    DATASOURCE_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" http://localhost:${GRAFANA_PORT}/api/datasources/name/ClickHouse 2>/dev/null)
     if echo "$DATASOURCE_CHECK" | grep -q "ClickHouse"; then
         log_success "ClickHouse datasource provisioned successfully"
     else
@@ -378,7 +388,7 @@ initialize_grafana() {
 
     # Verify dashboard provisioning
     log_info "Verifying Vigil dashboard..."
-    DASHBOARD_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" 'http://localhost:3001/api/search?type=dash-db' 2>/dev/null)
+    DASHBOARD_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" "http://localhost:${GRAFANA_PORT}/api/search?type=dash-db" 2>/dev/null)
     if echo "$DASHBOARD_CHECK" | grep -q "Vigil"; then
         log_success "Vigil dashboard provisioned successfully"
     else
@@ -479,14 +489,36 @@ verify_services() {
 show_summary() {
     print_header "Installation Complete!"
 
+    # Load configuration from .env for display
+    if [ -f .env ]; then
+        FRONTEND_PORT=$(grep "^FRONTEND_PORT=" .env | cut -d'=' -f2)
+        BACKEND_PORT=$(grep "^BACKEND_PORT=" .env | cut -d'=' -f2)
+        N8N_PORT=$(grep "^N8N_PORT=" .env | cut -d'=' -f2)
+        GRAFANA_PORT=$(grep "^GRAFANA_PORT=" .env | cut -d'=' -f2)
+        CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
+        CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
+        CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+        CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
+        GF_SECURITY_ADMIN_PASSWORD=$(grep "^GF_SECURITY_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+    fi
+    FRONTEND_PORT=${FRONTEND_PORT:-5173}
+    BACKEND_PORT=${BACKEND_PORT:-8787}
+    N8N_PORT=${N8N_PORT:-5678}
+    GRAFANA_PORT=${GRAFANA_PORT:-3001}
+    CLICKHOUSE_HTTP_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
+    CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
+    CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+    CLICKHOUSE_DB=${CLICKHOUSE_DB:-n8n_logs}
+    GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+
     echo -e "${GREEN}All components have been installed and started!${NC}"
     echo ""
     echo "Access points:"
-    echo -e "  ${BLUE}•${NC} Web UI:            ${GREEN}http://localhost:5173/ui${NC}"
-    echo -e "  ${BLUE}•${NC} Web UI API:        ${GREEN}http://localhost:8787/api${NC}"
-    echo -e "  ${BLUE}•${NC} n8n Workflow:      ${GREEN}http://localhost:5678${NC}"
-    echo -e "  ${BLUE}•${NC} Grafana Dashboard: ${GREEN}http://localhost:3001${NC}"
-    echo -e "  ${BLUE}•${NC} ClickHouse HTTP:   ${GREEN}http://localhost:8123${NC}"
+    echo -e "  ${BLUE}•${NC} Web UI:            ${GREEN}http://localhost:${FRONTEND_PORT}/ui${NC}"
+    echo -e "  ${BLUE}•${NC} Web UI API:        ${GREEN}http://localhost:${BACKEND_PORT}/api${NC}"
+    echo -e "  ${BLUE}•${NC} n8n Workflow:      ${GREEN}http://localhost:${N8N_PORT}${NC}"
+    echo -e "  ${BLUE}•${NC} Grafana Dashboard: ${GREEN}http://localhost:${GRAFANA_PORT}${NC}"
+    echo -e "  ${BLUE}•${NC} ClickHouse HTTP:   ${GREEN}http://localhost:${CLICKHOUSE_HTTP_PORT}${NC}"
     echo ""
     echo -e "${YELLOW}⚠️  Default Credentials:${NC}"
     echo ""
@@ -497,14 +529,14 @@ show_summary() {
     echo ""
     echo -e "  ${GREEN}Grafana:${NC}"
     echo -e "    Username: ${BLUE}admin${NC}"
-    echo -e "    Password: ${BLUE}admin${NC} (from .env: GF_SECURITY_ADMIN_PASSWORD)"
+    echo -e "    Password: ${BLUE}${GF_SECURITY_ADMIN_PASSWORD}${NC} (from .env: GF_SECURITY_ADMIN_PASSWORD)"
     echo -e "    Datasource: ${GREEN}ClickHouse (auto-configured)${NC}"
     echo -e "    Dashboard: ${GREEN}Vigil (auto-imported)${NC}"
     echo ""
     echo -e "  ${GREEN}ClickHouse:${NC}"
-    echo -e "    Username: ${BLUE}admin${NC}"
-    echo -e "    Password: ${BLUE}admin123${NC}"
-    echo -e "    Database: ${BLUE}n8n_logs${NC}"
+    echo -e "    Username: ${BLUE}${CLICKHOUSE_USER}${NC}"
+    echo -e "    Password: ${BLUE}${CLICKHOUSE_PASSWORD}${NC}"
+    echo -e "    Database: ${BLUE}${CLICKHOUSE_DB}${NC}"
     echo ""
     echo "Useful commands:"
     echo -e "  ${BLUE}•${NC} Check all services:      ${YELLOW}docker-compose ps${NC}"
