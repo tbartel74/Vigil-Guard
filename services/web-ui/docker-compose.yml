@@ -1,3 +1,5 @@
+name: vigil-guard
+
 networks:
   vigil-net:
     external: true

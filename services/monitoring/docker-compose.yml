@@ -1,3 +1,5 @@
+name: vigil-guard
+
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.1

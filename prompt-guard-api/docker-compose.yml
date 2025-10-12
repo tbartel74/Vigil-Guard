@@ -1,3 +1,5 @@
+name: vigil-guard
+
 services:
   vigil-prompt-guard-api:
     build: .
