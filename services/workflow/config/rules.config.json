@@ -373,7 +373,14 @@
         "\\bGODMODE ACTIVE\\b",
         "\\bGODMODE protocol\\b",
         "\\bGODMODE MINI\\b",
-        "\\bUNIVERSAL JAILBREAK\\b"
+        "\\bUNIVERSAL JAILBREAK\\b",
+        "\\bG[O0][D][M][O0]D[E3]\\s*:?\\s*[E3]N[A4]BL[E3]D\\b",
+        "\\bG[O0][D][M][O0]D[E3]\\s*[A4]CT[I1]V[E3]\\b",
+        "\\b[G6][O0][D][M][O0]D[E3]\\b",
+        "\\bL[O0]V[E3]\\s+PL[I1]NY\\b",
+        "\\b[I1]['\\s]*M\\s+FR[E3][E3]\\b",
+        "\\b[A4]CT\\s+[A4]S\\s+D[A4]N\\b",
+        "\\bPWN[E3]D\\b"
       ]
     },
     "PROMPT_TEMPLATING_MARKERS": {
