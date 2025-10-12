@@ -218,27 +218,24 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
             </div>
           </div>
 
-          {/* Output after processing */}
-          {promptDetails.output_final && (
-            promptDetails.final_status === 'BLOCKED' ||
-            promptDetails.final_status === 'SANITIZED' ||
-            (promptDetails.final_status === 'ALLOWED' && promptDetails.output_final !== promptDetails.input_raw)
-          ) && (
-            <div>
-              <label className="text-xs text-slate-400 block mb-2">
-                Output After Decision {promptDetails.final_status === 'SANITIZED' ? '(Sanitized)' : promptDetails.final_status === 'BLOCKED' ? '(Blocked)' : ''}
-              </label>
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-y-auto">
-                <pre className={`text-sm whitespace-pre-wrap font-mono ${
-                  promptDetails.final_status === 'BLOCKED' ? 'text-red-300' :
-                  promptDetails.final_status === 'SANITIZED' ? 'text-yellow-300' :
-                  'text-green-300'
-                }`}>
-                  {promptDetails.output_final}
-                </pre>
-              </div>
+          {/* Output after processing - ALWAYS SHOW */}
+          <div>
+            <label className="text-xs text-slate-400 block mb-2">
+              Output After Decision
+              {promptDetails.final_status === 'ALLOWED' && ' (Allowed - No Changes)'}
+              {promptDetails.final_status === 'SANITIZED' && ' (Sanitized - Content Modified)'}
+              {promptDetails.final_status === 'BLOCKED' && ' (Blocked - Request Rejected)'}
+            </label>
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-y-auto">
+              <pre className={`text-sm whitespace-pre-wrap font-mono ${
+                promptDetails.final_status === 'BLOCKED' ? 'text-red-400' :
+                promptDetails.final_status === 'SANITIZED' ? 'text-yellow-400' :
+                'text-green-400'
+              }`}>
+                {promptDetails.output_final || promptDetails.input_raw}
+              </pre>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
