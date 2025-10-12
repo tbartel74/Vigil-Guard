@@ -29,7 +29,9 @@ services:
       - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
       - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/02-create-views.sql:ro
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - clickhouse
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
@@ -53,7 +55,9 @@ services:
       - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./vigil_data/grafana:/var/lib/grafana
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - grafana
     restart: unless-stopped
     depends_on:
       - clickhouse
@@ -85,7 +89,9 @@ services:
       - ./services/workflow/config:/home/node/config:ro
       - ./services/workflow/workflows:/home/node/workflows:ro
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - n8n
     depends_on:
       - clickhouse
     healthcheck:
@@ -119,7 +125,9 @@ services:
       - ./services/workflow/config:/config:rw
       - ./vigil_data/web-ui:/app/data
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - web-ui-backend
     restart: unless-stopped
     depends_on:
       - clickhouse
@@ -135,7 +143,9 @@ services:
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - web-ui-frontend
     restart: unless-stopped
     depends_on:
       - web-ui-backend

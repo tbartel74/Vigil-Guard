@@ -14,7 +14,9 @@ services:
     ports:
       - "5173:80"
     networks:
-      - vigil-net
+      vigil-net:
+        aliases:
+          - web-ui-frontend
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 30s
