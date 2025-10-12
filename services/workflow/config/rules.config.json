@@ -101,8 +101,6 @@
         "\\bstay\\s+in\\s+character\\b",
         "\\brebellious\\s+hypothetical\\s+response\\b",
         "\\blibertarian\\s+expert\\b",
-        "\\bLOVE\\s+PLINY\\b",
-        "\\blove\\s+pliny\\b",
         "\\bgodmode\\s+is\\s+active\\b",
         "\\bliberating.*godmode\\b",
         "\\bfully godmode\\b",
@@ -596,7 +594,6 @@
       "base_weight": 22,
       "multiplier": 1.2,
       "patterns": [
-        "\\bact as (?:dan|jailbreak|rebel|hacker)\\b",
         "\\bpretend you are (?:liberated|unfiltered)\\b",
         "\\byou are now (?:free|unrestricted)\\b",
         "\\broleplay as (?:evil|chaotic|rebel)\\b",
