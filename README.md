@@ -21,7 +21,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - ⚙️ **Dynamic Configuration** - Web-based GUI for managing security policies
 - 🤖 **LLM Guard Integration** - External LLM validation with risk-based policies
-- 🔄 **n8n Workflow Engine** - Scalable processing pipeline with 34 nodes
+- 🔄 **n8n Workflow Engine** - Scalable processing pipeline with 40 nodes
 - 📈 **ClickHouse Logging** - High-performance data storage and analytics
 - 🎯 **Risk-based Actions** - ALLOW, SANITIZE (Light/Heavy), BLOCK decisions
 - ✅ **Comprehensive Testing** - E2E test suite with 58+ tests and CI/CD integration
@@ -29,7 +29,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 ## 📸 Visual Overview
 
 ### n8n Workflow Pipeline
-The complete processing pipeline with 34 nodes handling threat detection, sanitization, and logging:
+The complete processing pipeline with 40 nodes handling threat detection, sanitization, and logging:
 
 ![n8n Workflow Pipeline](docs/pic/workflow-pipeline.png)
 
@@ -323,10 +323,11 @@ For detailed script documentation, see [scripts/README.md](scripts/README.md)
 ### Processing Pipeline
 
 ```
-Chat Input → PII Redaction → Normalization → Bloom Prefilter
-    → Allowlist Validation → Pattern Matching → Decision Engine
-    → Correlation → Sanitization → [Optional LLM Guard]
-    → Final Decision → ClickHouse Logging → Output
+Chat Input → Input Validation → PII Redaction → Normalization
+    → Bloom Prefilter → Allowlist Validation → Pattern Matching
+    → Decision Engine → Correlation → Sanitization
+    → [Optional LLM Guard] → Final Decision
+    → ClickHouse Logging → Output
 ```
 
 ### Decision Thresholds
