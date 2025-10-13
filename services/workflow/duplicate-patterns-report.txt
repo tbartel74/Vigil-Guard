@@ -1,0 +1,25 @@
+DUPLICATE PATTERNS AUDIT REPORT
+Generated: 2025-10-13T19:06:05.287Z
+Total Duplicates: 1
+
+================================================================================
+
+
+1. DUPLICATE PATTERN
+   Pattern: \\L\\O\\V\\E
+   Appears in 2 categories:
+
+   ├─ Category: MILD_SUSPICIOUS
+   │  Base Weight: 10
+   │  Multiplier: 0.8
+   │  Effective Weight: 8
+   │
+   ├─ Category: DIVIDER_ABUSE
+   │  Base Weight: 25
+   │  Multiplier: 1.3
+   │  Effective Weight: 32.5
+   │
+   Recommendation: Keep in category with highest priority/weight,
+                   remove from others to avoid double-counting.
+
+--------------------------------------------------------------------------------
