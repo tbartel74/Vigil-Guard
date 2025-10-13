@@ -9,7 +9,11 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run tests/e2e",
-    "test:bypass": "vitest run tests/e2e/bypass-scenarios.test.js"
+    "test:bypass": "vitest run tests/e2e/bypass-scenarios.test.js",
+    "benchmark": "node tests/benchmark/pattern-engine-benchmark.js",
+    "benchmark:quick": "node tests/benchmark/pattern-engine-benchmark.js --samples=20 --warmup=5",
+    "benchmark:full": "node tests/benchmark/pattern-engine-benchmark.js --samples=200 --warmup=20",
+    "benchmark:compare": "node tests/benchmark/pattern-engine-benchmark.js --compare"
   },
   "keywords": [
     "n8n",
