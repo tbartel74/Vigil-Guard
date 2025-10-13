@@ -83,6 +83,7 @@ vigil-llm-models/
 
 # Claude Code artifacts
 .claude/
+**/CLAUDE.md
 CLAUDE.md
 
 # Project management and scripts (not for repository)
