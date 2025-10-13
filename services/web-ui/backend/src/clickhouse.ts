@@ -219,6 +219,90 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
   }
 }
 
+export interface FalsePositiveReport {
+  event_id: string;
+  reported_by: string;
+  reason: string;
+  comment: string;
+  event_timestamp?: string;
+  original_input?: string;
+  final_status?: string;
+  threat_score?: number;
+}
+
+/**
+ * Submit a false positive report
+ */
+export async function submitFalsePositiveReport(report: FalsePositiveReport): Promise<boolean> {
+  const client = getClickHouseClient();
+
+  try {
+    // Insert the report
+    await client.insert({
+      table: 'n8n_logs.false_positive_reports',
+      values: [report],
+      format: 'JSONEachRow',
+    });
+
+    console.log(`FP report submitted: event=${report.event_id}, by=${report.reported_by}, reason=${report.reason}`);
+    return true;
+  } catch (error) {
+    console.error('ClickHouse insert error (FP report):', error);
+    return false;
+  }
+}
+
+export interface FPStats {
+  total_reports: number;
+  unique_events: number;
+  top_reason: string;
+  last_7_days: number;
+}
+
+/**
+ * Get false positive statistics
+ */
+export async function getFPStats(): Promise<FPStats> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        count() AS total_reports,
+        uniq(event_id) AS unique_events,
+        any(reason) AS top_reason,
+        countIf(timestamp >= now() - INTERVAL 7 DAY) AS last_7_days
+      FROM n8n_logs.false_positive_reports
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    const data = await resultSet.json<FPStats>();
+
+    if (data.length > 0) {
+      return data[0];
+    }
+
+    return {
+      total_reports: 0,
+      unique_events: 0,
+      top_reason: 'N/A',
+      last_7_days: 0,
+    };
+  } catch (error) {
+    console.error('ClickHouse query error (FP stats):', error);
+    return {
+      total_reports: 0,
+      unique_events: 0,
+      top_reason: 'N/A',
+      last_7_days: 0,
+    };
+  }
+}
+
 export async function closeClickHouseClient(): Promise<void> {
   if (clickhouseClient) {
     await clickhouseClient.close();

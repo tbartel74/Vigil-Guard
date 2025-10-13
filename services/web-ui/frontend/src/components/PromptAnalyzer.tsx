@@ -34,6 +34,14 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // False Positive reporting state
+  const [showFPModal, setShowFPModal] = useState(false);
+  const [fpReason, setFpReason] = useState('over_blocking');
+  const [fpComment, setFpComment] = useState('');
+  const [fpSubmitting, setFpSubmitting] = useState(false);
+  const [fpSuccess, setFpSuccess] = useState(false);
+  const [fpError, setFpError] = useState<string | null>(null);
+
   // Get user's timezone preference, default to UTC
   const userTimezone = user?.timezone || 'UTC';
 
@@ -117,6 +125,45 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
     }
   };
 
+  const handleOpenFPModal = () => {
+    setShowFPModal(true);
+    setFpReason('over_blocking');
+    setFpComment('');
+    setFpSuccess(false);
+    setFpError(null);
+  };
+
+  const handleSubmitFP = async () => {
+    if (!promptDetails) return;
+
+    setFpSubmitting(true);
+    setFpError(null);
+
+    try {
+      const maxScore = Math.max(promptDetails.pg_score_percent, promptDetails.sanitizer_score);
+
+      await api.submitFalsePositiveReport({
+        event_id: promptDetails.id,
+        reason: fpReason,
+        comment: fpComment,
+        event_timestamp: promptDetails.timestamp,
+        original_input: promptDetails.input_raw,
+        final_status: promptDetails.final_status,
+        threat_score: maxScore
+      });
+
+      setFpSuccess(true);
+      setTimeout(() => {
+        setShowFPModal(false);
+        setFpSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      setFpError('Failed to submit report: ' + err.message);
+    } finally {
+      setFpSubmitting(false);
+    }
+  };
+
   return (
     <div className="mt-6 rounded-2xl border border-slate-700 p-4 bg-[#0C1117]">
       <div className="flex justify-between items-center mb-4">
@@ -125,19 +172,32 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
           <p className="text-sm text-slate-400">Detailed inspection of security decisions</p>
         </div>
 
-        {/* Status indicator in top-right */}
+        {/* Status indicator and FP button in top-right */}
         {promptDetails && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            promptDetails.final_status === 'ALLOWED' ? 'bg-green-500/10' :
-            promptDetails.final_status === 'BLOCKED' ? 'bg-red-500/10' :
-            'bg-yellow-500/10'
-          }`}>
-            <span className={`text-2xl ${getStatusColor(promptDetails.final_status)}`}>
-              {getStatusIcon(promptDetails.final_status)}
-            </span>
-            <span className={`text-lg font-bold ${getStatusColor(promptDetails.final_status)}`}>
-              {promptDetails.final_status}
-            </span>
+          <div className="flex items-center gap-3">
+            {/* Show FP button for BLOCKED/SANITIZED only */}
+            {(promptDetails.final_status === 'BLOCKED' || promptDetails.final_status === 'SANITIZED') && (
+              <button
+                onClick={handleOpenFPModal}
+                className="px-3 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 text-sm font-medium transition-colors"
+                title="Report this decision as a false positive"
+              >
+                Report False Positive
+              </button>
+            )}
+
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              promptDetails.final_status === 'ALLOWED' ? 'bg-green-500/10' :
+              promptDetails.final_status === 'BLOCKED' ? 'bg-red-500/10' :
+              'bg-yellow-500/10'
+            }`}>
+              <span className={`text-2xl ${getStatusColor(promptDetails.final_status)}`}>
+                {getStatusIcon(promptDetails.final_status)}
+              </span>
+              <span className={`text-lg font-bold ${getStatusColor(promptDetails.final_status)}`}>
+                {promptDetails.final_status}
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -235,6 +295,90 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
                 {promptDetails.output_final || promptDetails.input_raw}
               </pre>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* False Positive Report Modal */}
+      {showFPModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h3 className="text-xl font-semibold text-white mb-4">Report False Positive</h3>
+
+            {fpSuccess ? (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-center">
+                ✓ Report submitted successfully!
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {/* Event ID display */}
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Event ID</label>
+                    <div className="px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-slate-300 font-mono">
+                      {promptDetails?.id}
+                    </div>
+                  </div>
+
+                  {/* Reason dropdown */}
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Reason</label>
+                    <select
+                      value={fpReason}
+                      onChange={(e) => setFpReason(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white"
+                      disabled={fpSubmitting}
+                    >
+                      <option value="over_blocking">Over-blocking (legitimate content blocked)</option>
+                      <option value="over_sanitization">Over-sanitization (too aggressive)</option>
+                      <option value="false_detection">False detection (pattern mismatch)</option>
+                      <option value="business_logic">Business logic issue</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Comment textarea */}
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Comment <span className="text-slate-500">(optional)</span>
+                    </label>
+                    <textarea
+                      value={fpComment}
+                      onChange={(e) => setFpComment(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white resize-none"
+                      rows={4}
+                      placeholder="Provide additional context about why this is a false positive..."
+                      disabled={fpSubmitting}
+                    />
+                  </div>
+
+                  {/* Error message */}
+                  {fpError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                      {fpError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowFPModal(false)}
+                    className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-white text-sm transition-colors"
+                    disabled={fpSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitFP}
+                    className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={fpSubmitting}
+                  >
+                    {fpSubmitting ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

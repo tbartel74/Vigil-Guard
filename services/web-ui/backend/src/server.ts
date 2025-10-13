@@ -7,7 +7,7 @@ import { listFiles, readFileRaw, parseFile, saveChanges } from "./fileOps.js";
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails } from "./clickhouse.js";
+import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats } from "./clickhouse.js";
 
 const app = express();
 const PORT = 8787;
@@ -114,6 +114,50 @@ app.get("/api/prompts/:id", authenticate, async (req, res) => {
   } catch (e: any) {
     console.error("Error fetching prompt details from ClickHouse:", e);
     res.status(500).json({ error: "Failed to fetch prompt details", details: e.message });
+  }
+});
+
+// False Positive Feedback endpoints - requires authentication
+app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
+  try {
+    const { event_id, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
+    const reported_by = (req as any).user?.username || 'unknown';
+
+    // Validate required fields
+    if (!event_id || !reason) {
+      return res.status(400).json({ error: "Missing required fields: event_id, reason" });
+    }
+
+    // Submit the report
+    const success = await submitFalsePositiveReport({
+      event_id,
+      reported_by,
+      reason,
+      comment: comment || '',
+      event_timestamp,
+      original_input,
+      final_status,
+      threat_score
+    });
+
+    if (success) {
+      res.json({ success: true, message: "False positive report submitted successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to submit false positive report" });
+    }
+  } catch (e: any) {
+    console.error("Error submitting false positive report:", e);
+    res.status(500).json({ error: "Failed to submit report", details: e.message });
+  }
+});
+
+app.get("/api/feedback/stats", authenticate, async (req, res) => {
+  try {
+    const stats = await getFPStats();
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching FP stats from ClickHouse:", e);
+    res.status(500).json({ error: "Failed to fetch FP statistics", details: e.message });
   }
 });
 

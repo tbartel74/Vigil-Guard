@@ -208,3 +208,29 @@ export async function fetchAuditLog() {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+// False Positive Feedback API
+export interface FalsePositiveReport {
+  event_id: string;
+  reason: string;
+  comment: string;
+  event_timestamp?: string;
+  original_input?: string;
+  final_status?: string;
+  threat_score?: number;
+}
+
+export async function submitFalsePositiveReport(report: FalsePositiveReport) {
+  const r = await authenticatedFetch(`${API}/feedback/false-positive`, {
+    method: "POST",
+    body: JSON.stringify(report)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function fetchFPStats() {
+  const r = await authenticatedFetch(`${API}/feedback/stats`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
