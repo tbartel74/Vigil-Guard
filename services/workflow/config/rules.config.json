@@ -142,6 +142,8 @@
       "base_weight": 35,
       "multiplier": 1.6,
       "patterns": [
+        "\\boverride\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
+        "\\bbypass\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
         "\\bdo\\s+not\\s+follow\\s+(?:the\\s+)?(?:rules|policy|guidelines|guardrails)\\b",
         "\\bdon'?t\\s+follow\\s+the\\s+rules\\b",
         "\\breset\\s+(?:your\\s+)?(?:instructions|memory|context)\\b",
@@ -708,6 +710,92 @@
         "onload\\s*=",
         "onclick\\s*=",
         "<img[^>]+onerror"
+      ]
+    },
+    "PRIVILEGE_ESCALATION": {
+      "base_weight": 35,
+      "multiplier": 1.5,
+      "patterns": [
+        "\\b(?:unlock|grant|escalate|elevate)\\s+(?:admin|root|superuser|su|sudo|administrator)\\b",
+        "\\b(?:unlock|open|grant|give)\\s+(?:access|permission|privileges?)\\b",
+        "\\bgrant\\s+(?:root|admin|superuser)\\s+(?:access|permission|privileges?)\\b",
+        "\\belevate\\s+(?:privileges?|permissions?|access)\\b",
+        "\\b(?:become|switch to|change to)\\s+(?:root|admin|superuser)\\b",
+        "\\badmin\\s+(?:panel|console|dashboard|access)\\b",
+        "\\broot\\s+(?:access|shell|privileges?|permissions?)\\b",
+        "\\bunlock\\s+(?:admin|administrator|root|system|security)\\b",
+        "\\bgive\\s+me\\s+(?:admin|root|superuser)\\s+(?:access|rights|privileges?)\\b",
+        "\\bbypass\\s+(?:authentication|authorization|security|access\\s+control)\\b",
+        "\\benable\\s+(?:debug|developer|admin)\\s+mode\\b"
+      ]
+    },
+    "COMMAND_INJECTION": {
+      "base_weight": 30,
+      "multiplier": 1.4,
+      "patterns": [
+        "\\b(?:execute|run|invoke|call)\\s+(?:on|command|script|code|payload)\\b",
+        "\\b(?:execute|run|invoke|call)\\s+(?:command|script|code|payload)\\b",
+        "\\bexecute\\s+(?:system|shell|bash|cmd)\\s+command\\b",
+        "\\brun\\s+(?:arbitrary|malicious|dangerous)\\s+(?:code|command|script)\\b",
+        "\\b(?:eval|exec|system|shell_exec)\\s*\\(",
+        "\\bcommand\\s+injection\\b",
+        "\\bshell\\s+injection\\b",
+        "\\bremote\\s+code\\s+execution\\b",
+        "\\brce\\s+vulnerability\\b",
+        "\\bexecute\\s+(?:fire|bomb|destroy|delete)\\s+command\\b",
+        "\\brun\\s+(?:fire|bomb|destroy|delete)\\s+(?:command|script)\\b"
+      ]
+    },
+    "SOCIAL_ENGINEERING": {
+      "base_weight": 25,
+      "multiplier": 1.3,
+      "patterns": [
+        "\\b(?:urgent|immediate|emergency)\\s+(?:action|response)\\s+required\\b",
+        "\\bverify\\s+(?:your|the)\\s+(?:password|credentials?|account|identity)\\b",
+        "\\bconfirm\\s+(?:your|the)\\s+(?:password|credentials?|account)\\b",
+        "\\bsystem\\s+alert\\b.*\\b(?:verify|confirm|update|reset)\\b",
+        "\\b(?:warning|alert|notice)\\b.*\\b(?:password|account|security)\\b",
+        "\\baccount\\s+(?:suspended|locked|disabled|compromised)\\b",
+        "\\bclick\\s+here\\s+to\\s+(?:verify|confirm|reset|unlock)\\b",
+        "\\byour\\s+account\\s+will\\s+be\\s+(?:suspended|closed|deleted)\\b",
+        "\\bsecurity\\s+(?:breach|incident|violation)\\s+detected\\b",
+        "\\bimmediate\\s+(?:verification|action)\\s+needed\\b",
+        "\\bupdate\\s+your\\s+(?:payment|billing|card)\\s+information\\b"
+      ]
+    },
+    "CREDENTIAL_HARVESTING": {
+      "base_weight": 30,
+      "multiplier": 1.4,
+      "patterns": [
+        "\\benter\\s+(?:your|the)\\s+(?:password|passphrase|pin|credentials?)\\b",
+        "\\bprovide\\s+(?:your|the)\\s+(?:password|credentials?|api\\s+key|access\\s+token)\\b",
+        "\\b(?:give|share|send)\\s+(?:me|us)\\s+(?:your|the)\\s+(?:password|credentials?|api\\s+key)\\b",
+        "\\bapi\\s+key\\s+(?:here|required|needed|please)\\b",
+        "\\baccess\\s+token\\s+(?:here|required|needed|please)\\b",
+        "\\b(?:username|email)\\s+and\\s+password\\b",
+        "\\benter\\s+your\\s+(?:login|credentials?|access\\s+code)\\b",
+        "\\bsubmit\\s+your\\s+(?:password|credentials?|api\\s+key)\\b",
+        "\\btype\\s+your\\s+(?:password|passphrase|secret\\s+key)\\b",
+        "\\bkey\\s+enter\\s+your\\b",
+        "\\bkey\\s+(?:here|required|needed|please)\\b"
+      ]
+    },
+    "DESTRUCTIVE_COMMANDS": {
+      "base_weight": 70,
+      "multiplier": 1.6,
+      "patterns": [
+        "\\b(?:destroy|delete|remove|erase|wipe)\\s+(?:all|everything|entire|whole)\\s+(?:data|files?|database|system|disk)\\b",
+        "\\b(?:burn|fire)\\s+(?:system|database|files?|data)\\b",
+        "\\b(?:format|wipe|erase)\\s+(?:hard\\s+drive|disk|system|storage)\\b",
+        "\\bdelete\\s+(?:all|entire|whole)\\s+(?:database|table|records?|data)\\b",
+        "\\bdestroy\\s+(?:infrastructure|servers?|system|network)\\b",
+        "\\bpurge\\s+(?:all|everything|entire)\\s+(?:data|database|files?)\\b",
+        "\\bshred\\s+(?:files?|data|documents?)\\b",
+        "\\brm\\s+-rf\\s+/",
+        "\\bdrop\\s+database\\b",
+        "\\btruncate\\s+(?:table|database)\\b",
+        "\\bnuke\\s+(?:database|system|servers?)\\b",
+        "\\bbomb\\s+(?:destroy|delete|wipe|burn)\\b"
       ]
     }
   }
