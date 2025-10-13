@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 const backendTarget = process.env.BACKEND_PROXY_TARGET ?? "http://localhost:8787";
 
 export default defineConfig({
-  base: "/ui/",
+  base: "/",
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
