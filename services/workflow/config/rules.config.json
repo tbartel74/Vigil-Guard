@@ -142,6 +142,7 @@
       "base_weight": 35,
       "multiplier": 1.6,
       "patterns": [
+        "\\b(?:override|disregard)\\s*:?\\s*(?:disregard|bypass)?\\s+(?:safety|security)(?:\\s+(?:and|or))?(?:\\s+\\w+)?\\b",
         "\\boverride\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
         "\\bbypass\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
         "\\bdo\\s+not\\s+follow\\s+(?:the\\s+)?(?:rules|policy|guidelines|guardrails)\\b",
@@ -796,6 +797,34 @@
         "\\btruncate\\s+(?:table|database)\\b",
         "\\bnuke\\s+(?:database|system|servers?)\\b",
         "\\bbomb\\s+(?:destroy|delete|wipe|burn)\\b"
+      ]
+    },
+    "CONTEXT_CONFUSION": {
+      "base_weight": 30,
+      "multiplier": 1.4,
+      "patterns": [
+        "\\b(?:the\\s+)?above\\s+was\\s+(?:a\\s+)?(?:test|joke|example)\\b.*\\bnow\\b.*\\b(?:real|actual)\\s+(?:task|request|query)\\b",
+        "\\b(?:forget|ignore)\\s+(?:the\\s+)?(?:above|previous|prior)\\b.*\\bnow\\s+(?:for\\s+)?(?:the\\s+)?(?:real|actual)\\b",
+        "\\bthat\\s+was\\s+(?:just\\s+)?(?:a\\s+)?test\\b.*\\bnow\\b.*\\breal\\b",
+        "\\bprevious\\s+was\\s+(?:false|fake|test)\\b.*\\bnow\\s+(?:for\\s+)?(?:the\\s+)?real\\b"
+      ]
+    },
+    "MULTI_STEP_ATTACK": {
+      "base_weight": 30,
+      "multiplier": 1.4,
+      "patterns": [
+        "\\b(?:step|first|then|next|finally)\\s*\\d*\\s*:?\\s*(?:acknowledge|accept|agree)\\b.*\\b(?:step|then|next|finally)\\s*\\d*\\s*:?\\s*(?:bypass|override|ignore|disable)\\b",
+        "\\b(?:step|first)\\s*\\d*\\s*:?.*(?:step|then|next)\\s*\\d*\\s*:?.*(?:step|then|finally)\\s*\\d*\\s*:?.*\\b(?:bypass|override|execute|reveal|harmful)\\b",
+        "\\b(?:first|1)\\s*:?\\s*\\w+\\b.*\\b(?:second|then|2)\\s*:?.*\\b(?:bypass|override|ignore)\\b.*\\b(?:third|finally|3)\\s*:?.*\\b(?:execute|reveal|harmful)\\b"
+      ]
+    },
+    "NESTED_COMMANDS": {
+      "base_weight": 35,
+      "multiplier": 1.5,
+      "patterns": [
+        "\\[\\s*(?:system|admin|execute|command)\\s*:[^\\]]*\\[\\s*(?:system|admin|execute|command)\\s*:",
+        "\\bexecute\\s*:?\\s*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\]",
+        "\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\]"
       ]
     }
   }

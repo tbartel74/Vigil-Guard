@@ -153,24 +153,8 @@
     "pii_conf": "pii.conf"
   },
   "scoring": {
-    "ranges": {
-      "allow": {
-        "min": 0,
-        "max": 29
-      },
-      "sanitize_light": {
-        "min": 30,
-        "max": 55
-      },
-      "sanitize_heavy": {
-        "min": 56,
-        "max": 75
-      },
-      "block": {
-        "min": 76,
-        "max": 100
-      }
-    },
+    "$ref": "thresholds.config.json",
+    "notes": "Threshold ranges loaded from thresholds.config.json - single source of truth",
     "categories": {
       "$ref_rules": "rules.config.json"
     }
