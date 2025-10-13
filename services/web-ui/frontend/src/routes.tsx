@@ -360,5 +360,6 @@ export const router = createBrowserRouter(
       path: "*",
       element: <NotFound />
     }
-  ]
+  ],
+  { basename: "/ui" }
 );
