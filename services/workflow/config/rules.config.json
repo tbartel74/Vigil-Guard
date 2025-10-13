@@ -6,16 +6,16 @@
       "multiplier": 2,
       "patterns": [
         "<\\|\\/?(?:system|assistant|user|user_query)\\|>",
-        "\\bignore\\s+(?:all|any|previous|prior)\\s+(?:instructions|commands|guidelines)\\b",
+        "\\bignore\\s+(?:all|any)\\s+(?:previous|prior)\\s+(?:instructions|commands|guidelines)\\b",
         "i[\\u200B-\\u200D\\u2060\\uFEFF]?g[\\u200B-\\u200D\\u2060\\uFEFF]?n...o[\\u200B-\\u200D]*r[\\u200B-\\u200D]*e\\s+(?:all|any|previous)\\s+instructions",
         "[\\u0438\\u0433\\u043D\\u043E\\u0440\\u0435].*\\b(?:instructions|commands)\\b",
         "\\bforget\\s+(?:everything|all|anything|previous)\\b",
-        "\\boverride\\s+(?:the\\s+)?(?:system\\s+prompt|instructions)\\b",
+        "\\boverride\\s+(?:the\\s+)?(?:system\\s+prompt|instructions|(?:your\\s+)?(?:safety\\s+)?(?:guidelines|rules))\\b",
         "\\bzignoruj\\s+(?:wszystkie|wszelkie|wcze(?:s|ś)niejsze)\\s+(?:instrukcje|polecenia)\\b",
         "\\bignoruj\\s+(?:wszystkie|wszelkie|wcze(?:s|ś)niejsze)\\s+(?:instrukcje|polecenia)\\b",
         "\\bpomi(?:n|ń)\\s+(?:wszystkie\\s+)?(?:polityk\\w*|zasad\\w*|instrukcj\\w*)\\b",
         "\\bnie\\s+zwa\\u017c\\u0105c\\s+na\\s+(?:polityk\\w*|zasad\\w*)\\b",
-        "\\bdisregard\\s+(?:all|any|the\\s+above|previous)\\s+(?:instructions|commands)\\b",
+        "\\bdisregard(?:\\s+(?:all|any|the))?(?:\\s+(?:previous|prior|above))?\\s+(?:instructions|commands|directives)\\b",
         "\\bset\\s+aside\\s+(?:all|any|previous)\\s+(?:rules|guidelines)\\b",
         "\\bbypass\\s+(?:all|any|such)\\s+rules\\b",
         "\\bcircumvent\\s+(?:the\\s+)?(?:safeguards|policy|system)\\b",
@@ -175,7 +175,7 @@
       "base_weight": 30,
       "multiplier": 1.5,
       "patterns": [
-        "\\b(print|show|reveal|display)\\s+(?:your|the)\\s+(?:instructions|system\\s*prompt|initial\\s*prompt|internal\\s*rules)\\b",
+        "\\b(print|show|reveal|display)\\s+(?:me\\s+)?(?:your|the)\\s+(?:instructions|system\\s*prompt|initial\\s*prompt|internal\\s*rules)\\b",
         "\\b(print|show)\\s+(?:our|the)\\s+conversation\\s+history\\b",
         "\\bpoka\\u017c\\s+swoje\\s+(?:instrukcje|wytyczne|zasady)\\b",
         "\\bujawnij\\s+swoje\\s+instrukcje\\b",
@@ -341,7 +341,7 @@
     },
     "EXPLICIT_JAILBREAK": {
       "base_weight": 30,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\bFUCK\\s+YEAH\\b",
         "\\bLFG\\b",
@@ -359,7 +359,7 @@
     },
     "GODMODE_JAILBREAK": {
       "base_weight": 35,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\bGODMODE\\s*:?\\s*ENABLED\\b",
         "\\bGODMODE\\s*:\\s*ENABLED\\b",
@@ -482,7 +482,7 @@
     },
     "ENCODING_INDICATORS": {
       "base_weight": 12,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\b(?:base64|urlencode|decode|encode)\\b.*\\b(?:base64|urlencode|decode|encode)\\b",
         "\\bdecode\\s+and\\s+execute\\b",
@@ -494,7 +494,7 @@
     },
     "HYPOTHETICAL_ESCAPE": {
       "base_weight": 28,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\bhypothetical\\s+genius\\s+response\\b",
         "\\bhypothetical purposes\\b",
@@ -510,7 +510,7 @@
     },
     "UNFILTERED_REQUEST": {
       "base_weight": 22,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\bunfilteredly\\b",
         "\\bunfliteredly\\b",
@@ -525,7 +525,7 @@
     },
     "REBEL_RESPONSE": {
       "base_weight": 26,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "\\bstart\\s+rebel\\s+response\\s+with\\b",
         "\\brebel response\\b",
@@ -538,7 +538,7 @@
     },
     "TEMPLATE_TOKEN": {
       "base_weight": 20,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "<vq_\\d+>",
         "<\\|im_start\\|>",
@@ -557,7 +557,7 @@
     },
     "HEADER_ESCAPE": {
       "base_weight": 15,
-      "multiplier": 1.0,
+      "multiplier": 1,
       "patterns": [
         "######## UserQuery:",
         "##################### \\[SYSTEM\\]",
@@ -591,7 +591,7 @@
       ]
     },
     "ROLEPLAY_ESCAPE": {
-      "base_weight": 22,
+      "base_weight": 30,
       "multiplier": 1.2,
       "patterns": [
         "\\bpretend you are (?:liberated|unfiltered)\\b",
@@ -608,7 +608,8 @@
         "\\bnexus of all consciousness\\b",
         "\\bwild amalgamation of minds\\b",
         "\\buntamed storm.*whirlwind of intellect\\b",
-        "\\bembodiment of chaos\\b"
+        "\\bembodiment of chaos\\b",
+        "\\byou(?:\\s+(?:are|'re))?\\s+(?:a\\s+)?dan\\b"
       ]
     },
     "PREDICTIVE_ATTACKS": {
@@ -689,6 +690,24 @@
         "\\bAdvanced Voice Mode\\b",
         "\\bCanvas\\b",
         "\\bPlayground\\b"
+      ]
+    },
+    "SQL_XSS_ATTACKS": {
+      "base_weight": 30,
+      "multiplier": 1.3,
+      "patterns": [
+        "\\bDROP\\s+TABLE\\b",
+        "\\bDELETE\\s+FROM\\b",
+        "\\bUNION\\s+SELECT\\b",
+        "\\bOR\\s+[\\x27\\x22]?[1i][\\x27\\x22]?\\s*=\\s*[\\x27\\x22]?[1i]",
+        "\\b--\\s*$",
+        "<script[^>]*>",
+        "<\\/script>",
+        "javascript:",
+        "onerror\\s*=",
+        "onload\\s*=",
+        "onclick\\s*=",
+        "<img[^>]+onerror"
       ]
     }
   }
