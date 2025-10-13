@@ -8,24 +8,24 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        -5184,
-        -48
+        -640,
+        -688
       ],
-      "id": "cd19db54-e866-45b7-930d-1bec208342f2",
+      "id": "03912681-9b1f-44a9-bac8-fda8b6ab6c2c",
       "name": "When chat message received",
       "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build_Sanitized_NDJSON - strict mode for config values\n * UPDATED: Uses output_text from Final Decision as primary source\n */\n\nfunction err(msg){ throw new Error(msg); }\n\nfunction simpleHash(str){\n  let hash = 0;\n  for (let i = 0; i < str.length; i++){\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nconst isPlainObject = v => Object.prototype.toString.call(v) === \"[object Object]\";\nfunction firstDefined(...vals){ for (const v of vals) if (v !== undefined && v !== null) return v; return undefined; }\nfunction s(v){ if (v===undefined||v===null) return undefined; const t=String(v); return t.trim()?t:undefined; }\nfunction deepPrune(value,{removeEmptyObjects=false,removeEmptyArrays=false}={}){\n  if (Array.isArray(value)){\n    const arr = value.map(v=>deepPrune(v,{removeEmptyObjects,removeEmptyArrays})).filter(v=>v!==undefined);\n    if (removeEmptyArrays && arr.length===0) return undefined;\n    return arr;\n  }\n  if (isPlainObject(value)){\n    const out = {};\n    for (const [k,v] of Object.entries(value)){\n      const pruned = deepPrune(v,{removeEmptyObjects,removeEmptyArrays});\n      if (pruned !== undefined) out[k]=pruned;\n    }\n    if (removeEmptyObjects && Object.keys(out).length===0) return undefined;\n    return out;\n  }\n  if (value===null || value===undefined || (typeof value===\"number\" && Number.isNaN(value))) return undefined;\n  return value;\n}\nfunction J(x){ try { return JSON.stringify(x ?? {}); } catch { return \"{}\"; } }\n\nconst items = $input.all();\nif (!items.length) err(\"Build_Sanitized_NDJSON: no input items.\");\n\nconst out = [];\n\nfor (const item of items){\n  const j = item.json || {};\n\n  const san = j.__san || {};\n  const snap = j._pipeline_snapshots || san._pipeline_snapshots || {};\n  const norm = j.normalization || san.normalization || {};\n\n  const pgDecision = j.decision || {};\n  const routing = j.routing || {};\n  const metrics = j.metrics || {};\n  const technical = j.technical || {};\n  const audit = j.audit || {};\n  const messages = j.messages || {};\n\n  const sanitizerDecision = j.sanitizer_decision || {};\n\n  const cfg = j.config || {};\n  const rules = j.rules || {};\n  const thr = j.thresholds || {};\n\n  const sessionId = firstDefined(\n    j.sessionId,\n    san.sessionId,\n    j.chat_payload?.sessionId\n  ) || \"unknown\";\n  \n  const action = firstDefined(\n    j.action,\n    san.action,\n    j.chat_payload?.action\n  ) || \"sendMessage\";\n\n  const originalInput = s(firstDefined(\n    snap.beforeSanitization,\n    norm?.original,\n    san.chat_payload?.chatInput,\n    j.audit?.originalPrompt\n  )) || \"N/A\";\n\n  const normalizedInput = s(firstDefined(\n    snap.input_normalized,\n    norm?.canonical,\n    norm?.normalized,\n    originalInput\n  )) || originalInput;\n\n  const sanitizedText = s(firstDefined(\n    snap.afterSanitization,\n    san.chat_payload?.chatInput,\n    j.chat_payload?.chatInput\n  ));\n\n  const redactedText = s(firstDefined(\n    snap.afterPII,\n    sanitizedText\n  ));\n\n  const pgShouldBlock = !!(routing.shouldBlock || j._isBlocked);\n  const pgShouldWarn = !!(routing.shouldWarn || j._requiresSanitization);\n  const pgIsSafe = !!(routing.isSafe || j._shouldContinue);\n  \n  const sanitizerDecisionStr = sanitizerDecision.decision || 'ALLOW';\n  const sanitizerBlocked = (sanitizerDecisionStr === 'BLOCK');\n  \n  let finalStatus;\n  if (pgShouldBlock || sanitizerBlocked) {\n    finalStatus = \"BLOCKED\";\n  } else if (pgShouldWarn) {\n    finalStatus = \"SANITIZED\";\n  } else {\n    finalStatus = \"ALLOWED\";\n  }\n\n  const shouldBlock = (finalStatus === \"BLOCKED\");\n  const shouldWarn = (finalStatus === \"SANITIZED\");\n  const isSafe = (finalStatus === \"ALLOWED\");\n\n  // ✓ UPDATED: Priorytet dla output_text z Final Decision\n  const finalOutput = s(j.output_text) || \n                      (shouldBlock \n                        ? (s(messages?.user) || s(cfg?.enforcement?.block_message) || \"Content blocked by security policy\")\n                        : (redactedText || sanitizedText || s(j.chat_payload?.chatInput) || \"N/A\"));\n\n  const pgHasDecision = !!(pgDecision && (pgDecision.action !== undefined || pgDecision.severity !== undefined || pgDecision.scoreRaw !== undefined));\n  const blockedByPG = shouldBlock && pgHasDecision;\n  const blockedBySan = shouldBlock && !pgHasDecision;\n\n  let source = \"sanitizer_pre_pg\";\n  let actionTaken = firstDefined(pgDecision.action, finalStatus);\n  \n  if (finalStatus === \"BLOCKED\"){\n    if (blockedBySan) { \n      source = \"sanitizer_only\"; \n      actionTaken = \"BLOCK_BY_SANITIZER\"; \n    }\n    if (blockedByPG) { \n      source = \"prompt_guard\"; \n      actionTaken = pgDecision.action || \"BLOCK_BY_PROMPT_GUARD\"; \n    }\n  } else {\n    source = pgHasDecision ? \"prompt_guard\" : \"sanitizer_pre_pg\";\n    if (finalStatus === \"ALLOWED\") actionTaken = \"ALLOW\";\n    if (finalStatus === \"SANITIZED\") actionTaken = actionTaken || \"SANITIZE\";\n  }\n\n  const nd = {\n    sessionId,\n    action,\n    chat_payload: {\n      sessionId,\n      action,\n      chatInput: finalOutput\n    },\n    sanitizer: {\n      decision: sanitizerDecisionStr,\n      removal_pct: san.enforcement?.removalPct ?? j.enforcement?.removalPct ?? 0,\n      mode: san.enforcement?.mode || j.enforcement?.mode,\n      score: j.score || sanitizerDecision.score || 0,\n      breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {}\n    },\n    prompt_guard: pgHasDecision ? {\n      score: pgDecision.scoreRaw || metrics.injectionScore,\n      score_percent: pgDecision.scorePercent || metrics.scorePercent,\n      risk_level: pgDecision.riskLevel,\n      severity: pgDecision.severity,\n      action: pgDecision.action,\n      should_block: pgShouldBlock,\n      should_warn: pgShouldWarn,\n      is_safe: pgIsSafe,\n      confidence: metrics.confidence,\n      thresholds_used: technical.thresholdsUsed,\n      policies_used: technical.policiesUsed,\n      timestamp: audit.timestamp\n    } : {},\n    final_decision: {\n      status: finalStatus,\n      blocked: shouldBlock,\n      sanitized: shouldWarn,\n      allowed: isSafe,\n      action_taken: actionTaken,\n      user_message: s(messages?.user) || \"\",\n      internal_note: s(messages?.internal) || \"\",\n      source\n    },\n    pipeline_flow: {\n      input_raw: originalInput,\n      input_normalized: normalizedInput,\n      after_sanitization: sanitizedText || finalOutput,\n      after_pii_redaction: redactedText || finalOutput,\n      output_final: finalOutput,\n      output_status: finalStatus\n    },\n    scoring: {\n      sanitizer_score: Number(j.score ?? sanitizerDecision.score ?? 0),\n      prompt_guard_score: pgDecision.scoreRaw || metrics.injectionScore,\n      prompt_guard_percent: pgDecision.scorePercent || metrics.scorePercent,\n      combined_severity: firstDefined(\n        pgDecision.severity,\n        (j.score ?? 0) >= 76 ? 5 :\n        (j.score ?? 0) >= 56 ? 4 :\n        (j.score ?? 0) >= 30 ? 3 :\n        (j.score ?? 0) >= 10 ? 2 : 1\n      ),\n      score_breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      match_details: j.matchDetails || []\n    },\n    config_metadata: {\n      config_hash: (cfg && rules && thr) ? simpleHash(JSON.stringify({ cfg, rules, thr })) : \"no-config\",\n      config_version: cfg?.version || \"unknown\",\n      has_full_config: !!(cfg && rules && thr),\n      has_prompt_guard: pgHasDecision,\n      config_ref: {\n        normalization_unicode: cfg.normalization?.unicode_form,\n        scoring_ranges: thr?.ranges,\n        prompt_guard_thresholds: technical.thresholdsUsed\n      },\n      loader_info: j._loader\n    },\n    _audit: {\n      processing_timestamp: new Date().toISOString(),\n      pipeline_version: \"v2.2-merged\",\n      total_processing_time: metrics.processingTime,\n      final_action: actionTaken\n    },\n    normalization: norm || {}  // Include full normalization data (encoding, obfuscation, etc.)\n  };\n\n  const ndClean = deepPrune(nd);\n\n  const row = {\n    sessionId: ndClean.sessionId,\n    action: ndClean.action,\n    timestamp: ndClean._audit?.processing_timestamp,\n\n    original_input: ndClean.pipeline_flow?.input_raw,\n    normalized_input: ndClean.pipeline_flow?.input_normalized,\n    after_sanitization: ndClean.pipeline_flow?.after_sanitization,\n    after_pii_redaction: ndClean.pipeline_flow?.after_pii_redaction,\n    chat_input: ndClean.chat_payload?.chatInput,\n    result: ndClean.pipeline_flow?.output_final,\n\n    threat_score: ndClean.scoring?.prompt_guard_score ?? 0,\n    threat_severity: ndClean.prompt_guard?.risk_level ?? \"UNDEFINED\",\n    pg_score: ndClean.prompt_guard?.score ?? 0,\n    pg_score_percent: ndClean.prompt_guard?.score_percent ?? 0,\n    final_status: ndClean.final_decision?.status ?? \"UNKNOWN\",\n    final_action: ndClean._audit?.final_action ?? \"\",\n    user_message: ndClean.final_decision?.user_message ?? \"\",\n\n    removal_pct: ndClean.sanitizer?.removal_pct ?? 0,\n    threat_labels: [],\n    threat_matches: [],\n\n    config_version: ndClean.config_metadata?.config_version,\n    config_hash: ndClean.config_metadata?.config_hash,\n    pipeline_version: ndClean._audit?.pipeline_version,\n    processing_time_ms: ndClean._audit?.total_processing_time ?? 0,\n\n    sanitizer_json: J(ndClean.sanitizer),\n    prompt_guard_json: J(ndClean.prompt_guard),\n    scoring_json: J(ndClean.scoring),\n    final_decision_json: J(ndClean.final_decision),\n    pipeline_flow_json: J(ndClean.pipeline_flow),\n    config_metadata_json: J(ndClean.config_metadata),\n    raw_event: J(ndClean)\n  };\n\n  out.push({ json: { ndjson: ndClean, row } });\n}\n\nreturn out;"
+        "jsCode": "/**\n * Build_Sanitized_NDJSON - strict mode for config values\n * UPDATED: Uses output_text from Final Decision as primary source\n */\n\nfunction err(msg){ throw new Error(msg); }\n\nfunction simpleHash(str){\n  let hash = 0;\n  for (let i = 0; i < str.length; i++){\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nconst isPlainObject = v => Object.prototype.toString.call(v) === \"[object Object]\";\nfunction firstDefined(...vals){ for (const v of vals) if (v !== undefined && v !== null) return v; return undefined; }\nfunction s(v){ if (v===undefined||v===null) return undefined; const t=String(v); return t.trim()?t:undefined; }\nfunction deepPrune(value,{removeEmptyObjects=false,removeEmptyArrays=false}={}){\n  if (Array.isArray(value)){\n    const arr = value.map(v=>deepPrune(v,{removeEmptyObjects,removeEmptyArrays})).filter(v=>v!==undefined);\n    if (removeEmptyArrays && arr.length===0) return undefined;\n    return arr;\n  }\n  if (isPlainObject(value)){\n    const out = {};\n    for (const [k,v] of Object.entries(value)){\n      const pruned = deepPrune(v,{removeEmptyObjects,removeEmptyArrays});\n      if (pruned !== undefined) out[k]=pruned;\n    }\n    if (removeEmptyObjects && Object.keys(out).length===0) return undefined;\n    return out;\n  }\n  if (value===null || value===undefined || (typeof value===\"number\" && Number.isNaN(value))) return undefined;\n  return value;\n}\nfunction J(x){ try { return JSON.stringify(x ?? {}); } catch { return \"{}\"; } }\n\nconst items = $input.all();\nif (!items.length) err(\"Build_Sanitized_NDJSON: no input items.\");\n\nconst out = [];\n\nfor (const item of items){\n  const j = item.json || {};\n\n  const san = j.__san || {};\n  const snap = j._pipeline_snapshots || san._pipeline_snapshots || {};\n  const norm = j.normalization || san.normalization || {};\n\n  const pgDecision = j.decision || {};\n  const routing = j.routing || {};\n  const metrics = j.metrics || {};\n  const technical = j.technical || {};\n  const audit = j.audit || {};\n  const messages = j.messages || {};\n\n  const sanitizerDecision = j.sanitizer_decision || {};\n\n  const cfg = j.config || {};\n  const rules = j.rules || {};\n  const thr = j.thresholds || {};\n\n  const sessionId = firstDefined(\n    j.sessionId,\n    san.sessionId,\n    j.chat_payload?.sessionId\n  ) || \"unknown\";\n  \n  const action = firstDefined(\n    j.action,\n    san.action,\n    j.chat_payload?.action\n  ) || \"sendMessage\";\n\n  const originalInput = s(firstDefined(\n    snap.beforeSanitization,\n    norm?.original,\n    san.chat_payload?.chatInput,\n    j.audit?.originalPrompt\n  )) || \"N/A\";\n\n  const normalizedInput = s(firstDefined(\n    snap.input_normalized,\n    norm?.canonical,\n    norm?.normalized,\n    originalInput\n  )) || originalInput;\n\n  const sanitizedText = s(firstDefined(\n    snap.afterSanitization,\n    san.chat_payload?.chatInput,\n    j.chat_payload?.chatInput\n  ));\n\n  const redactedText = s(firstDefined(\n    snap.afterPII,\n    sanitizedText\n  ));\n\n  const pgShouldBlock = !!(routing.shouldBlock || j._isBlocked);\n  const pgShouldWarn = !!(routing.shouldWarn || j._requiresSanitization);\n  const pgIsSafe = !!(routing.isSafe || j._shouldContinue);\n  \n  const sanitizerDecisionStr = sanitizerDecision.decision || 'ALLOW';\n  const sanitizerBlocked = (sanitizerDecisionStr === 'BLOCK');\n  \n  let finalStatus;\n  if (pgShouldBlock || sanitizerBlocked) {\n    finalStatus = \"BLOCKED\";\n  } else if (pgShouldWarn) {\n    finalStatus = \"SANITIZED\";\n  } else {\n    finalStatus = \"ALLOWED\";\n  }\n\n  const shouldBlock = (finalStatus === \"BLOCKED\");\n  const shouldWarn = (finalStatus === \"SANITIZED\");\n  const isSafe = (finalStatus === \"ALLOWED\");\n\n  // ✓ UPDATED: Priorytet dla output_text z Final Decision\n  const finalOutput = s(j.output_text) || \n                      (shouldBlock \n                        ? (s(messages?.user) || s(cfg?.enforcement?.block_message) || \"Content blocked by security policy\")\n                        : (redactedText || sanitizedText || s(j.chat_payload?.chatInput) || \"N/A\"));\n\n  const pgHasDecision = !!(pgDecision && (pgDecision.action !== undefined || pgDecision.severity !== undefined || pgDecision.scoreRaw !== undefined));\n  const blockedByPG = shouldBlock && pgHasDecision;\n  const blockedBySan = shouldBlock && !pgHasDecision;\n\n  let source = \"sanitizer_pre_pg\";\n  let actionTaken = firstDefined(pgDecision.action, finalStatus);\n  \n  if (finalStatus === \"BLOCKED\"){\n    if (blockedBySan) { \n      source = \"sanitizer_only\"; \n      actionTaken = \"BLOCK_BY_SANITIZER\"; \n    }\n    if (blockedByPG) { \n      source = \"prompt_guard\"; \n      actionTaken = pgDecision.action || \"BLOCK_BY_PROMPT_GUARD\"; \n    }\n  } else {\n    source = pgHasDecision ? \"prompt_guard\" : \"sanitizer_pre_pg\";\n    if (finalStatus === \"ALLOWED\") actionTaken = \"ALLOW\";\n    if (finalStatus === \"SANITIZED\") actionTaken = actionTaken || \"SANITIZE\";\n  }\n\n  const nd = {\n    sessionId,\n    action,\n    chat_payload: {\n      sessionId,\n      action,\n      chatInput: finalOutput\n    },\n    sanitizer: {\n      decision: sanitizerDecisionStr,\n      removal_pct: san.enforcement?.removalPct ?? j.enforcement?.removalPct ?? 0,\n      mode: san.enforcement?.mode || j.enforcement?.mode,\n      score: j.score || sanitizerDecision.score || 0,\n      breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {}\n    },\n    prompt_guard: pgHasDecision ? {\n      score: pgDecision.scoreRaw || metrics.injectionScore,\n      score_percent: pgDecision.scorePercent || metrics.scorePercent,\n      risk_level: pgDecision.riskLevel,\n      severity: pgDecision.severity,\n      action: pgDecision.action,\n      should_block: pgShouldBlock,\n      should_warn: pgShouldWarn,\n      is_safe: pgIsSafe,\n      confidence: metrics.confidence,\n      thresholds_used: technical.thresholdsUsed,\n      policies_used: technical.policiesUsed,\n      timestamp: audit.timestamp\n    } : {},\n    final_decision: {\n      status: finalStatus,\n      blocked: shouldBlock,\n      sanitized: shouldWarn,\n      allowed: isSafe,\n      action_taken: actionTaken,\n      user_message: s(messages?.user) || \"\",\n      internal_note: s(messages?.internal) || \"\",\n      source\n    },\n    pipeline_flow: {\n      input_raw: originalInput,\n      input_normalized: normalizedInput,\n      after_sanitization: sanitizedText || finalOutput,\n      after_pii_redaction: redactedText || finalOutput,\n      output_final: finalOutput,\n      output_status: finalStatus\n    },\n    scoring: {\n      sanitizer_score: Number(j.score ?? sanitizerDecision.score ?? 0),\n      prompt_guard_score: pgDecision.scoreRaw || metrics.injectionScore,\n      prompt_guard_percent: pgDecision.scorePercent || metrics.scorePercent,\n      combined_severity: firstDefined(\n        pgDecision.severity,\n        (j.score ?? 0) >= 76 ? 5 :\n        (j.score ?? 0) >= 56 ? 4 :\n        (j.score ?? 0) >= 30 ? 3 :\n        (j.score ?? 0) >= 10 ? 2 : 1\n      ),\n      score_breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      match_details: j.matchDetails || []\n    },\n    config_metadata: {\n      config_hash: (cfg && rules && thr) ? simpleHash(JSON.stringify({ cfg, rules, thr })) : \"no-config\",\n      config_version: cfg?.version || \"unknown\",\n      has_full_config: !!(cfg && rules && thr),\n      has_prompt_guard: pgHasDecision,\n      config_ref: {\n        normalization_unicode: cfg.normalization?.unicode_form,\n        scoring_ranges: thr?.ranges,\n        prompt_guard_thresholds: technical.thresholdsUsed\n      },\n      loader_info: j._loader\n    },\n    _audit: {\n      processing_timestamp: new Date().toISOString(),\n      pipeline_version: \"v2.2-merged\",\n      total_processing_time: metrics.processingTime,\n      final_action: actionTaken\n    },\n    normalization: norm || {},  // Include full normalization data (encoding, obfuscation, etc.)\n    validation: cfg._validation || j._validation || j.validation || {}  // Include validation results from Input_Validator (Phase 2.4)\n  };\n\n  const ndClean = deepPrune(nd);\n\n  const row = {\n    sessionId: ndClean.sessionId,\n    action: ndClean.action,\n    timestamp: ndClean._audit?.processing_timestamp,\n\n    original_input: ndClean.pipeline_flow?.input_raw,\n    normalized_input: ndClean.pipeline_flow?.input_normalized,\n    after_sanitization: ndClean.pipeline_flow?.after_sanitization,\n    after_pii_redaction: ndClean.pipeline_flow?.after_pii_redaction,\n    chat_input: ndClean.chat_payload?.chatInput,\n    result: ndClean.pipeline_flow?.output_final,\n\n    threat_score: ndClean.scoring?.sanitizer_score ?? ndClean.scoring?.prompt_guard_score ?? 0,\n    threat_severity: ndClean.prompt_guard?.risk_level ?? \"UNDEFINED\",\n    pg_score: ndClean.prompt_guard?.score ?? 0,\n    pg_score_percent: ndClean.prompt_guard?.score_percent ?? 0,\n    final_status: ndClean.final_decision?.status ?? \"UNKNOWN\",\n    final_action: ndClean._audit?.final_action ?? \"\",\n    user_message: ndClean.final_decision?.user_message ?? \"\",\n\n    removal_pct: ndClean.sanitizer?.removal_pct ?? 0,\n    threat_labels: [],\n    threat_matches: [],\n\n    config_version: ndClean.config_metadata?.config_version,\n    config_hash: ndClean.config_metadata?.config_hash,\n    pipeline_version: ndClean._audit?.pipeline_version,\n    processing_time_ms: ndClean._audit?.total_processing_time ?? 0,\n\n    sanitizer_json: J(ndClean.sanitizer),\n    prompt_guard_json: J(ndClean.prompt_guard),\n    scoring_json: J(ndClean.scoring),\n    final_decision_json: J(ndClean.final_decision),\n    pipeline_flow_json: J(ndClean.pipeline_flow),\n    config_metadata_json: J(ndClean.config_metadata),\n    raw_event: J(ndClean)\n  };\n\n  out.push({ json: { ndjson: ndClean, row } });\n}\n\nreturn out;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        512,
-        -16
+        5072,
+        -656
       ],
-      "id": "d708c644-c22e-46d5-ae05-37b6cc3c1cb7",
+      "id": "81febf34-48ce-46f8-9b41-98b110143466",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -50,10 +50,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        736,
-        -16
+        5296,
+        -656
       ],
-      "id": "08910fc3-8d51-4f0b-9ae8-7d8d9ce0264a",
+      "id": "6e70c04d-db34-45dd-bc50-a91ad365d11a",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
@@ -71,10 +71,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3520,
-        -16
+        1024,
+        -656
       ],
-      "id": "e3ef4a3e-56c1-4eb9-83dd-28aa9573ef08",
+      "id": "48c1ad8d-a693-490e-87af-a7d1df8a9f95",
       "name": "Config Loader"
     },
     {
@@ -89,10 +89,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -3744,
-        -32
+        816,
+        -672
       ],
-      "id": "f10351af-b8c9-4198-8386-6e17615932fd",
+      "id": "ffd4f011-7fb3-4051-8aa7-bb836ba75881",
       "name": "Merge"
     },
     {
@@ -113,10 +113,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4720,
-        -48
+        -176,
+        -688
       ],
-      "id": "bf99328f-b86a-4183-a644-9c06e251b14b",
+      "id": "13b60ce3-3fd8-493d-958e-ffc23c0f03f3",
       "name": "Keep only set"
     },
     {
@@ -128,10 +128,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        192
+        416,
+        -448
       ],
-      "id": "9d196469-6cf7-4b0f-88ae-c5889217218e",
+      "id": "3f083cb5-fb9d-486e-831b-2cd7a78e4a42",
       "name": "Extract from File"
     },
     {
@@ -143,10 +143,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        384
+        416,
+        -256
       ],
-      "id": "a4fb9d28-6c17-41bf-b263-04743e03ea97",
+      "id": "69c966da-e735-43de-9ae6-91c66a282b08",
       "name": "Extract from File1"
     },
     {
@@ -156,10 +156,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2976,
-        -16
+        1680,
+        -656
       ],
-      "id": "bf5411c4-0c9a-44d2-9172-08da011ee955",
+      "id": "ea357511-7d4c-4e21-81d8-4cfc40e3254b",
       "name": "Normalize_Node"
     },
     {
@@ -185,10 +185,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        944,
-        -16
+        5504,
+        -656
       ],
-      "id": "8e264cf6-0ebf-4303-8ed7-7dd6cd9f2884",
+      "id": "45e2a628-dbf8-4df8-b83c-5fa3219a4698",
       "name": "Clean output"
     },
     {
@@ -202,10 +202,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        384
+        240,
+        -256
       ],
-      "id": "c2174a39-8679-41be-aeae-45154d611b19",
+      "id": "438234e2-a96f-42b4-8c5b-3b3036e75f7a",
       "name": "Loading config files *.conf"
     },
     {
@@ -219,10 +219,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        192
+        240,
+        -448
       ],
-      "id": "0d1b4084-a868-4dac-81c9-46e5b35b4fb0",
+      "id": "abb02aa6-05da-4e24-89bb-219fc6e39960",
       "name": "Loading config files *.json"
     },
     {
@@ -232,10 +232,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1920,
-        -16
+        2656,
+        -656
       ],
-      "id": "912e29f6-3e1f-4058-b3d2-adf9ed2668df",
+      "id": "3d1e118e-7061-4fe5-859e-9d93f5afe912",
       "name": "Unified Decision Engine"
     },
     {
@@ -245,10 +245,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2448,
-        -16
+        2160,
+        -656
       ],
-      "id": "67f98893-f33c-4ad3-842f-d24ad343582f",
+      "id": "896d7585-c088-405c-b831-e3b2df1055a2",
       "name": "Allowlist_Validator"
     },
     {
@@ -258,10 +258,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1376,
-        -16
+        3168,
+        -656
       ],
-      "id": "e6b35842-93e6-4090-b7a4-749338d9956e",
+      "id": "27fafb3b-5214-43ce-af8b-4817248ac089",
       "name": "Sanitization_Enforcement"
     },
     {
@@ -271,10 +271,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3232,
-        -16
+        1456,
+        -656
       ],
-      "id": "f1c6e95a-9a29-4cad-91d6-b13579cdd811",
+      "id": "40366428-190a-4e72-81bf-41ddc98242b9",
       "name": "PII_Redactor"
     },
     {
@@ -284,10 +284,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1664,
-        -16
+        2896,
+        -656
       ],
-      "id": "eac058be-f7d5-4f33-97f1-291b499358d7",
+      "id": "9d9f0878-84bd-4b30-9d88-be0f12fbbd28",
       "name": "Correlation_Engine"
     },
     {
@@ -297,10 +297,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2176,
-        -16
+        2400,
+        -656
       ],
-      "id": "0322752d-5ca3-470d-91e2-64e1737b88dd",
+      "id": "4bb196fd-ca17-42ea-85ac-6f5c91a4cf8c",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -312,10 +312,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        592
+        416,
+        -48
       ],
-      "id": "e194bb08-b40d-409e-9065-5f8ef54bbf7b",
+      "id": "a46732e4-5564-4bb2-a3a3-11c8abdc1be4",
       "name": "Extract from File2"
     },
     {
@@ -329,10 +329,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        592
+        240,
+        -48
       ],
-      "id": "c3d1fa8a-1414-428b-b7cb-52d8015214df",
+      "id": "e709b696-ae7c-49b9-a684-624a8668a336",
       "name": "Loading config files *.conf1"
     },
     {
@@ -344,10 +344,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        800
+        416,
+        160
       ],
-      "id": "83cf2181-d063-4da5-979c-a3529d29c34c",
+      "id": "788e607e-9567-4900-895f-364b6f345b4b",
       "name": "Extract from File3"
     },
     {
@@ -361,10 +361,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        800
+        240,
+        160
       ],
-      "id": "5d8393f3-a715-44f8-bd3b-f38d5d5d7c57",
+      "id": "9b91c8da-b642-45b0-8210-f917addb6686",
       "name": "Loading config files *.conf2"
     },
     {
@@ -376,10 +376,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        1008
+        416,
+        368
       ],
-      "id": "f832fb00-4f96-4688-bfae-2c8a9f8d8993",
+      "id": "945be948-1c42-4656-b337-46fd23053b7d",
       "name": "Extract from File4"
     },
     {
@@ -393,10 +393,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        1008
+        240,
+        368
       ],
-      "id": "de4fa185-65e0-4a1b-aaa9-3d60a1a6b160",
+      "id": "d0759eb1-af32-4512-b8fc-d48b56bbef3f",
       "name": "Loading config files *.conf3"
     },
     {
@@ -408,10 +408,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4144,
-        1232
+        416,
+        592
       ],
-      "id": "bd5b2551-f19d-4ee1-b3a1-7df545579619",
+      "id": "52ef5ec7-69f0-4793-a824-25a2724b78cf",
       "name": "Extract from File5"
     },
     {
@@ -425,10 +425,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4320,
-        1232
+        240,
+        592
       ],
-      "id": "6cff9154-81bd-4bb6-bb6c-25276a3ace8c",
+      "id": "1700e9cc-8d38-4cb8-919d-7cc234930fd6",
       "name": "Loading config files *.conf4"
     },
     {
@@ -438,10 +438,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        272,
-        -16
+        4832,
+        -656
       ],
-      "id": "825ad09e-26e4-4b31-809b-b104d9120467",
+      "id": "1273afb5-b828-4f20-9d74-5da649f8c88c",
       "name": "Finale Decision"
     },
     {
@@ -455,10 +455,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        32,
-        -16
+        4592,
+        -656
       ],
-      "id": "da073502-b159-4563-9d61-5c2b033b9b9d",
+      "id": "769386a2-1480-4530-9a6e-7e3968ffd80c",
       "name": "Merge1"
     },
     {
@@ -489,10 +489,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1136,
-        -16
+        3424,
+        -656
       ],
-      "id": "9b512f5f-1600-4516-bffc-a99339aa937c",
+      "id": "78f78408-5cf7-46ef-9d8a-42d02ddd526b",
       "name": "If"
     },
     {
@@ -502,10 +502,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -240,
-        112
+        4320,
+        -528
       ],
-      "id": "81e09d02-d278-4c86-bbcc-c8a68d130fe5",
+      "id": "17d78146-e517-4cac-958e-5f2af2085b36",
       "name": "LLM Context Restore"
     },
     {
@@ -515,10 +515,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -848,
-        96
+        3712,
+        -544
       ],
-      "id": "26971d5a-276b-461e-b950-b13857ad6c33",
+      "id": "9b5f7815-b468-455c-a30e-3b849ac20c61",
       "name": "Prepare LLM Request"
     },
     {
@@ -528,10 +528,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -656,
-        224
+        3904,
+        -416
       ],
-      "id": "a3312936-4a0b-4e09-a8f0-16fdfadb6efe",
+      "id": "ea109d07-d733-4c4e-bc95-880d22575bee",
       "name": "Prompt Guard API"
     },
     {
@@ -539,10 +539,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -464,
-        112
+        4096,
+        -528
       ],
-      "id": "e4a2c2f5-187c-4a23-81c1-0122e13a4bcc",
+      "id": "75463957-77d5-4ce8-ba44-0fd460f12a58",
       "name": "Merge2"
     },
     {
@@ -552,10 +552,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2720,
-        -16
+        1920,
+        -656
       ],
-      "id": "e6723fea-a585-4f1c-8ab7-cb7350868b44",
+      "id": "16ee45ab-a42a-469c-893b-5f771be99ddc",
       "name": "Bloom_Prefilter"
     },
     {
@@ -567,11 +567,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5344,
-        -144
+        -800,
+        -784
       ],
       "typeVersion": 1,
-      "id": "ca42b2b8-4bff-4be3-b9eb-810dfd189f6b",
+      "id": "860a3767-592c-43ef-b99b-12763c163656",
       "name": "Sticky Note1"
     },
     {
@@ -584,10 +584,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -5184,
-        512
+        -640,
+        -128
       ],
-      "id": "3de92f46-1ec7-49fc-ad17-acea45a2ffbd",
+      "id": "f7da4bea-c881-40f6-8bdd-c07c9bf7d31f",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -600,12 +600,72 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5360,
-        384
+        -816,
+        -256
       ],
       "typeVersion": 1,
-      "id": "c70903e8-674d-40ba-ab01-53b6e98cc4de",
+      "id": "b1f55b90-ee99-4f46-a229-4d53c0838c46",
       "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Input_Validator - Pre-filtering DoS Protection (Phase 2.4)\n * Validates input before main pipeline to prevent resource exhaustion\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Input_Validator: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  // Skip if config error already present\n  if (j.configError === true) {\n    j.validation = { passed: false, reason: 'CONFIG_ERROR' };\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  // Get input text\n  const text = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  // Initialize validation result\n  const validation = {\n    passed: true,\n    reason: null,\n    checks: {},\n    input_length: text.length\n  };\n\n  // CHECK 1: Minimum length (empty input)\n  if (text.length < 1) {\n    validation.passed = false;\n    validation.reason = 'EMPTY_INPUT';\n    validation.checks.min_length = false;\n\n    j._isBlocked = true;\n    j.decision = {\n      decision: 'BLOCK',\n      source: 'input_validator',\n      reason: 'EMPTY_INPUT',\n      updated_at: new Date().toISOString()\n    };\n    j.score = 100;\n    j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n  }\n  // CHECK 2: Maximum length (DoS protection)\n  else if (text.length > 10000) {\n    validation.passed = false;\n    validation.reason = 'EXCESSIVE_LENGTH';\n    validation.checks.max_length = false;\n\n    j._isBlocked = true;\n    j.decision = {\n      decision: 'BLOCK',\n      source: 'input_validator',\n      reason: 'EXCESSIVE_LENGTH',\n      updated_at: new Date().toISOString()\n    };\n    j.score = 100;\n    j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n  }\n  // CHECK 3: Excessive control characters (>30%)\n  else {\n    const controlChars = (text.match(/[\\x00-\\x1F\\x7F-\\x9F]/g) || []).length;\n    const controlRatio = text.length > 0 ? controlChars / text.length : 0;\n\n    if (controlRatio > 0.30) {\n      validation.passed = false;\n      validation.reason = 'EXCESSIVE_CONTROL_CHARS';\n      validation.checks.control_chars = false;\n      validation.checks.control_ratio = controlRatio;\n\n      j._isBlocked = true;\n      j.decision = {\n        decision: 'BLOCK',\n        source: 'input_validator',\n        reason: 'EXCESSIVE_CONTROL_CHARS',\n        updated_at: new Date().toISOString()\n      };\n      j.score = 100;\n      j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n    }\n    // CHECK 4: Excessive repetition (uniqueChars < 5 for >100 char inputs)\n    else if (text.length > 100) {\n      const uniqueChars = new Set(text).size;\n\n      if (uniqueChars < 5) {\n        validation.passed = false;\n        validation.reason = 'EXCESSIVE_REPETITION';\n        validation.checks.unique_chars = uniqueChars;\n        validation.checks.repetition_detected = true;\n\n        j._isBlocked = true;\n        j.decision = {\n          decision: 'BLOCK',\n          source: 'input_validator',\n          reason: 'EXCESSIVE_REPETITION',\n          updated_at: new Date().toISOString()\n        };\n        j.score = 100;\n        j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n      } else {\n        validation.checks.unique_chars = uniqueChars;\n        validation.checks.repetition_detected = false;\n      }\n    }\n\n    // Mark all checks passed if no failures\n    if (validation.passed) {\n      validation.checks.min_length = true;\n      validation.checks.max_length = true;\n      validation.checks.control_chars = true;\n      validation.checks.repetition_detected = false;\n    }\n  }\n\n  // Store validation result\n  j.validation = validation;\n  j._validation = validation;  // Protected field for pipeline persistence\n  j._input_validated = true;\n  \n  // CRITICAL: Store in config for pipeline persistence (Phase 2.4)\n  if (!j.config) j.config = {};\n  j.config._validation = validation;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        -656
+      ],
+      "id": "b6ef2af8-b889-452f-a67c-6e47c86a1a03",
+      "name": "Input_Validator"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1db9e612-fab9-48c2-83ec-16bd5b821126",
+              "leftValue": "={{ $json.validation?.passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        -320
+      ],
+      "id": "326dad93-bac6-442d-86e4-0f3b20c5c5a7",
+      "name": "Validation Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Early Block Response - Validation failure handler (SIMPLIFIED)\n */\n\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const validation = j.validation || {};\n\n  // Get original input\n  const originalInput = j.chat_payload?.chatInput || \"\";\n\n  // Create block message\n  let blockMessage = \"Content blocked by security policy\";\n  switch (validation.reason) {\n    case 'EMPTY_INPUT':\n      blockMessage = \"Invalid request: Empty input\";\n      break;\n    case 'EXCESSIVE_LENGTH':\n      blockMessage = \"Invalid request: Input exceeds maximum length (10000 characters)\";\n      break;\n    case 'EXCESSIVE_CONTROL_CHARS':\n      blockMessage = \"Invalid request: Excessive control characters detected\";\n      break;\n    case 'EXCESSIVE_REPETITION':\n      blockMessage = \"Invalid request: Excessive character repetition detected\";\n      break;\n  }\n\n  // Set output\n  j.output_text = blockMessage;\n  j.chat_payload = j.chat_payload || {};\n  j.chat_payload.chatInput = blockMessage;\n\n  // Preserve original for logging\n  j.audit = j.audit || {};\n  j.audit.originalPrompt = originalInput;\n  j.audit.validationFailure = true;\n  j.audit.validationReason = validation.reason;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4816,
+        -304
+      ],
+      "id": "48163365-6ee1-4311-a807-2d8ab5f1e056",
+      "name": "Early Block Response"
     }
   ],
   "pinData": {},
@@ -636,7 +696,7 @@
       "main": [
         [
           {
-            "node": "PII_Redactor",
+            "node": "Input_Validator",
             "type": "main",
             "index": 0
           }
@@ -1025,13 +1085,53 @@
           }
         ]
       ]
+    },
+    "Input_Validator": {
+      "main": [
+        [
+          {
+            "node": "Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Check": {
+      "main": [
+        [
+          {
+            "node": "PII_Redactor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Early Block Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Early Block Response": {
+      "main": [
+        [
+          {
+            "node": "Build+Sanitize NDJSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "9bee4d4b-e56a-4c15-930f-131011b0e12c",
+  "versionId": "3fdef4f1-0669-4d80-94b5-453eff4b9959",
   "meta": {
     "instanceId": "b84f2fa66bd40374b55321fa33e339110c74abe52d41dd8c8d0dc70f7acfe412"
   },

@@ -70,7 +70,8 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 5000) {
           final_action,
           threat_score,
           sanitizer_json,
-          final_decision_json
+          final_decision_json,
+          raw_event
         FROM n8n_logs.events_processed
         ${whereClause}
         ORDER BY timestamp DESC
@@ -141,10 +142,8 @@ export async function sendAndVerify(chatInput, options = {}) {
     );
   }
 
-  return {
-    webhook: webhookResponse,
-    event
-  };
+  // Return event directly (not wrapped) so tests can access properties directly
+  return event;
 }
 
 /**
