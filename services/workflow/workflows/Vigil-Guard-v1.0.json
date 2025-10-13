@@ -8,10 +8,10 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        -640,
-        -688
+        -5216,
+        -176
       ],
-      "id": "03912681-9b1f-44a9-bac8-fda8b6ab6c2c",
+      "id": "8c70d248-1e4d-4ed4-ba3e-451432d57ca4",
       "name": "When chat message received",
       "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
     },
@@ -22,10 +22,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5072,
-        -656
+        496,
+        -144
       ],
-      "id": "81febf34-48ce-46f8-9b41-98b110143466",
+      "id": "c1410efa-12f6-481a-abb1-bbbf04481e99",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -50,10 +50,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5296,
-        -656
+        720,
+        -144
       ],
-      "id": "6e70c04d-db34-45dd-bc50-a91ad365d11a",
+      "id": "d6f262ea-afc4-4374-8297-6ba2b2552527",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
@@ -71,10 +71,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        -656
+        -3552,
+        -144
       ],
-      "id": "48c1ad8d-a693-490e-87af-a7d1df8a9f95",
+      "id": "8eb7afea-a873-4dae-bd52-8cbeda71696a",
       "name": "Config Loader"
     },
     {
@@ -89,10 +89,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        816,
-        -672
+        -3760,
+        -160
       ],
-      "id": "ffd4f011-7fb3-4051-8aa7-bb836ba75881",
+      "id": "1b417d5f-830a-4183-b2b8-448cc8de967c",
       "name": "Merge"
     },
     {
@@ -113,10 +113,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -176,
-        -688
+        -4752,
+        -176
       ],
-      "id": "13b60ce3-3fd8-493d-958e-ffc23c0f03f3",
+      "id": "d450b584-1959-45b6-bd98-189f628533c7",
       "name": "Keep only set"
     },
     {
@@ -128,10 +128,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        -448
+        -4160,
+        80
       ],
-      "id": "3f083cb5-fb9d-486e-831b-2cd7a78e4a42",
+      "id": "931cad09-c773-4ec6-acaa-0e6b3eb1e799",
       "name": "Extract from File"
     },
     {
@@ -143,10 +143,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        -256
+        -4160,
+        272
       ],
-      "id": "69c966da-e735-43de-9ae6-91c66a282b08",
+      "id": "7460a692-2336-4f26-8b69-5bcd324d99f2",
       "name": "Extract from File1"
     },
     {
@@ -156,10 +156,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1680,
-        -656
+        -2896,
+        -144
       ],
-      "id": "ea357511-7d4c-4e21-81d8-4cfc40e3254b",
+      "id": "4c7021a3-0f5d-4304-932b-3224802f7b8e",
       "name": "Normalize_Node"
     },
     {
@@ -185,10 +185,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        5504,
-        -656
+        928,
+        -144
       ],
-      "id": "45e2a628-dbf8-4df8-b83c-5fa3219a4698",
+      "id": "4363b300-c5df-4094-b18a-685ae34d0b82",
       "name": "Clean output"
     },
     {
@@ -202,10 +202,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        -256
+        -4336,
+        272
       ],
-      "id": "438234e2-a96f-42b4-8c5b-3b3036e75f7a",
+      "id": "4521425d-5b26-4839-9c59-3c43eb550a51",
       "name": "Loading config files *.conf"
     },
     {
@@ -219,10 +219,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        -448
+        -4336,
+        80
       ],
-      "id": "abb02aa6-05da-4e24-89bb-219fc6e39960",
+      "id": "a6165b75-509e-49ca-b303-cd319975ace8",
       "name": "Loading config files *.json"
     },
     {
@@ -232,10 +232,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2656,
-        -656
+        -1920,
+        -144
       ],
-      "id": "3d1e118e-7061-4fe5-859e-9d93f5afe912",
+      "id": "72d9a343-8401-4fd4-9ec5-5d084b70a9c4",
       "name": "Unified Decision Engine"
     },
     {
@@ -245,10 +245,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2160,
-        -656
+        -2416,
+        -144
       ],
-      "id": "896d7585-c088-405c-b831-e3b2df1055a2",
+      "id": "420bb555-8737-46d1-af69-2035c1019122",
       "name": "Allowlist_Validator"
     },
     {
@@ -258,10 +258,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3168,
-        -656
+        -1408,
+        -144
       ],
-      "id": "27fafb3b-5214-43ce-af8b-4817248ac089",
+      "id": "6c010b73-654b-4070-bd79-066fd80c1341",
       "name": "Sanitization_Enforcement"
     },
     {
@@ -271,10 +271,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1456,
-        -656
+        -3120,
+        -144
       ],
-      "id": "40366428-190a-4e72-81bf-41ddc98242b9",
+      "id": "f95418ce-0e71-4fea-9cf5-2681326290d5",
       "name": "PII_Redactor"
     },
     {
@@ -284,10 +284,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2896,
-        -656
+        -1680,
+        -144
       ],
-      "id": "9d9f0878-84bd-4b30-9d88-be0f12fbbd28",
+      "id": "47a2b166-6a2f-4f36-96b1-817abb7ff514",
       "name": "Correlation_Engine"
     },
     {
@@ -297,10 +297,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2400,
-        -656
+        -2176,
+        -144
       ],
-      "id": "4bb196fd-ca17-42ea-85ac-6f5c91a4cf8c",
+      "id": "31e39750-bab7-4bf5-96f2-6e84cc5fc594",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -312,10 +312,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        -48
+        -4160,
+        480
       ],
-      "id": "a46732e4-5564-4bb2-a3a3-11c8abdc1be4",
+      "id": "2b4eaca5-47ff-4dd2-9d44-0a3910fe841b",
       "name": "Extract from File2"
     },
     {
@@ -329,10 +329,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        -48
+        -4336,
+        480
       ],
-      "id": "e709b696-ae7c-49b9-a684-624a8668a336",
+      "id": "4a40050d-cae3-4f3e-af2f-1d5be625f296",
       "name": "Loading config files *.conf1"
     },
     {
@@ -344,10 +344,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        160
+        -4160,
+        688
       ],
-      "id": "788e607e-9567-4900-895f-364b6f345b4b",
+      "id": "fd435049-3abe-4208-ba24-0ccc627eaba5",
       "name": "Extract from File3"
     },
     {
@@ -361,10 +361,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        160
+        -4336,
+        688
       ],
-      "id": "9b91c8da-b642-45b0-8210-f917addb6686",
+      "id": "3ec4ae4c-fcc7-4fff-a159-c83543e00f45",
       "name": "Loading config files *.conf2"
     },
     {
@@ -376,10 +376,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        368
+        -4160,
+        896
       ],
-      "id": "945be948-1c42-4656-b337-46fd23053b7d",
+      "id": "13479083-f2d1-4f2d-8c25-454871bd06b8",
       "name": "Extract from File4"
     },
     {
@@ -393,10 +393,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        368
+        -4336,
+        896
       ],
-      "id": "d0759eb1-af32-4512-b8fc-d48b56bbef3f",
+      "id": "b25cfc22-48e8-4d8a-aa81-01a284f340c7",
       "name": "Loading config files *.conf3"
     },
     {
@@ -408,10 +408,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        416,
-        592
+        -4160,
+        1120
       ],
-      "id": "52ef5ec7-69f0-4793-a824-25a2724b78cf",
+      "id": "7e37bd5f-bfb5-4263-893a-57a0859e87b5",
       "name": "Extract from File5"
     },
     {
@@ -425,10 +425,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        240,
-        592
+        -4336,
+        1120
       ],
-      "id": "1700e9cc-8d38-4cb8-919d-7cc234930fd6",
+      "id": "f7c88953-d6dc-429d-89ec-c0b2af1736c9",
       "name": "Loading config files *.conf4"
     },
     {
@@ -438,10 +438,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4832,
-        -656
+        256,
+        -144
       ],
-      "id": "1273afb5-b828-4f20-9d74-5da649f8c88c",
+      "id": "b380bf53-6894-4261-99ec-aebf252ab70b",
       "name": "Finale Decision"
     },
     {
@@ -455,10 +455,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4592,
-        -656
+        16,
+        -144
       ],
-      "id": "769386a2-1480-4530-9a6e-7e3968ffd80c",
+      "id": "e655d61e-55ea-423c-a526-6ca73cecdee6",
       "name": "Merge1"
     },
     {
@@ -489,10 +489,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3424,
-        -656
+        -1152,
+        -144
       ],
-      "id": "78f78408-5cf7-46ef-9d8a-42d02ddd526b",
+      "id": "cde60066-e662-463e-a590-0bc2c9897af1",
       "name": "If"
     },
     {
@@ -502,10 +502,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4320,
-        -528
+        -256,
+        -16
       ],
-      "id": "17d78146-e517-4cac-958e-5f2af2085b36",
+      "id": "fa2d00d9-a521-4153-9c1b-45534f0c5f43",
       "name": "LLM Context Restore"
     },
     {
@@ -515,10 +515,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3712,
-        -544
+        -864,
+        -32
       ],
-      "id": "9b5f7815-b468-455c-a30e-3b849ac20c61",
+      "id": "1b9ed7dd-5600-41fe-8bb2-d5e68c57e6d6",
       "name": "Prepare LLM Request"
     },
     {
@@ -528,10 +528,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3904,
-        -416
+        -672,
+        112
       ],
-      "id": "ea109d07-d733-4c4e-bc95-880d22575bee",
+      "id": "f230c87d-9965-4af6-8648-4a58e9d992b5",
       "name": "Prompt Guard API"
     },
     {
@@ -539,10 +539,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        4096,
-        -528
+        -480,
+        -16
       ],
-      "id": "75463957-77d5-4ce8-ba44-0fd460f12a58",
+      "id": "44bc97ce-8cb0-4030-916b-41dbc07af12f",
       "name": "Merge2"
     },
     {
@@ -552,10 +552,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1920,
-        -656
+        -2656,
+        -144
       ],
-      "id": "16ee45ab-a42a-469c-893b-5f771be99ddc",
+      "id": "e62d51df-b2b1-4d6a-859e-a0e3735cf469",
       "name": "Bloom_Prefilter"
     },
     {
@@ -567,11 +567,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -800,
-        -784
+        -5376,
+        -272
       ],
       "typeVersion": 1,
-      "id": "860a3767-592c-43ef-b99b-12763c163656",
+      "id": "9f716171-092e-48fd-ac78-45e91c9eb2e4",
       "name": "Sticky Note1"
     },
     {
@@ -584,10 +584,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -640,
-        -128
+        -5216,
+        400
       ],
-      "id": "f7da4bea-c881-40f6-8bdd-c07c9bf7d31f",
+      "id": "601a0e59-a045-495b-90f7-a23431aa2ba7",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -600,11 +600,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -816,
-        -256
+        -5392,
+        272
       ],
       "typeVersion": 1,
-      "id": "b1f55b90-ee99-4f46-a229-4d53c0838c46",
+      "id": "b7105d4a-b129-4904-88f1-174b347f350d",
       "name": "Sticky Note2"
     },
     {
@@ -614,10 +614,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        -656
+        -3376,
+        -144
       ],
-      "id": "b6ef2af8-b889-452f-a67c-6e47c86a1a03",
+      "id": "f9a2d8b1-81c3-4033-a8f1-4f7f8126e668",
       "name": "Input_Validator"
     },
     {
@@ -648,10 +648,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1328,
-        -320
+        -3248,
+        208
       ],
-      "id": "326dad93-bac6-442d-86e4-0f3b20c5c5a7",
+      "id": "178e404f-57ab-4eea-be90-fdab37423888",
       "name": "Validation Check"
     },
     {
@@ -661,10 +661,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4816,
-        -304
+        240,
+        224
       ],
-      "id": "48163365-6ee1-4311-a807-2d8ab5f1e056",
+      "id": "d79e3af5-5389-4216-b3c8-057186acc358",
       "name": "Early Block Response"
     }
   ],
@@ -1127,11 +1127,11 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "3fdef4f1-0669-4d80-94b5-453eff4b9959",
+  "versionId": "d43bdd38-dc79-4465-95e7-9a4d6a945c26",
   "meta": {
     "instanceId": "b84f2fa66bd40374b55321fa33e339110c74abe52d41dd8c8d0dc70f7acfe412"
   },
