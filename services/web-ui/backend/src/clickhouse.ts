@@ -237,10 +237,19 @@ export async function submitFalsePositiveReport(report: FalsePositiveReport): Pr
   const client = getClickHouseClient();
 
   try {
+    // Prepare report data with timestamp conversion
+    const reportData = {
+      ...report,
+      // Convert ISO8601 timestamp to ClickHouse-compatible format
+      event_timestamp: report.event_timestamp
+        ? report.event_timestamp.replace('T', ' ').replace('Z', '').substring(0, 23)
+        : undefined
+    };
+
     // Insert the report
     await client.insert({
       table: 'n8n_logs.false_positive_reports',
-      values: [report],
+      values: [reportData],
       format: 'JSONEachRow',
     });
 

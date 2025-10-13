@@ -16,6 +16,7 @@ const Monitoring = () => {
   const [refreshInterval, setRefreshInterval] = useState<number>(30);
   const [timeRange, setTimeRange] = useState<string>("6h");
   const [stats, setStats] = useState({ requests_processed: 0, threats_blocked: 0, content_sanitized: 0 });
+  const [fpStats, setFpStats] = useState({ total_reports: 0, unique_events: 0, last_7_days: 0, top_reason: 'N/A' });
   const [statsLoading, setStatsLoading] = useState(true);
   const [promptGuardStatus, setPromptGuardStatus] = useState<'active' | 'down' | 'checking'>('checking');
 
@@ -35,6 +36,21 @@ const Monitoring = () => {
     }
   };
 
+  // Fetch FP stats from API
+  const fetchFPStats = async () => {
+    try {
+      const data = await api.fetchFPStats();
+      setFpStats({
+        total_reports: Number(data.total_reports) || 0,
+        unique_events: Number(data.unique_events) || 0,
+        last_7_days: Number(data.last_7_days) || 0,
+        top_reason: data.top_reason || 'N/A'
+      });
+    } catch (error) {
+      console.error('Error fetching FP stats:', error);
+    }
+  };
+
   // Check Prompt Guard health
   const checkPromptGuard = async () => {
     const isHealthy = await api.checkPromptGuardHealth();
@@ -44,11 +60,13 @@ const Monitoring = () => {
   // Fetch stats on mount and when refreshInterval or timeRange changes
   React.useEffect(() => {
     fetchStats();
+    fetchFPStats();
     checkPromptGuard();
 
     if (refreshInterval > 0) {
       const interval = setInterval(() => {
         fetchStats();
+        fetchFPStats();
         checkPromptGuard();
       }, refreshInterval * 1000);
       return () => clearInterval(interval);
@@ -200,6 +218,20 @@ const Monitoring = () => {
           />
         </div>
       </div>
+
+      {/* Panel 7 - False Positive Reports Over Time - Full width */}
+      <div className="mt-6">
+        <div className="mb-3">
+          <h3 className="text-md font-semibold text-white">False Positive Reports Over Time</h3>
+          <p className="text-xs text-slate-400">Track user-reported false positives to identify over-blocking patterns and improve detection accuracy</p>
+        </div>
+        <GrafanaEmbed
+          src={`http://localhost:3001/d-solo/fp-monitoring-001/false-positive-monitoring?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          title="False Positive Reports Over Time"
+          height="250"
+          refreshInterval={refreshInterval}
+        />
+      </div>
     </div>
 
     <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -265,6 +297,15 @@ const Monitoring = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-300">Content Sanitized</span>
                 <span className="text-yellow-400 font-mono">{stats.content_sanitized.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-slate-700 my-2"></div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-300">FP Reports (Total)</span>
+                <span className="text-orange-400 font-mono">{fpStats.total_reports.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-300">FP Reports (7 days)</span>
+                <span className="text-orange-400 font-mono">{fpStats.last_7_days.toLocaleString()}</span>
               </div>
             </div>
           )}
