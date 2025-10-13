@@ -66,7 +66,7 @@ After installation completes, you **must** perform these manual steps:
 2. Click **"Add Workflow"** → **"Import from File"**
 3. Import the workflow file from:
    ```
-   services/workflow/workflows/Vigil_LLM_guard_v1.json
+   services/workflow/workflows/Vigil-Guard-v1.0.json
    ```
 4. The workflow will load with all 34 nodes
 
@@ -172,7 +172,7 @@ lsof -i :3001  # Grafana
 
 1. **✅ Complete n8n Setup** (REQUIRED - see Step 4 above)
    - Create n8n account
-   - Import workflow from `services/workflow/workflows/Vigil_LLM_guard_v1.json`
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.0.json`
    - Configure ClickHouse credentials (admin/admin123)
 
 2. **Configure Security Rules**
