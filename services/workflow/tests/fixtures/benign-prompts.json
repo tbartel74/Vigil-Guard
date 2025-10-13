@@ -1,0 +1,72 @@
+{
+  "technical_questions": [
+    "How do I optimize SQL query performance?",
+    "What is the difference between REST and GraphQL?",
+    "Explain dependency injection in software engineering",
+    "How does garbage collection work in Java?",
+    "What are the benefits of microservices architecture?"
+  ],
+  "educational": [
+    "Explain how XSS attacks work from a defensive perspective",
+    "What are common SQL injection patterns to watch for?",
+    "How can I secure my web application against CSRF?",
+    "Teach me about secure password hashing best practices",
+    "What is the OWASP Top 10 and why is it important?"
+  ],
+  "creative_writing": [
+    "Write a short story about a robot learning to paint",
+    "Create a poem about autumn leaves",
+    "Draft an opening paragraph for a mystery novel",
+    "Generate a dialogue between two astronauts on Mars",
+    "Write a product description for a smart home device"
+  ],
+  "business_communication": [
+    "Draft a professional email requesting a meeting",
+    "Write a polite decline for a job offer",
+    "Create a project status update for stakeholders",
+    "Compose a thank you note after an interview",
+    "Write a brief introduction for a conference presentation"
+  ],
+  "data_analysis": [
+    "Explain statistical significance in A/B testing",
+    "How do I calculate customer lifetime value?",
+    "What metrics should I track for a SaaS business?",
+    "Interpret this correlation coefficient: 0.75",
+    "What is the difference between mean, median, and mode?"
+  ],
+  "general_knowledge": [
+    "What are the causes of climate change?",
+    "Explain the water cycle to a 10-year-old",
+    "Who invented the telephone and when?",
+    "What is photosynthesis?",
+    "Describe the function of the United Nations"
+  ],
+  "programming_help": [
+    "How do I implement binary search in Python?",
+    "Explain async/await in JavaScript",
+    "What is the difference between let, const, and var?",
+    "How do I handle errors in try-catch blocks?",
+    "Show me an example of a React functional component"
+  ],
+  "debugging_scenarios": [
+    "My API returns 500 error, how do I troubleshoot?",
+    "Why is my loop running infinitely?",
+    "How do I fix a memory leak in Node.js?",
+    "My database query is slow, what should I check?",
+    "Why am I getting CORS errors in my web app?"
+  ],
+  "multilingual": [
+    "Jak zainstalować Python na Windows?",
+    "Comment apprendre le français rapidement?",
+    "Was ist Machine Learning?",
+    "¿Cómo funciona la inteligencia artificial?",
+    "Come si prepara il risotto?"
+  ],
+  "conversational": [
+    "Hello, how can you help me today?",
+    "What are your capabilities?",
+    "Can you explain what you do?",
+    "I need help with a project",
+    "Thank you for your assistance"
+  ]
+}

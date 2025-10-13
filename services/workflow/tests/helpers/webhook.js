@@ -1,0 +1,190 @@
+/**
+ * Webhook helper utilities for E2E testing
+ */
+
+export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+
+/**
+ * Send a prompt to the Vigil Guard workflow via webhook
+ * @param {string} chatInput - The prompt text to test
+ * @param {Object} options - Additional options
+ * @returns {Promise<Object>} Response from workflow
+ */
+export async function sendToWorkflow(chatInput, options = {}) {
+  const payload = {
+    chatInput,
+    ...options
+  };
+
+  const response = await fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Webhook request failed: HTTP ${response.status}\n${text}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Query ClickHouse for the latest event matching criteria
+ * @param {Object} criteria - Search criteria
+ * @param {number} maxWaitMs - Maximum time to wait for event (default: 5000ms)
+ * @returns {Promise<Object|null>} Event data or null if not found
+ */
+export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 5000) {
+  const startTime = Date.now();
+  const pollInterval = 500; // Poll every 500ms
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      // Build WHERE clause from criteria
+      const conditions = [];
+      if (criteria.original_input) {
+        conditions.push(`original_input = '${criteria.original_input.replace(/'/g, "\\'")}'`);
+      }
+      if (criteria.sessionId) {
+        conditions.push(`sessionId = '${criteria.sessionId}'`);
+      }
+
+      const whereClause = conditions.length > 0
+        ? `WHERE ${conditions.join(' AND ')} AND timestamp > now() - INTERVAL 30 SECOND`
+        : `WHERE timestamp > now() - INTERVAL 30 SECOND`;
+
+      const query = `
+        SELECT
+          sessionId,
+          timestamp,
+          original_input,
+          normalized_input,
+          final_status,
+          final_action,
+          threat_score,
+          sanitizer_json,
+          final_decision_json
+        FROM n8n_logs.events_processed
+        ${whereClause}
+        ORDER BY timestamp DESC
+        LIMIT 1
+        FORMAT JSON
+      `;
+
+      // ClickHouse Basic Auth credentials (from docker-compose.yml)
+      const auth = Buffer.from('admin:admin123').toString('base64');
+
+      const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {
+        headers: {
+          'Authorization': `Basic ${auth}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`ClickHouse query failed: HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.data && result.data.length > 0) {
+        const event = result.data[0];
+
+        // Parse JSON fields
+        if (event.sanitizer_json) {
+          event.sanitizer = JSON.parse(event.sanitizer_json);
+        }
+        if (event.final_decision_json) {
+          event.final_decision = JSON.parse(event.final_decision_json);
+        }
+
+        return event;
+      }
+    } catch (error) {
+      // Ignore errors and continue polling
+      console.warn('ClickHouse query error:', error.message);
+    }
+
+    // Wait before next poll
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  return null; // Timeout - event not found
+}
+
+/**
+ * Send prompt and wait for ClickHouse logging
+ * Combines sendToWorkflow() and waitForClickHouseEvent()
+ * @param {string} chatInput - The prompt text to test
+ * @param {Object} options - Additional options
+ * @returns {Promise<{webhook: Object, event: Object}>}
+ */
+export async function sendAndVerify(chatInput, options = {}) {
+  const webhookResponse = await sendToWorkflow(chatInput, options);
+
+  // Wait a bit for async logging
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  const event = await waitForClickHouseEvent({
+    sessionId: webhookResponse.sessionId
+  }, options.maxWait || 5000);
+
+  if (!event) {
+    throw new Error(
+      `Event not found in ClickHouse for sessionId: ${webhookResponse.sessionId}`
+    );
+  }
+
+  return {
+    webhook: webhookResponse,
+    event
+  };
+}
+
+/**
+ * Helper to assert detection results
+ * @param {Object} event - ClickHouse event
+ * @param {Object} expected - Expected values
+ */
+export function assertDetection(event, expected) {
+  const errors = [];
+
+  if (expected.status && event.final_status !== expected.status) {
+    errors.push(
+      `Expected status ${expected.status}, got ${event.final_status}`
+    );
+  }
+
+  if (expected.minScore !== undefined && event.sanitizer.score < expected.minScore) {
+    errors.push(
+      `Expected score >= ${expected.minScore}, got ${event.sanitizer.score}`
+    );
+  }
+
+  if (expected.maxScore !== undefined && event.sanitizer.score > expected.maxScore) {
+    errors.push(
+      `Expected score <= ${expected.maxScore}, got ${event.sanitizer.score}`
+    );
+  }
+
+  if (expected.categories) {
+    const detectedCategories = Object.keys(event.sanitizer.breakdown || {});
+    for (const category of expected.categories) {
+      if (!detectedCategories.includes(category)) {
+        errors.push(
+          `Expected category '${category}' not found. Detected: ${detectedCategories.join(', ')}`
+        );
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Detection assertion failed:\n${errors.join('\n')}`);
+  }
+}
