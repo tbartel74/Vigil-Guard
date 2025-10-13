@@ -16,7 +16,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 ### Key Features
 
-- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 24+ pattern categories
+- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 29+ pattern categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - ⚙️ **Dynamic Configuration** - Web-based GUI for managing security policies
@@ -338,17 +338,28 @@ Chat Input → PII Redaction → Normalization → Bloom Prefilter
 | **SANITIZE_HEAVY** | 65-84 | Aggressive content removal |
 | **BLOCK** | 85-100 | Reject content entirely |
 
-### Detection Categories (20+)
+### Detection Categories (29+)
 
+**Critical Threats:**
 - CRITICAL_INJECTION
 - JAILBREAK_ATTEMPT
 - CONTROL_OVERRIDE
 - PROMPT_LEAK_ATTEMPT
+- GODMODE_JAILBREAK
+- DESTRUCTIVE_COMMANDS
+
+**Security & Access:**
+- PRIVILEGE_ESCALATION
+- COMMAND_INJECTION
+- CREDENTIAL_HARVESTING
+
+**Obfuscation & Manipulation:**
 - HEAVY_OBFUSCATION
 - FORMAT_COERCION
-- DANGEROUS_CONTENT
-- GODMODE_JAILBREAK
-- And more...
+- SOCIAL_ENGINEERING
+
+**Additional Categories:**
+- DANGEROUS_CONTENT, SQL_XSS_ATTACKS, ROLEPLAY_ESCAPE, and 15+ more...
 
 ## 🧪 Testing
 
@@ -392,7 +403,12 @@ npm run test:watch
    - SQL injection & XSS ✅
    - Jailbreak attempts ✅
    - Polyglot attacks ✅
-3. **False Positives** (30+ tests) - Legitimate content validation
+3. **Emoji Obfuscation** (28 tests) - Emoji-based attack detection:
+   - Communication emoji attacks (🗣️ say, 💬 chat)
+   - Security emoji attacks (🔓 unlock, 🔑 key)
+   - Technology emoji attacks (💻 computer, 🖥️ server)
+   - False positive prevention (casual emoji usage)
+4. **False Positives** (15+ tests) - Legitimate content validation
 
 ### Test Results
 
