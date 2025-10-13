@@ -28,6 +28,7 @@ services:
       - ./vigil_data/clickhouse:/var/lib/clickhouse
       - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
       - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/02-create-views.sql:ro
+      - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/03-false-positives.sql:ro
     networks:
       vigil-net:
         aliases:

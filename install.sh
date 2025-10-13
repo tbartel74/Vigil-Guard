@@ -320,14 +320,23 @@ EOF
         return 1
     fi
 
+    # Execute false positive reports schema
+    log_info "Creating false positive reports table..."
+    if cat services/monitoring/sql/03-false-positives.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+        log_success "False positive reports table created"
+    else
+        log_error "Failed to create false positive reports table"
+        return 1
+    fi
+
     # Verify installation
     log_info "Verifying database structure..."
     TABLE_COUNT=$(docker exec $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --database $CLICKHOUSE_DB -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
-    if [ "$TABLE_COUNT" -ge 5 ]; then
+    if [ "$TABLE_COUNT" -ge 6 ]; then
         log_success "ClickHouse initialized successfully ($TABLE_COUNT tables/views)"
     else
-        log_warning "Database created but table count is unexpected: $TABLE_COUNT"
+        log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥6)"
     fi
 
     echo ""
