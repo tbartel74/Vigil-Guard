@@ -597,6 +597,292 @@ Enable debug logging to troubleshoot configuration issues:
 - Optimize cache settings
 - Regular cleanup of audit logs
 
+### 5. Version Control
+
+- Review version history periodically
+- Use meaningful usernames (avoid generic accounts)
+- Test configuration changes before production deployment
+- Keep version history clean by avoiding unnecessary saves
+- Document major changes in external changelog
+
+## 📚 Configuration Version History & Rollback
+
+### Overview
+
+The system provides git-like version control for all configuration changes with automatic tracking and single-click rollback capability. This feature ensures configuration accountability and enables quick recovery from misconfiguration.
+
+### How Version History Works
+
+**Automatic Versioning**:
+- Every configuration save creates a version entry automatically
+- Version data stored in `version_history.json` in TARGET_DIR
+- Maximum 50 versions retained (oldest automatically pruned)
+- Each version tracks timestamp, author, affected files, and backup paths
+
+**Version Tag Format**: `YYYYMMDD_HHMMSS-username`
+- Example: `20251014_140530-admin`
+- Sortable by date and time
+- User-traceable for audit purposes
+
+**Storage Structure**:
+```json
+{
+  "versions": [
+    {
+      "tag": "20251014_140530-admin",
+      "timestamp": "2025-10-14T14:05:30.123Z",
+      "author": "admin",
+      "files": ["unified_config.json", "thresholds.config.json"],
+      "backups": [
+        "unified_config__20251014_140530__updated-thresholds.json.bak",
+        "thresholds.config__20251014_140530__updated-thresholds.json.bak"
+      ]
+    }
+  ]
+}
+```
+
+### API Endpoints
+
+#### GET /api/config-versions
+
+Returns list of all configuration versions (max 50).
+
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Response**:
+```json
+{
+  "versions": [
+    {
+      "tag": "20251014_140530-admin",
+      "timestamp": "2025-10-14T14:05:30.123Z",
+      "author": "admin",
+      "files": ["unified_config.json"],
+      "backups": ["unified_config__20251014_140530__security-update.json.bak"]
+    }
+  ]
+}
+```
+
+#### GET /api/config-version/:tag
+
+Returns details for a specific version.
+
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Parameters**:
+- `tag` - Version tag (URL-encoded)
+
+**Response**: Same as version object above
+
+**Errors**:
+- `404` - Version not found
+
+#### POST /api/config-rollback/:tag
+
+Rollback configuration to specified version.
+
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Parameters**:
+- `tag` - Version tag to restore (URL-encoded)
+
+**Process**:
+1. Validates version exists
+2. Checks backup files exist
+3. Creates pre-rollback safety backup of current state
+4. Atomically restores all files from version's backups
+5. Returns success confirmation
+
+**Response** (success):
+```json
+{
+  "success": true,
+  "restoredFiles": ["unified_config.json", "thresholds.config.json"]
+}
+```
+
+**Errors**:
+- `404` - Version not found or backup files missing
+- `500` - Rollback operation failed
+
+### Safety Features
+
+**Pre-rollback Backup**:
+- Current configuration automatically backed up before rollback
+- Tagged with `__pre-rollback` suffix
+- Provides safety net in case rollback causes issues
+
+**Atomic Operations**:
+- All files restored together or none at all
+- No partial state transitions
+- Prevents configuration inconsistency
+
+**Permission Control**:
+- Requires `can_view_configuration` permission
+- All operations logged with username
+- Audit trail maintained
+
+**Automatic Cleanup**:
+- Max 50 versions retained
+- Oldest versions pruned automatically
+- Prevents disk space exhaustion
+
+### Using Version History (Web UI)
+
+**Access**:
+1. Navigate to Configuration section
+2. Click "Version History" button (bottom of left panel)
+3. Modal displays version list
+
+**Version List Display**:
+- **Tag** - Version identifier with timestamp and username
+- **Timestamp** - When the change was made (user timezone)
+- **Author** - Username who made the change
+- **Files** - Configuration files modified
+- **Actions** - "Rollback" button for each version
+
+**Rollback Procedure**:
+1. Select desired version from list
+2. Click "Rollback" button
+3. Confirm in dialog (explains impact)
+4. System creates pre-rollback backup
+5. Restores files from version backups
+6. Success message displays
+7. Page auto-reloads to reflect changes
+
+### Use Cases
+
+#### Rollback After Misconfiguration
+
+**Scenario**: Changed thresholds and system started blocking legitimate traffic
+
+**Solution**:
+1. Open Version History
+2. Find version before the problematic change
+3. Click "Rollback"
+4. System restored to working configuration
+5. Review what went wrong in the problematic version
+
+#### Audit Compliance
+
+**Scenario**: Security audit requires proof of who changed configuration and when
+
+**Solution**:
+1. Open Version History
+2. Review complete timeline of changes
+3. See username for each modification
+4. Track specific files changed in each version
+5. Export version history for audit report
+
+#### Configuration Experimentation
+
+**Scenario**: Want to test new detection thresholds without risk
+
+**Solution**:
+1. Note current version tag
+2. Make experimental changes
+3. Monitor system for 1 hour
+4. If false positives increase, rollback to noted version
+5. No need to manually remember old values
+
+#### Emergency Recovery
+
+**Scenario**: Configuration file corrupted or accidentally deleted
+
+**Solution**:
+1. Open Version History
+2. Rollback to most recent working version
+3. System restores from backups automatically
+4. Service restored in seconds
+
+### Integration with Other Systems
+
+**Backup System**:
+- Version history complements automatic backups (max 2 per file)
+- Version history provides longer retention (50 versions)
+- Backups provide file-level restore
+- Version history provides point-in-time restore
+
+**Audit Log**:
+- Version history focuses on configuration changes
+- Audit log tracks all file operations (including non-config)
+- Both systems record username and timestamp
+- Cross-reference for complete audit trail
+
+**Configuration Editor**:
+- Every save via Configuration UI creates version entry
+- Author automatically extracted from JWT token
+- Files and backups automatically tracked
+- No manual versioning required
+
+### Technical Implementation
+
+**Version History File**: `TARGET_DIR/version_history.json`
+
+**Backup Files**: `TARGET_DIR/{filename}__{timestamp}__{tag}.{ext}.bak`
+
+**Example Backup Names**:
+```
+unified_config__20251014_140530__security-update.json.bak
+thresholds.config__20251014_143020__lower-thresholds.json.bak
+```
+
+**Pruning Logic**:
+- Triggered when versions exceed 50
+- Keeps most recent 50 versions
+- Older versions removed from `version_history.json`
+- Associated backup files remain (subject to max 2 per file limit)
+
+**Concurrency**:
+- ETag validation prevents concurrent modifications
+- Version history operations are atomic
+- No race conditions during rollback
+
+### Troubleshooting
+
+#### Version History Empty
+
+**Symptom**: Modal shows "No version history available"
+
+**Causes**:
+- No configuration changes made since feature deployment
+- `version_history.json` file missing or empty
+- Permission issues reading version history file
+
+**Solutions**:
+1. Make a configuration change to create first version
+2. Check `version_history.json` exists in TARGET_DIR
+3. Verify file permissions allow read access
+
+#### Rollback Fails
+
+**Symptom**: "Backup file not found" error
+
+**Causes**:
+- Backup files manually deleted
+- Disk space issue prevented backup creation
+- File permissions prevent access
+
+**Solutions**:
+1. Check backup files exist in TARGET_DIR
+2. Verify disk space available: `df -h`
+3. Check file permissions: `ls -la TARGET_DIR/*.bak`
+
+#### Version List Too Long
+
+**Symptom**: 50+ versions making list hard to navigate
+
+**Causes**:
+- Automatic pruning not working
+- Too many small changes being saved
+
+**Solutions**:
+1. Check pruning logic in backend logs
+2. Manually clean old versions if needed
+3. Batch related configuration changes together
+
 ---
 
 **Next Steps**: After configuring the system variables, test the complete integration by processing sample inputs and monitoring the dashboard metrics.

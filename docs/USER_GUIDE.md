@@ -11,6 +11,7 @@
 3. [Monitoring Dashboard](#monitoring-dashboard)
 4. [Prompt Analyzer](#prompt-analyzer)
 5. [Configuration Management](#configuration-management)
+   - [Configuration Version History & Rollback](#configuration-version-history--rollback)
 6. [File Manager](#file-manager)
 7. [User Administration](#user-administration)
 8. [Settings & Preferences](#settings--preferences)
@@ -438,6 +439,84 @@ Dynamic security policy management through web interface with real-time validati
 - Download current configuration
 - Store externally
 - Upload to restore
+
+### Configuration Version History & Rollback
+
+**Location**: Configuration section → "Version History" button (bottom of left panel)
+
+**Purpose**: Git-like version control for all configuration changes with single-click rollback capability
+
+**How it works**:
+- Every configuration save automatically creates a version entry
+- Version history stored with timestamp, author (from JWT), and affected files
+- Maximum 50 versions retained (oldest automatically pruned)
+- Each version links to backup files for restore
+
+**Version History Modal**:
+
+**Displays**:
+- **Tag** - Unique version identifier (format: `YYYYMMDD_HHMMSS-username`)
+- **Timestamp** - When the change was made (formatted with your timezone)
+- **Author** - Username who made the change
+- **Files** - List of configuration files modified in that version
+- **Actions** - "Rollback" button for each version
+
+**How to Rollback**:
+
+1. **Open Version History**:
+   - Navigate to Configuration section
+   - Click "Version History" button at bottom of left panel
+
+2. **Select Version**:
+   - Browse version list (newest first)
+   - Review timestamp, author, and files changed
+   - Click "Rollback" button on desired version
+
+3. **Confirm Rollback**:
+   - Confirmation dialog appears
+   - Warning message explains impact
+   - Click "Yes" to proceed or "Cancel" to abort
+
+4. **Auto-Restore**:
+   - System creates pre-rollback safety backup
+   - Restores all files from selected version's backups
+   - Success message displays briefly
+   - Page auto-reloads to reflect changes
+
+**Safety Features**:
+- **Pre-rollback backup** - Current state saved before restore (just in case)
+- **Atomic operations** - All files restored together or none at all
+- **Audit trail** - Complete history of who changed what and when
+- **Permission control** - Requires `can_view_configuration` permission
+- **Automatic cleanup** - Old versions pruned to prevent disk space issues
+
+**Use Cases**:
+
+**Rollback after misconfiguration**:
+1. Made change that caused issues
+2. Open Version History
+3. Find version before the problematic change
+4. Click "Rollback"
+5. System restored to working state
+
+**Audit compliance**:
+1. Review all configuration changes by date range
+2. See who made each change
+3. Track files modified in each version
+4. Maintain accountability for security policies
+
+**Experimentation**:
+1. Try new detection thresholds
+2. If false positive rate increases
+3. Rollback to previous working configuration
+4. No need to manually remember old values
+
+**Best Practices**:
+- Review version history periodically to understand configuration evolution
+- Use meaningful usernames (avoid generic "admin" accounts)
+- Test changes before committing to production
+- Keep version history clean by avoiding unnecessary saves
+- Document major changes in external changelog
 
 ---
 
