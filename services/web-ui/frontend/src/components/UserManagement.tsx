@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FocusTrap from 'focus-trap-react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../lib/api';
 
@@ -39,6 +40,19 @@ export function UserManagement() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  // ESC key handler for modals
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModals();
+      }
+    };
+    if (isCreateModalOpen || isEditModalOpen) {
+      document.addEventListener('keydown', handleEsc);
+    }
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isCreateModalOpen, isEditModalOpen]);
 
   const loadUsers = async () => {
     try {
@@ -288,8 +302,14 @@ export function UserManagement() {
       {/* Create User Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-lg w-full mx-4 border border-slate-700">
-            <h2 className="text-2xl font-semibold text-white mb-6">Create New User</h2>
+          <FocusTrap>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="create-user-title"
+              className="bg-slate-800 rounded-2xl p-8 max-w-lg w-full mx-4 border border-slate-700"
+            >
+              <h2 id="create-user-title" className="text-2xl font-semibold text-white mb-6">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -378,15 +398,22 @@ export function UserManagement() {
                 </button>
               </div>
             </form>
-          </div>
+            </div>
+          </FocusTrap>
         </div>
       )}
 
       {/* Edit User Modal */}
       {isEditModalOpen && selectedUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-lg w-full mx-4 border border-slate-700">
-            <h2 className="text-2xl font-semibold text-white mb-6">Edit User: {selectedUser.username}</h2>
+          <FocusTrap>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-user-title"
+              className="bg-slate-800 rounded-2xl p-8 max-w-lg w-full mx-4 border border-slate-700"
+            >
+              <h2 id="edit-user-title" className="text-2xl font-semibold text-white mb-6">Edit User: {selectedUser.username}</h2>
             <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -475,7 +502,8 @@ export function UserManagement() {
                 </button>
               </div>
             </form>
-          </div>
+            </div>
+          </FocusTrap>
         </div>
       )}
     </div>

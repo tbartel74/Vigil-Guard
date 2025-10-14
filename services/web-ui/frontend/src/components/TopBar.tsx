@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useMobile } from "../context/MobileContext";
 import vigilLogo from "../assets/vigil_logo.png";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
+  const { isMobile, toggleSidebar } = useMobile();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -38,20 +40,45 @@ export default function TopBar() {
 
   return (
     <div className="h-14 px-4 flex items-center justify-between bg-[#0B0F14] border-b border-slate-800">
-      <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
-        <img
-          src={vigilLogo}
-          alt="Vigil Logo"
-          className="w-8 h-8 rounded-full object-cover"
-          style={{ clipPath: 'circle(50%)' }}
-        />
-        <div>
-          <div className="text-lg font-bold tracking-tight text-white">
-            Vigil Guard
+      <div className="flex items-center gap-3">
+        {/* Mobile hamburger menu */}
+        {isMobile && (
+          <button
+            onClick={toggleSidebar}
+            className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            <svg
+              className="w-6 h-6 text-slate-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
+        )}
+
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+          <img
+            src={vigilLogo}
+            alt="Vigil Logo"
+            className="w-8 h-8 rounded-full object-cover"
+            style={{ clipPath: 'circle(50%)' }}
+          />
+          <div>
+            <div className="text-lg font-bold tracking-tight text-white">
+              Vigil Guard
+            </div>
+            <div className="text-xs text-slate-500">Enterprise Security Platform</div>
           </div>
-          <div className="text-xs text-slate-500">Enterprise Security Platform</div>
-        </div>
-      </Link>
+        </Link>
+      </div>
       <div className="flex items-center gap-6">
         {user && (
           <div className="relative" ref={dropdownRef}>

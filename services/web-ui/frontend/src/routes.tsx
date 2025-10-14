@@ -10,6 +10,7 @@ import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
 import Documentation from "./components/Documentation";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
+import { MobileProvider } from "./context/MobileContext";
 import * as api from "./lib/api";
 
 const Monitoring = () => {
@@ -158,7 +159,7 @@ const Monitoring = () => {
     </div>
 
     {/* Prompt Analyzer Widget */}
-    <PromptAnalyzer timeRange={timeRange} />
+    <PromptAnalyzer timeRange={timeRange} refreshInterval={refreshInterval} />
 
     <div className="mt-6 rounded-2xl border border-slate-700 p-4">
       {/* Full-width panel 5 - TOP-10 Detection Categories */}
@@ -346,16 +347,24 @@ export const router = createBrowserRouter(
   [
     {
       path: "/login",
-      element: <AuthProvider><Login /></AuthProvider>
+      element: (
+        <MobileProvider>
+          <AuthProvider>
+            <Login />
+          </AuthProvider>
+        </MobileProvider>
+      )
     },
     {
       path: "/",
       element: (
-        <AuthProvider>
-          <ProtectedRoute>
-            <App />
-          </ProtectedRoute>
-        </AuthProvider>
+        <MobileProvider>
+          <AuthProvider>
+            <ProtectedRoute>
+              <App />
+            </ProtectedRoute>
+          </AuthProvider>
+        </MobileProvider>
       ),
       children: [
         { path: "/", element: <Monitoring /> },

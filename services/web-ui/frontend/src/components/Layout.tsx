@@ -1,13 +1,38 @@
 import React from "react";
 import Footer from "./Footer";
+import { useMobile } from "../context/MobileContext";
 
 export default function Layout({ header, sidebar, children }:{ header:React.ReactNode; sidebar:React.ReactNode; children:React.ReactNode; }) {
+  const { isMobile, isSidebarOpen, setSidebarOpen } = useMobile();
+
   return (
     <div className="min-h-screen grid grid-rows-[56px_1fr_48px]">
       <header>{header}</header>
-      <div className="grid grid-cols-[260px_1fr]">
-        <aside className="border-r border-slate-800 bg-[#0C1117]">{sidebar}</aside>
-        <main className="bg-[#0F1419]">{children}</main>
+      <div className="relative flex">
+        {/* Desktop: sidebar always visible */}
+        {!isMobile && (
+          <aside className="w-[260px] border-r border-slate-800 bg-[#0C1117] overflow-y-auto">
+            {sidebar}
+          </aside>
+        )}
+
+        {/* Mobile: offcanvas overlay */}
+        {isMobile && isSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-40 bg-black/50"
+              onClick={() => setSidebarOpen(false)}
+            />
+            {/* Sidebar */}
+            <aside className="fixed left-0 top-14 bottom-12 w-[280px] z-50 bg-[#0C1117] border-r border-slate-800 overflow-y-auto transform transition-transform duration-300">
+              {sidebar}
+            </aside>
+          </>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 bg-[#0F1419] overflow-auto">{children}</main>
       </div>
       <Footer />
     </div>

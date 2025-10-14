@@ -24,9 +24,10 @@ interface PromptDetails {
 
 interface PromptAnalyzerProps {
   timeRange: string; // from parent (Monitoring component)
+  refreshInterval: number; // from parent (0 = disabled, or seconds)
 }
 
-export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
+export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAnalyzerProps) {
   const { user } = useAuth();
   const [promptList, setPromptList] = useState<PromptListItem[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
@@ -45,17 +46,19 @@ export default function PromptAnalyzer({ timeRange }: PromptAnalyzerProps) {
   // Get user's timezone preference, default to UTC
   const userTimezone = user?.timezone || 'UTC';
 
-  // Fetch list of prompts when timeRange changes or every 10 seconds
+  // Fetch list of prompts when timeRange changes or when refreshInterval is active
   useEffect(() => {
     fetchPromptList();
 
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(() => {
-      fetchPromptList();
-    }, 10000);
+    // Auto-refresh based on parent's refreshInterval (0 = disabled)
+    if (refreshInterval > 0) {
+      const interval = setInterval(() => {
+        fetchPromptList();
+      }, refreshInterval * 1000);
 
-    return () => clearInterval(interval);
-  }, [timeRange]);
+      return () => clearInterval(interval);
+    }
+  }, [timeRange, refreshInterval]);
 
   // Fetch details when selected prompt changes
   useEffect(() => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FocusTrap from 'focus-trap-react';
 import { getConfigVersions, rollbackToVersion, type ConfigVersion } from '../lib/api';
 
 interface VersionHistoryModalProps {
@@ -16,6 +17,17 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
   useEffect(() => {
     loadVersions();
   }, []);
+
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   const loadVersions = async () => {
     try {
@@ -69,19 +81,25 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-4xl mx-4 shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-white">Configuration Version History</h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+      <FocusTrap>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="version-history-title"
+          className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-4xl mx-4 shadow-2xl max-h-[80vh] overflow-hidden flex flex-col"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 id="version-history-title" className="text-xl font-semibold text-white">Configuration Version History</h3>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors"
+              aria-label="Close modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
         {rollbackSuccess && (
           <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm">
@@ -152,15 +170,16 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
           )}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-slate-700">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-white text-sm transition-colors"
-          >
-            Close
-          </button>
+          <div className="mt-6 pt-4 border-t border-slate-700">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-white text-sm transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }
