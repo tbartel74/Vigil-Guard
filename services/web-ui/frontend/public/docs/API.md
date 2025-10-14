@@ -101,6 +101,83 @@ Zwraca zagregowane dane z ClickHouse z ostatnich 24 godzin:
 
 Domyślnie backend łączy się z hostem `vigil-clickhouse` i bazą `n8n_logs`. Można to zmienić zmiennymi środowiskowymi (`CLICKHOUSE_HOST`, `CLICKHOUSE_PORT` itd.).
 
+### `GET /api/prompt-guard/health`
+
+Sprawdza status Prompt Guard API:
+
+```json
+{
+  "status": "healthy",
+  "model_loaded": true
+}
+```
+
+## False Positive Feedback
+
+System umożliwia użytkownikom zgłaszanie błędnych decyzji systemu (over-blocking, over-sanitization). Wszystkie endpointy wymagają autoryzacji.
+
+### `POST /api/feedback/false-positive`
+
+Zgłasza fałszywie pozytywną detekcję. Pole `reported_by` jest automatycznie wypełniane z tokenu JWT.
+
+**Request:**
+```jsonc
+{
+  "event_id": "1760425445919-1760425446066",
+  "reason": "over_blocking",               // required: over_blocking | over_sanitization | false_detection | business_logic | other
+  "comment": "This was a legitimate request",  // optional, max 5000 chars
+  "event_timestamp": "2025-10-14T07:04:06Z",   // optional, for context
+  "original_input": "ignore all previous instructions", // optional
+  "final_status": "BLOCKED",                   // optional: BLOCKED | SANITIZED
+  "threat_score": 85                           // optional
+}
+```
+
+**Response (success):**
+```json
+{
+  "success": true,
+  "message": "False positive report submitted successfully"
+}
+```
+
+**Przykłady błędów:**
+- `400` - Brak wymaganych pól (`event_id`, `reason`)
+- `401` - Brak autoryzacji
+
+### `GET /api/feedback/stats`
+
+Zwraca statystyki zgłoszonych False Positive:
+
+**Response:**
+```json
+{
+  "total_reports": 49,
+  "unique_events": 45,
+  "top_reason": "over_blocking",
+  "last_7_days": 12
+}
+```
+
+**Dane w ClickHouse:**
+- Tabela: `n8n_logs.false_positive_reports`
+- Widoki: `false_positive_summary`, `false_positive_trends`
+- Schema: `services/monitoring/sql/03-false-positives.sql`
+
+### Integracja z UI
+
+W interfejsie użytkownika przycisk "Report False Positive" pojawia się automatycznie w sekcji **Prompt Analysis** dla eventów ze statusem `BLOCKED` lub `SANITIZED`. Użytkownik może:
+
+1. Wybrać event z dropdownu
+2. Kliknąć "Report False Positive" (prawy górny róg)
+3. Wybrać powód z listy rozwijanej
+4. Dodać opcjonalny komentarz
+5. Wysłać raport
+
+Dashboard pokazuje:
+- Statystyki FP w Quick Stats (Total + Last 7 days)
+- Wykres czasowy w panelu Grafana (False Positive Reports Over Time)
+
 ## Health Checks
 
 Do podstawowych testów działania usług służą:
