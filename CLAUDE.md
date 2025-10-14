@@ -88,6 +88,60 @@ curl -I http://localhost:3001
 
 ## Architecture
 
+### ⚠️ REVERSE PROXY ARCHITECTURE (CRITICAL - READ FIRST!)
+
+**IMPORTANT: All services are accessed through Caddy reverse proxy on port 80!**
+
+Caddy is the main entry point for the entire Vigil Guard system:
+
+```
+Client (Browser)
+    ↓
+Caddy (:80) - Main reverse proxy
+    ├─→ /ui/*       → web-ui-frontend:80 (nginx) [uri strip_prefix /ui]
+    ├─→ /ui/api/*   → web-ui-backend:8787 [uri strip_prefix /ui]
+    ├─→ /n8n/*      → n8n:5678
+    ├─→ /grafana/*  → grafana:3000
+    └─→ /clickhouse/* → clickhouse:8123
+```
+
+**Critical Configuration Details:**
+
+1. **Caddy strips URL prefixes** before proxying:
+   - Request: `http://localhost/ui/dashboard`
+   - Caddy strips `/ui` → proxies as `GET /dashboard`
+   - Nginx receives: `GET /dashboard` (NOT `/ui/dashboard`)
+
+2. **Web UI Deployment Stack**:
+   ```
+   Client → Caddy (:80)
+          ↓ [uri strip_prefix /ui]
+          → Nginx (:80 internal)
+          → React SPA (Vite build with base: "/ui/")
+   ```
+
+3. **Common Pitfalls When Modifying Web UI**:
+   - ❌ DO NOT configure nginx to expect `/ui/` prefix
+   - ❌ DO NOT add nginx location blocks for `/ui/`
+   - ❌ DO NOT use alias or rewrite rules in nginx for `/ui/`
+   - ✅ Keep nginx simple: `location / { try_files $uri $uri/ /index.html; }`
+   - ✅ Remember: Vite `base: "/ui/"` is for asset paths in HTML, NOT nginx routing
+
+**Access Points (Production):**
+- Web UI: http://localhost/ui/
+- n8n: http://localhost/n8n/
+- Grafana: http://localhost/grafana/
+- ClickHouse: http://localhost/clickhouse/
+
+**Direct Access (Development Only):**
+- Web UI Frontend: http://localhost:5173/
+- Web UI Backend: http://localhost:8787/api/
+- n8n: http://localhost:5678/
+- Grafana: http://localhost:3001/
+- ClickHouse: http://localhost:8123/
+
+For detailed Web UI deployment architecture, see `services/web-ui/CLAUDE.md`.
+
 ### n8n Workflow Pipeline (40 nodes, 16 code nodes)
 
 The system processes chat messages through a sequential pipeline:
