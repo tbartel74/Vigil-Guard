@@ -10,7 +10,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_GRAFANA_ORIGIN=${GRAFANA_ORIGIN:-http://localhost:3001}
     container_name: vigil-web-ui-frontend
+    environment:
+      - VITE_GRAFANA_ORIGIN=${GRAFANA_ORIGIN:-http://localhost:3001}
     ports:
       - "5173:80"
     networks:

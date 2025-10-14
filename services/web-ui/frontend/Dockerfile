@@ -4,6 +4,10 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Accept build arg for Grafana origin
+ARG VITE_GRAFANA_ORIGIN=http://localhost:3001
+ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
+
 # Copy package files
 COPY package*.json ./
 
