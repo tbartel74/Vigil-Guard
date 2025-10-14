@@ -13,12 +13,14 @@ import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import * as api from "./lib/api";
 
 const Monitoring = () => {
+  const GRAFANA_ORIGIN = import.meta.env.VITE_GRAFANA_ORIGIN || 'http://localhost:3001';
   const [refreshInterval, setRefreshInterval] = useState<number>(30);
   const [timeRange, setTimeRange] = useState<string>("6h");
   const [stats, setStats] = useState({ requests_processed: 0, threats_blocked: 0, content_sanitized: 0 });
   const [fpStats, setFpStats] = useState({ total_reports: 0, unique_events: 0, last_7_days: 0, top_reason: 'N/A' });
   const [statsLoading, setStatsLoading] = useState(true);
   const [promptGuardStatus, setPromptGuardStatus] = useState<'active' | 'down' | 'checking'>('checking');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch stats from API
   const fetchStats = async () => {
@@ -55,6 +57,19 @@ const Monitoring = () => {
   const checkPromptGuard = async () => {
     const isHealthy = await api.checkPromptGuardHealth();
     setPromptGuardStatus(isHealthy ? 'active' : 'down');
+  };
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchStats(), fetchFPStats()]);
+      await checkPromptGuard();
+    } catch (error) {
+      console.error('Error during manual refresh:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Fetch stats on mount and when refreshInterval or timeRange changes
@@ -114,10 +129,11 @@ const Monitoring = () => {
           </div>
 
           <button
-            onClick={() => window.location.reload()}
-            className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded text-sm font-medium transition-colors"
           >
-            Refresh Now
+            {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
           </button>
         </div>
       </div>
@@ -133,7 +149,7 @@ const Monitoring = () => {
           <p className="text-xs text-slate-400">Real-time processing data with input/output analysis</p>
         </div>
         <GrafanaEmbed
-          src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=1&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=1&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
           title="Vigil Input/Output Table"
           height="300"
           refreshInterval={refreshInterval}
@@ -152,7 +168,7 @@ const Monitoring = () => {
           <p className="text-xs text-slate-400">Dominant abuse types analysis: identify which threats are most prevalent (e.g., JAILBREAK_ATTEMPT, CRITICAL_INJECTION)</p>
         </div>
         <GrafanaEmbed
-          src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
           title="Vigil TOP-10 Detection Categories"
           height="300"
           refreshInterval={refreshInterval}
@@ -167,7 +183,7 @@ const Monitoring = () => {
             <p className="text-xs text-slate-400">Prompt volume over time with ALLOWED / SANITIZED / BLOCKED status distribution</p>
           </div>
           <GrafanaEmbed
-            src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=2&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=2&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
             title="Vigil Volume + Status Mix"
             height="250"
             refreshInterval={refreshInterval}
@@ -181,7 +197,7 @@ const Monitoring = () => {
             <p className="text-xs text-slate-400">Percentage of BLOCKED requests - early indicator of traffic quality degradation or security effectiveness</p>
           </div>
           <GrafanaEmbed
-            src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=3&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=3&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
             title="Vigil Block Rate Percentage"
             height="250"
             refreshInterval={refreshInterval}
@@ -197,7 +213,7 @@ const Monitoring = () => {
             <p className="text-xs text-slate-400">Risk trend analysis: Average smooths patterns, P95 captures tail risks and emerging threats</p>
           </div>
           <GrafanaEmbed
-            src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=4&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=4&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
             title="Vigil Maliciousness Trend"
             height="250"
             refreshInterval={refreshInterval}
@@ -211,7 +227,7 @@ const Monitoring = () => {
             <p className="text-xs text-slate-400">Distribution of buckets (0–10, 10–20, …) over time — ideal for Time series stacked visualization</p>
           </div>
           <GrafanaEmbed
-            src={`http://localhost:3001/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
             title="Vigil Histogram Time Series"
             height="250"
             refreshInterval={refreshInterval}
@@ -226,7 +242,7 @@ const Monitoring = () => {
           <p className="text-xs text-slate-400">Track user-reported false positives to identify over-blocking patterns and improve detection accuracy</p>
         </div>
         <GrafanaEmbed
-          src={`http://localhost:3001/d-solo/fp-monitoring-001/false-positive-monitoring?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          src={`${GRAFANA_ORIGIN}/d-solo/fp-monitoring-001/false-positive-monitoring?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
           title="False Positive Reports Over Time"
           height="250"
           refreshInterval={refreshInterval}
