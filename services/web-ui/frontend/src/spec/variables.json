@@ -51,8 +51,8 @@
       "default": 29,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.allow.max"
+          "file": "thresholds.config.json",
+          "path": "ranges.allow.max"
         }
       ]
     },
@@ -66,8 +66,8 @@
       "default": 30,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.sanitize_light.min"
+          "file": "thresholds.config.json",
+          "path": "ranges.sanitize_light.min"
         }
       ]
     },
@@ -78,11 +78,11 @@
       "type": "number",
       "required": true,
       "help": "0-100",
-      "default": 55,
+      "default": 64,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.sanitize_light.max"
+          "file": "thresholds.config.json",
+          "path": "ranges.sanitize_light.max"
         }
       ]
     },
@@ -93,11 +93,11 @@
       "type": "number",
       "required": true,
       "help": "0-100",
-      "default": 56,
+      "default": 65,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.sanitize_heavy.min"
+          "file": "thresholds.config.json",
+          "path": "ranges.sanitize_heavy.min"
         }
       ]
     },
@@ -108,11 +108,11 @@
       "type": "number",
       "required": true,
       "help": "0-100",
-      "default": 75,
+      "default": 84,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.sanitize_heavy.max"
+          "file": "thresholds.config.json",
+          "path": "ranges.sanitize_heavy.max"
         }
       ]
     },
@@ -123,11 +123,11 @@
       "type": "number",
       "required": true,
       "help": "0-100",
-      "default": 76,
+      "default": 85,
       "map": [
         {
-          "file": "unified_config.json",
-          "path": "scoring.ranges.block.min"
+          "file": "thresholds.config.json",
+          "path": "ranges.block.min"
         }
       ]
     },

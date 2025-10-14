@@ -178,6 +178,92 @@ Dashboard pokazuje:
 - Statystyki FP w Quick Stats (Total + Last 7 days)
 - Wykres czasowy w panelu Grafana (False Positive Reports Over Time)
 
+## Configuration Version History
+
+System automatycznie tworzy historię zmian konfiguracji z możliwością rollback. Każda zmiana zapisana przez `/api/save` tworzy wpis w `version_history.json` z tagiem, timestampem, autorem i ścieżkami backupów. Wszystkie endpointy wymagają uprawnień `can_view_configuration`.
+
+### `GET /api/config-versions`
+
+Zwraca listę wersji konfiguracji (maksymalnie 50 ostatnich).
+
+**Response:**
+```json
+{
+  "versions": [
+    {
+      "tag": "2025-10-14_12-05-30-admin",
+      "timestamp": "2025-10-14T12:05:30.123Z",
+      "author": "admin",
+      "files": ["unified_config.json"],
+      "backups": ["unified_config__2025-10-14_12-05-30__updated-limits.json.bak"]
+    },
+    {
+      "tag": "2025-10-14_11-30-15-admin",
+      "timestamp": "2025-10-14T11:30:15.456Z",
+      "author": "admin",
+      "files": ["thresholds.config.json"],
+      "backups": ["thresholds.config__2025-10-14_11-30-15__threshold-tuning.json.bak"]
+    }
+  ]
+}
+```
+
+### `GET /api/config-version/:tag`
+
+Zwraca szczegóły konkretnej wersji.
+
+**Parametry:**
+- `tag` - Tag wersji (URL-encoded)
+
+**Response:**
+```json
+{
+  "tag": "2025-10-14_12-05-30-admin",
+  "timestamp": "2025-10-14T12:05:30.123Z",
+  "author": "admin",
+  "files": ["unified_config.json"],
+  "backups": ["unified_config__2025-10-14_12-05-30__updated-limits.json.bak"]
+}
+```
+
+**Błędy:**
+- `404` - Wersja nie została znaleziona
+
+### `POST /api/config-rollback/:tag`
+
+Przywraca konfigurację do określonej wersji. Przed rollback system tworzy backup obecnego stanu.
+
+**Parametry:**
+- `tag` - Tag wersji do przywrócenia (URL-encoded)
+
+**Response (success):**
+```json
+{
+  "success": true,
+  "restoredFiles": ["unified_config.json"]
+}
+```
+
+**Błędy:**
+- `404` - Wersja nie została znaleziona lub pliki backup nie istnieją
+- `500` - Błąd podczas rollback
+
+### Integracja z UI
+
+W sekcji **Configuration** dostępny jest przycisk "Version History" w dolnej części lewego panelu nawigacyjnego. Modal pokazuje:
+
+1. Listę wszystkich wersji z timestampem i autorem
+2. Listę zmodyfikowanych plików dla każdej wersji
+3. Przycisk "Rollback" przy każdej wersji
+4. Dialog potwierdzenia przed wykonaniem rollback
+5. Automatyczne odświeżenie strony po udanym rollback
+
+**Format tagu wersji:** `YYYYMMDD_HHMMSS-username`
+
+**Lokalizacja plików:**
+- Historia: `TARGET_DIR/version_history.json`
+- Backupy: `TARGET_DIR/{filename}__{timestamp}__{changeTag}.{ext}.bak`
+
 ## Health Checks
 
 Do podstawowych testów działania usług służą:

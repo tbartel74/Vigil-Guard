@@ -3,7 +3,7 @@ import cors from "cors";
 import session from "express-session";
 import fs from "fs";
 import path from "path";
-import { listFiles, readFileRaw, parseFile, saveChanges } from "./fileOps.js";
+import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getVersionDetails, rollbackToVersion } from "./fileOps.js";
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
@@ -222,8 +222,9 @@ app.post("/api/save", authenticate, requireConfigurationAccess, async (req, res)
   try {
     const { changes, changeTag, spec, ifMatch } = req.body;
     if (!changeTag) return res.status(400).json({ error: "Missing changeTag" });
+    const author = (req as any).user?.username || 'unknown';
     const validate = (file: string, updates: any[]) => validateUpdates(spec, updates);
-    const out = await saveChanges({ changes, changeTag, ifMatch, validate });
+    const out = await saveChanges({ changes, changeTag, ifMatch, validate, author });
     res.json(out);
   } catch (e: any) {
     if (e.code === "ETAG_MISMATCH") return res.status(409).json({ error: "File changed on disk", expected: e.expected, actual: e.actual });
@@ -332,6 +333,44 @@ app.get("/api/config-files/audit-log", authenticate, requireConfigurationAccess,
     const content = fs.readFileSync(auditLogPath, 'utf-8');
     res.json({ content });
   } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Configuration Version History endpoints - requires authentication and configuration access
+app.get("/api/config-versions", authenticate, requireConfigurationAccess, async (req, res) => {
+  try {
+    const versions = await getConfigVersions();
+    res.json({ versions });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/config-version/:tag", authenticate, requireConfigurationAccess, async (req, res) => {
+  try {
+    const tag = String(req.params.tag);
+    const version = await getVersionDetails(tag);
+
+    if (!version) {
+      return res.status(404).json({ error: "Version not found" });
+    }
+
+    res.json(version);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/config-rollback/:tag", authenticate, requireConfigurationAccess, async (req, res) => {
+  try {
+    const tag = String(req.params.tag);
+    const result = await rollbackToVersion(tag);
+    res.json(result);
+  } catch (e: any) {
+    if (e.message.includes("not found")) {
+      return res.status(404).json({ error: e.message });
+    }
     res.status(500).json({ error: e.message });
   }
 });

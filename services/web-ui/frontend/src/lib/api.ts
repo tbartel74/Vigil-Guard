@@ -234,3 +234,32 @@ export async function fetchFPStats() {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+// Configuration Version History API
+export interface ConfigVersion {
+  tag: string;
+  timestamp: string;
+  author: string;
+  files: string[];
+  backups: string[];
+}
+
+export async function getConfigVersions() {
+  const r = await authenticatedFetch(`${API}/config-versions`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getVersionDetails(tag: string) {
+  const r = await authenticatedFetch(`${API}/config-version/${encodeURIComponent(tag)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function rollbackToVersion(tag: string) {
+  const r = await authenticatedFetch(`${API}/config-rollback/${encodeURIComponent(tag)}`, {
+    method: "POST"
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

@@ -276,6 +276,62 @@ Complete feedback loop for identifying and tracking over-blocking issues:
 - All authentication, validation, and edge cases covered
 - 100% test coverage for FP reporting functionality
 
+### Configuration Versioning & Rollback System (Phase 3.3)
+
+Automatic version history tracking with git-like rollback capabilities for all configuration changes:
+
+**Version History Management** (`services/web-ui/backend/src/fileOps.ts`):
+- Automatic versioning on every configuration save via `/api/save`
+- Version history stored in `version_history.json` (max 50 versions, auto-pruning)
+- Each version includes: tag, timestamp, author (from JWT), files changed, backup paths
+- Tag format: `YYYYMMDD_HHMMSS-username` (sortable, user-traceable)
+- Max 2 backup files per config file (automatic cleanup of old backups)
+
+**Backend API** (`services/web-ui/backend/src/server.ts`):
+- `GET /api/config-versions` - List all versions (requires `can_view_configuration`)
+  - Returns: Array of version entries with metadata
+- `GET /api/config-version/:tag` - Get specific version details (requires `can_view_configuration`)
+  - Returns: Single version entry with full details
+- `POST /api/config-rollback/:tag` - Rollback to specific version (requires `can_view_configuration`)
+  - Creates pre-rollback safety backup before restore
+  - Restores files from version backup
+  - Returns: List of restored files
+
+**Frontend UI** (`services/web-ui/frontend/src/components/`):
+- `VersionHistoryModal.tsx` - Version history viewer and rollback interface
+  - Accessible via "Version History" button in Configuration layout (bottom-left panel)
+  - Displays: timestamp, author, modified files for each version
+  - Rollback workflow: Click "Rollback" → Confirmation dialog → Execute → Auto-reload
+- `ConfigLayout.tsx` - Integration point with version history button
+
+**Versioning Workflow**:
+1. User edits configuration → Frontend calls `/api/save` with `author` from JWT
+2. Backend creates timestamped backup: `{file}__{timestamp}__{changeTag}.{ext}.bak`
+3. Backend applies changes atomically (write to .tmp → rename)
+4. Backend adds entry to `version_history.json` with full metadata
+5. Backend cleans up old backups (keeps max 2 per file)
+
+**Rollback Workflow**:
+1. User opens Version History modal from Configuration section
+2. User selects version and clicks "Rollback"
+3. Confirmation dialog: "Are you sure you want to rollback to version X?"
+4. Backend creates pre-rollback safety backup of current state
+5. Backend restores files from version's backup files
+6. Frontend auto-reloads page to show restored values
+
+**Safety Features**:
+- **Pre-rollback backup**: Current state saved before rollback
+- **ETag validation**: Prevents concurrent write conflicts
+- **Atomic writes**: Uses .tmp file → rename for POSIX atomic operation
+- **Author tracking**: Every change tagged with username from JWT token
+- **Automatic cleanup**: Old backups pruned, version history limited to 50 entries
+- **Permission checks**: All endpoints require `can_view_configuration` permission
+
+**File Locations**:
+- Version history: `TARGET_DIR/version_history.json`
+- Backup files: `TARGET_DIR/{filename}__{timestamp}__{changeTag}.{ext}.bak`
+- Audit log: `TARGET_DIR/audit.log` (complementary logging)
+
 ## Security Considerations
 
 **JWT Authentication**: All protected routes require valid JWT token with appropriate permissions

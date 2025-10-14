@@ -92,6 +92,49 @@ function sanitizeTag(tag: string) {
   return tag.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "change";
 }
 
+// Version history management
+interface VersionEntry {
+  tag: string;
+  timestamp: string;
+  author: string;
+  files: string[];
+  backups: string[];
+}
+
+interface VersionHistory {
+  versions: VersionEntry[];
+}
+
+const VERSION_HISTORY_FILE = "version_history.json";
+
+async function loadVersionHistory(): Promise<VersionHistory> {
+  const historyPath = path.join(TARGET_DIR, VERSION_HISTORY_FILE);
+  try {
+    const content = await fs.readFile(historyPath, "utf8");
+    return JSON.parse(content);
+  } catch (e: any) {
+    if (e.code === "ENOENT") {
+      return { versions: [] };
+    }
+    throw e;
+  }
+}
+
+async function saveVersionHistory(history: VersionHistory): Promise<void> {
+  const historyPath = path.join(TARGET_DIR, VERSION_HISTORY_FILE);
+  await fs.writeFile(historyPath, JSON.stringify(history, null, 2), "utf8");
+}
+
+async function addVersionEntry(entry: VersionEntry): Promise<void> {
+  const history = await loadVersionHistory();
+  history.versions.unshift(entry); // Add at the beginning (newest first)
+  // Keep only the last 50 versions
+  if (history.versions.length > 50) {
+    history.versions = history.versions.slice(0, 50);
+  }
+  await saveVersionHistory(history);
+}
+
 async function cleanupOldBackups(filePath: string) {
   const dir = path.dirname(filePath);
   const base = path.basename(filePath, path.extname(filePath));
@@ -135,10 +178,14 @@ export async function saveChanges(args: {
   changeTag: string;
   ifMatch?: string;
   validate?: (file: string, updates: any[]) => { ok: boolean; errors?: string[] };
+  author?: string;
 }): Promise<{ results: Array<{ file: string; backupPath: string; etag: string }> }> {
   if (!args.changeTag) throw new Error("Missing changeTag");
   const results: Array<{ file: string; backupPath: string; etag: string }> = [];
   const tag = sanitizeTag(args.changeTag);
+  const author = args.author || "unknown";
+  const timestamp = new Date().toISOString();
+  const versionTag = `${nowStamp()}-${author.replace(/[^a-z0-9]/gi, "").toLowerCase()}`;
 
   for (const change of args.changes) {
     const file = await readFileRaw(change.file);
@@ -185,6 +232,16 @@ export async function saveChanges(args: {
     results.push({ file: change.file, backupPath: bakPath, etag: newEtag });
     await appendAudit({ file: change.file, backup: bakName, tag, result: "ok" });
   }
+
+  // Add entry to version history
+  await addVersionEntry({
+    tag: versionTag,
+    timestamp,
+    author,
+    files: results.map(r => r.file),
+    backups: results.map(r => path.basename(r.backupPath))
+  });
+
   return { results };
 }
 
@@ -192,4 +249,49 @@ async function appendAudit(entry: { file: string; backup: string; tag: string; r
   const line = { ts: new Date().toISOString(), user: "local", file: entry.file, backup: entry.backup, changeTag: entry.tag, result: entry.result };
   const logPath = path.join(TARGET_DIR, "audit.log");
   await fs.appendFile(logPath, JSON.stringify(line) + "\n", { encoding: "utf8" });
+}
+
+// Public API for version history
+export async function getConfigVersions(): Promise<VersionEntry[]> {
+  const history = await loadVersionHistory();
+  return history.versions;
+}
+
+export async function getVersionDetails(tag: string): Promise<VersionEntry | null> {
+  const history = await loadVersionHistory();
+  return history.versions.find(v => v.tag === tag) || null;
+}
+
+export async function rollbackToVersion(tag: string): Promise<{ success: boolean; restoredFiles: string[] }> {
+  const version = await getVersionDetails(tag);
+  if (!version) {
+    throw new Error(`Version not found: ${tag}`);
+  }
+
+  const restoredFiles: string[] = [];
+
+  for (let i = 0; i < version.files.length; i++) {
+    const fileName = version.files[i];
+    const backupName = version.backups[i];
+    const backupPath = path.join(TARGET_DIR, backupName);
+    const targetPath = resolveSafe(fileName);
+
+    // Check if backup exists
+    try {
+      await fs.access(backupPath, FS_CONST.F_OK);
+    } catch (e) {
+      throw new Error(`Backup file not found: ${backupName}`);
+    }
+
+    // Create a backup of current state before rollback (for safety)
+    const currentBackupName = `${path.basename(fileName, path.extname(fileName))}__${nowStamp()}__pre-rollback${path.extname(fileName)}.bak`;
+    const currentBackupPath = path.join(TARGET_DIR, currentBackupName);
+    await fs.copyFile(targetPath, currentBackupPath, FS_CONST.COPYFILE_EXCL);
+
+    // Restore from backup
+    await fs.copyFile(backupPath, targetPath);
+    restoredFiles.push(fileName);
+  }
+
+  return { success: true, restoredFiles };
 }
