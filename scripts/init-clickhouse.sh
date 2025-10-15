@@ -53,7 +53,7 @@ log_info "Waiting for ClickHouse to be ready..."
 RETRY_COUNT=0
 MAX_RETRIES=30
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} "http://localhost:8123/ping" >/dev/null 2>&1; then
+    if curl -s -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" "http://localhost:8123/ping" >/dev/null 2>&1; then
         log_success "ClickHouse is responding"
         break
     fi
@@ -69,7 +69,7 @@ done
 # Create database
 log_info "Creating n8n_logs database..."
 if docker exec vigil-clickhouse clickhouse-client \
-    --user $CLICKHOUSE_USER \
+    --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     -q "CREATE DATABASE IF NOT EXISTS n8n_logs" 2>&1; then
     log_success "Database created"
@@ -82,7 +82,7 @@ fi
 log_info "Creating tables..."
 if cat services/monitoring/sql/01-create-tables.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
-    --user $CLICKHOUSE_USER \
+    --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
     --multiquery 2>&1; then
@@ -96,7 +96,7 @@ fi
 log_info "Creating views..."
 if cat services/monitoring/sql/02-create-views.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
-    --user $CLICKHOUSE_USER \
+    --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
     --multiquery 2>&1; then
@@ -110,7 +110,7 @@ fi
 log_info "Creating false positive reports table..."
 if cat services/monitoring/sql/03-false-positives.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
-    --user $CLICKHOUSE_USER \
+    --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
     --multiquery 2>&1; then
@@ -123,7 +123,7 @@ fi
 # Verify installation
 log_info "Verifying database structure..."
 TABLE_COUNT=$(docker exec vigil-clickhouse clickhouse-client \
-    --user $CLICKHOUSE_USER \
+    --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
     -q "SHOW TABLES" 2>/dev/null | wc -l)
@@ -133,7 +133,7 @@ if [ "$TABLE_COUNT" -ge 6 ]; then
     echo ""
     echo -e "${GREEN}Tables and views created:${NC}"
     docker exec vigil-clickhouse clickhouse-client \
-        --user $CLICKHOUSE_USER \
+        --user "$CLICKHOUSE_USER" \
         --password "$CLICKHOUSE_PASSWORD" \
         --database n8n_logs \
         -q "SHOW TABLES" | sed 's/^/  • /'

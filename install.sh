@@ -335,7 +335,7 @@ initialize_clickhouse() {
     RETRY_COUNT=0
     MAX_RETRIES=30
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        if curl -s -u ${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD} "http://localhost:${CLICKHOUSE_HTTP_PORT}/ping" >/dev/null 2>&1; then
+        if curl -s -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" "http://localhost:${CLICKHOUSE_HTTP_PORT}/ping" >/dev/null 2>&1; then
             log_success "ClickHouse is ready"
             break
         fi
@@ -350,7 +350,7 @@ initialize_clickhouse() {
 
     # Create database
     log_info "Creating ${CLICKHOUSE_DB} database..."
-    if docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF >/dev/null 2>&1
+    if docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF >/dev/null 2>&1
 CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
 EOF
     then
@@ -362,7 +362,7 @@ EOF
 
     # Execute table creation script
     log_info "Creating tables..."
-    if cat services/monitoring/sql/01-create-tables.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    if cat services/monitoring/sql/01-create-tables.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
         log_success "Tables created"
     else
         log_error "Failed to create tables"
@@ -371,7 +371,7 @@ EOF
 
     # Execute views creation script
     log_info "Creating views..."
-    if cat services/monitoring/sql/02-create-views.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    if cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
         log_success "Views created"
     else
         log_error "Failed to create views"
@@ -380,7 +380,7 @@ EOF
 
     # Execute false positive reports schema
     log_info "Creating false positive reports table..."
-    if cat services/monitoring/sql/03-false-positives.sql | docker exec -i $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    if cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
         log_success "False positive reports table created"
     else
         log_error "Failed to create false positive reports table"
@@ -389,7 +389,7 @@ EOF
 
     # Verify installation
     log_info "Verifying database structure..."
-    TABLE_COUNT=$(docker exec $CLICKHOUSE_CONTAINER_NAME clickhouse-client --user $CLICKHOUSE_USER --password "$CLICKHOUSE_PASSWORD" --database $CLICKHOUSE_DB -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
+    TABLE_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
     if [ "$TABLE_COUNT" -ge 6 ]; then
         log_success "ClickHouse initialized successfully ($TABLE_COUNT tables/views)"
@@ -422,7 +422,7 @@ initialize_grafana() {
     RETRY_COUNT=0
     MAX_RETRIES=10
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:${GRAFANA_PORT}/api/health | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" "http://localhost:${GRAFANA_PORT}/api/health" | grep -q "200"; then
             log_success "Grafana is ready"
             break
         fi
@@ -437,7 +437,7 @@ initialize_grafana() {
 
     # Reset admin password to ensure it matches .env
     log_info "Setting Grafana admin password..."
-    if docker exec $GRAFANA_CONTAINER_NAME grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" >/dev/null 2>&1; then
+    if docker exec "$GRAFANA_CONTAINER_NAME" grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" >/dev/null 2>&1; then
         log_success "Admin password configured"
     else
         log_warning "Failed to set admin password (may already be set correctly)"
@@ -446,7 +446,7 @@ initialize_grafana() {
     # Verify datasource provisioning
     log_info "Verifying ClickHouse datasource..."
     sleep 5
-    DATASOURCE_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" http://localhost:${GRAFANA_PORT}/api/datasources/name/ClickHouse 2>/dev/null)
+    DATASOURCE_CHECK=$(curl -s -u admin:"$GRAFANA_PASSWORD" "http://localhost:${GRAFANA_PORT}/api/datasources/name/ClickHouse" 2>/dev/null)
     if echo "$DATASOURCE_CHECK" | grep -q "ClickHouse"; then
         log_success "ClickHouse datasource provisioned successfully"
     else
