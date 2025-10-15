@@ -93,3 +93,5 @@ update_logo.sh
 logo_backup_*/
 vigil_logo_new.png
 services/workflow/workflows/backup/
+services/workflow/config/version_history.json
+services/workflow/config/*.bak
