@@ -83,6 +83,7 @@ services:
       - N8N_HOST=${N8N_HOST:-localhost}
       - NODE_ENV=${NODE_ENV:-production}
       - N8N_RELEASE_TYPE=${N8N_RELEASE_TYPE:-stable}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=axios
     ports:
       - "${N8N_PORT:-5678}:5678"
     volumes:
