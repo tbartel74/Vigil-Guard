@@ -168,7 +168,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
   };
 
   return (
-    <div className="mt-6 rounded-2xl border border-slate-700 p-4 bg-[#0C1117]">
+    <div className="mt-6 rounded-2xl border border-slate-700 p-4 bg-surface-darker">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">Prompt Analysis</h2>

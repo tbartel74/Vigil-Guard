@@ -11,7 +11,7 @@ export default function Layout({ header, sidebar, children }:{ header:React.Reac
       <div className="relative flex">
         {/* Desktop: sidebar always visible */}
         {!isMobile && (
-          <aside className="w-[260px] border-r border-slate-800 bg-[#0C1117] overflow-y-auto">
+          <aside className="w-[260px] border-r border-slate-800 bg-surface-darker overflow-y-auto">
             {sidebar}
           </aside>
         )}
@@ -25,14 +25,14 @@ export default function Layout({ header, sidebar, children }:{ header:React.Reac
               onClick={() => setSidebarOpen(false)}
             />
             {/* Sidebar */}
-            <aside className="fixed left-0 top-14 bottom-12 w-[280px] z-50 bg-[#0C1117] border-r border-slate-800 overflow-y-auto transform transition-transform duration-300">
+            <aside className="fixed left-0 top-14 bottom-12 w-[280px] z-50 bg-surface-darker border-r border-slate-800 overflow-y-auto transform transition-transform duration-300">
               {sidebar}
             </aside>
           </>
         )}
 
         {/* Main content */}
-        <main className="flex-1 bg-[#0F1419] overflow-auto">{children}</main>
+        <main className="flex-1 bg-surface-base overflow-auto">{children}</main>
       </div>
       <Footer />
     </div>

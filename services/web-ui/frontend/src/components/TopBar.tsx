@@ -39,7 +39,7 @@ export default function TopBar() {
   }, [isDropdownOpen]);
 
   return (
-    <div className="h-14 px-4 flex items-center justify-between bg-[#0B0F14] border-b border-slate-800">
+    <div className="h-14 px-4 flex items-center justify-between bg-surface-darkest border-b border-slate-800">
       <div className="flex items-center gap-3">
         {/* Mobile hamburger menu */}
         {isMobile && (

@@ -35,7 +35,7 @@ export default function ConfigLayout() {
     <div className="relative flex h-[calc(100vh-104px)]">
       {/* Desktop: sidebar always visible */}
       {!isMobile && (
-        <div className="w-[280px] border-r border-slate-800 bg-[#0C1117]">
+        <div className="w-[280px] border-r border-slate-800 bg-surface-darker">
           {sidebarContent}
         </div>
       )}
@@ -49,14 +49,14 @@ export default function ConfigLayout() {
             onClick={() => setSidebarOpen(false)}
           />
           {/* Sidebar */}
-          <div className="fixed left-0 top-14 bottom-12 w-[280px] z-50 bg-[#0C1117] border-r border-slate-800 overflow-y-auto transform transition-transform duration-300">
+          <div className="fixed left-0 top-14 bottom-12 w-[280px] z-50 bg-surface-darker border-r border-slate-800 overflow-y-auto transform transition-transform duration-300">
             {sidebarContent}
           </div>
         </>
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto bg-[#0F1419]">
+      <div className="flex-1 overflow-auto bg-surface-base">
         <Outlet />
       </div>
 

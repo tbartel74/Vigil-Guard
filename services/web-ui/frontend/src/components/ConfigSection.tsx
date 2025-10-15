@@ -158,7 +158,7 @@ export default function ConfigSection() {
                     const policy = levelVars.find((v: any) => v.name.includes('_P'));
 
                     return (
-                      <div key={riskLevel} className="bg-[#0B121A] border border-slate-800 rounded-xl p-6">
+                      <div key={riskLevel} className="bg-surface-dark border border-slate-800 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
                           <div>
                             <h3 className="text-lg font-semibold text-white mb-1">{riskLevel} Risk Level</h3>
@@ -271,7 +271,7 @@ export default function ConfigSection() {
                   const res = resolveOut.find((r) => r.variable === v.name);
                   const desc = (descriptions as any)[v.name];
                   return (
-                    <div key={v.name} className="bg-[#0B121A] border border-slate-800 rounded-xl p-4">
+                    <div key={v.name} className="bg-surface-dark border border-slate-800 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div className="font-medium">{v.label}</div>

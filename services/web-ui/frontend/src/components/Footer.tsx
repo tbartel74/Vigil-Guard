@@ -4,7 +4,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="h-12 px-4 flex items-center justify-between bg-[#0B0F14] border-t border-slate-800 text-xs">
+    <div className="h-12 px-4 flex items-center justify-between bg-surface-darkest border-t border-slate-800 text-xs">
       <div className="flex items-center gap-4">
         <div className="text-slate-500">
           © {currentYear} Vigil Guard. All rights reserved.

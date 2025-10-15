@@ -80,7 +80,7 @@ export default function ConfigForm() {
                       const res = resolveOut.find((r) => r.variable === v.name);
                       const desc = (descriptions as any)[v.name];
                       return (
-                        <div key={v.name} className="bg-[#0B121A] border border-slate-800 rounded-xl p-3">
+                        <div key={v.name} className="bg-surface-dark border border-slate-800 rounded-xl p-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <div className="font-medium">{v.label}</div>
