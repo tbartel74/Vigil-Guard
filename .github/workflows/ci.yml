@@ -19,8 +19,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: services/web-ui/backend/package-lock.json
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-backend-${{ hashFiles('services/web-ui/backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-backend-
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
         working-directory: services/web-ui/backend
@@ -46,8 +53,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: services/web-ui/frontend/package-lock.json
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-frontend-${{ hashFiles('services/web-ui/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-frontend-
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
         working-directory: services/web-ui/frontend
@@ -244,8 +258,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: services/web-ui/${{ matrix.component }}/package-lock.json
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ matrix.component }}-${{ hashFiles(format('services/web-ui/{0}/package-lock.json', matrix.component)) }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ matrix.component }}-
+            ${{ runner.os }}-npm-
 
       - name: Security audit - ${{ matrix.component }}
         working-directory: services/web-ui/${{ matrix.component }}
