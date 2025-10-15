@@ -41,9 +41,13 @@ export function Login() {
           </div>
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="p-8 space-y-6" aria-label="Login form">
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm">
+              <div
+                id="login-error"
+                role="alert"
+                className="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm"
+              >
                 {error}
               </div>
             )}
@@ -58,6 +62,9 @@ export function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                aria-required="true"
+                aria-describedby={error ? 'login-error' : undefined}
+                aria-invalid={error ? 'true' : 'false'}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter your username"
                 disabled={loading}
@@ -75,6 +82,9 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                aria-required="true"
+                aria-describedby={error ? 'login-error' : undefined}
+                aria-invalid={error ? 'true' : 'false'}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Enter your password"
                 disabled={loading}

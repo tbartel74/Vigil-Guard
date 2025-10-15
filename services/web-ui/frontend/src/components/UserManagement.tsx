@@ -210,7 +210,7 @@ export function UserManagement() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">User Management</h1>
-          <p className="text-slate-400 mt-2">Manage system users and permissions</p>
+          <p className="text-text-secondary mt-2">Manage system users and permissions</p>
         </div>
         <button
           onClick={openCreateModal}

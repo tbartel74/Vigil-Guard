@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { FocusTrap } from "focus-trap-react";
 import { useAuth } from "../context/AuthContext";
 import { useMobile } from "../context/MobileContext";
 import vigilLogo from "../assets/vigil_logo.png";
@@ -113,49 +114,60 @@ export default function TopBar() {
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div
-                className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
-                role="menu"
-                aria-orientation="vertical"
-                aria-labelledby="user-menu-button"
+              <FocusTrap
+                focusTrapOptions={{
+                  initialFocus: '#menu-settings',
+                  escapeDeactivates: true,
+                  clickOutsideDeactivates: true,
+                  onDeactivate: () => setIsDropdownOpen(false),
+                  allowOutsideClick: true,
+                }}
               >
-                <div className="px-4 py-3 border-b border-slate-700">
-                  <div className="text-sm font-medium text-white">{user.username}</div>
-                  <div className="text-xs text-slate-400">{user.email}</div>
-                </div>
-                <div className="py-1">
-                  {/* Permissions Info */}
-                  <div className="px-4 py-2 border-b border-slate-700">
-                    <div className="text-xs text-slate-400 mb-2">Permissions:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {user.can_view_monitoring && (
-                        <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-300 rounded">Monitoring</span>
-                      )}
-                      {user.can_view_configuration && (
-                        <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">Config</span>
-                      )}
-                      {user.can_manage_users && (
-                        <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">User Admin</span>
-                      )}
-                    </div>
+                <div
+                  className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
+                  role="menu"
+                  aria-orientation="vertical"
+                  aria-labelledby="user-menu-button"
+                >
+                  <div className="px-4 py-3 border-b border-slate-700">
+                    <div className="text-sm font-medium text-white">{user.username}</div>
+                    <div className="text-xs text-text-secondary">{user.email}</div>
                   </div>
+                  <div className="py-1">
+                    {/* Permissions Info */}
+                    <div className="px-4 py-2 border-b border-slate-700">
+                      <div className="text-xs text-text-secondary mb-2">Permissions:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {user.can_view_monitoring && (
+                          <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-300 rounded">Monitoring</span>
+                        )}
+                        {user.can_view_configuration && (
+                          <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">Config</span>
+                        )}
+                        {user.can_manage_users && (
+                          <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded">User Admin</span>
+                        )}
+                      </div>
+                    </div>
 
-                  <button
-                    onClick={openSettings}
-                    role="menuitem"
-                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
-                  >
-                    ⚙️ Settings
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    role="menuitem"
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
-                  >
-                    🚪 Logout
-                  </button>
+                    <button
+                      id="menu-settings"
+                      onClick={openSettings}
+                      role="menuitem"
+                      className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                    >
+                      ⚙️ Settings
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      role="menuitem"
+                      className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </FocusTrap>
             )}
           </div>
         )}

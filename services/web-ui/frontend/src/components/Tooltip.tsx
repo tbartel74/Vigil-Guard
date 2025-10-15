@@ -63,7 +63,7 @@ export default function Tooltip({ title, description, impact, category, children
         >
           <div className="text-sm font-semibold text-white mb-1">{title}</div>
           {category && (
-            <div className="text-xs text-slate-400 mb-2">
+            <div className="text-xs text-text-secondary mb-2">
               Category: {category}
               {impact && (
                 <span className="ml-2">

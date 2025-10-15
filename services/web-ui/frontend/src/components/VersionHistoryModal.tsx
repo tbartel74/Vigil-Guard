@@ -92,7 +92,7 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
             <h3 id="version-history-title" className="text-xl font-semibold text-white">Configuration Version History</h3>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-text-secondary hover:text-white transition-colors"
               aria-label="Close modal"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,11 +116,11 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
         <div className="overflow-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-slate-400">Loading version history...</div>
+              <div className="text-text-secondary">Loading version history...</div>
             </div>
           ) : versions.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-slate-400">No version history available</div>
+              <div className="text-text-secondary">No version history available</div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -133,16 +133,16 @@ export default function VersionHistoryModal({ onClose, onRollbackSuccess }: Vers
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-white font-mono text-sm">{version.tag}</span>
-                        <span className="text-slate-400 text-xs">{formatTimestamp(version.timestamp)}</span>
+                        <span className="text-text-secondary text-xs">{formatTimestamp(version.timestamp)}</span>
                       </div>
 
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-slate-400 text-xs">Author:</span>
+                        <span className="text-text-secondary text-xs">Author:</span>
                         <span className="text-slate-300 text-xs font-medium">{version.author}</span>
                       </div>
 
                       <div className="flex items-start gap-2">
-                        <span className="text-slate-400 text-xs">Files:</span>
+                        <span className="text-text-secondary text-xs">Files:</span>
                         <div className="flex flex-wrap gap-1">
                           {version.files.map((file, idx) => (
                             <span

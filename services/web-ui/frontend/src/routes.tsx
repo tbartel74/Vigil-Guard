@@ -275,10 +275,10 @@ const Monitoring = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-700 p-4">
+      <div className="rounded-2xl border border-slate-700 p-4" role="region" aria-label="System statistics summary">
         <div className="mb-4">
-          <h3 className="text-md font-semibold text-white">Quick Stats</h3>
-          <p className="text-xs text-slate-400">
+          <h3 id="quick-stats-heading" className="text-md font-semibold text-white">Quick Stats</h3>
+          <p className="text-xs text-text-secondary" aria-live="polite">
             {timeRange === '1h' && 'Last 1 hour'}
             {timeRange === '6h' && 'Last 6 hours'}
             {timeRange === '12h' && 'Last 12 hours'}
@@ -288,41 +288,42 @@ const Monitoring = () => {
         </div>
         <div className="bg-slate-900/50 rounded-lg p-4">
           {statsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+            <div className="flex items-center justify-center py-8" role="status" aria-live="polite">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" aria-label="Loading statistics"></div>
+              <span className="sr-only">Loading statistics...</span>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3" aria-labelledby="quick-stats-heading">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">Prompt Guard Status</span>
+                <span id="stat-prompt-guard" className="text-sm text-slate-300">Prompt Guard Status</span>
                 {promptGuardStatus === 'checking' ? (
-                  <span className="text-slate-400 font-semibold">⏳ Checking...</span>
+                  <span className="text-text-secondary font-semibold" aria-labelledby="stat-prompt-guard">⏳ Checking...</span>
                 ) : promptGuardStatus === 'active' ? (
-                  <span className="text-emerald-400 font-semibold">✓ Active</span>
+                  <span className="text-emerald-400 font-semibold" aria-labelledby="stat-prompt-guard">✓ Active</span>
                 ) : (
-                  <span className="text-red-400 font-semibold">✗ Down</span>
+                  <span className="text-red-400 font-semibold" aria-labelledby="stat-prompt-guard">✗ Down</span>
                 )}
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">Requests Processed</span>
-                <span className="text-blue-400 font-mono">{stats.requests_processed.toLocaleString()}</span>
+                <span id="stat-requests" className="text-sm text-slate-300">Requests Processed</span>
+                <span className="text-blue-400 font-mono" aria-labelledby="stat-requests">{stats.requests_processed.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">Threats Blocked</span>
-                <span className="text-red-400 font-mono">{stats.threats_blocked.toLocaleString()}</span>
+                <span id="stat-threats" className="text-sm text-slate-300">Threats Blocked</span>
+                <span className="text-red-400 font-mono" aria-labelledby="stat-threats">{stats.threats_blocked.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">Content Sanitized</span>
-                <span className="text-yellow-400 font-mono">{stats.content_sanitized.toLocaleString()}</span>
+                <span id="stat-sanitized" className="text-sm text-slate-300">Content Sanitized</span>
+                <span className="text-yellow-400 font-mono" aria-labelledby="stat-sanitized">{stats.content_sanitized.toLocaleString()}</span>
               </div>
-              <div className="border-t border-slate-700 my-2"></div>
+              <div className="border-t border-slate-700 my-2" role="separator"></div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">FP Reports (Total)</span>
-                <span className="text-orange-400 font-mono">{fpStats.total_reports.toLocaleString()}</span>
+                <span id="stat-fp-total" className="text-sm text-slate-300">FP Reports (Total)</span>
+                <span className="text-orange-400 font-mono" aria-labelledby="stat-fp-total">{fpStats.total_reports.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-300">FP Reports (7 days)</span>
-                <span className="text-orange-400 font-mono">{fpStats.last_7_days.toLocaleString()}</span>
+                <span id="stat-fp-7d" className="text-sm text-slate-300">FP Reports (7 days)</span>
+                <span className="text-orange-400 font-mono" aria-labelledby="stat-fp-7d">{fpStats.last_7_days.toLocaleString()}</span>
               </div>
             </div>
           )}
