@@ -80,7 +80,7 @@ export default function ConfigSection() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <div className="text-slate-400 text-lg">Section not found</div>
+          <div className="text-text-secondary text-lg">Section not found</div>
         </div>
       </div>
     );
@@ -92,7 +92,7 @@ export default function ConfigSection() {
       <div className="mb-8">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-white mb-2">{currentSection.title}</h1>
-          <p className="text-slate-400">{currentSection.description}</p>
+          <p className="text-text-secondary">{currentSection.description}</p>
         </div>
         <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
           <p className="text-sm text-slate-300 leading-relaxed">{currentSection.overview}</p>
@@ -107,11 +107,11 @@ export default function ConfigSection() {
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="flex items-center gap-2">
               <span className="text-emerald-400 font-semibold">✓ SECURE</span>
-              <span className="text-slate-400">Configuration validated and operational</span>
+              <span className="text-text-secondary">Configuration validated and operational</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-red-400 font-semibold">⚠ ALERT</span>
-              <span className="text-slate-400">Requires immediate attention</span>
+              <span className="text-text-secondary">Requires immediate attention</span>
             </div>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function ConfigSection() {
           return (
             <div key={g.id} className="rounded-2xl border border-slate-800 p-6">
               <div className="text-xl font-semibold mb-2">{g.label}</div>
-              <div className="text-slate-400 text-sm mb-4">{g.description}</div>
+              <div className="text-text-secondary text-sm mb-4">{g.description}</div>
               {g.id === 'llm' ? (
                 <div className="space-y-6">
                   {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'MINIMAL'].map((riskLevel) => {
@@ -162,7 +162,7 @@ export default function ConfigSection() {
                         <div className="flex items-center justify-between mb-4">
                           <div>
                             <h3 className="text-lg font-semibold text-white mb-1">{riskLevel} Risk Level</h3>
-                            <div className="text-sm text-slate-400">Configure thresholds and policy for {riskLevel.toLowerCase()} risk content</div>
+                            <div className="text-sm text-text-secondary">Configure thresholds and policy for {riskLevel.toLowerCase()} risk content</div>
                           </div>
                           <div className="text-xs font-semibold">
                             {(() => {
@@ -197,19 +197,23 @@ export default function ConfigSection() {
                                       impact={desc.impact}
                                       category={desc.category}
                                     >
-                                      <div className="w-3 h-3 rounded-full bg-slate-700 text-slate-400 text-xs flex items-center justify-center cursor-help">
+                                      <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
                                         ?
                                       </div>
                                     </Tooltip>
                                   )}
                                 </div>
 
-                                <div className="text-xs text-slate-500 mb-1">
-                                  Current: <span className="font-mono text-blue-400">{String(res?.mappings?.[0]?.value ?? "")}</span>
+                                <div className="text-xs text-text-secondary mb-1 space-y-1">
+                                  <div className="break-words">
+                                    <span className="font-medium">Current:</span>{" "}
+                                    <span className="font-mono text-blue-400 break-all">{String(res?.mappings?.[0]?.value ?? "")}</span>
+                                  </div>
                                   {v.default !== undefined && (
-                                    <span className="ml-2">
-                                      Default: <span className="font-mono text-slate-500">{String(v.default)}</span>
-                                    </span>
+                                    <div className="break-words">
+                                      <span className="font-medium">Default:</span>{" "}
+                                      <span className="font-mono text-text-secondary break-all">{String(v.default)}</span>
+                                    </div>
                                   )}
                                 </div>
 
@@ -282,7 +286,7 @@ export default function ConfigSection() {
                               impact={desc.impact}
                               category={desc.category}
                             >
-                              <div className="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-xs flex items-center justify-center cursor-help">
+                              <div className="w-4 h-4 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
                                 ?
                               </div>
                             </Tooltip>
@@ -292,22 +296,26 @@ export default function ConfigSection() {
                           {res?.valid?.ok ? "✓ SECURE" : `⚠ ALERT (${res?.valid?.reason || "spec"})`}
                         </div>
                       </div>
-                      <div className="text-xs text-slate-400 mb-3">{v.help}</div>
+                      <div className="text-xs text-text-secondary mb-3">{v.help}</div>
                       <div className="grid gap-3">
                         {v.map.map((m: any, i: number) => (
                           <div key={i} className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <div className="text-xs text-slate-500">
+                              <div className="text-xs text-text-secondary">
                                 <span className="font-mono">{m.file}</span>
                                 <span className="mx-1">·</span>
                                 <span>{m.path ? m.path : m.key ? `${m.section ?? "∅"}/${m.key}` : ""}</span>
                               </div>
-                              <div className="text-xs text-slate-400">
-                                Current: <span className="font-mono text-blue-400">{String(res?.mappings?.[i]?.value ?? "")}</span>
+                              <div className="text-xs text-text-secondary space-y-1">
+                                <div className="break-words">
+                                  <span className="font-medium">Current:</span>{" "}
+                                  <span className="font-mono text-blue-400 break-all">{String(res?.mappings?.[i]?.value ?? "")}</span>
+                                </div>
                                 {v.default !== undefined && (
-                                  <span className="ml-2">
-                                    Default: <span className="font-mono text-slate-500">{String(v.default)}</span>
-                                  </span>
+                                  <div className="break-words">
+                                    <span className="font-medium">Default:</span>{" "}
+                                    <span className="font-mono text-text-secondary break-all">{String(v.default)}</span>
+                                  </div>
                                 )}
                               </div>
                             </div>

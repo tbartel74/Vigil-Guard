@@ -44,7 +44,7 @@ export function Settings() {
     <div className="p-8 max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-white">User Settings</h1>
-        <p className="text-slate-400 mt-2">Configure your personal preferences</p>
+        <p className="text-text-secondary mt-2">Configure your personal preferences</p>
       </div>
 
       <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-6">
@@ -55,19 +55,19 @@ export function Settings() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-400">
+                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-text-secondary">
                   {user?.username}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-400">
+                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-text-secondary">
                   {user?.email}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
-                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-slate-400 capitalize">
+                <div className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-text-secondary capitalize">
                   {user?.role}
                 </div>
               </div>
@@ -93,7 +93,7 @@ export function Settings() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-text-secondary mt-2">
                 All dates and times in the system will be displayed in your selected timezone
               </p>
             </div>

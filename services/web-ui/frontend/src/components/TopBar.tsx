@@ -21,6 +21,16 @@ export default function TopBar() {
     navigate('/settings');
   };
 
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape' && isDropdownOpen) {
+      setIsDropdownOpen(false);
+    }
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -75,29 +85,40 @@ export default function TopBar() {
             <div className="text-lg font-bold tracking-tight text-white">
               Vigil Guard
             </div>
-            <div className="text-xs text-slate-500">Enterprise Security Platform</div>
+            <div className="text-xs text-text-secondary">Enterprise Security Platform</div>
           </div>
         </Link>
       </div>
       <div className="flex items-center gap-6">
         {user && (
           <div className="relative" ref={dropdownRef}>
-            <div
-              className="flex items-center gap-4 cursor-pointer hover:bg-slate-800/50 px-3 py-2 rounded-lg transition-colors"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            <button
+              type="button"
+              id="user-menu-button"
+              className="flex items-center gap-4 hover:bg-slate-800/50 px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-darkest"
+              onClick={toggleDropdown}
+              onKeyDown={handleKeyDown}
+              aria-haspopup="true"
+              aria-expanded={isDropdownOpen}
+              aria-label="User menu"
             >
               <div className="text-right">
                 <div className="text-sm text-white font-medium">{user.username}</div>
-                <div className="text-xs text-slate-500">{user.role === 'admin' ? 'Administrator' : 'User'}</div>
+                <div className="text-xs text-text-secondary">{user.role === 'admin' ? 'Administrator' : 'User'}</div>
               </div>
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
                 {user.username[0].toUpperCase()}
               </div>
-            </div>
+            </button>
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50">
+              <div
+                className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden z-50"
+                role="menu"
+                aria-orientation="vertical"
+                aria-labelledby="user-menu-button"
+              >
                 <div className="px-4 py-3 border-b border-slate-700">
                   <div className="text-sm font-medium text-white">{user.username}</div>
                   <div className="text-xs text-slate-400">{user.email}</div>
@@ -121,13 +142,15 @@ export default function TopBar() {
 
                   <button
                     onClick={openSettings}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                    role="menuitem"
+                    className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                   >
                     ⚙️ Settings
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors"
+                    role="menuitem"
+                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:bg-slate-700 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                   >
                     🚪 Logout
                   </button>
@@ -137,7 +160,7 @@ export default function TopBar() {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <div className="text-xs text-slate-500">System Status</div>
+          <div className="text-xs text-text-secondary">System Status</div>
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         </div>
       </div>

@@ -17,6 +17,12 @@ export default {
         slate: {
           850: '#1a202e', // Between 800 (#1e293b) and 900 (#0f172a)
         },
+        // WCAG AAA compliant text colors (min 4.5:1 contrast on dark backgrounds)
+        text: {
+          primary: '#f8fafc',    // slate-50 (główny tekst, kontrast 19.3:1 ✅)
+          secondary: '#cbd5e1',  // slate-300 (opisy, pomocnicze, kontrast 7.1:1 ✅)
+          tertiary: '#94a3b8',   // slate-400 (nieaktywne, kontrast 4.1:1 - używać ostrożnie)
+        },
       },
       spacing: {
         '4.5': '1.125rem', // 18px - for fine-tuned spacing

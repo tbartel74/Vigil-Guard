@@ -67,14 +67,14 @@ export default function ConfigForm() {
 
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">Variables</h2>
-          <p className="text-slate-400 text-sm mb-4">Validated against specification. Secrets are masked.</p>
+          <p className="text-text-secondary text-sm mb-4">Validated against specification. Secrets are masked.</p>
           <div className="space-y-6">
             {groups.map((g: any) => {
               const vs = (spec.variables || []).filter((v: any) => v.groupId === g.id);
               return (
                 <div key={g.id} className="rounded-2xl border border-slate-800 p-4">
                   <div className="text-lg font-semibold">{g.label}</div>
-                  <div className="text-slate-400 text-sm mb-3">{g.description}</div>
+                  <div className="text-text-secondary text-sm mb-3">{g.description}</div>
                   <div className="grid gap-2">
                     {vs.map((v: any) => {
                       const res = resolveOut.find((r) => r.variable === v.name);
@@ -91,7 +91,7 @@ export default function ConfigForm() {
                                   impact={desc.impact}
                                   category={desc.category}
                                 >
-                                  <div className="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-xs flex items-center justify-center cursor-help">
+                                  <div className="w-4 h-4 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
                                     ?
                                   </div>
                                 </Tooltip>
@@ -101,11 +101,11 @@ export default function ConfigForm() {
                               {res?.valid?.ok ? "OK" : `Invalid (${res?.valid?.reason || "spec"})`}
                             </div>
                           </div>
-                          <div className="text-xs text-slate-400">{v.help}</div>
+                          <div className="text-xs text-text-secondary">{v.help}</div>
                           <div className="mt-2 grid gap-2">
                             {v.map.map((m: any, i: number) => (
                               <div key={i} className="space-y-1">
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-text-secondary">
                                   <span className="font-mono">{m.file}</span>
                                   <span className="mx-1">·</span>
                                   <span>{m.path ? m.path : m.key ? `${m.section ?? "∅"}/${m.key}` : ""}</span>
@@ -189,7 +189,7 @@ export default function ConfigForm() {
           </div>
         </div>
 
-        <div className="text-sm text-slate-500"><strong>Export preview:</strong> Secrets are masked at source.</div>
+        <div className="text-sm text-text-secondary"><strong>Export preview:</strong> Secrets are masked at source.</div>
       </div>
     </div>
   );

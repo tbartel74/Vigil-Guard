@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FocusTrap from 'focus-trap-react';
 import * as api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { formatTimestamp, formatTimestampCompact } from '../lib/dateUtils';
@@ -172,7 +173,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white">Prompt Analysis</h2>
-          <p className="text-sm text-slate-400">Detailed inspection of security decisions</p>
+          <p className="text-sm text-text-secondary">Detailed inspection of security decisions</p>
         </div>
 
         {/* Status indicator and FP button in top-right */}
@@ -207,7 +208,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
 
       {/* Dropdown selector */}
       <div className="mb-4 relative z-50">
-        <label className="text-xs text-slate-400 block mb-2">Select Prompt</label>
+        <label className="text-xs text-text-secondary block mb-2">Select Prompt</label>
         <select
           value={selectedPromptId || ''}
           onChange={(e) => setSelectedPromptId(e.target.value)}
@@ -246,34 +247,34 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
           {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 p-3 bg-slate-900/50 rounded-lg">
             <div>
-              <span className="text-xs text-slate-400">Timestamp:</span>
+              <span className="text-xs text-text-secondary">Timestamp:</span>
               <p className="text-sm text-white">{formatTimestamp(promptDetails.timestamp, userTimezone)}</p>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Event ID:</span>
+              <span className="text-xs text-text-secondary">Event ID:</span>
               <p className="text-sm text-white font-mono">{promptDetails.id}</p>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Decision Source:</span>
+              <span className="text-xs text-text-secondary">Decision Source:</span>
               <p className="text-sm text-white">{promptDetails.final_action}</p>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Main Criteria:</span>
+              <span className="text-xs text-text-secondary">Main Criteria:</span>
               <p className="text-sm text-white">{promptDetails.main_criteria || 'N/A'}</p>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Prompt Guard Score:</span>
+              <span className="text-xs text-text-secondary">Prompt Guard Score:</span>
               <p className="text-sm text-white">{promptDetails.pg_score_percent.toFixed(2)}%</p>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Sanitizer Score:</span>
+              <span className="text-xs text-text-secondary">Sanitizer Score:</span>
               <p className="text-sm text-white">{promptDetails.sanitizer_score}</p>
             </div>
           </div>
 
           {/* Original Prompt - large text area */}
           <div>
-            <label className="text-xs text-slate-400 block mb-2">Original Prompt (Input)</label>
+            <label className="text-xs text-text-secondary block mb-2">Original Prompt (Input)</label>
             <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
               <pre className="text-sm text-white whitespace-pre-wrap font-mono">
                 {promptDetails.input_raw}
@@ -283,7 +284,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
 
           {/* Output after processing - ALWAYS SHOW */}
           <div>
-            <label className="text-xs text-slate-400 block mb-2">
+            <label className="text-xs text-text-secondary block mb-2">
               Output After Decision
               {promptDetails.final_status === 'ALLOWED' && ' (Allowed - No Changes)'}
               {promptDetails.final_status === 'SANITIZED' && ' (Sanitized - Content Modified)'}
@@ -305,8 +306,14 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
       {/* False Positive Report Modal */}
       {showFPModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h3 className="text-xl font-semibold text-white mb-4">Report False Positive</h3>
+          <FocusTrap>
+            <div
+              className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="fp-modal-title"
+            >
+              <h3 id="fp-modal-title" className="text-xl font-semibold text-white mb-4">Report False Positive</h3>
 
             {fpSuccess ? (
               <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-center">
@@ -317,7 +324,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                 <div className="space-y-4">
                   {/* Event ID display */}
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Event ID</label>
+                    <label className="text-xs text-text-secondary block mb-1">Event ID</label>
                     <div className="px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-slate-300 font-mono">
                       {promptDetails?.id}
                     </div>
@@ -325,7 +332,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
 
                   {/* Reason dropdown */}
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Reason</label>
+                    <label className="text-xs text-text-secondary block mb-1">Reason</label>
                     <select
                       value={fpReason}
                       onChange={(e) => setFpReason(e.target.value)}
@@ -342,8 +349,8 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
 
                   {/* Comment textarea */}
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">
-                      Comment <span className="text-slate-500">(optional)</span>
+                    <label className="text-xs text-text-secondary block mb-1">
+                      Comment <span className="text-text-secondary">(optional)</span>
                     </label>
                     <textarea
                       value={fpComment}
@@ -382,7 +389,8 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                 </div>
               </>
             )}
-          </div>
+            </div>
+          </FocusTrap>
         </div>
       )}
     </div>

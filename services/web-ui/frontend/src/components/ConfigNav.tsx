@@ -14,7 +14,7 @@ export default function ConfigNav() {
           key={section.id}
           to={`/config/${section.id}`}
           className={({ isActive }) =>
-            `block px-3 py-3 rounded-lg text-sm transition-colors ${
+            `block px-3 py-3 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               isActive
                 ? "bg-slate-800 text-white"
                 : "text-slate-400 hover:text-white hover:bg-slate-800/50"
@@ -22,7 +22,7 @@ export default function ConfigNav() {
           }
         >
           <div className="font-medium mb-1">{section.title}</div>
-          <div className="text-xs text-slate-500 leading-relaxed">
+          <div className="text-xs text-text-secondary leading-relaxed">
             {section.description}
           </div>
         </NavLink>

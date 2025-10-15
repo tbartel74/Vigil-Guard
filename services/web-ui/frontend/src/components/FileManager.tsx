@@ -113,7 +113,7 @@ export default function FileManager() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-white">Configuration File Editor</h1>
-        <p className="text-slate-400 mt-2">
+        <p className="text-text-secondary mt-2">
           Download and upload configuration files. All changes are logged in the audit log below.
         </p>
       </div>
@@ -148,7 +148,7 @@ export default function FileManager() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-md font-semibold text-white">{file.name}</h3>
-                    <p className="text-sm text-slate-400 mt-1">{file.description}</p>
+                    <p className="text-sm text-text-secondary mt-1">{file.description}</p>
                   </div>
 
                   <div className="flex gap-2 ml-4">
@@ -206,7 +206,7 @@ export default function FileManager() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">Audit Log</h2>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-text-secondary mt-1">
                   Complete history of all file upload operations with timestamps and user information
                 </p>
               </div>
