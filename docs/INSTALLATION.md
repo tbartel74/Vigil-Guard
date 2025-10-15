@@ -496,3 +496,125 @@ Frontend: 200
 Grafana: 200
 === Health Check Complete ===
 ```
+
+---
+
+## 🔐 Security Best Practices
+
+### ⚠️ CRITICAL: Change Default Passwords
+
+**The installation uses DEFAULT CREDENTIALS (admin123) for ALL services.**
+
+These are **ONLY safe for local development/testing**. Before deploying to production or any network-accessible environment, you **MUST** change all passwords.
+
+### Password Change Checklist
+
+#### 1. Update .env File
+
+Edit `.env` in the project root directory:
+
+```bash
+# CRITICAL: Change these passwords!
+CLICKHOUSE_PASSWORD=admin123          # ← Change this
+GF_SECURITY_ADMIN_PASSWORD=admin123   # ← Change this
+N8N_BASIC_AUTH_PASSWORD=admin123      # ← Change this
+```
+
+**Generate secure passwords:**
+```bash
+# Generate a secure random password (32 characters)
+openssl rand -base64 32 | tr -d '/+=' | head -c 32
+```
+
+**After updating .env:**
+```bash
+# Restart services to apply new passwords
+docker-compose down
+docker-compose up -d
+```
+
+#### 2. Change Web UI Password
+
+1. Login to Web UI: http://localhost:5173/ui
+2. Use default credentials: `admin` / `admin123`
+3. Navigate to **Settings** (user icon in top-right)
+4. Click **Change Password**
+5. Enter a strong password (minimum 8 characters)
+6. Save changes
+
+#### 3. Verify Password Changes
+
+```bash
+# Test ClickHouse with new password
+curl -u admin:<NEW_PASSWORD> http://localhost:8123/ping
+
+# Test Grafana with new password
+curl -u admin:<NEW_PASSWORD> http://localhost:3001/api/health
+
+# Login to Web UI with new password
+# Should no longer accept admin123
+```
+
+### Why This Is Critical
+
+- **Default passwords = instant system takeover**
+- All your data, configurations, and logs become exposed
+- Attackers actively scan for default credentials 24/7
+- Once compromised, attackers can:
+  - Access sensitive security logs
+  - Modify detection rules
+  - Disable security features
+  - Pivot to other systems
+
+### Additional Security Hardening
+
+#### Enable HTTPS in Production
+
+```bash
+# Update Caddy configuration for HTTPS
+# Edit services/proxy/Caddyfile
+```
+
+#### Restrict Network Access
+
+```bash
+# Production: Bind services to localhost only
+# Edit docker-compose.yml ports section:
+# Example: "127.0.0.1:8787:8787" instead of "8787:8787"
+```
+
+#### Regular Security Updates
+
+```bash
+# Update Docker images monthly
+docker-compose pull
+docker-compose up -d
+
+# Update npm dependencies
+npm update
+```
+
+#### Audit Logging
+
+```bash
+# Review audit logs regularly
+tail -f vigil_data/web-ui/audit.log
+
+# Check for suspicious activities:
+# - Multiple failed login attempts
+# - Unexpected configuration changes
+# - Access from unknown IPs
+```
+
+### Security Checklist
+
+- [ ] Changed all passwords in .env file
+- [ ] Changed Web UI admin password
+- [ ] Verified new passwords work
+- [ ] Configured HTTPS for production
+- [ ] Restricted network access (if needed)
+- [ ] Documented passwords in secure password manager
+- [ ] Setup regular security update schedule
+- [ ] Enabled audit log monitoring
+
+**Remember:** Security is an ongoing process, not a one-time setup!

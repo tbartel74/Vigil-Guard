@@ -45,10 +45,8 @@ fi
 
 log_success "ClickHouse container is running"
 
-# Fix permissions for ClickHouse volume
-log_info "Fixing permissions for ClickHouse volume..."
-chmod -R 777 vigil_data/clickhouse 2>/dev/null || true
-log_success "Permissions configured"
+# Note: Permissions are configured by install.sh during initial setup
+# If you encounter permission errors, run install.sh again or check vigil_data/ ownership
 
 # Wait for ClickHouse to be ready
 log_info "Waiting for ClickHouse to be ready..."

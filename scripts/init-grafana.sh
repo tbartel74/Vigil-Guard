@@ -47,12 +47,10 @@ fi
 
 log_success "Grafana container is running"
 
-# Fix permissions for Grafana volume
-log_info "Fixing permissions for Grafana volume..."
-chmod -R 777 vigil_data/grafana 2>/dev/null || true
-log_success "Permissions configured"
+# Note: Permissions are configured by install.sh during initial setup
+# If you encounter permission errors, run install.sh again or check vigil_data/ ownership
 
-# Restart Grafana to apply permission changes
+# Restart Grafana to ensure latest configuration
 log_info "Restarting Grafana container..."
 docker-compose restart grafana >/dev/null 2>&1
 sleep 5

@@ -41,6 +41,16 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -n|--lines)
+            # Strict validation: must be positive integer, max 10000
+            if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                echo -e "${RED}ERROR: --lines must be a positive integer${NC}"
+                show_usage
+                exit 1
+            fi
+            if [ "$2" -gt 10000 ]; then
+                echo -e "${RED}ERROR: --lines maximum is 10000${NC}"
+                exit 1
+            fi
             LINES="$2"
             shift 2
             ;;
@@ -67,23 +77,23 @@ echo ""
 case $SERVICE in
     web-ui)
         echo -e "${YELLOW}Web UI Services Logs:${NC}"
-        docker-compose logs $FOLLOW --tail=$LINES web-ui-backend web-ui-frontend
+        docker-compose logs "$FOLLOW" --tail="$LINES" web-ui-backend web-ui-frontend
         ;;
     n8n)
         echo -e "${YELLOW}n8n Logs:${NC}"
-        docker-compose logs $FOLLOW --tail=$LINES n8n
+        docker-compose logs "$FOLLOW" --tail="$LINES" n8n
         ;;
     monitoring)
         echo -e "${YELLOW}Monitoring Stack Logs:${NC}"
-        docker-compose logs $FOLLOW --tail=$LINES clickhouse grafana
+        docker-compose logs "$FOLLOW" --tail="$LINES" clickhouse grafana
         ;;
     prompt-guard)
         echo -e "${YELLOW}Prompt Guard API Logs:${NC}"
-        docker-compose logs $FOLLOW --tail=$LINES prompt-guard-api
+        docker-compose logs "$FOLLOW" --tail="$LINES" prompt-guard-api
         ;;
     all)
         echo -e "${YELLOW}All Services Logs:${NC}"
-        docker-compose logs $FOLLOW --tail=$LINES
+        docker-compose logs "$FOLLOW" --tail="$LINES"
         ;;
     *)
         echo "Unknown service: $SERVICE"

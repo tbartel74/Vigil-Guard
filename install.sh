@@ -42,6 +42,17 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Detect platform (for permission handling)
+detect_platform() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_header "1/8 Checking Prerequisites"
@@ -206,11 +217,58 @@ create_data_directories() {
 
     log_success "Data directories created at: $(pwd)/vigil_data/"
 
-    # Fix permissions for Docker containers (needed for ClickHouse and Grafana)
-    log_info "Setting permissions for Docker volumes..."
-    chmod -R 777 vigil_data/clickhouse 2>/dev/null || true
-    chmod -R 777 vigil_data/grafana 2>/dev/null || true
-    log_success "Permissions configured"
+    # Set secure permissions for Docker containers
+    log_info "Setting secure permissions for Docker volumes..."
+
+    PLATFORM=$(detect_platform)
+
+    if [ "$PLATFORM" = "linux" ]; then
+        # Linux: Use specific UIDs for container users
+        # ClickHouse runs as UID 101, Grafana as UID 472
+        log_info "Linux detected: Setting ownership to container UIDs..."
+
+        # ClickHouse data (UID 101:101)
+        if [ -d "vigil_data/clickhouse" ]; then
+            chown -R 101:101 vigil_data/clickhouse 2>/dev/null || {
+                log_warning "Cannot set ownership (need sudo), using fallback permissions"
+                chmod 755 vigil_data/clickhouse
+            }
+            chmod -R 750 vigil_data/clickhouse 2>/dev/null || true
+            log_success "ClickHouse: 750 (owner: 101:101)"
+        fi
+
+        # Grafana data (UID 472:472)
+        if [ -d "vigil_data/grafana" ]; then
+            chown -R 472:472 vigil_data/grafana 2>/dev/null || {
+                log_warning "Cannot set ownership (need sudo), using fallback permissions"
+                chmod 755 vigil_data/grafana
+            }
+            chmod -R 750 vigil_data/grafana 2>/dev/null || true
+            log_success "Grafana: 750 (owner: 472:472)"
+        fi
+
+    elif [ "$PLATFORM" = "macos" ]; then
+        # macOS: Docker Desktop automatically maps host user to containers
+        log_info "macOS detected: Using Docker Desktop UID mapping..."
+        chmod 755 vigil_data/clickhouse 2>/dev/null || true
+        chmod 755 vigil_data/grafana 2>/dev/null || true
+        log_success "ClickHouse & Grafana: 755 (Docker Desktop will map UIDs)"
+
+    else
+        # Unknown platform - use safe defaults
+        log_warning "Unknown platform: Using safe default permissions..."
+        chmod 755 vigil_data/clickhouse 2>/dev/null || true
+        chmod 755 vigil_data/grafana 2>/dev/null || true
+    fi
+
+    # Secure other directories (platform-independent)
+    chmod 755 vigil_data/n8n 2>/dev/null || true
+    chmod 755 vigil_data/web-ui 2>/dev/null || true
+    chmod 700 vigil_data/prompt-guard-cache 2>/dev/null || true  # Most sensitive
+    chmod 755 vigil_data/caddy-data 2>/dev/null || true
+    chmod 755 vigil_data/caddy-config 2>/dev/null || true
+
+    log_success "All permissions configured with least-privilege"
 
     echo ""
 }
@@ -546,6 +604,38 @@ show_summary() {
     echo -e "    Username: ${BLUE}${CLICKHOUSE_USER}${NC}"
     echo -e "    Password: ${BLUE}${CLICKHOUSE_PASSWORD}${NC}"
     echo -e "    Database: ${BLUE}${CLICKHOUSE_DB}${NC}"
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}⚠️  CRITICAL SECURITY NOTICE - READ THIS CAREFULLY ⚠️${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}This installation uses DEFAULT PASSWORDS (admin123) for ALL services!${NC}"
+    echo -e "${YELLOW}These are ONLY safe for local development/testing.${NC}"
+    echo ""
+    echo -e "${RED}⚠️  BEFORE deploying to production, you MUST change passwords in:${NC}"
+    echo ""
+    echo -e "  ${BLUE}1.${NC} ${YELLOW}.env${NC} file (in project root):"
+    echo -e "     • CLICKHOUSE_PASSWORD=admin123     ${RED}← Change this!${NC}"
+    echo -e "     • GF_SECURITY_ADMIN_PASSWORD=admin123  ${RED}← Change this!${NC}"
+    echo -e "     • N8N_BASIC_AUTH_PASSWORD=admin123  ${RED}← Change this!${NC}"
+    echo ""
+    echo -e "  ${BLUE}2.${NC} ${YELLOW}Web UI${NC} (http://localhost:${FRONTEND_PORT}/ui):"
+    echo -e "     • Login with admin/admin123"
+    echo -e "     • Go to Settings → Change Password  ${RED}← Do this FIRST!${NC}"
+    echo ""
+    echo -e "  ${BLUE}3.${NC} ${YELLOW}After changing .env${NC}:"
+    echo -e "     ${GREEN}docker-compose down${NC}"
+    echo -e "     ${GREEN}docker-compose up -d${NC}"
+    echo ""
+    echo -e "${RED}⚠️  Why is this critical?${NC}"
+    echo -e "   • Default passwords = instant system takeover"
+    echo -e "   • All your data, configurations, and logs exposed"
+    echo -e "   • Attackers scan for default credentials 24/7"
+    echo ""
+    echo -e "${GREEN}✅ Generate secure passwords with:${NC}"
+    echo -e "   ${BLUE}openssl rand -base64 32 | tr -d '/+=' | head -c 32${NC}"
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "Useful commands:"
     echo -e "  ${BLUE}•${NC} Check all services:      ${YELLOW}docker-compose ps${NC}"
