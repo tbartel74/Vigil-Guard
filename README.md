@@ -239,7 +239,7 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil-Guard-v1.0.json`
+   - Import: `services/workflow/workflows/Vigil-Guard-v1.3.json`
 
 3. **Configure ClickHouse Credentials**
    - Locate "Logging to ClickHouse" node in workflow

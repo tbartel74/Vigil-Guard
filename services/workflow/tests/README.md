@@ -20,7 +20,7 @@ Automated E2E test suite for Vigil Guard n8n workflow using Vitest.
    ```
 
 2. **Workflow activated** in n8n UI (http://localhost:5678):
-   - Open workflow: "Vigil-Guard-v1.0"
+   - Open workflow: "Vigil-Guard-v1.3"
    - Toggle: OFF → ON
 
 3. **ClickHouse accessible**:
@@ -221,7 +221,7 @@ Increase if workflow takes longer.
 **Solution:** Activate workflow in n8n UI
 ```bash
 open http://localhost:5678
-# Navigate to "Vigil-Guard-v1.0" → Toggle ON
+# Navigate to "Vigil-Guard-v1.3" → Toggle ON
 ```
 
 ### Tests fail with "ClickHouse query failed: HTTP 403"

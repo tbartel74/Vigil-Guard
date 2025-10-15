@@ -66,7 +66,7 @@ After installation completes, you **must** perform these manual steps:
 2. Click **"Add Workflow"** → **"Import from File"**
 3. Import the workflow file from:
    ```
-   services/workflow/workflows/Vigil-Guard-v1.0.json
+   services/workflow/workflows/Vigil-Guard-v1.3.json
    ```
 4. The workflow will load with all 34 nodes
 

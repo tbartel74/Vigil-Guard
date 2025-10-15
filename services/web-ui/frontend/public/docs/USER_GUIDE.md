@@ -1074,5 +1074,5 @@ Key environment variables (see `docker-compose.yml`):
 ---
 
 **Last Updated**: October 2025
-**Version**: 1.0.0
+**Version**: 1.3.0
 **Built with Llama** - Powered by Meta's Llama Prompt Guard 2

@@ -478,6 +478,32 @@ docker network create vigil-network
 
 ## Recent Improvements
 
+**Version 1.3.0 (2025-10-15)**:
+- **Responsive Layout**: Mobile-first design with adaptive UI (TIER 2)
+  - Breakpoint at 768px separates mobile/desktop experiences
+  - Hamburger menu with offcanvas sidebar for mobile devices
+  - Touch-friendly interactions with backdrop blur effect
+  - Auto-close sidebar when resizing to desktop
+  - Centralized mobile state management via MobileContext
+- **Modal Accessibility**: WCAG-compliant focus management (TIER 2)
+  - Focus trap prevents tab navigation outside modals
+  - ESC key handler for modal dismissal
+  - Proper ARIA attributes (role="dialog", aria-modal, aria-labelledby)
+  - Auto-focus on first interactive element
+  - Using focus-trap-react library for robust implementation
+- **Design System**: Semantic color tokens and reusable components (TIER 3)
+  - Custom surface color palette (darkest/darker/dark/base) in tailwind.config.ts
+  - Extended slate palette with custom slate-850 shade
+  - Spacing (4.5) and fontSize (2xs) utility tokens
+  - Eliminated all 12 hex color instances (12 → 0 in components)
+  - Reusable Button component (4 variants × 3 sizes)
+  - Reusable Card component with Header/Body subcomponents
+  - Clean exports via components/ui/index.ts
+  - Type-safe component API with TypeScript interfaces
+- **Bug Fixes**:
+  - Fixed PromptAnalyzer auto-refresh respecting user settings
+  - Improved UX for manual data analysis without interruptions
+
 **Version 1.2.0 (2025)**:
 - **Bloom Filter Configuration**: Removed hardcoded thresholds from workflow code
   - Added `phrase_match_bonus` parameter (default: 20 points per matched phrase)
@@ -522,7 +548,7 @@ docker network create vigil-network
 3. **Login**: Use default credentials `admin/admin123`
 4. **⚠️ REQUIRED: Configure n8n Workflow**:
    - Open http://localhost:5678 and create n8n account
-   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.0.json`
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.3.json`
    - Configure ClickHouse credentials in "Logging to ClickHouse" node:
      - Host: `vigil-clickhouse`, Port: `8123`
      - Database: `n8n_logs`

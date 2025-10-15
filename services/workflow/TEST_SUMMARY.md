@@ -325,7 +325,7 @@ testTimeout: 60000  // 60 seconds
 **Solution:** Activate workflow in n8n UI:
 ```bash
 open http://localhost:5678
-# Navigate to "Vigil-Guard-v1.0" → Toggle ON
+# Navigate to "Vigil-Guard-v1.3" → Toggle ON
 ```
 
 ### All scores = 0
