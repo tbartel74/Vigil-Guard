@@ -16,7 +16,9 @@ export default function ConfigSection() {
   const { user } = useAuth();
   const [changes, setChanges] = useState<Chg[]>([]);
   const [resolveOut, setResolveOut] = useState<any[]>([]);
+  const [defaultValues, setDefaultValues] = useState<any[]>([]);
   const [status, setStatus] = useState<string>("");
+  const [resetKey, setResetKey] = useState<number>(0);
 
   // Find the current section
   const currentSection = sections.sections.find(s => s.id === sectionId);
@@ -33,6 +35,7 @@ export default function ConfigSection() {
   async function doResolve() {
     const r = await resolveSpec(spec);
     setResolveOut(r.results);
+    setDefaultValues(JSON.parse(JSON.stringify(r.results))); // Deep copy for defaults
   }
 
   function mergeUpdates(existing: any[], u: any) {
@@ -67,6 +70,21 @@ export default function ConfigSection() {
     } catch (e: any) {
       setStatus(e.conflict ? "File changed on disk — reload or force save." : `Error: ${e.message}`);
     }
+  }
+
+  function handleResetAll() {
+    if (changes.length === 0) return;
+
+    const confirmed = window.confirm(
+      'Are you sure? This will discard all unsaved changes and restore values from the server.'
+    );
+    if (!confirmed) return;
+
+    // Restore original values from defaultValues
+    setResolveOut(JSON.parse(JSON.stringify(defaultValues)));
+    setChanges([]);
+    setResetKey(prev => prev + 1); // Force re-render of all inputs
+    setStatus('All changes discarded');
   }
 
   useEffect(() => { doResolve().catch(console.error); }, []);
@@ -132,6 +150,14 @@ export default function ConfigSection() {
           className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800/50 disabled:cursor-not-allowed text-white transition-colors"
         >
           Clear
+        </button>
+        <button
+          onClick={handleResetAll}
+          disabled={changes.length === 0}
+          className="px-4 py-2 rounded bg-orange-600 hover:bg-orange-700 disabled:bg-slate-800/50 disabled:cursor-not-allowed text-white transition-colors"
+          title="Restore all values from server (discards unsaved changes)"
+        >
+          Reset All Changes
         </button>
         {status && (
           <div className="text-sm text-slate-300 font-medium">{status}</div>
@@ -231,6 +257,7 @@ export default function ConfigSection() {
                                       />
                                     ) : (
                                       <input
+                                        key={`${v.name}-${resetKey}`}
                                         className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
                                         type={v.type === "number" ? "number" : "text"}
                                         step={v.type === "number" ? "0.01" : undefined}
@@ -252,7 +279,7 @@ export default function ConfigSection() {
                                       onClick={() => {
                                         const m = v.map[0];
                                         onFieldChange(v.name, 0, m.file, "json", { path: m.path, value: v.default });
-                                        window.location.reload();
+                                        setResetKey(prev => prev + 1);
                                       }}
                                       className="px-3 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded whitespace-nowrap"
                                       title="Reset to default value"
@@ -353,6 +380,7 @@ export default function ConfigSection() {
                                   />
                                 ) : v.type === "multiline" ? (
                                   <textarea
+                                    key={`${v.name}-${i}-${resetKey}`}
                                     className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm resize-vertical"
                                     rows={3}
                                     placeholder={String(res?.mappings?.[i]?.value ?? "")}
@@ -368,6 +396,7 @@ export default function ConfigSection() {
                                   />
                                 ) : (
                                   <input
+                                    key={`${v.name}-${i}-${resetKey}`}
                                     className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm"
                                     type={v.type === "number" ? "number" : "text"}
                                     placeholder={String(res?.mappings?.[i]?.value ?? "")}
@@ -394,7 +423,7 @@ export default function ConfigSection() {
                                     } else {
                                       onFieldChange(v.name, i, m.file, "conf", { section: m.section ?? null, key: m.key, value: v.default });
                                     }
-                                    window.location.reload();
+                                    setResetKey(prev => prev + 1);
                                   }}
                                   className="px-3 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 rounded whitespace-nowrap"
                                   title="Reset to default value"
