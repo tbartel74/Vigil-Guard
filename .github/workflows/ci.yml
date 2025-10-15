@@ -231,6 +231,12 @@ jobs:
     name: Security - Dependency Audit
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        component:
+          - backend
+          - frontend
+
     steps:
       - uses: actions/checkout@v4
 
@@ -238,20 +244,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/web-ui/${{ matrix.component }}/package-lock.json
 
-      - name: Backend security audit
-        working-directory: services/web-ui/backend
+      - name: Security audit - ${{ matrix.component }}
+        working-directory: services/web-ui/${{ matrix.component }}
         run: |
           npm ci
           npm audit --audit-level=moderate
         continue-on-error: true
 
-      - name: Frontend security audit
-        working-directory: services/web-ui/frontend
-        run: |
-          npm ci
-          npm audit --audit-level=moderate
-        continue-on-error: true
+  # Secret scanning
+  secret-scan:
+    name: Security - Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check for secrets in code
         uses: trufflesecurity/trufflehog@main
@@ -292,6 +303,7 @@ jobs:
       - docker-compose-validate
       - docs-check
       - security-audit
+      - secret-scan
       - install-script-check
 
     steps:
