@@ -192,8 +192,15 @@ router.get('/users', authenticate, requireUserManagement, async (req: Request, r
   try {
     const users = userDb.getAllUsers();
 
-    // Remove password hashes from response
-    const sanitizedUsers = users.map(({ password_hash, ...user }) => user);
+    // Remove password hashes and convert SQLite integers to booleans
+    const sanitizedUsers = users.map(({ password_hash, ...user }) => ({
+      ...user,
+      is_active: !!user.is_active,
+      can_view_monitoring: !!user.can_view_monitoring,
+      can_view_configuration: !!user.can_view_configuration,
+      can_manage_users: !!user.can_manage_users,
+      force_password_change: !!user.force_password_change
+    }));
 
     res.json({ success: true, users: sanitizedUsers });
   } catch (error: any) {
@@ -313,7 +320,17 @@ router.post('/users', authenticate, requireUserManagement, async (req: Request, 
     const newUser = userDb.getUserById(userId);
     const { password_hash, ...sanitizedUser } = newUser!;
 
-    res.status(201).json({ success: true, user: sanitizedUser });
+    // Convert SQLite integers to booleans
+    const userWithBooleans = {
+      ...sanitizedUser,
+      is_active: !!sanitizedUser.is_active,
+      can_view_monitoring: !!sanitizedUser.can_view_monitoring,
+      can_view_configuration: !!sanitizedUser.can_view_configuration,
+      can_manage_users: !!sanitizedUser.can_manage_users,
+      force_password_change: !!sanitizedUser.force_password_change
+    };
+
+    res.status(201).json({ success: true, user: userWithBooleans });
   } catch (error: any) {
     console.error('Create user error:', error);
     res.status(500).json({ error: 'Failed to create user' });
@@ -360,7 +377,17 @@ router.put('/users/:id', authenticate, requireUserManagement, async (req: Reques
     const updatedUser = userDb.getUserById(userId);
     const { password_hash, ...sanitizedUser } = updatedUser!;
 
-    res.json({ success: true, user: sanitizedUser });
+    // Convert SQLite integers to booleans
+    const userWithBooleans = {
+      ...sanitizedUser,
+      is_active: !!sanitizedUser.is_active,
+      can_view_monitoring: !!sanitizedUser.can_view_monitoring,
+      can_view_configuration: !!sanitizedUser.can_view_configuration,
+      can_manage_users: !!sanitizedUser.can_manage_users,
+      force_password_change: !!sanitizedUser.force_password_change
+    };
+
+    res.json({ success: true, user: userWithBooleans });
   } catch (error: any) {
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Failed to update user' });
@@ -397,7 +424,17 @@ router.post('/users/:id/toggle-active', authenticate, requireUserManagement, (re
     const updatedUser = userDb.getUserById(userId);
     const { password_hash, ...sanitizedUser } = updatedUser!;
 
-    res.json({ success: true, user: sanitizedUser });
+    // Convert SQLite integers to booleans
+    const userWithBooleans = {
+      ...sanitizedUser,
+      is_active: !!sanitizedUser.is_active,
+      can_view_monitoring: !!sanitizedUser.can_view_monitoring,
+      can_view_configuration: !!sanitizedUser.can_view_configuration,
+      can_manage_users: !!sanitizedUser.can_manage_users,
+      force_password_change: !!sanitizedUser.force_password_change
+    };
+
+    res.json({ success: true, user: userWithBooleans });
   } catch (error: any) {
     console.error('Toggle user active error:', error);
     res.status(500).json({ error: 'Failed to toggle user active status' });

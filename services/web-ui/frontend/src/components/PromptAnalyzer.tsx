@@ -33,8 +33,10 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
   const [promptList, setPromptList] = useState<PromptListItem[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [promptDetails, setPromptDetails] = useState<PromptDetails | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   // False Positive reporting state
   const [showFPModal, setShowFPModal] = useState(false);
@@ -70,8 +72,8 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
 
   const fetchPromptList = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setIsListLoading(true);
+      setListError(null);
       const data = await api.fetchPromptList(timeRange);
       console.log('PromptAnalyzer: Fetched prompt list:', data);
       setPromptList(data);
@@ -82,24 +84,24 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
         setSelectedPromptId(data[0].id);
       }
     } catch (err: any) {
-      setError('Failed to load prompts: ' + err.message);
+      setListError('Failed to load prompts: ' + err.message);
       console.error('Error fetching prompt list:', err);
     } finally {
-      setLoading(false);
+      setIsListLoading(false);
     }
   };
 
   const fetchPromptDetails = async (id: string) => {
     try {
-      setLoading(true);
-      setError(null);
+      setIsDetailsLoading(true);
+      setDetailsError(null);
       const data = await api.fetchPromptDetails(id);
       setPromptDetails(data);
     } catch (err: any) {
-      setError('Failed to load prompt details: ' + err.message);
+      setDetailsError('Failed to load prompt details: ' + err.message);
       console.error('Error fetching prompt details:', err);
     } finally {
-      setLoading(false);
+      setIsDetailsLoading(false);
     }
   };
 
@@ -212,37 +214,85 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
         <select
           value={selectedPromptId || ''}
           onChange={(e) => setSelectedPromptId(e.target.value)}
-          className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white relative z-50"
-          disabled={loading || promptList.length === 0}
+          className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white relative z-50 truncate"
+          disabled={isListLoading || promptList.length === 0}
+          style={{ maxWidth: '100%' }}
         >
           {promptList.length === 0 ? (
             <option>No prompts found in this time range</option>
           ) : (
             promptList.map((prompt) => (
               <option key={prompt.id} value={prompt.id}>
-                [{formatTimestampCompact(prompt.timestamp, userTimezone)}] {getStatusIcon(prompt.final_status)} {prompt.preview}...
+                [{formatTimestampCompact(prompt.timestamp, userTimezone)}] {getStatusIcon(prompt.final_status)} {prompt.preview.substring(0, 80)}...
               </option>
             ))
           )}
         </select>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
-          {error}
+      {/* List error with retry button */}
+      {listError && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm flex items-center justify-between">
+          <span>{listError}</span>
+          <button
+            onClick={fetchPromptList}
+            className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded text-red-400 text-xs font-medium transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      {/* Loading indicator */}
-      {loading && !promptDetails && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+      {/* Details error with retry button */}
+      {detailsError && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm flex items-center justify-between">
+          <span>{detailsError}</span>
+          <button
+            onClick={() => selectedPromptId && fetchPromptDetails(selectedPromptId)}
+            className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded text-red-400 text-xs font-medium transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Skeleton screen for loading details */}
+      {isDetailsLoading && (
+        <div className="space-y-4 animate-pulse">
+          {/* Metadata skeleton */}
+          <div className="grid grid-cols-2 gap-4 p-3 bg-slate-900/50 rounded-lg">
+            {[...Array(6)].map((_, i) => (
+              <div key={i}>
+                <div className="h-3 bg-slate-700 rounded w-1/4 mb-2"></div>
+                <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
+          {/* Text area skeletons */}
+          <div>
+            <div className="h-3 bg-slate-700 rounded w-1/4 mb-2"></div>
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 h-[200px]">
+              <div className="space-y-2">
+                <div className="h-4 bg-slate-700 rounded"></div>
+                <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+                <div className="h-4 bg-slate-700 rounded w-4/6"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="h-3 bg-slate-700 rounded w-1/4 mb-2"></div>
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 h-[150px]">
+              <div className="space-y-2">
+                <div className="h-4 bg-slate-700 rounded"></div>
+                <div className="h-4 bg-slate-700 rounded w-4/6"></div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Prompt details display */}
-      {promptDetails && !loading && (
+      {promptDetails && !isDetailsLoading && (
         <div className="space-y-4">
           {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 p-3 bg-slate-900/50 rounded-lg">
@@ -275,8 +325,8 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
           {/* Original Prompt - large text area */}
           <div>
             <label className="text-xs text-text-secondary block mb-2">Original Prompt (Input)</label>
-            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
-              <pre className="text-sm text-white whitespace-pre-wrap font-mono">
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto overflow-x-hidden">
+              <pre className="text-sm text-white whitespace-pre-wrap font-mono break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {promptDetails.input_raw}
               </pre>
             </div>
@@ -290,12 +340,12 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
               {promptDetails.final_status === 'SANITIZED' && ' (Sanitized - Content Modified)'}
               {promptDetails.final_status === 'BLOCKED' && ' (Blocked - Request Rejected)'}
             </label>
-            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-y-auto">
-              <pre className={`text-sm whitespace-pre-wrap font-mono ${
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[150px] max-h-[300px] overflow-y-auto overflow-x-hidden">
+              <pre className={`text-sm whitespace-pre-wrap font-mono break-words ${
                 promptDetails.final_status === 'BLOCKED' ? 'text-red-400' :
                 promptDetails.final_status === 'SANITIZED' ? 'text-yellow-400' :
                 'text-green-400'
-              }`}>
+              }`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {promptDetails.output_final || promptDetails.input_raw}
               </pre>
             </div>
