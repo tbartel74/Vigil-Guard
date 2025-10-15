@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import FocusTrap from 'focus-trap-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../lib/api';
 
@@ -69,13 +70,17 @@ export function UserManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    const toastId = toast.loading('Creating user...');
     try {
       await api.createUser(formData);
+      toast.success(`User "${formData.username}" created successfully`, { id: toastId });
       setIsCreateModalOpen(false);
       resetForm();
       loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to create user');
+      const errorMsg = err.message || 'Failed to create user';
+      toast.error(errorMsg, { id: toastId });
+      setError(errorMsg);
     }
   };
 
@@ -83,6 +88,7 @@ export function UserManagement() {
     e.preventDefault();
     if (!selectedUser) return;
 
+    const toastId = toast.loading('Updating user...');
     try {
       const updates: any = {
         username: formData.username,
@@ -98,44 +104,58 @@ export function UserManagement() {
       }
 
       await api.updateUser(selectedUser.id, updates);
+      toast.success(`User "${selectedUser.username}" updated successfully`, { id: toastId });
       setIsEditModalOpen(false);
       setSelectedUser(null);
       resetForm();
       loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to update user');
+      const errorMsg = err.message || 'Failed to update user';
+      toast.error(errorMsg, { id: toastId });
+      setError(errorMsg);
     }
   };
 
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
 
+    const toastId = toast.loading('Deleting user...');
     try {
       await api.deleteUser(userId);
+      toast.success('User deleted successfully', { id: toastId });
       loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete user');
+      const errorMsg = err.message || 'Failed to delete user';
+      toast.error(errorMsg, { id: toastId });
+      setError(errorMsg);
     }
   };
 
   const handleToggleActive = async (userId: number) => {
+    const toastId = toast.loading('Updating user status...');
     try {
       await api.toggleUserActive(userId);
+      toast.success('User status updated successfully', { id: toastId });
       loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to toggle user status');
+      const errorMsg = err.message || 'Failed to toggle user status';
+      toast.error(errorMsg, { id: toastId });
+      setError(errorMsg);
     }
   };
 
   const handleForcePasswordChange = async (userId: number) => {
     if (!confirm('Force this user to change their password on next login?')) return;
 
+    const toastId = toast.loading('Forcing password change...');
     try {
       await api.forcePasswordChange(userId);
-      alert('User will be required to change password on next login');
+      toast.success('User will be required to change password on next login', { id: toastId });
       loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to force password change');
+      const errorMsg = err.message || 'Failed to force password change';
+      toast.error(errorMsg, { id: toastId });
+      setError(errorMsg);
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { fetchFile, parseFile, resolveSpec, saveChanges } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import spec from "../spec/variables.json";
@@ -17,7 +18,6 @@ export default function ConfigSection() {
   const [changes, setChanges] = useState<Chg[]>([]);
   const [resolveOut, setResolveOut] = useState<any[]>([]);
   const [defaultValues, setDefaultValues] = useState<any[]>([]);
-  const [status, setStatus] = useState<string>("");
   const [resetKey, setResetKey] = useState<number>(0);
 
   // Find the current section
@@ -57,18 +57,21 @@ export default function ConfigSection() {
 
   async function onSave() {
     if (!user) {
-      setStatus("Error: User not authenticated");
+      toast.error("Error: User not authenticated");
       return;
     }
+
+    const toastId = toast.loading("Saving configuration...");
 
     try {
       const changeTag = user.username; // Use username as changeTag
       const out = await saveChanges({ changes, spec, changeTag });
-      setStatus(`Saved by ${user.username}. ${out.results.length} file(s) updated.`);
+      toast.success(`Configuration saved successfully. ${out.results.length} file(s) updated.`, { id: toastId });
       setChanges([]);
       await doResolve();
     } catch (e: any) {
-      setStatus(e.conflict ? "File changed on disk — reload or force save." : `Error: ${e.message}`);
+      const errorMsg = e.conflict ? "File changed on disk — reload or force save." : `Error: ${e.message}`;
+      toast.error(errorMsg, { id: toastId });
     }
   }
 
@@ -84,7 +87,7 @@ export default function ConfigSection() {
     setResolveOut(JSON.parse(JSON.stringify(defaultValues)));
     setChanges([]);
     setResetKey(prev => prev + 1); // Force re-render of all inputs
-    setStatus('All changes discarded');
+    toast.success('All changes discarded. Values restored from server.');
   }
 
   useEffect(() => { doResolve().catch(console.error); }, []);
@@ -159,9 +162,6 @@ export default function ConfigSection() {
         >
           Reset All Changes
         </button>
-        {status && (
-          <div className="text-sm text-slate-300 font-medium">{status}</div>
-        )}
       </div>
 
       {/* Variables Groups */}
