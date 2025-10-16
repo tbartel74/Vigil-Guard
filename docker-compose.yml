@@ -140,7 +140,9 @@ services:
       retries: 3
 
   web-ui-frontend:
-    build: ./services/web-ui/frontend
+    build:
+      context: .
+      dockerfile: ./services/web-ui/frontend/Dockerfile
     container_name: vigil-web-ui-frontend
     ports:
       - "${FRONTEND_PORT:-5173}:80"
