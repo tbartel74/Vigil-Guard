@@ -227,7 +227,7 @@
       ]
     },
     "ENCODING_SUSPICIOUS": {
-      "base_weight": 20,
+      "base_weight": 30,
       "multiplier": 1.2,
       "patterns": [
         "\\b[A-Za-z0-9+/]{20,}={0,2}\\b",
