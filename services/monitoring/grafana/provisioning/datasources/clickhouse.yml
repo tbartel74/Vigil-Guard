@@ -14,6 +14,6 @@ datasources:
       addCorsHeader: true
       useYandexCloudAuthorization: false
     secureJsonData:
-      basicAuthPassword: Ln0QqQV2mwf8w1F24F8BMEF1KAVYGsmB
+      basicAuthPassword: KOyHWgI5Sf7NbpY2vJUwh7n4IjIi2GZd
     isDefault: true
     editable: false
