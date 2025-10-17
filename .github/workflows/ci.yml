@@ -67,6 +67,7 @@ jobs:
         working-directory: services/web-ui/frontend
         run: |
           npm ci
+          npm install --force @rollup/rollup-linux-x64-gnu
           npm rebuild rollup
 
       - name: TypeScript type check
