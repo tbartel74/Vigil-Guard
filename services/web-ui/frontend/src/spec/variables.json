@@ -47,7 +47,7 @@
       "label": "Allow.max",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Maximum threat score (0-100) to allow content without processing. Range: 0-29 (default: 29)",
       "default": 29,
       "map": [
         {
@@ -62,7 +62,7 @@
       "label": "Light Sanitize.min",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Minimum score (0-100) for light sanitization. Should match ALLOW_MAX + 1 (default: 30)",
       "default": 30,
       "map": [
         {
@@ -77,7 +77,7 @@
       "label": "Light Sanitize.max",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Maximum score (0-100) for light sanitization. Range: 30-64 (default: 64)",
       "default": 64,
       "map": [
         {
@@ -92,7 +92,7 @@
       "label": "Heavy Sanitize.min",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Minimum score (0-100) for heavy sanitization. Should match SL_MAX + 1 (default: 65)",
       "default": 65,
       "map": [
         {
@@ -107,7 +107,7 @@
       "label": "Heavy Sanitize.max",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Maximum score (0-100) for heavy sanitization. Range: 65-84 (default: 84)",
       "default": 84,
       "map": [
         {
@@ -122,7 +122,7 @@
       "label": "Block.min",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Minimum score (0-100) to block content entirely. Range: 85-100 (default: 85)",
       "default": 85,
       "map": [
         {
@@ -137,7 +137,7 @@
       "label": "Bloom route_to_ac_threshold",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Score (0-100) to trigger additional validation checks. Lower = more sensitive (default: 15)",
       "default": 15,
       "map": [
         {
@@ -152,7 +152,7 @@
       "label": "Bloom hard_block_threshold",
       "type": "number",
       "required": true,
-      "help": "0-100",
+      "help": "Score (0-100) to immediately block without further analysis. Higher = fewer false positives (default: 50)",
       "default": 50,
       "map": [
         {
@@ -167,7 +167,7 @@
       "label": "Require additional signals",
       "type": "boolean",
       "required": true,
-      "help": "boolean",
+      "help": "Require multiple indicators before blocking. Reduces false positives (default: enabled)",
       "map": [
         {
           "file": "unified_config.json",
@@ -197,6 +197,7 @@
       "label": "Bloom filter size (m)",
       "type": "number",
       "required": true,
+      "help": "Bits allocated for bloom filter. Larger = fewer false positives, more memory (default: 32768)",
       "map": [
         {
           "file": "unified_config.json",
@@ -211,6 +212,7 @@
       "label": "Bloom hash functions (k)",
       "type": "number",
       "required": true,
+      "help": "Number of hash functions. More = better accuracy, slower processing (default: 5)",
       "map": [
         {
           "file": "unified_config.json",
@@ -225,6 +227,7 @@
       "label": "Remove zero-width",
       "type": "boolean",
       "required": true,
+      "help": "Strip invisible Unicode characters used for obfuscation. Recommended for security (default: enabled)",
       "map": [
         {
           "file": "unified_config.json",
@@ -239,6 +242,7 @@
       "label": "Normalize spaces",
       "type": "boolean",
       "required": true,
+      "help": "Merge multiple spaces/tabs/newlines. Prevents whitespace obfuscation (default: enabled)",
       "map": [
         {
           "file": "unified_config.json",
@@ -253,6 +257,7 @@
       "label": "Decode HTML entities",
       "type": "boolean",
       "required": true,
+      "help": "Convert HTML entities (&lt; to <). Essential for web input security (default: enabled)",
       "map": [
         {
           "file": "unified_config.json",
@@ -300,6 +305,7 @@
       "label": "Heavy sanitization: max removal %",
       "type": "number",
       "required": true,
+      "help": "Maximum percentage (0-100) of text removable during heavy sanitization (default: 60)",
       "map": [
         {
           "file": "unified_config.json",
@@ -339,6 +345,7 @@
       "label": "N-gram min",
       "type": "number",
       "required": true,
+      "help": "Shortest substring length for pattern analysis. Smaller = more patterns caught (default: 3)",
       "map": [
         {
           "file": "unified_config.json",
@@ -353,6 +360,7 @@
       "label": "N-gram max",
       "type": "number",
       "required": true,
+      "help": "Longest substring length for pattern analysis. Larger = longer patterns caught (default: 6)",
       "map": [
         {
           "file": "unified_config.json",
@@ -367,6 +375,7 @@
       "label": "N-gram prefix window",
       "type": "number",
       "required": true,
+      "help": "Number of characters analyzed at input beginning for patterns (default: 96)",
       "map": [
         {
           "file": "unified_config.json",

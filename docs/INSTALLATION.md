@@ -88,11 +88,11 @@ For manual download instructions, see: [prompt-guard-api/README.md](../prompt-gu
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd local-config-panel
+cd vigil-guard
 
 # Verify project structure
 ls -la
-# Should show: backend/ frontend/ logo/ doc/
+# Should show: services/ docs/ scripts/ docker-compose.yml
 ```
 
 ### Step 2: Backend Setup

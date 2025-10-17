@@ -14,10 +14,10 @@ The system uses four risk levels for threat classification:
 
 | Level | Purpose | Typical Threshold | Action |
 |-------|---------|------------------|---------|
-| **CRITICAL** | Immediate threats | 0.85-1.0 | Block immediately |
-| **HIGH** | Serious threats | 0.70-0.84 | Block or sanitize |
-| **MEDIUM** | Moderate threats | 0.40-0.69 | Sanitize or allow |
-| **LOW** | Minor threats | 0.10-0.39 | Allow with logging |
+| **CRITICAL** | Immediate threats | 85-100 | Block immediately |
+| **HIGH** | Serious threats | 65-84 | Block or sanitize |
+| **MEDIUM** | Moderate threats | 30-64 | Sanitize or allow |
+| **LOW** | Minor threats | 0-29 | Allow with logging |
 
 ## ⚙️ Active Configuration Variables
 
@@ -25,15 +25,15 @@ The system uses four risk levels for threat classification:
 
 #### `CRITICAL_THRESHOLD`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.85`
+- **Range**: `0 - 100`
+- **Default**: `85`
 - **Purpose**: Threshold for immediate blocking of critical threats
 - **n8n Usage**: Used in decision nodes to determine blocking actions
 
 ```json
 {
   "name": "CRITICAL_THRESHOLD",
-  "value": 0.85,
+  "value": 85,
   "description": "Critical risk threshold - immediate block"
 }
 ```
@@ -55,8 +55,8 @@ The system uses four risk levels for threat classification:
 
 #### `HIGH_THRESHOLD`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.70`
+- **Range**: `0 - 100`
+- **Default**: `70`
 - **Purpose**: Threshold for high-risk threat detection
 
 #### `HIGH_ACTION`
@@ -75,8 +75,8 @@ The system uses four risk levels for threat classification:
 
 #### `MEDIUM_THRESHOLD`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.40`
+- **Range**: `0 - 100`
+- **Default**: `40`
 - **Purpose**: Threshold for medium-risk threat detection
 
 #### `MEDIUM_ACTION`
@@ -95,8 +95,8 @@ The system uses four risk levels for threat classification:
 
 #### `LOW_THRESHOLD`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.10`
+- **Range**: `0 - 100`
+- **Default**: `10`
 - **Purpose**: Baseline threshold for threat detection
 
 #### `LOW_ACTION`
@@ -235,58 +235,95 @@ The system uses four risk levels for threat classification:
 
 ### Backend Configuration Files
 
-#### `backend/config/variables.json`
+### Actual Configuration Files
+
+Vigil Guard stores configuration in the `services/workflow/config/` directory:
+
+#### `services/workflow/config/thresholds.config.json`
+
+**Purpose**: Defines decision thresholds for threat classification.
+
 ```json
 {
-  "CRITICAL_THRESHOLD": {
-    "value": 0.85,
-    "type": "number",
-    "description": "Critical risk threshold for immediate blocking",
-    "min": 0.0,
-    "max": 1.0,
-    "category": "risk_levels"
+  "version": "1.0",
+  "ranges": {
+    "allow": {
+      "min": 0,
+      "max": 29
+    },
+    "sanitize_light": {
+      "min": 30,
+      "max": 64
+    },
+    "sanitize_heavy": {
+      "min": 65,
+      "max": 84
+    },
+    "block": {
+      "min": 85,
+      "max": 100
+    }
   },
-  "ENABLE_SANITIZATION": {
-    "value": true,
-    "type": "boolean",
-    "description": "Master switch for content sanitization",
-    "category": "system"
+  "notes": "Adjusted thresholds: light sanitize up to 64, heavy sanitize 65-84, block starts at 85. These are conservative to reduce false positives on normal chat."
+}
+```
+
+**Scale**: Integer values from **0 to 100**
+
+**Mapping to UI**:
+| UI Variable | Maps to | Description |
+|-------------|---------|-------------|
+| ALLOW_MAX | `ranges.allow.max` | Maximum score for ALLOW decision (29) |
+| SANITIZE_LIGHT_MIN | `ranges.sanitize_light.min` | Light sanitization starts (30) |
+| SANITIZE_LIGHT_MAX | `ranges.sanitize_light.max` | Light sanitization ends (64) |
+| SANITIZE_HEAVY_MIN | `ranges.sanitize_heavy.min` | Heavy sanitization starts (65) |
+| SANITIZE_HEAVY_MAX | `ranges.sanitize_heavy.max` | Heavy sanitization ends (84) |
+| BLOCK_MIN | `ranges.block.min` | BLOCK decision starts (85) |
+
+#### `services/workflow/config/unified_config.json`
+
+**Purpose**: Main configuration file for n8n workflow settings.
+
+```json
+{
+  "test_mode": false,
+  "normalization": {
+    "enabled": true,
+    "unicode_nfkc": true,
+    "homoglyphs": true
+  },
+  "bloom_filter": {
+    "enabled": true,
+    "phrase_match_bonus": 20,
+    "route_to_ac_threshold": 15
+  },
+  "sanitization": {
+    "light": {
+      "remove_unicode_control": true,
+      "remove_excessive_whitespace": true
+    },
+    "heavy": {
+      "strip_urls": true,
+      "strip_code_blocks": true,
+      "aggressive_filtering": true
+    }
   }
 }
 ```
 
-#### `backend/audit.log`
-```
-2024-01-15T10:30:45.123Z | UPDATE | CRITICAL_THRESHOLD | 0.80 -> 0.85 | user:admin | reason:security_update
-2024-01-15T10:31:12.456Z | UPDATE | LOG_LEVEL | INFO -> DEBUG | user:admin | reason:debugging
-```
+**Key Settings**:
+- `bloom_filter.phrase_match_bonus`: Score added per matched malicious phrase (default: 20)
+- `bloom_filter.route_to_ac_threshold`: Threshold to trigger full pattern matching (default: 15)
+- All thresholds work on **0-100 scale**
 
-### Frontend Configuration Files
+#### Other Configuration Files
 
-#### `frontend/src/spec/variables.json`
-```json
-[
-  {
-    "name": "CRITICAL_THRESHOLD",
-    "label": "Critical Threshold",
-    "type": "number",
-    "default": 0.85,
-    "description": "Threshold for critical threat detection",
-    "validation": {
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01
-    },
-    "category": "CRITICAL",
-    "map": [
-      {
-        "file": "risk_config.json",
-        "path": "critical.threshold"
-      }
-    ]
-  }
-]
-```
+| File | Purpose | Format |
+|------|---------|--------|
+| `rules.config.json` | Detection patterns and categories | JSON |
+| `allowlist.schema.json` | Allowed content schema | JSON Schema |
+| `normalize.conf` | Homoglyph and leet speak mappings | KEY=VALUE |
+| `pii.conf` | PII redaction patterns | SECTION/KEY |
 
 ## 🔄 Configuration Management
 
@@ -335,9 +372,9 @@ All configuration changes are atomic:
 
 #### Numeric Values
 ```javascript
-// Threshold validation
-if (value < 0.0 || value > 1.0) {
-  throw new Error('Threshold must be between 0.0 and 1.0');
+// Threshold validation (0-100 scale)
+if (value < 0 || value > 100) {
+  throw new Error('Threshold must be between 0 and 100');
 }
 
 // Timeout validation
@@ -397,7 +434,7 @@ Returns all configuration variables with metadata:
 {
   "variables": {
     "CRITICAL_THRESHOLD": {
-      "value": 0.85,
+      "value": 85,
       "type": "number",
       "description": "Critical risk threshold",
       "lastModified": "2024-01-15T10:30:45.123Z",
@@ -416,7 +453,7 @@ Updates configuration variables:
 **Request:**
 ```json
 {
-  "CRITICAL_THRESHOLD": 0.90,
+  "CRITICAL_THRESHOLD": 90,
   "LOG_LEVEL": "DEBUG"
 }
 ```
@@ -442,8 +479,8 @@ Returns audit log entries:
       "timestamp": "2024-01-15T10:30:45.123Z",
       "action": "UPDATE",
       "variable": "CRITICAL_THRESHOLD",
-      "oldValue": 0.80,
-      "newValue": 0.85,
+      "oldValue": 80,
+      "newValue": 85,
       "user": "admin",
       "reason": "security_update"
     }

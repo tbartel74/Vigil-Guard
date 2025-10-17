@@ -1,0 +1,167 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Vigil Guard
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees:
+  - tbartel74
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for reporting a bug!
+
+        Please fill out this form to help us understand and fix the issue. The more details you provide, the faster we can address the problem.
+
+        **Security vulnerabilities**: If you've discovered a security issue, please **DO NOT** open a public issue. Follow our [Security Policy](../../SECURITY.md) for responsible disclosure.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "Example: The Web UI crashes when uploading a configuration file larger than 1MB"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior
+      placeholder: |
+        1. Navigate to Configuration > Upload
+        2. Select file 'large_config.json' (1.5 MB)
+        3. Click 'Upload'
+        4. See error
+      value: |
+        1.
+        2.
+        3.
+        4.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: "Example: File should upload successfully with progress indicator"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "Example: Browser console shows 'Request Entity Too Large' error, upload fails"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of Vigil Guard is affected?
+      options:
+        - Web UI - Frontend
+        - Web UI - Backend API
+        - n8n Workflow Engine
+        - Prompt Guard API
+        - ClickHouse / Monitoring
+        - Grafana Dashboards
+        - Docker / Deployment
+        - Documentation
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (system crash, data loss, security vulnerability)
+        - High (major functionality broken)
+        - Medium (feature impaired but workarounds exist)
+        - Low (minor issue, cosmetic problem)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your deployment environment details
+      value: |
+        - **OS**: [e.g., Ubuntu 22.04, macOS 13.0]
+        - **Docker Version**: [e.g., 24.0.5]
+        - **Browser** (if Web UI): [e.g., Chrome 120, Firefox 115]
+        - **Vigil Guard Version**: [e.g., v1.3.0, commit SHA]
+        - **Installation Method**: [e.g., Docker Compose, manual]
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste any relevant log output (redact sensitive information!)
+      placeholder: |
+        # Backend logs
+        docker-compose logs web-ui-backend
+
+        # Frontend console errors
+        [Paste browser console output]
+
+        # n8n workflow logs
+        docker-compose logs n8n
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration Details
+      description: Relevant configuration settings (redact secrets!)
+      placeholder: |
+        # Example: thresholds.config.json snippet
+        {
+          "ranges": {
+            "block": { "min": 85, "max": 100 }
+          }
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem (screenshots, related issues, workarounds)
+      placeholder: "Example: This started happening after upgrading from v1.2.0 to v1.3.0"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm you've completed these steps
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have redacted any sensitive information (passwords, API keys, private data)
+          required: true
+        - label: I have included relevant logs and configuration
+          required: false
+        - label: I have tested this on the latest version
+          required: false
+        - label: This is not a security vulnerability (see SECURITY.md for reporting)
+          required: true

@@ -431,7 +431,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
 - [API Documentation](docs/API.md) - API endpoints and usage
 - [Test Suite Guide](services/workflow/tests/README.md) - Testing and validation
-- [Technical Architecture](docs/technical/architecture.md) - System design details
+- [Technical Architecture](docs/architecture/architecture.md) - System design details
 
 ## 🔧 Configuration
 

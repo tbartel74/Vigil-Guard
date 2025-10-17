@@ -1,0 +1,192 @@
+name: Documentation Issue
+description: Report an issue with documentation or suggest improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+assignees:
+  - tbartel74
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for helping improve our documentation!
+
+        Good documentation is crucial for Vigil Guard's success. Please help us identify gaps, errors, or areas for improvement.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Incorrect information (factual error)
+        - Outdated content (needs update)
+        - Missing documentation (gap in coverage)
+        - Unclear explanation (needs clarification)
+        - Broken link or reference
+        - Typo or grammar issue
+        - Code example doesn't work
+        - Suggestion for improvement
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected-doc
+    attributes:
+      label: Affected Documentation
+      description: Which document is affected?
+      options:
+        - README.md
+        - QUICKSTART.md
+        - docs/INSTALLATION.md
+        - docs/CONFIGURATION.md
+        - docs/API.md
+        - docs/SECURITY.md
+        - docs/AUTHENTICATION.md
+        - docs/architecture/architecture.md
+        - prompt-guard-api/README.md
+        - CODE_OF_CONDUCT.md
+        - CONTRIBUTING.md
+        - Other (specify below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content
+      description: What does the documentation currently say? (Quote or provide link)
+      placeholder: |
+        Example:
+        File: docs/QUICKSTART.md
+        Line: 175
+        Current text: "Import workflow from services/workflow/workflows/Vigil-Guard-v1.0.json"
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: What is wrong or what needs improvement?
+      placeholder: |
+        Example: "The workflow version reference is outdated. The current version is v1.3.json, not v1.0.json. This causes confusion during installation when users can't find the mentioned file."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: How should the documentation be corrected or improved?
+      placeholder: |
+        Example:
+        Change to: "Import workflow from services/workflow/workflows/Vigil-Guard-v1.3.json"
+
+        Or for missing documentation:
+        "Add a new section explaining the 0-100 threat scoring scale with examples:
+        - ALLOW: 0-29
+        - SANITIZE_LIGHT: 30-64
+        - SANITIZE_HEAVY: 65-84
+        - BLOCK: 85-100"
+    validations:
+      required: true
+
+  - type: textarea
+    id: location-details
+    attributes:
+      label: Location Details
+      description: Help us find the exact location (file path, line number, section heading)
+      value: |
+        - **File**: [e.g., docs/CONFIGURATION.md]
+        - **Line/Section**: [e.g., Line 42, or Section "Detection Tuning"]
+        - **Link**: [e.g., https://github.com/tbartel74/Vigil-Guard/blob/main/docs/CONFIGURATION.md#L42]
+      render: markdown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How much does this issue affect users?
+      options:
+        - Critical (blocks getting started, major confusion)
+        - High (significant impact on understanding)
+        - Medium (moderate confusion or inconvenience)
+        - Low (minor typo or cosmetic issue)
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-experience
+    attributes:
+      label: User Experience Impact
+      description: How does this documentation issue affect the user experience?
+      placeholder: |
+        Example: "New users following QUICKSTART.md will get stuck at step 4 because the file path doesn't exist. This creates a poor first impression and blocks them from completing setup."
+    validations:
+      required: false
+
+  - type: textarea
+    id: code-examples
+    attributes:
+      label: Code Examples (if applicable)
+      description: If suggesting new code examples, provide them here
+      placeholder: |
+        Example:
+        ```bash
+        # Test ClickHouse connection
+        curl -u admin:admin123 http://localhost:8123/ping
+        # Expected output: Ok.
+        ```
+      render: markdown
+    validations:
+      required: false
+
+  - type: textarea
+    id: related-docs
+    attributes:
+      label: Related Documentation
+      description: Are there other documents that should be updated at the same time?
+      placeholder: |
+        Example: "If we update the scale in CONFIGURATION.md, we should also update:
+        - docs/API.md (threshold examples)
+        - docs/architecture/architecture.md (decision logic table)
+        - services/web-ui/frontend/src/spec/variables.json (variable descriptions)"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or references
+      placeholder: "Example: This issue was discovered during the documentation audit on 2025-10-17"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you like to help fix this?
+      options:
+        - label: I am willing to submit a pull request to fix this documentation issue
+        - label: I can help review proposed changes
+        - label: I can provide additional examples or clarifications
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm you've completed these steps
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided the exact location of the documentation issue
+          required: true
+        - label: I have suggested a specific fix or improvement
+          required: true
+        - label: I have identified related documentation that may need updates
+          required: false

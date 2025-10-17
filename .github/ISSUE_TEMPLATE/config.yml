@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability Report
+    url: https://github.com/tbartel74/Vigil-Guard/security/advisories/new
+    about: Please report security vulnerabilities through GitHub Security Advisories (private disclosure)
+
+  - name: GitHub Discussions
+    url: https://github.com/tbartel74/Vigil-Guard/discussions
+    about: Ask questions, share ideas, or discuss Vigil Guard with the community
+
+  - name: Documentation
+    url: https://github.com/tbartel74/Vigil-Guard/tree/main/docs
+    about: Read the comprehensive documentation before opening an issue

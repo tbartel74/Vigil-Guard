@@ -85,6 +85,132 @@ POST /api/save
 
 W razie konfliktu etagów backend zwróci `409 Conflict` z informacją o spodziewanym i aktualnym etagu.
 
+## File Manager API
+
+System udostępnia dodatkowe endpointy do zarządzania plikami konfiguracyjnymi (upload, download, lista, audit log). Wszystkie endpointy wymagają autoryzacji oraz uprawnień `can_view_configuration`.
+
+### `GET /api/config-files/list`
+
+Zwraca listę wszystkich plików konfiguracyjnych w `TARGET_DIR`.
+
+**Autoryzacja**: Wymagana (`can_view_configuration`)
+
+**Response:**
+```json
+{
+  "files": [
+    "unified_config.json",
+    "thresholds.config.json",
+    "rules.config.json",
+    "allowlist.schema.json",
+    "normalize.conf",
+    "pii.conf"
+  ]
+}
+```
+
+### `GET /api/config-files/download/:filename`
+
+Pobiera plik konfiguracyjny jako attachment (raw content).
+
+**Autoryzacja**: Wymagana (`can_view_configuration`)
+
+**Parametry:**
+- `filename` - Nazwa pliku (walidowana: tylko alphanumeric + safe chars)
+
+**Response Headers:**
+```
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="thresholds.config.json"
+```
+
+**Response Body:** Raw file content
+
+**Błędy:**
+- `400` - Nieprawidłowa nazwa pliku (zawiera niedozwolone znaki)
+- `404` - Plik nie istnieje
+
+**Przykład:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8787/api/config-files/download/thresholds.config.json \
+  -o thresholds.config.json
+```
+
+### `POST /api/config-files/upload/:filename`
+
+Wrzuca nowy plik lub zastępuje istniejący. Automatycznie tworzy backup i wpis w audit log.
+
+**Autoryzacja**: Wymagana (`can_view_configuration`)
+
+**Parametry:**
+- `filename` - Nazwa pliku docelowego (w URL path)
+
+**Request Body:**
+```jsonc
+{
+  "filename": "thresholds.config.json",  // musi zgadzać się z :filename w URL
+  "content": "{\n  \"version\": \"1.0\",\n  \"ranges\": {\n    \"allow\": { \"min\": 0, \"max\": 29 }\n  }\n}"
+}
+```
+
+**Response (success):**
+```json
+{
+  "success": true,
+  "message": "File uploaded successfully",
+  "result": {
+    "filesUpdated": ["thresholds.config.json"],
+    "etags": { "thresholds.config.json": "a1b2c3d4" }
+  }
+}
+```
+
+**Błędy:**
+- `400` - Brak content, filename mismatch, błąd parsowania (JSON/CONF)
+- `401` - Brak autoryzacji
+- `403` - Brak uprawnień `can_view_configuration`
+
+**Audit Log Entry:**
+```
+[2025-10-14T14:05:30.123Z] User: admin | Action: FILE_UPLOAD | File: thresholds.config.json | Size: 245 bytes
+```
+
+**Workflow:**
+1. Walidacja nazwy pliku (alphanumeric + `._-` tylko)
+2. Sprawdzenie filename match (URL vs body)
+3. Parsowanie contentu (JSON lub CONF)
+4. Utworzenie backupu poprzedniej wersji
+5. Zapis przez `saveChanges` (atomic write)
+6. Dodanie wpisu do `audit.log`
+
+### `GET /api/config-files/audit-log`
+
+Zwraca zawartość pliku `audit.log` (complete file content).
+
+**Autoryzacja**: Wymagana (`can_view_configuration`)
+
+**Response:**
+```json
+{
+  "content": "[2025-10-14T14:05:30.123Z] User: admin | Action: FILE_UPLOAD | File: thresholds.config.json | Size: 245 bytes\n[2025-10-14T13:22:15.456Z] User: admin | Action: CONFIG_UPDATE | File: unified_config.json | Changes: 3\n"
+}
+```
+
+**Uwagi:**
+- Jeśli plik nie istnieje, zostanie automatycznie utworzony z wpisem inicjalizacyjnym
+- Plik nie jest stronicowany - zwracana jest pełna zawartość
+
+**Format audit log entries:**
+```
+[ISO8601_timestamp] User: <username> | Action: <action_type> | File: <filename> | <details>
+```
+
+**Przykłady action_type:**
+- `FILE_UPLOAD` - Upload pliku przez API
+- `CONFIG_UPDATE` - Zmiana konfiguracji przez `/api/save`
+- `FILE_DOWNLOAD` - (currently not logged, reserved)
+
 ## Monitoring
 
 ### `GET /api/stats/24h`

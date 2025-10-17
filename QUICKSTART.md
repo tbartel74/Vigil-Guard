@@ -68,7 +68,7 @@ After installation completes, you **must** perform these manual steps:
    ```
    services/workflow/workflows/Vigil-Guard-v1.3.json
    ```
-4. The workflow will load with all 34 nodes
+4. The workflow will load with all 40 nodes
 
 #### Step 3: Configure ClickHouse Credentials
 1. In the imported workflow, locate the **"Logging to ClickHouse"** node
@@ -172,7 +172,7 @@ lsof -i :3001  # Grafana
 
 1. **✅ Complete n8n Setup** (REQUIRED - see Step 4 above)
    - Create n8n account
-   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.0.json`
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.3.json`
    - Configure ClickHouse credentials (admin/admin123)
 
 2. **Configure Security Rules**
@@ -196,7 +196,7 @@ lsof -i :3001  # Grafana
 
 - **Documentation**: [docs/README.md](docs/README.md)
 - **Scripts Guide**: [scripts/README.md](scripts/README.md)
-- **Architecture**: [docs/technical/architecture.md](docs/technical/architecture.md)
+- **Architecture**: [docs/architecture/architecture.md](docs/architecture/architecture.md)
 - **Issues**: [GitHub Issues](https://github.com/tbartel74/Vigil-Guard/issues)
 
 ## 🎯 Development Mode

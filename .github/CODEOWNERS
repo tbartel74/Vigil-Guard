@@ -1,0 +1,151 @@
+# CODEOWNERS for Vigil Guard
+#
+# This file defines code ownership and review requirements for the Vigil Guard repository.
+# GitHub automatically requests reviews from code owners when a PR modifies their owned files.
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository
+# This will be requested for review on all PRs unless overridden below
+* @tbartel74
+
+# ==========================================
+# Core Documentation
+# ==========================================
+/README.md @tbartel74
+/CODE_OF_CONDUCT.md @tbartel74
+/CONTRIBUTING.md @tbartel74
+/LICENSE @tbartel74
+
+# Documentation directory
+/docs/ @tbartel74
+/docs/SECURITY.md @tbartel74
+/docs/API.md @tbartel74
+/docs/CONFIGURATION.md @tbartel74
+/docs/INSTALLATION.md @tbartel74
+/docs/QUICKSTART.md @tbartel74
+/docs/architecture/ @tbartel74
+
+# ==========================================
+# Configuration & Deployment
+# ==========================================
+/docker-compose.yml @tbartel74
+/.env.example @tbartel74
+/install.sh @tbartel74
+
+# Service-specific docker configs
+/services/*/docker-compose.yml @tbartel74
+/services/*/Dockerfile @tbartel74
+
+# ==========================================
+# n8n Workflow Engine
+# ==========================================
+/services/workflow/ @tbartel74
+/services/workflow/config/ @tbartel74
+/services/workflow/workflows/ @tbartel74
+
+# Configuration files - require extra scrutiny for security policies
+/services/workflow/config/*.json @tbartel74
+/services/workflow/config/*.conf @tbartel74
+
+# ==========================================
+# Web UI (Frontend + Backend)
+# ==========================================
+/services/web-ui/ @tbartel74
+
+# Frontend
+/services/web-ui/frontend/ @tbartel74
+/services/web-ui/frontend/src/routes.tsx @tbartel74
+/services/web-ui/frontend/src/components/ @tbartel74
+/services/web-ui/frontend/src/context/AuthContext.tsx @tbartel74
+/services/web-ui/frontend/src/spec/variables.json @tbartel74
+
+# Backend - critical security components
+/services/web-ui/backend/ @tbartel74
+/services/web-ui/backend/src/auth.ts @tbartel74
+/services/web-ui/backend/src/database.ts @tbartel74
+/services/web-ui/backend/src/fileOps.ts @tbartel74
+/services/web-ui/backend/src/server.ts @tbartel74
+
+# ==========================================
+# Prompt Guard API (ML-based detection)
+# ==========================================
+/prompt-guard-api/ @tbartel74
+/prompt-guard-api/app.py @tbartel74
+/prompt-guard-api/requirements.txt @tbartel74
+/prompt-guard-api/README.md @tbartel74
+
+# ==========================================
+# Monitoring Stack
+# ==========================================
+/services/monitoring/ @tbartel74
+/services/monitoring/sql/ @tbartel74
+/services/monitoring/grafana/ @tbartel74
+
+# Grafana dashboards - require review for accurate metrics
+/services/monitoring/grafana/dashboards/ @tbartel74
+
+# ClickHouse schema - critical for data integrity
+/services/monitoring/sql/*.sql @tbartel74
+
+# ==========================================
+# Reverse Proxy (Caddy)
+# ==========================================
+/services/proxy/ @tbartel74
+/services/proxy/Caddyfile @tbartel74
+
+# ==========================================
+# Scripts & Automation
+# ==========================================
+/scripts/ @tbartel74
+/scripts/download-llama-model.sh @tbartel74
+/scripts/status.sh @tbartel74
+/scripts/logs.sh @tbartel74
+
+# ==========================================
+# GitHub Configuration
+# ==========================================
+/.github/ @tbartel74
+/.github/CODEOWNERS @tbartel74
+/.github/ISSUE_TEMPLATE/ @tbartel74
+/.github/pull_request_template.md @tbartel74
+
+# GitHub Actions workflows - require extra security review
+/.github/workflows/ @tbartel74
+
+# ==========================================
+# Security-Critical Files
+# ==========================================
+# These files require mandatory review due to security implications
+
+# Authentication & authorization
+/services/web-ui/backend/src/auth.ts @tbartel74
+/services/web-ui/backend/src/authRoutes.ts @tbartel74
+/services/web-ui/backend/src/database.ts @tbartel74
+
+# File operations (path traversal protection)
+/services/web-ui/backend/src/fileOps.ts @tbartel74
+
+# Detection rules and thresholds
+/services/workflow/config/rules.config.json @tbartel74
+/services/workflow/config/thresholds.config.json @tbartel74
+/services/workflow/config/unified_config.json @tbartel74
+
+# Security documentation
+/docs/SECURITY.md @tbartel74
+/CODE_OF_CONDUCT.md @tbartel74
+
+# ==========================================
+# Notes for Contributors
+# ==========================================
+#
+# - All PRs will automatically request review from @tbartel74
+# - Changes to security-critical files require explicit approval
+# - Configuration changes should include rationale in PR description
+# - Documentation updates should maintain consistency with code
+# - Follow the security research guidelines in CODE_OF_CONDUCT.md
+#
+# For questions about code ownership or review requirements:
+# - See CONTRIBUTING.md
+# - Open a discussion in GitHub Discussions
+# - Contact maintainers via GitHub issues
