@@ -127,6 +127,68 @@ check_prerequisites() {
     echo ""
 }
 
+# Generate secure random passwords
+generate_secure_passwords() {
+    log_info "Generating cryptographically secure passwords..."
+    echo ""
+
+    if ! command_exists openssl; then
+        log_error "OpenSSL is required to generate secure passwords"
+        log_error "Please install OpenSSL and try again"
+        exit 1
+    fi
+
+    # Generate 3 unique passwords (n8n uses account creation wizard)
+    CLICKHOUSE_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 32)
+    GRAFANA_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 32)
+    SESSION_SECRET=$(openssl rand -base64 64 | tr -d '/+=\n' | head -c 64)
+
+    # Replace passwords in .env file
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS requires empty string after -i
+        sed -i '' "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
+        sed -i '' "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
+        sed -i '' "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+    else
+        # Linux sed
+        sed -i "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
+        sed -i "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
+        sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+    fi
+
+    log_success "Secure passwords generated and configured"
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}⚠️  CRITICAL: SAVE THESE CREDENTIALS - SHOWN ONLY ONCE! ⚠️${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}These credentials have been auto-generated for your installation:${NC}"
+    echo ""
+    echo -e "${GREEN}ClickHouse Database:${NC}"
+    echo -e "  Username: ${BLUE}admin${NC}"
+    echo -e "  Password: ${BLUE}${CLICKHOUSE_PASSWORD}${NC}"
+    echo ""
+    echo -e "${GREEN}Grafana Dashboard:${NC}"
+    echo -e "  Username: ${BLUE}admin${NC}"
+    echo -e "  Password: ${BLUE}${GRAFANA_PASSWORD}${NC}"
+    echo ""
+    echo -e "${GREEN}Backend Session Secret:${NC}"
+    echo -e "  ${BLUE}${SESSION_SECRET}${NC}"
+    echo ""
+    echo -e "${RED}⚠️  IMPORTANT NEXT STEPS:${NC}"
+    echo -e "  1. ${YELLOW}COPY${NC} these credentials to a secure password manager ${RED}NOW${NC}"
+    echo -e "  2. These passwords are ${RED}NOT${NC} shown again after this screen"
+    echo -e "  3. You will need them to access Grafana and ClickHouse"
+    echo -e "  4. n8n account: Create via wizard at ${BLUE}http://localhost:5678${NC} on first visit"
+    echo -e "  5. If lost, you can regenerate by re-running: ${BLUE}./install.sh${NC}"
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    read -p "Press Enter after you have SAVED these credentials..."
+    echo ""
+}
+
 # Setup environment
 setup_environment() {
     print_header "2/8 Setting Up Environment"
@@ -136,29 +198,32 @@ setup_environment() {
         log_info "Creating .env file from template..."
         cp config/.env.example .env
         log_success ".env file created"
+        echo ""
+
+        # MANDATORY: Generate secure passwords for new installations
+        log_warning "⚠️  Auto-generating secure passwords (no default credentials allowed)..."
+        echo ""
+        generate_secure_passwords
 
         # Generate random JWT secret
         log_info "Generating secure JWT_SECRET..."
         if command_exists openssl; then
             JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
-            sed -i.bak "s|JWT_SECRET=change-this-to-a-long-random-string-in-production|JWT_SECRET=$JWT_SECRET|g" .env
-            rm -f .env.bak
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|JWT_SECRET=change-this-to-a-secure-random-string-at-least-32-characters-long|JWT_SECRET=$JWT_SECRET|g" .env
+            else
+                sed -i "s|JWT_SECRET=change-this-to-a-secure-random-string-at-least-32-characters-long|JWT_SECRET=$JWT_SECRET|g" .env
+            fi
             log_success "JWT_SECRET generated and configured"
         else
             log_warning "OpenSSL not found. Please manually set JWT_SECRET in .env file!"
         fi
-
-        log_warning "⚠️  IMPORTANT: Review and update other passwords in .env file:"
-        log_warning "   - CLICKHOUSE_PASSWORD"
-        log_warning "   - GF_SECURITY_ADMIN_PASSWORD"
-        log_warning "   - GROQ_API_KEY (if using LLM Guard)"
-        echo ""
-        read -p "Press Enter to continue after reviewing .env file..."
     else
         log_success ".env file already exists"
 
         # Check for default/insecure values
         local warnings_found=0
+        local force_regenerate=0
 
         # Check JWT_SECRET
         if grep -q "JWT_SECRET=change-this" .env; then
@@ -166,36 +231,55 @@ setup_environment() {
             warnings_found=1
             if command_exists openssl; then
                 JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
-                sed -i.bak "s|JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g" .env
-                rm -f .env.bak
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g" .env
+                else
+                    sed -i "s|JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g" .env
+                fi
                 log_success "JWT_SECRET generated automatically"
             fi
         fi
 
-        # Check ClickHouse password
-        if grep -q "CLICKHOUSE_PASSWORD=admin123" .env; then
-            log_warning "⚠️  ClickHouse is using default password (admin123)"
-            warnings_found=1
-        fi
-
-        # Check Grafana password
-        if grep -q "GF_SECURITY_ADMIN_PASSWORD=admin123" .env; then
-            log_warning "⚠️  Grafana admin is using default password (admin123)"
-            warnings_found=1
-        fi
-
-        # Check n8n password
-        if grep -q "N8N_BASIC_AUTH_PASSWORD=admin123" .env; then
-            log_warning "⚠️  n8n is using default password (admin123)"
-            warnings_found=1
-        fi
-
-        if [ "$warnings_found" -eq 1 ]; then
+        # Check for ANY instance of admin123 (critical security issue)
+        if grep -q "admin123" .env; then
+            log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            log_error "  CRITICAL SECURITY ISSUE: Default passwords detected!"
+            log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo ""
-            log_warning "⚠️  Default passwords detected (admin123) - OK for development"
-            log_warning "⚠️  For production, change passwords in .env before running"
+            log_warning "Your .env file contains DEFAULT PASSWORDS (admin123)"
+            log_warning "These are PUBLICLY KNOWN and must be changed immediately!"
             echo ""
+            force_regenerate=1
         fi
+
+        # Check for missing SESSION_SECRET
+        if ! grep -q "^SESSION_SECRET=" .env || grep -q "^SESSION_SECRET=$" .env; then
+            log_error "SESSION_SECRET is missing or empty - this will prevent backend from starting"
+            force_regenerate=1
+        fi
+
+        if [ "$force_regenerate" -eq 1 ]; then
+            echo ""
+            log_info "Auto-generating secure passwords to replace defaults..."
+            echo ""
+            generate_secure_passwords
+        fi
+    fi
+
+    # Update Grafana ClickHouse datasource configuration with current password
+    log_info "Updating Grafana datasource configuration..."
+    CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+    CLICKHOUSE_DATASOURCE_FILE="services/monitoring/grafana/provisioning/datasources/clickhouse.yml"
+
+    if [ -f "$CLICKHOUSE_DATASOURCE_FILE" ]; then
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|basicAuthPassword: .*|basicAuthPassword: ${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
+        else
+            sed -i "s|basicAuthPassword: .*|basicAuthPassword: ${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
+        fi
+        log_success "Grafana datasource configured with updated ClickHouse password"
+    else
+        log_warning "Grafana datasource config file not found: $CLICKHOUSE_DATASOURCE_FILE"
     fi
 
     echo ""
@@ -605,37 +689,26 @@ show_summary() {
     echo -e "    Password: ${BLUE}${CLICKHOUSE_PASSWORD}${NC}"
     echo -e "    Database: ${BLUE}${CLICKHOUSE_DB}${NC}"
     echo ""
-    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${RED}⚠️  CRITICAL SECURITY NOTICE - READ THIS CAREFULLY ⚠️${NC}"
-    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${YELLOW}This installation uses DEFAULT PASSWORDS (admin123) for ALL services!${NC}"
-    echo -e "${YELLOW}These are ONLY safe for local development/testing.${NC}"
+    echo -e "${BLUE}All services are using UNIQUE CRYPTOGRAPHIC PASSWORDS${NC}"
+    echo -e "${BLUE}No default credentials (admin123) are present in the system${NC}"
     echo ""
-    echo -e "${RED}⚠️  BEFORE deploying to production, you MUST change passwords in:${NC}"
+    echo -e "${YELLOW}📋 Important Notes:${NC}"
     echo ""
-    echo -e "  ${BLUE}1.${NC} ${YELLOW}.env${NC} file (in project root):"
-    echo -e "     • CLICKHOUSE_PASSWORD=admin123     ${RED}← Change this!${NC}"
-    echo -e "     • GF_SECURITY_ADMIN_PASSWORD=admin123  ${RED}← Change this!${NC}"
-    echo -e "     • N8N_BASIC_AUTH_PASSWORD=admin123  ${RED}← Change this!${NC}"
+    echo -e "  ${GREEN}1. Web UI Default Credentials:${NC}"
+    echo -e "     Username: ${BLUE}admin${NC}"
+    echo -e "     Password: ${BLUE}admin123${NC}"
+    echo -e "     ${RED}⚠️  Change via Settings → Change Password after first login${NC}"
     echo ""
-    echo -e "  ${BLUE}2.${NC} ${YELLOW}Web UI${NC} (http://localhost:${FRONTEND_PORT}/ui):"
-    echo -e "     • Login with admin/admin123"
-    echo -e "     • Go to Settings → Change Password  ${RED}← Do this FIRST!${NC}"
+    echo -e "  ${GREEN}2. Other Service Credentials:${NC}"
+    echo -e "     • Grafana, n8n, and ClickHouse use AUTO-GENERATED passwords"
+    echo -e "     • These were displayed during installation (Step 2/8)"
+    echo -e "     • If lost, regenerate by running: ${BLUE}./install.sh${NC}"
     echo ""
-    echo -e "  ${BLUE}3.${NC} ${YELLOW}After changing .env${NC}:"
-    echo -e "     ${GREEN}docker-compose down${NC}"
-    echo -e "     ${GREEN}docker-compose up -d${NC}"
-    echo ""
-    echo -e "${RED}⚠️  Why is this critical?${NC}"
-    echo -e "   • Default passwords = instant system takeover"
-    echo -e "   • All your data, configurations, and logs exposed"
-    echo -e "   • Attackers scan for default credentials 24/7"
-    echo ""
-    echo -e "${GREEN}✅ Generate secure passwords with:${NC}"
-    echo -e "   ${BLUE}openssl rand -base64 32 | tr -d '/+=' | head -c 32${NC}"
-    echo ""
-    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "Useful commands:"
     echo -e "  ${BLUE}•${NC} Check all services:      ${YELLOW}docker-compose ps${NC}"

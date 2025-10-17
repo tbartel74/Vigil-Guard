@@ -114,6 +114,7 @@ services:
       - TARGET_DIR=${TARGET_DIR:-/config}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:*}
       - JWT_SECRET=${JWT_SECRET:-change-this-secret-key-in-production}
+      - SESSION_SECRET=${SESSION_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
       - DATABASE_PATH=/app/data/users.db
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-vigil-clickhouse}

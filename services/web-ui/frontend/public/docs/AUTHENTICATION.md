@@ -229,7 +229,9 @@ Available timezones:
 
 ## Default Credentials
 
-On first startup, the system creates a default administrator account:
+### Web UI Access
+
+On first startup, the Web UI creates a default administrator account:
 
 ```
 Username: admin
@@ -237,7 +239,59 @@ Password: admin123
 Email: admin@vigil-guard.local
 ```
 
-**⚠️ IMPORTANT**: Change the default password immediately after first login!
+**⚠️ IMPORTANT**: Change the default password immediately after first login via Settings → Change Password!
+
+### System Services (v2.0+)
+
+Starting from v2.0, **all system service passwords are auto-generated** during installation using cryptographic randomness:
+
+| Service | Username | Password | Generation Method |
+|---------|----------|----------|-------------------|
+| **ClickHouse** | `admin` | Auto-generated (32 chars) | `openssl rand -base64 32` |
+| **Grafana** | `admin` | Auto-generated (32 chars) | `openssl rand -base64 32` |
+| **Backend Session** | - | Auto-generated (64 chars) | `openssl rand -base64 64` |
+| **n8n** | (set by user) | (set by user) | Account creation wizard |
+
+**Installation Process**:
+
+1. When you run `./install.sh`, the script automatically:
+   - Generates unique passwords using `openssl rand -base64`
+   - Stores them securely in `.env` file
+   - Configures all services with generated passwords
+   - **Displays credentials ONLY ONCE** during installation
+
+2. Save displayed credentials immediately:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ⚠️  CRITICAL: SAVE THESE CREDENTIALS - SHOWN ONLY ONCE! ⚠️
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   ClickHouse Database:
+     Username: admin
+     Password: Elw34IshgKf7kvr0DHRqSgwqtINamuQQ
+
+   Grafana Dashboard:
+     Username: admin
+     Password: V5JnHKYvb7DYEgKsUvbktzSI2GD4toUj
+
+   Backend Session Secret:
+     ByzxrKarBvoQzqI70vDFfDV4UDaDujNo1KY0xALUDjtZc9K3cW1y4D0yhpWubaGt
+   ```
+
+3. **Password Policy Features**:
+   - ✅ No default passwords (admin123) for system services
+   - ✅ Cryptographic randomness for all generated passwords
+   - ✅ Auto-detection of old `admin123` passwords in existing `.env`
+   - ✅ Forced regeneration if insecure passwords detected
+   - ✅ Fail-secure: Backend refuses to start without `SESSION_SECRET`
+
+**Credential Rotation**: To regenerate passwords:
+```bash
+docker-compose down
+rm .env
+./install.sh  # Will generate new passwords
+# Update n8n ClickHouse credential with new password
+```
 
 ## Protected Routes
 

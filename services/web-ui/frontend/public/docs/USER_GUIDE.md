@@ -46,7 +46,8 @@ The Vigil Guard Web UI provides a comprehensive interface for:
 
 1. Navigate to: `http://localhost/ui` (or your configured domain)
 2. Enter your credentials:
-   - Default admin: `admin / admin123` (⚠️ change immediately!)
+   - Web UI default admin: `admin / admin123` (⚠️ change immediately via Settings!)
+   - System services (ClickHouse, Grafana): Auto-generated passwords shown during `./install.sh`
 3. Click **Login**
 
 ### Dashboard Overview
@@ -930,10 +931,10 @@ The File Manager allows administrators to:
 **Symptoms**: Invalid credentials error
 
 **Solutions**:
-1. Verify username and password
+1. Verify username and password (Web UI default: `admin / admin123`)
 2. Check if account is active (admin must verify)
-3. Try default admin credentials: `admin / admin123`
-4. Check backend logs for authentication errors
+3. Note: System service passwords (ClickHouse, Grafana, SESSION_SECRET) are auto-generated during install - see `.env` file
+4. Check backend logs for authentication errors (`SESSION_SECRET` must be set)
 5. Verify JWT token configuration
 
 #### Grafana Panels Not Loading

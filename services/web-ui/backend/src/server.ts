@@ -12,9 +12,30 @@ import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submi
 const app = express();
 const PORT = 8787;
 
+// Validate SESSION_SECRET is set (CRITICAL SECURITY REQUIREMENT)
+if (!process.env.SESSION_SECRET) {
+  console.error("❌ FATAL: SESSION_SECRET environment variable is not set!");
+  console.error("This is a critical security requirement for JWT token encryption.");
+  console.error("Please set SESSION_SECRET in your .env file.");
+  console.error("");
+  console.error("To fix this issue:");
+  console.error("  1. Run: ./install.sh (will auto-generate secure passwords)");
+  console.error("  2. Or manually generate: openssl rand -base64 64 | tr -d '/+=' | head -c 64");
+  console.error("  3. Add to .env: SESSION_SECRET=<generated-value>");
+  process.exit(1);
+}
+
+if (process.env.SESSION_SECRET.length < 32) {
+  console.warn("⚠️  WARNING: SESSION_SECRET is too short!");
+  console.warn("Minimum recommended length: 32 characters");
+  console.warn("Current length:", process.env.SESSION_SECRET.length);
+  console.warn("Use: openssl rand -base64 64 | tr -d '/+=' | head -c 64");
+  console.warn("");
+}
+
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'vigil-guard-session-secret-change-in-production',
+  secret: process.env.SESSION_SECRET,  // NO FALLBACK - fail-secure
   resave: false,
   saveUninitialized: false,
   cookie: {

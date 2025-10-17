@@ -29,14 +29,16 @@ if [ ! -f "docker-compose.yml" ]; then
     exit 1
 fi
 
-# Load Grafana password from .env
+# Load passwords from .env
 if [ -f .env ]; then
     GRAFANA_PASSWORD=$(grep "^GF_SECURITY_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+    CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
 else
     log_error ".env file not found"
     exit 1
 fi
 GRAFANA_PASSWORD=${GRAFANA_PASSWORD:-admin}
+CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
 
 # Check if Grafana container is running
 if ! docker ps | grep -q vigil-grafana; then
@@ -98,6 +100,45 @@ if echo "$DATASOURCE_CHECK" | grep -q '"name":"ClickHouse"'; then
     log_info "  ID: $DS_ID"
     log_info "  UID: $DS_UID"
     log_info "  URL: http://vigil-clickhouse:8123"
+
+    # Update datasource password with value from .env
+    log_info "Updating ClickHouse datasource password..."
+    UPDATE_PAYLOAD=$(cat <<EOF
+{
+  "id": $DS_ID,
+  "uid": "$DS_UID",
+  "name": "ClickHouse",
+  "type": "vertamedia-clickhouse-datasource",
+  "access": "proxy",
+  "url": "http://vigil-clickhouse:8123",
+  "basicAuth": true,
+  "basicAuthUser": "admin",
+  "jsonData": {
+    "defaultDatabase": "n8n_logs",
+    "usePOST": false,
+    "addCorsHeader": true,
+    "useYandexCloudAuthorization": false
+  },
+  "secureJsonData": {
+    "basicAuthPassword": "$CLICKHOUSE_PASSWORD"
+  },
+  "isDefault": true
+}
+EOF
+)
+
+    UPDATE_RESULT=$(curl -s -X PUT \
+        -H "Content-Type: application/json" \
+        -u admin:"$GRAFANA_PASSWORD" \
+        -d "$UPDATE_PAYLOAD" \
+        "http://localhost:3001/api/datasources/$DS_ID" 2>/dev/null)
+
+    if echo "$UPDATE_RESULT" | grep -q '"message":"Datasource updated"'; then
+        log_success "ClickHouse password updated successfully"
+    else
+        log_warning "Failed to update datasource password"
+        log_info "Response: $UPDATE_RESULT"
+    fi
 else
     log_warning "ClickHouse datasource not found"
     log_info "Datasource should be auto-provisioned from:"

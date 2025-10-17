@@ -168,6 +168,7 @@ cd vigil-guard
 The installation script will:
 - ✓ Check all prerequisites
 - ✓ Verify Llama model is downloaded
+- ✓ **Auto-generate secure passwords** (32-64 characters, cryptographically random)
 - ✓ Create Docker network
 - ✓ Install and build GUI components
 - ✓ Start all services in the correct order
@@ -206,11 +207,13 @@ After installation, access the services at:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Web UI** | http://localhost:5173/ui | admin/admin123 |
+| **Web UI** | http://localhost:5173/ui | admin/admin123 ⚠️ |
 | **n8n Workflow** | http://localhost:5678 | (create on first access) |
-| **Grafana Dashboard** | http://localhost:3001 | admin/admin123 |
-| **ClickHouse HTTP** | http://localhost:8123 | admin/admin123 |
+| **Grafana Dashboard** | http://localhost:3001 | admin/[auto-generated] |
+| **ClickHouse HTTP** | http://localhost:8123 | admin/[auto-generated] |
 | **Prompt Guard API** | http://localhost:8000/docs | - |
+
+⚠️ **IMPORTANT**: Starting from v2.0, `install.sh` **automatically generates unique secure passwords** for all services. Credentials are displayed **ONLY ONCE** during installation - save them immediately!
 
 ### Workflow Integration
 
@@ -248,46 +251,80 @@ After installation completes, you **must** manually configure n8n:
      - Port: `8123`
      - Database: `n8n_logs`
      - Username: `admin`
-     - Password: `admin123`
+     - Password: **[use the auto-generated password shown during install.sh]**
    - Save and activate workflow
 
 📖 **Detailed guide**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
 
-### 🔒 Security: Default Credentials Policy
+### 🔒 Security: Automatic Password Generation (v2.0+)
 
-**⚠️ IMPORTANT**: Vigil Guard ships with unified default credentials for quick testing and development:
+**✅ SECURE BY DEFAULT**: Vigil Guard automatically generates unique cryptographic passwords during installation:
 
-| Service | Username | Password |
-|---------|----------|----------|
-| Web UI | `admin` | `admin123` |
-| Grafana | `admin` | `admin123` |
-| ClickHouse | `admin` | `admin123` |
-| n8n | (create on first access) | - |
+#### Installation Process
 
-**Security Recommendations:**
+When you run `./install.sh`, the script will:
 
-1. **Development/Testing Environment**: Default credentials are acceptable
-2. **Production Deployment**:
-   - Change ALL passwords immediately after installation
-   - Update credentials in `.env` file before running `install.sh`
-   - Configure strong JWT_SECRET (32+ characters)
-   - Enable HTTPS via Caddy reverse proxy
-   - Restrict network access to services (firewall rules)
+1. **Generate 3 unique passwords** using `openssl rand -base64`:
+   - **ClickHouse Database**: 32 characters
+   - **Grafana Dashboard**: 32 characters
+   - **Backend Session Secret**: 64 characters
+   - **n8n**: Account created via wizard on first visit
 
-**How to Change Credentials:**
+2. **Display credentials ONLY ONCE**:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ⚠️  CRITICAL: SAVE THESE CREDENTIALS - SHOWN ONLY ONCE! ⚠️
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   ClickHouse Database:
+     Username: admin
+     Password: Elw34IshgKf7kvr0DHRqSgwqtINamuQQ
+
+   Grafana Dashboard:
+     Username: admin
+     Password: V5JnHKYvb7DYEgKsUvbktzSI2GD4toUj
+
+   Backend Session Secret:
+     ByzxrKarBvoQzqI70vDFfDV4UDaDujNo1KY0xALUDjtZc9K3cW1y4D0yhpWubaGt
+
+   Press Enter after you have SAVED these credentials...
+   ```
+
+3. **Auto-configure services**: All services automatically use the generated passwords from `.env`
+
+#### Password Policy Features
+
+- ✅ **No default passwords** - Every installation gets unique credentials
+- ✅ **Cryptographic randomness** - Uses `openssl rand -base64` for entropy
+- ✅ **Auto-detection of admin123** - Forces regeneration if found in existing `.env`
+- ✅ **Fail-secure backend** - Backend exits if `SESSION_SECRET` not set
+- ✅ **One-time display** - Credentials shown only during installation
+- ✅ **Platform-aware** - Works on macOS and Linux
+
+#### Credential Rotation
+
+To regenerate passwords (e.g., after suspected compromise):
 
 ```bash
 # 1. Stop all services
 docker-compose down
 
-# 2. Edit .env file
-nano .env
-# Update: CLICKHOUSE_PASSWORD, GF_SECURITY_ADMIN_PASSWORD, JWT_SECRET
+# 2. Delete existing .env file
+rm .env
 
-# 3. For Web UI: Login and use Settings page to change password
+# 3. Re-run installation (will generate new passwords)
+./install.sh
 
-# 4. Restart services
-docker-compose up -d
+# 4. Update n8n ClickHouse credential with new password
+```
+
+#### Web UI Initial Access
+
+The Web UI retains the default `admin/admin123` credential for initial access only:
+
+```bash
+# First login: admin/admin123
+# Then immediately change via Settings → Change Password
 ```
 
 📖 **Complete security guide**: See [docs/SECURITY.md](docs/SECURITY.md)
