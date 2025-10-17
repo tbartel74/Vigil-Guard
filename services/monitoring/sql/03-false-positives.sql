@@ -27,10 +27,6 @@ PARTITION BY toYYYYMM(timestamp)
 ORDER BY (timestamp, report_id)
 SETTINGS index_granularity = 8192;
 
--- Index for event_id lookups
-ALTER TABLE n8n_logs.false_positive_reports
-ADD INDEX idx_event_id (event_id) TYPE bloom_filter(0.01) GRANULARITY 1;
-
 -- View: FP Reports Summary (last 7 days)
 CREATE VIEW IF NOT EXISTS n8n_logs.fp_reports_7d AS
 SELECT
