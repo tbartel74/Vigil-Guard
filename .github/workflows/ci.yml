@@ -134,8 +134,7 @@ jobs:
 
       - name: Build Web UI Frontend
         if: matrix.service == 'web-ui-frontend'
-        working-directory: services/web-ui/frontend
-        run: docker build -t vigil-guard-web-ui-frontend:test .
+        run: docker build -f services/web-ui/frontend/Dockerfile -t vigil-guard-web-ui-frontend:test .
 
       - name: Build Prompt Guard API
         if: matrix.service == 'prompt-guard-api'

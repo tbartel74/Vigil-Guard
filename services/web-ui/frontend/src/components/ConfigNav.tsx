@@ -20,7 +20,6 @@ export default function ConfigNav() {
                 : "text-text-secondary hover:text-white hover:bg-slate-800/50"
             }`
           }
-          aria-current={({ isActive }: { isActive: boolean }) => (isActive ? "page" : undefined)}
         >
           <div className="font-medium mb-1">{section.title}</div>
           <div className="text-xs text-text-secondary leading-relaxed">
