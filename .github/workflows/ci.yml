@@ -149,6 +149,7 @@ jobs:
             web-ui-backend)
               docker run -d --name test-container -p 8787:8787 \
                 -e NODE_ENV=test \
+                -e SESSION_SECRET=ci-session-secret-1234567890abcdef123456 \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
               sleep 5
