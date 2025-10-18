@@ -10,7 +10,7 @@ async function login() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username: 'admin',
-      password: 'admin123'
+      password: process.env.WEBUI_ADMIN_PASSWORD || 'admin123'
     })
   });
 

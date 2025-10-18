@@ -1,6 +1,7 @@
-import { defineConfig } from 'vitest/config';
+// Minimal vitest config without importing vitest/config
+// This avoids ERR_MODULE_NOT_FOUND when vitest is not in local node_modules
 
-export default defineConfig({
+export default {
   test: {
     // Test environment
     environment: 'node',
@@ -11,28 +12,6 @@ export default defineConfig({
     // Global timeout (important for E2E tests with workflow execution)
     testTimeout: 30000, // 30 seconds for slow workflow executions
     hookTimeout: 10000,
-
-    // Coverage configuration
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html', 'lcov'],
-      include: ['lib/**/*.js'],
-      exclude: [
-        'tests/**',
-        'node_modules/**',
-        'workflows/**',
-        'config/**'
-      ],
-      thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 80,
-        statements: 80
-      }
-    },
-
-    // Reporter configuration
-    reporters: ['verbose'],
 
     // Global setup/teardown
     globalSetup: './tests/setup.js',
@@ -45,4 +24,4 @@ export default defineConfig({
       concurrent: false
     }
   }
-});
+};

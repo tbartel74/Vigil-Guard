@@ -3,10 +3,32 @@
  * Runs once before all tests
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load .env from repository root (two directories up)
+const envPath = resolve(process.cwd(), '../../.env');
+config({ path: envPath });
+
 const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
 
 export async function setup() {
   console.log('🔧 Setting up test environment...');
+  console.log('');
+
+  // ClickHouse password configuration
+  if (!process.env.CLICKHOUSE_PASSWORD) {
+    console.error('❌ CLICKHOUSE_PASSWORD not found in .env');
+    console.error('');
+    console.error('Please set CLICKHOUSE_PASSWORD in .env file:');
+    console.error('  echo "CLICKHOUSE_PASSWORD=your_password" >> .env');
+    console.error('');
+    console.error('Or run: ./tests/verify-clickhouse.sh to test connection');
+    process.exit(1);
+  }
+
+  console.log('✅ ClickHouse password loaded from .env');
+  console.log(`   Password: ${process.env.CLICKHOUSE_PASSWORD.substring(0, 8)}...${process.env.CLICKHOUSE_PASSWORD.substring(process.env.CLICKHOUSE_PASSWORD.length - 4)}`);
 
   // Verify n8n is running
   try {

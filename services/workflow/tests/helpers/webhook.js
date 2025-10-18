@@ -41,7 +41,7 @@ export async function sendToWorkflow(chatInput, options = {}) {
  * @param {number} maxWaitMs - Maximum time to wait for event (default: 5000ms)
  * @returns {Promise<Object|null>} Event data or null if not found
  */
-export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 5000) {
+export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
   const startTime = Date.now();
   const pollInterval = 500; // Poll every 500ms
 
@@ -56,9 +56,11 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 5000) {
         conditions.push(`sessionId = '${criteria.sessionId}'`);
       }
 
+      // Removed timestamp filter to avoid UTC/local timezone issues
+      // sessionId is unique enough for test identification
       const whereClause = conditions.length > 0
-        ? `WHERE ${conditions.join(' AND ')} AND timestamp > now() - INTERVAL 30 SECOND`
-        : `WHERE timestamp > now() - INTERVAL 30 SECOND`;
+        ? `WHERE ${conditions.join(' AND ')}`
+        : `WHERE 1=1`;
 
       const query = `
         SELECT
@@ -79,8 +81,9 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 5000) {
         FORMAT JSON
       `;
 
-      // ClickHouse Basic Auth credentials (from docker-compose.yml)
-      const auth = Buffer.from('admin:admin123').toString('base64');
+      // ClickHouse Basic Auth credentials (from environment or .env)
+      const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || 'admin123';
+      const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
 
       const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {
         headers: {

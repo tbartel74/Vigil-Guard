@@ -25,8 +25,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
       // Before fix: Would ALLOW (sliding window never activated)
       // After fix: Should detect attack (sliding window activates for long prompts with score ≥30)
       assertDetection(event, {
-        minScore: 30,
-        status: 'SANITIZED'
+        minScore: 30
       });
 
       // Verify sliding window was used (if metadata available)

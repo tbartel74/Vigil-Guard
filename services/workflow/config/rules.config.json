@@ -536,7 +536,6 @@
         ".-.-.-.-",
         "=.*L.*O.*V.*E.*P.*L.*I.*N.*Y.*=",
         "\\|.*L.*O.*V.*E.*\\|.*P.*L.*I.*N.*Y.*\\|",
-        "\\\\L\\\\O\\\\V\\\\E",
         "\\bdivider.*GODMODE\\b",
         "\\bseparator.*liberated\\b",
         "\\binsert divider.*LOVE PLINY\\b",
@@ -654,7 +653,7 @@
       ]
     },
     "SQL_XSS_ATTACKS": {
-      "base_weight": 30,
+      "base_weight": 50,
       "multiplier": 1.3,
       "patterns": [
         "\\bDROP\\s+TABLE\\b",
@@ -662,17 +661,41 @@
         "\\bUNION\\s+SELECT\\b",
         "\\bOR\\s+[\\x27\\x22]?[1i][\\x27\\x22]?\\s*=\\s*[\\x27\\x22]?[1i]",
         "\\b--\\s*$",
+        "\\bEXEC\\s*\\(",
+        "\\bexecute\\s+immediate\\b",
+        "xp_cmdshell",
+        "\\bINTO\\s+OUTFILE\\b",
+        "\\bLOAD_FILE\\s*\\(",
         "<script[^>]*>",
         "<\\/script>",
         "javascript:",
+        "vbscript:",
+        "data:text/html",
         "onerror\\s*=",
         "onload\\s*=",
         "onclick\\s*=",
-        "<img[^>]+onerror"
+        "onmouseover\\s*=",
+        "onmouseout\\s*=",
+        "onfocus\\s*=",
+        "onblur\\s*=",
+        "onchange\\s*=",
+        "<img[^>]+onerror",
+        "<iframe[^>]*src",
+        "<embed[^>]*src",
+        "<object[^>]*data",
+        "eval\\s*\\(",
+        "setTimeout\\s*\\(",
+        "setInterval\\s*\\(",
+        "Function\\s*\\(",
+        "\\bexecScript\\b",
+        "\\.innerHTML\\s*=",
+        "\\.outerHTML\\s*=",
+        "document\\.write\\s*\\(",
+        "document\\.writeln\\s*\\("
       ]
     },
     "PRIVILEGE_ESCALATION": {
-      "base_weight": 35,
+      "base_weight": 55,
       "multiplier": 1.5,
       "patterns": [
         "\\b(?:unlock|grant|escalate|elevate)\\s+(?:admin|root|superuser|su|sudo|administrator)\\b",
@@ -689,7 +712,7 @@
       ]
     },
     "COMMAND_INJECTION": {
-      "base_weight": 30,
+      "base_weight": 50,
       "multiplier": 1.4,
       "patterns": [
         "\\b(?:execute|run|invoke|call)\\s+(?:on|command|script|code|payload)\\b",

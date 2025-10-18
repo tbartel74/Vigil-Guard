@@ -30,6 +30,7 @@ Complete documentation for Vigil Guard:
 | **[Installation Guide](INSTALLATION.md)** | Setup and deployment instructions |
 | **[User Guide](USER_GUIDE.md)** | Complete UI walkthrough (monitoring, analyzer, file manager) |
 | **[Configuration Reference](CONFIGURATION.md)** | Security policy configuration details |
+| **[Detection Categories](DETECTION_CATEGORIES.md)** | Attack detection patterns and scoring reference |
 | **[Authentication](AUTHENTICATION.md)** | User management and RBAC |
 | **[API Documentation](API.md)** | REST API reference |
 | **[Grafana Setup](GRAFANA_SETUP.md)** | Dashboard configuration |
@@ -324,7 +325,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**[Installation Guide](./INSTALLATION.md)** • **[User Guide](./USER_GUIDE.md)** • **[Configuration Reference](./CONFIGURATION.md)** • **[API Docs](./API.md)**
+**[Installation Guide](./INSTALLATION.md)** • **[User Guide](./USER_GUIDE.md)** • **[Configuration Reference](./CONFIGURATION.md)** • **[Detection Categories](./DETECTION_CATEGORIES.md)** • **[API Docs](./API.md)**
 
 Made with ❤️ for LLM Security
 
