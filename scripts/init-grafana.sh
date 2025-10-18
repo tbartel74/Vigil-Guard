@@ -79,10 +79,59 @@ echo ""
 
 # Reset admin password
 log_info "Setting admin password..."
-if docker exec vigil-grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" >/dev/null 2>&1; then
-    log_success "Admin password set to: $GRAFANA_PASSWORD"
+RESET_OUTPUT=$(docker exec vigil-grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" 2>&1)
+RESET_STATUS=$?
+
+if [ $RESET_STATUS -eq 0 ]; then
+    log_success "Admin password set successfully"
 else
-    log_warning "Could not set password (may already be correct)"
+    # Parse error to determine the cause
+    if echo "$RESET_OUTPUT" | grep -qi "container.*not.*running\|cannot.*connect\|no such container"; then
+        log_error "Grafana container is not running or accessible"
+        log_error "Error output:"
+        echo "$RESET_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check container status: docker ps | grep vigil-grafana"
+        log_info "  2. Start Grafana: docker-compose up -d grafana"
+        log_info "  3. Check logs: docker logs vigil-grafana"
+        exit 1
+    elif echo "$RESET_OUTPUT" | grep -qi "command not found\|executable.*not found\|grafana.*cli.*not found"; then
+        log_error "grafana-cli command not found in container"
+        log_error "Error output:"
+        echo "$RESET_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "This may indicate a corrupted Grafana installation"
+        log_info "Try: docker-compose pull grafana && docker-compose up -d grafana"
+        exit 1
+    elif echo "$RESET_OUTPUT" | grep -qi "password.*too short\|password.*invalid\|password.*weak"; then
+        log_error "Password does not meet Grafana requirements"
+        log_error "Error output:"
+        echo "$RESET_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Generate a stronger password and update .env file"
+        exit 1
+    elif echo "$RESET_OUTPUT" | grep -qi "database.*locked\|database.*busy"; then
+        log_warning "Database is locked (Grafana may be starting up)"
+        log_info "Waiting 5 seconds and retrying..."
+        sleep 5
+        RETRY_OUTPUT=$(docker exec vigil-grafana grafana cli admin reset-admin-password "$GRAFANA_PASSWORD" 2>&1)
+        if [ $? -eq 0 ]; then
+            log_success "Admin password set successfully (retry succeeded)"
+        else
+            log_error "Failed to set password after retry"
+            log_error "Error output:"
+            echo "$RETRY_OUTPUT" | sed 's/^/    /'
+            exit 1
+        fi
+    elif echo "$RESET_OUTPUT" | grep -qi "Admin password changed successfully"; then
+        # Success message in stderr (Grafana quirk)
+        log_success "Admin password set successfully"
+    else
+        log_warning "Could not set password (may already be correct)"
+        log_info "Error details:"
+        echo "$RESET_OUTPUT" | sed 's/^/    /'
+    fi
 fi
 
 # Check datasource provisioning

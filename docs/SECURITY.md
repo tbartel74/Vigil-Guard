@@ -337,21 +337,148 @@ ufw deny 8123/tcp  # Block direct ClickHouse access
 ufw enable
 ```
 
-### 4. Regular Security Updates
+### 4. Docker Image Security & Version Pinning
+
+Vigil Guard uses SHA256 digest pinning for all Docker images to prevent supply chain attacks. This ensures containers are built from verified, immutable image versions.
+
+#### Current Pinned Versions (as of 2025-10-18)
+
+```yaml
+# docker-compose.yml
+clickhouse:
+  image: clickhouse/clickhouse-server:24.1@sha256:44caeed7c81f...
+grafana:
+  image: grafana/grafana:latest@sha256:74144189b38447f...
+n8n:
+  image: n8nio/n8n:latest@sha256:fa410b71ccb5dde...
+caddy:
+  image: caddy:2-alpine@sha256:953131cfea8e12b...
+```
+
+#### Version Pin Maintenance Schedule
+
+**Monthly Review** (1st of each month):
+1. Check for new image releases:
+   ```bash
+   # Pull latest tags to see new versions
+   docker pull clickhouse/clickhouse-server:latest
+   docker pull grafana/grafana:latest
+   docker pull n8nio/n8n:latest
+   docker pull caddy:2-alpine
+   ```
+
+2. Get new SHA256 digests:
+   ```bash
+   # Inspect image to get digest
+   docker inspect --format='{{index .RepoDigests 0}}' clickhouse/clickhouse-server:latest
+   ```
+
+3. Test new versions in development:
+   ```bash
+   # Update docker-compose.yml with new SHA256 digests
+   # Test all services
+   ./scripts/status.sh
+   ```
+
+4. Update production after 1 week of dev testing
+
+**Immediate Security Updates**:
+
+When critical vulnerabilities are announced (CVEs):
+1. Check if pinned versions are affected:
+   ```bash
+   # Check image vulnerability scan
+   docker scout cves clickhouse/clickhouse-server@sha256:44caeed7c81f...
+   ```
+
+2. Update docker-compose.yml with patched image digest
+3. Deploy immediately to production:
+   ```bash
+   docker-compose pull
+   docker-compose up -d
+   ```
+
+#### Version Pin Expiration Guidelines
+
+| Component | Update Frequency | Reason |
+|-----------|------------------|--------|
+| **ClickHouse** | Monthly (minor versions) | New features, performance improvements |
+| **Grafana** | Monthly | Security patches, dashboard improvements |
+| **n8n** | Bi-weekly | Workflow engine updates, bug fixes |
+| **Caddy** | Quarterly | Stable reverse proxy, infrequent updates |
+
+**Signs a pin is outdated** (update immediately):
+- ⚠️ Image > 6 months old
+- ⚠️ Known CVE affecting current version
+- ⚠️ Upstream project marks version as deprecated
+- ⚠️ Breaking bugs discovered in community
+
+#### How to Update Pinned Versions
 
 ```bash
-# Update Docker images monthly
-docker-compose pull
-docker-compose up -d
+# 1. Pull latest version
+docker pull grafana/grafana:latest
 
+# 2. Get SHA256 digest
+DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' grafana/grafana:latest)
+echo $DIGEST
+# Output: grafana/grafana:latest@sha256:NEW_HASH_HERE
+
+# 3. Update docker-compose.yml
+# Replace old SHA256 with new one
+
+# 4. Test in development
+docker-compose down
+docker-compose up -d
+./scripts/status.sh
+
+# 5. Verify all services healthy
+docker ps
+curl http://localhost:3001/api/health
+
+# 6. Document change in git commit
+git add docker-compose.yml
+git commit -m "chore(docker): Update Grafana to sha256:NEW_HASH (version X.Y.Z)"
+```
+
+#### Automated Version Tracking (Optional)
+
+Set up monthly GitHub Actions workflow:
+
+```yaml
+# .github/workflows/check-docker-versions.yml
+name: Check Docker Image Updates
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # 1st of each month
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for new images
+        run: |
+          docker pull clickhouse/clickhouse-server:latest
+          docker pull grafana/grafana:latest
+          # Create issue if new versions found
+```
+
+### 5. Regular Security Updates
+
+```bash
 # Update npm dependencies
 npm update
 
 # Check for vulnerabilities
 npm audit
+
+# Review security advisories
+# - ClickHouse: https://github.com/ClickHouse/ClickHouse/security/advisories
+# - Grafana: https://grafana.com/security
+# - n8n: https://n8n.io/security
 ```
 
-### 5. Monitoring & Alerting
+### 6. Monitoring & Alerting
 
 Enable audit log monitoring:
 

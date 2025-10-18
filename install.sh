@@ -427,7 +427,20 @@ initialize_clickhouse() {
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             sleep 2
         else
-            log_error "ClickHouse failed to start within expected time"
+            log_error "ClickHouse failed to start within expected time (60 seconds)"
+            echo ""
+            log_info "Troubleshooting:"
+            log_info "  1. Check container status:"
+            log_info "     docker ps -a | grep vigil-clickhouse"
+            log_info "  2. Check ClickHouse logs for errors:"
+            log_info "     docker logs vigil-clickhouse"
+            log_info "  3. Common issues:"
+            log_info "     - Port ${CLICKHOUSE_HTTP_PORT} already in use"
+            log_info "     - Insufficient memory (ClickHouse needs ~512MB)"
+            log_info "     - Permission issues with vigil_data/clickhouse directory"
+            log_info "  4. Verify authentication:"
+            log_info "     curl -u ${CLICKHOUSE_USER}:PASSWORD http://localhost:${CLICKHOUSE_HTTP_PORT}/ping"
+            echo ""
             return 1
         fi
     done
@@ -446,28 +459,70 @@ EOF
 
     # Execute table creation script
     log_info "Creating tables..."
-    if cat services/monitoring/sql/01-create-tables.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    TABLE_OUTPUT=$(cat services/monitoring/sql/01-create-tables.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    TABLE_STATUS=$?
+
+    if [ $TABLE_STATUS -eq 0 ]; then
         log_success "Tables created"
     else
         log_error "Failed to create tables"
+        log_error "ClickHouse error output:"
+        echo "$TABLE_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/01-create-tables.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
+        log_info "     - Syntax errors in SQL"
+        log_info "     - Insufficient permissions"
+        log_info "  3. Verify database: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW DATABASES'"
+        echo ""
         return 1
     fi
 
     # Execute views creation script
     log_info "Creating views..."
-    if cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    VIEW_OUTPUT=$(cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    VIEW_STATUS=$?
+
+    if [ $VIEW_STATUS -eq 0 ]; then
         log_success "Views created"
     else
         log_error "Failed to create views"
+        log_error "ClickHouse error output:"
+        echo "$VIEW_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/02-create-views.sql"
+        log_info "  2. Common issues:"
+        log_info "     - View already exists (drop first with: DROP VIEW IF EXISTS ...)"
+        log_info "     - Referenced tables do not exist (check previous step)"
+        log_info "     - Syntax errors in view definition"
+        log_info "  3. Check existing views: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+        echo ""
         return 1
     fi
 
     # Execute false positive reports schema
     log_info "Creating false positive reports table..."
-    if cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery >/dev/null 2>&1; then
+    FP_OUTPUT=$(cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    FP_STATUS=$?
+
+    if [ $FP_STATUS -eq 0 ]; then
         log_success "False positive reports table created"
     else
         log_error "Failed to create false positive reports table"
+        log_error "ClickHouse error output:"
+        echo "$FP_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/03-false-positives.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Table/view already exists (drop first with: DROP TABLE/VIEW IF EXISTS ...)"
+        log_info "     - Syntax errors in SQL"
+        log_info "     - Database does not exist"
+        log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+        echo ""
         return 1
     fi
 
