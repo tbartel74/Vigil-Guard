@@ -169,7 +169,7 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
           JSONExtractString(pipeline_flow_json, 'output_final') AS output_final,
           final_status,
           final_action,
-          toFloat64(pg_score_percent) AS pg_score_percent,
+          toFloat64(pg_score_percent / 100) AS pg_score_percent,
           toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0)) AS sanitizer_score,
           arrayStringConcat(
             arraySlice(
