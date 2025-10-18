@@ -1,10 +1,11 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # ClickHouse Database Initialization Script
 # This script manually initializes the ClickHouse database structure
 # Use this if the automatic initialization during install.sh failed
-
-set -e
 
 # Colors
 RED='\033[0;31m'
@@ -68,55 +69,86 @@ done
 
 # Create database
 log_info "Creating n8n_logs database..."
-if docker exec vigil-clickhouse clickhouse-client \
+DB_OUTPUT=$(docker exec vigil-clickhouse clickhouse-client \
     --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
-    -q "CREATE DATABASE IF NOT EXISTS n8n_logs" 2>&1; then
+    -q "CREATE DATABASE IF NOT EXISTS n8n_logs" 2>&1)
+DB_STATUS=$?
+
+if [ $DB_STATUS -eq 0 ]; then
     log_success "Database created"
 else
     log_error "Failed to create database"
+    log_error "ClickHouse error output:"
+    echo "$DB_OUTPUT" | sed 's/^/    /' # Indent error output
+    echo ""
+    log_info "Troubleshooting:"
+    log_info "  1. Check container: docker ps | grep clickhouse"
+    log_info "  2. Check credentials in .env file"
+    log_info "  3. View logs: docker logs vigil-clickhouse"
     exit 1
 fi
 
 # Execute table creation script
 log_info "Creating tables..."
-if cat services/monitoring/sql/01-create-tables.sql | \
+SQL_OUTPUT=$(cat services/monitoring/sql/01-create-tables.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
     --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
-    --multiquery 2>&1; then
+    --multiquery 2>&1)
+SQL_STATUS=$?
+
+if [ $SQL_STATUS -eq 0 ]; then
     log_success "Tables created"
 else
     log_error "Failed to create tables"
+    log_error "SQL execution output:"
+    echo "$SQL_OUTPUT" | sed 's/^/    /'
+    log_info "Script path: services/monitoring/sql/01-create-tables.sql"
+    log_info "Check for syntax errors in the SQL file"
     exit 1
 fi
 
 # Execute views creation script
 log_info "Creating views..."
-if cat services/monitoring/sql/02-create-views.sql | \
+VIEWS_OUTPUT=$(cat services/monitoring/sql/02-create-views.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
     --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
-    --multiquery 2>&1; then
+    --multiquery 2>&1)
+VIEWS_STATUS=$?
+
+if [ $VIEWS_STATUS -eq 0 ]; then
     log_success "Views created"
 else
     log_error "Failed to create views"
+    log_error "SQL execution output:"
+    echo "$VIEWS_OUTPUT" | sed 's/^/    /'
+    log_info "Script path: services/monitoring/sql/02-create-views.sql"
+    log_info "Check for syntax errors in the SQL file"
     exit 1
 fi
 
 # Execute false positive reports schema
 log_info "Creating false positive reports table..."
-if cat services/monitoring/sql/03-false-positives.sql | \
+FP_OUTPUT=$(cat services/monitoring/sql/03-false-positives.sql | \
    docker exec -i vigil-clickhouse clickhouse-client \
     --user "$CLICKHOUSE_USER" \
     --password "$CLICKHOUSE_PASSWORD" \
     --database n8n_logs \
-    --multiquery 2>&1; then
+    --multiquery 2>&1)
+FP_STATUS=$?
+
+if [ $FP_STATUS -eq 0 ]; then
     log_success "False positive reports table created"
 else
     log_error "Failed to create false positive reports table"
+    log_error "SQL execution output:"
+    echo "$FP_OUTPUT" | sed 's/^/    /'
+    log_info "Script path: services/monitoring/sql/03-false-positives.sql"
+    log_info "Check for syntax errors in the SQL file"
     exit 1
 fi
 

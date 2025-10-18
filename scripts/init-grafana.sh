@@ -1,9 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # Vigil Guard - Grafana Initialization Script
 # Manually initializes Grafana with datasource and dashboard provisioning
-
-set -e
 
 # Colors for output
 RED='\033[0;31m'
