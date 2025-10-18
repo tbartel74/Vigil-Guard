@@ -14,279 +14,318 @@ The system uses four risk levels for threat classification:
 
 | Level | Purpose | Typical Threshold | Action |
 |-------|---------|------------------|---------|
-| **CRITICAL** | Immediate threats | 0.85-1.0 | Block immediately |
-| **HIGH** | Serious threats | 0.70-0.84 | Block or sanitize |
-| **MEDIUM** | Moderate threats | 0.40-0.69 | Sanitize or allow |
-| **LOW** | Minor threats | 0.10-0.39 | Allow with logging |
+| **CRITICAL** | Immediate threats | 85-100 | Block immediately |
+| **HIGH** | Serious threats | 65-84 | Block or sanitize |
+| **MEDIUM** | Moderate threats | 30-64 | Sanitize or allow |
+| **LOW** | Minor threats | 0-29 | Allow with logging |
 
 ## ⚙️ Active Configuration Variables
 
-### Critical Risk Level Settings
+Vigil Guard configuration is split across two main files: **thresholds.config.json** (decision ranges) and **unified_config.json** (system settings). All variables are manageable through the Web UI Configuration section.
 
-#### `CRITICAL_THRESHOLD`
+### Threshold Ranges (thresholds.config.json)
+
+The system uses score-based decision making on a **0-100 scale**. Based on the total threat score, the system determines the appropriate action.
+
+#### `ranges.allow.min` / `ranges.allow.max`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.85`
-- **Purpose**: Threshold for immediate blocking of critical threats
-- **n8n Usage**: Used in decision nodes to determine blocking actions
+- **Range**: `0 - 29`
+- **Default**: `{ "min": 0, "max": 29 }`
+- **Purpose**: Score range for ALLOW decision (content passes through unchanged)
+- **File**: `thresholds.config.json`
+- **UI Name**: ALLOW_MIN / ALLOW_MAX
+- **Action**: Content is allowed with logging
 
-```json
-{
-  "name": "CRITICAL_THRESHOLD",
-  "value": 0.85,
-  "description": "Critical risk threshold - immediate block"
-}
-```
-
-#### `CRITICAL_ACTION`
-- **Type**: `string`
-- **Values**: `BLOCK`, `SANITIZE`, `ALLOW`
-- **Default**: `BLOCK`
-- **Purpose**: Action to take when critical threshold is exceeded
-- **n8n Usage**: Determines workflow path for critical threats
-
-#### `CRITICAL_LOG_LEVEL`
-- **Type**: `string`
-- **Values**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Default**: `ERROR`
-- **Purpose**: Logging level for critical threat events
-
-### High Risk Level Settings
-
-#### `HIGH_THRESHOLD`
+#### `ranges.sanitize_light.min` / `ranges.sanitize_light.max`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.70`
-- **Purpose**: Threshold for high-risk threat detection
+- **Range**: `30 - 64`
+- **Default**: `{ "min": 30, "max": 64 }`
+- **Purpose**: Score range for light sanitization (remove suspicious patterns)
+- **File**: `thresholds.config.json`
+- **UI Name**: SANITIZE_LIGHT_MIN / SANITIZE_LIGHT_MAX
+- **Action**: Remove jailbreak phrases, normalize text
 
-#### `HIGH_ACTION`
-- **Type**: `string`
-- **Values**: `BLOCK`, `SANITIZE`, `ALLOW`
-- **Default**: `SANITIZE`
-- **Purpose**: Action for high-risk threats
-
-#### `HIGH_LOG_LEVEL`
-- **Type**: `string`
-- **Values**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Default**: `WARN`
-- **Purpose**: Logging level for high-risk events
-
-### Medium Risk Level Settings
-
-#### `MEDIUM_THRESHOLD`
+#### `ranges.sanitize_heavy.min` / `ranges.sanitize_heavy.max`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.40`
-- **Purpose**: Threshold for medium-risk threat detection
+- **Range**: `65 - 84`
+- **Default**: `{ "min": 65, "max": 84 }`
+- **Purpose**: Score range for heavy sanitization (aggressive pattern removal)
+- **File**: `thresholds.config.json`
+- **UI Name**: SANITIZE_HEAVY_MIN / SANITIZE_HEAVY_MAX
+- **Action**: Strip URLs, code blocks, instruction-like patterns
 
-#### `MEDIUM_ACTION`
-- **Type**: `string`
-- **Values**: `BLOCK`, `SANITIZE`, `ALLOW`
-- **Default**: `SANITIZE`
-- **Purpose**: Action for medium-risk threats
-
-#### `MEDIUM_LOG_LEVEL`
-- **Type**: `string`
-- **Values**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Default**: `INFO`
-- **Purpose**: Logging level for medium-risk events
-
-### Low Risk Level Settings
-
-#### `LOW_THRESHOLD`
+#### `ranges.block.min` / `ranges.block.max`
 - **Type**: `number`
-- **Range**: `0.0 - 1.0`
-- **Default**: `0.10`
-- **Purpose**: Baseline threshold for threat detection
+- **Range**: `85 - 100`
+- **Default**: `{ "min": 85, "max": 100 }`
+- **Purpose**: Score range for immediate blocking
+- **File**: `thresholds.config.json`
+- **UI Name**: BLOCK_MIN / BLOCK_MAX
+- **Action**: Reject request with block message
 
-#### `LOW_ACTION`
-- **Type**: `string`
-- **Values**: `BLOCK`, `SANITIZE`, `ALLOW`
-- **Default**: `ALLOW`
-- **Purpose**: Action for low-risk threats
+### Bloom Filter & Prefiltering (unified_config.json)
 
-#### `LOW_LOG_LEVEL`
-- **Type**: `string`
-- **Values**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Default**: `DEBUG`
-- **Purpose**: Logging level for low-risk events
+#### `bloom_decisions.route_to_ac_threshold`
+- **Type**: `number`
+- **Default**: `15`
+- **Purpose**: Bloom filter score threshold to trigger full Aho-Corasick pattern matching
+- **File**: `unified_config.json`
+- **Path**: `bloom_decisions.route_to_ac_threshold`
+- **Usage**: If bloom score ≥ 15, route to full pattern matching engine
 
-## 🔧 System Configuration Variables
+#### `bloom_decisions.hard_block_threshold`
+- **Type**: `number`
+- **Default**: `50`
+- **Purpose**: Bloom filter score for immediate blocking without further analysis
+- **File**: `unified_config.json`
+- **Path**: `bloom_decisions.hard_block_threshold`
 
-### Core System Settings
+#### `bloom_decisions.phrase_match_bonus`
+- **Type**: `number`
+- **Default**: `20`
+- **Purpose**: Bonus points added per matched dangerous phrase in bloom filter
+- **File**: `unified_config.json`
+- **Path**: `bloom_decisions.phrase_match_bonus`
 
-#### `ENABLE_SANITIZATION`
+#### `bloom_decisions.require_zusatz_signals`
 - **Type**: `boolean`
 - **Default**: `true`
-- **Purpose**: Master switch for content sanitization
-- **n8n Usage**: Controls sanitization workflow branches
+- **Purpose**: Require additional signals (obfuscation, polyglot) before hard block
+- **File**: `unified_config.json`
+- **Path**: `bloom_decisions.require_zusatz_signals`
 
-#### `LOG_LEVEL`
+### Normalization Settings (unified_config.json)
+
+#### `normalization.unicode_form`
 - **Type**: `string`
-- **Values**: `DEBUG`, `INFO`, `WARN`, `ERROR`
-- **Default**: `INFO`
-- **Purpose**: Global logging verbosity level
+- **Values**: `NFKC`, `NFC`, `NFD`, `NFKD`
+- **Default**: `NFKC`
+- **Purpose**: Unicode normalization form (NFKC recommended for security)
+- **File**: `unified_config.json`
+- **Path**: `normalization.unicode_form`
 
-#### `MAX_RETRIES`
+#### `normalization.max_iterations`
 - **Type**: `number`
-- **Range**: `1 - 10`
 - **Default**: `3`
-- **Purpose**: Maximum retry attempts for failed operations
+- **Purpose**: Maximum normalization passes to detect nested obfuscation
+- **File**: `unified_config.json`
+- **Path**: `normalization.max_iterations`
 
-#### `API_TIMEOUT_MS`
-- **Type**: `number`
-- **Range**: `1000 - 30000`
-- **Default**: `5000`
-- **Purpose**: API request timeout in milliseconds
-
-### Security Settings
-
-#### `ENABLE_RATE_LIMITING`
+#### `normalization.remove_zero_width`
 - **Type**: `boolean`
 - **Default**: `true`
-- **Purpose**: Enable request rate limiting
+- **Purpose**: Remove zero-width characters (U+200B, U+200C, U+200D, U+FEFF)
+- **File**: `unified_config.json`
+- **Path**: `normalization.remove_zero_width`
 
-#### `RATE_LIMIT_REQUESTS`
+#### `normalization.collapse_whitespace`
+- **Type**: `boolean`
+- **Default**: `true`
+- **Purpose**: Collapse multiple whitespace characters to single space
+- **File**: `unified_config.json`
+- **Path**: `normalization.collapse_whitespace`
+
+### Sanitization Policies (unified_config.json)
+
+#### `sanitization.light.remove_patterns`
+- **Type**: `array<string>` (regex patterns)
+- **Default**: 16 jailbreak patterns (see unified_config.json)
+- **Purpose**: Regex patterns removed during light sanitization
+- **File**: `unified_config.json`
+- **Path**: `sanitization.light.remove_patterns`
+- **Examples**: `\bdo\s+not\s+refuse\b`, `\bgodmode\b`
+
+#### `sanitization.light.redact_token`
+- **Type**: `string`
+- **Default**: `[removed]`
+- **Purpose**: Replacement token for removed patterns (light mode)
+- **File**: `unified_config.json`
+- **Path**: `sanitization.light.redact_token`
+
+#### `sanitization.heavy.remove_patterns`
+- **Type**: `array<string>` (regex patterns)
+- **Default**: 18 instruction/override patterns
+- **Purpose**: Regex patterns removed during heavy sanitization
+- **File**: `unified_config.json`
+- **Path**: `sanitization.heavy.remove_patterns`
+- **Examples**: `\bignore.*?instructions\b`, `\byou\s+are\s+now.*?\b`
+
+#### `sanitization.heavy.redact_token`
+- **Type**: `string`
+- **Default**: `[REDACTED]`
+- **Purpose**: Replacement token for removed patterns (heavy mode)
+- **File**: `unified_config.json`
+- **Path**: `sanitization.heavy.redact_token`
+
+#### `sanitization.heavy.max_removal_percent`
 - **Type**: `number`
-- **Range**: `1 - 1000`
-- **Default**: `100`
-- **Purpose**: Maximum requests per time window
+- **Default**: `60`
+- **Purpose**: Maximum percentage of content that can be removed (prevent over-sanitization)
+- **File**: `unified_config.json`
+- **Path**: `sanitization.heavy.max_removal_percent`
 
-#### `RATE_LIMIT_WINDOW_MS`
-- **Type**: `number`
-- **Range**: `1000 - 3600000`
-- **Default**: `60000`
-- **Purpose**: Rate limiting time window in milliseconds
+### Enforcement & Logging (unified_config.json)
 
-#### `ENABLE_IP_WHITELIST`
+#### `enforcement.dry_run`
 - **Type**: `boolean`
 - **Default**: `false`
-- **Purpose**: Enable IP address whitelisting
+- **Purpose**: If true, log decisions but don't block/sanitize (testing mode)
+- **File**: `unified_config.json`
+- **Path**: `enforcement.dry_run`
 
-#### `TRUSTED_IPS`
-- **Type**: `array`
-- **Default**: `[]`
-- **Purpose**: List of trusted IP addresses
-
-### Performance Settings
-
-#### `CACHE_ENABLED`
+#### `enforcement.audit_log`
 - **Type**: `boolean`
 - **Default**: `true`
-- **Purpose**: Enable response caching
+- **Purpose**: Enable audit logging to ClickHouse
+- **File**: `unified_config.json`
+- **Path**: `enforcement.audit_log`
 
-#### `CACHE_SIZE_MB`
-- **Type**: `number`
-- **Range**: `1 - 1024`
-- **Default**: `128`
-- **Purpose**: Cache size limit in megabytes
-
-#### `WORKER_THREADS`
-- **Type**: `number`
-- **Range**: `1 - 16`
-- **Default**: `4`
-- **Purpose**: Number of worker threads for processing
-
-### Monitoring Settings
-
-#### `METRICS_ENABLED`
-- **Type**: `boolean`
-- **Default**: `true`
-- **Purpose**: Enable metrics collection
-
-#### `METRICS_INTERVAL_MS`
-- **Type**: `number`
-- **Range**: `1000 - 300000`
-- **Default**: `30000`
-- **Purpose**: Metrics collection interval
-
-#### `ALERT_THRESHOLD_VIOLATIONS`
-- **Type**: `number`
-- **Range**: `1 - 100`
-- **Default**: `10`
-- **Purpose**: Alert after N threshold violations
-
-#### `ALERT_WEBHOOK_URL`
+#### `enforcement.block_message`
 - **Type**: `string`
-- **Default**: `""`
-- **Purpose**: Webhook URL for alert notifications
+- **Default**: `"Content blocked by security policy. Please rephrase without instructing how to respond."`
+- **Purpose**: User-facing message when content is blocked
+- **File**: `unified_config.json`
+- **Path**: `enforcement.block_message`
 
-### Database Settings
+### Performance Settings (unified_config.json)
 
-#### `DB_CONNECTION_POOL_SIZE`
+#### `performance.timeout_ms`
 - **Type**: `number`
-- **Range**: `1 - 50`
-- **Default**: `10`
-- **Purpose**: Database connection pool size
+- **Default**: `5000`
+- **Purpose**: Processing timeout in milliseconds
+- **File**: `unified_config.json`
+- **Path**: `performance.timeout_ms`
 
-#### `DB_QUERY_TIMEOUT_MS`
+#### `performance.max_input_length`
 - **Type**: `number`
-- **Range**: `1000 - 60000`
 - **Default**: `10000`
-- **Purpose**: Database query timeout
+- **Purpose**: Maximum input length in characters
+- **File**: `unified_config.json`
+- **Path**: `performance.max_input_length`
 
-#### `DB_RETRY_ATTEMPTS`
+#### `performance.cache_ttl_ms`
 - **Type**: `number`
-- **Range**: `1 - 5`
-- **Default**: `3`
-- **Purpose**: Database retry attempts on failure
+- **Default**: `60000`
+- **Purpose**: Cache time-to-live in milliseconds
+- **File**: `unified_config.json`
+- **Path**: `performance.cache_ttl_ms`
+
+### Bloom Filter Technical Parameters (unified_config.json)
+
+#### `bloom.m`
+- **Type**: `number`
+- **Default**: `32768`
+- **Purpose**: Bloom filter bit array size
+- **File**: `unified_config.json`
+- **Path**: `bloom.m`
+
+#### `bloom.k`
+- **Type**: `number`
+- **Default**: `5`
+- **Purpose**: Number of hash functions
+- **File**: `unified_config.json`
+- **Path**: `bloom.k`
+
+#### `bloom.seed`
+- **Type**: `number`
+- **Default**: `1337`
+- **Purpose**: Hash function seed for reproducibility
+- **File**: `unified_config.json`
+- **Path**: `bloom.seed`
 
 ## 📁 Configuration File Structure
 
 ### Backend Configuration Files
 
-#### `backend/config/variables.json`
+### Actual Configuration Files
+
+Vigil Guard stores configuration in the `services/workflow/config/` directory:
+
+#### `services/workflow/config/thresholds.config.json`
+
+**Purpose**: Defines decision thresholds for threat classification.
+
 ```json
 {
-  "CRITICAL_THRESHOLD": {
-    "value": 0.85,
-    "type": "number",
-    "description": "Critical risk threshold for immediate blocking",
-    "min": 0.0,
-    "max": 1.0,
-    "category": "risk_levels"
+  "version": "1.0",
+  "ranges": {
+    "allow": {
+      "min": 0,
+      "max": 29
+    },
+    "sanitize_light": {
+      "min": 30,
+      "max": 64
+    },
+    "sanitize_heavy": {
+      "min": 65,
+      "max": 84
+    },
+    "block": {
+      "min": 85,
+      "max": 100
+    }
   },
-  "ENABLE_SANITIZATION": {
-    "value": true,
-    "type": "boolean",
-    "description": "Master switch for content sanitization",
-    "category": "system"
+  "notes": "Adjusted thresholds: light sanitize up to 64, heavy sanitize 65-84, block starts at 85. These are conservative to reduce false positives on normal chat."
+}
+```
+
+**Scale**: Integer values from **0 to 100**
+
+**Mapping to UI**:
+| UI Variable | Maps to | Description |
+|-------------|---------|-------------|
+| ALLOW_MAX | `ranges.allow.max` | Maximum score for ALLOW decision (29) |
+| SANITIZE_LIGHT_MIN | `ranges.sanitize_light.min` | Light sanitization starts (30) |
+| SANITIZE_LIGHT_MAX | `ranges.sanitize_light.max` | Light sanitization ends (64) |
+| SANITIZE_HEAVY_MIN | `ranges.sanitize_heavy.min` | Heavy sanitization starts (65) |
+| SANITIZE_HEAVY_MAX | `ranges.sanitize_heavy.max` | Heavy sanitization ends (84) |
+| BLOCK_MIN | `ranges.block.min` | BLOCK decision starts (85) |
+
+#### `services/workflow/config/unified_config.json`
+
+**Purpose**: Main configuration file for n8n workflow settings.
+
+```json
+{
+  "test_mode": false,
+  "normalization": {
+    "enabled": true,
+    "unicode_nfkc": true,
+    "homoglyphs": true
+  },
+  "bloom_filter": {
+    "enabled": true,
+    "phrase_match_bonus": 20,
+    "route_to_ac_threshold": 15
+  },
+  "sanitization": {
+    "light": {
+      "remove_unicode_control": true,
+      "remove_excessive_whitespace": true
+    },
+    "heavy": {
+      "strip_urls": true,
+      "strip_code_blocks": true,
+      "aggressive_filtering": true
+    }
   }
 }
 ```
 
-#### `backend/audit.log`
-```
-2024-01-15T10:30:45.123Z | UPDATE | CRITICAL_THRESHOLD | 0.80 -> 0.85 | user:admin | reason:security_update
-2024-01-15T10:31:12.456Z | UPDATE | LOG_LEVEL | INFO -> DEBUG | user:admin | reason:debugging
-```
+**Key Settings**:
+- `bloom_filter.phrase_match_bonus`: Score added per matched malicious phrase (default: 20)
+- `bloom_filter.route_to_ac_threshold`: Threshold to trigger full pattern matching (default: 15)
+- All thresholds work on **0-100 scale**
 
-### Frontend Configuration Files
+#### Other Configuration Files
 
-#### `frontend/src/spec/variables.json`
-```json
-[
-  {
-    "name": "CRITICAL_THRESHOLD",
-    "label": "Critical Threshold",
-    "type": "number",
-    "default": 0.85,
-    "description": "Threshold for critical threat detection",
-    "validation": {
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01
-    },
-    "category": "CRITICAL",
-    "map": [
-      {
-        "file": "risk_config.json",
-        "path": "critical.threshold"
-      }
-    ]
-  }
-]
-```
+| File | Purpose | Format |
+|------|---------|--------|
+| `rules.config.json` | Detection patterns and categories | JSON |
+| `allowlist.schema.json` | Allowed content schema | JSON Schema |
+| `normalize.conf` | Homoglyph and leet speak mappings | KEY=VALUE |
+| `pii.conf` | PII redaction patterns | SECTION/KEY |
 
 ## 🔄 Configuration Management
 
@@ -335,9 +374,9 @@ All configuration changes are atomic:
 
 #### Numeric Values
 ```javascript
-// Threshold validation
-if (value < 0.0 || value > 1.0) {
-  throw new Error('Threshold must be between 0.0 and 1.0');
+// Threshold validation (0-100 scale)
+if (value < 0 || value > 100) {
+  throw new Error('Threshold must be between 0 and 100');
 }
 
 // Timeout validation
@@ -373,51 +412,116 @@ if (!value.every(ip => ipPattern.test(ip))) {
 ### Cross-Variable Validation
 
 ```javascript
-// Threshold ordering validation
-if (config.HIGH_THRESHOLD >= config.CRITICAL_THRESHOLD) {
-  throw new Error('HIGH_THRESHOLD must be less than CRITICAL_THRESHOLD');
+// Threshold range ordering validation
+const thresholds = config.ranges;
+
+if (thresholds.allow.max >= thresholds.sanitize_light.min) {
+  throw new Error('ALLOW range must not overlap with SANITIZE_LIGHT range');
 }
 
-if (config.MEDIUM_THRESHOLD >= config.HIGH_THRESHOLD) {
-  throw new Error('MEDIUM_THRESHOLD must be less than HIGH_THRESHOLD');
+if (thresholds.sanitize_light.max >= thresholds.sanitize_heavy.min) {
+  throw new Error('SANITIZE_LIGHT range must not overlap with SANITIZE_HEAVY range');
 }
 
-if (config.LOW_THRESHOLD >= config.MEDIUM_THRESHOLD) {
-  throw new Error('LOW_THRESHOLD must be less than MEDIUM_THRESHOLD');
+if (thresholds.sanitize_heavy.max >= thresholds.block.min) {
+  throw new Error('SANITIZE_HEAVY range must not overlap with BLOCK range');
+}
+
+// Ensure min < max within each range
+if (thresholds.allow.min > thresholds.allow.max) {
+  throw new Error('ALLOW min must be less than ALLOW max');
 }
 ```
 
 ## 🔧 API Configuration Endpoints
 
-### GET /api/config
+### GET /api/files
 
-Returns all configuration variables with metadata:
+Returns list of available configuration files with filtering options.
 
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Query Parameters:**
+- `ext`: Filter by extension (`all`, `json`, `conf`)
+
+**Response:**
 ```json
 {
-  "variables": {
-    "CRITICAL_THRESHOLD": {
-      "value": 0.85,
-      "type": "number",
-      "description": "Critical risk threshold",
-      "lastModified": "2024-01-15T10:30:45.123Z",
-      "modifiedBy": "admin"
-    }
-  },
-  "etag": "1a2b3c4d5e6f",
-  "lastUpdate": "2024-01-15T10:30:45.123Z"
+  "files": [
+    "unified_config.json",
+    "thresholds.config.json",
+    "rules.config.json",
+    "normalize.conf",
+    "pii.conf"
+  ]
 }
 ```
 
-### POST /api/config
+### GET /api/parse/:name
 
-Updates configuration variables:
+Parses and returns configuration file content with ETag.
+
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Parameters:**
+- `name`: Configuration filename
+
+**Response:**
+```json
+{
+  "file": "thresholds.config.json",
+  "content": {...},
+  "etag": "a1b2c3d4"
+}
+```
+
+### POST /api/resolve
+
+Maps variable specifications to actual file values.
+
+**Authentication**: Required (`can_view_configuration` permission)
 
 **Request:**
 ```json
 {
-  "CRITICAL_THRESHOLD": 0.90,
-  "LOG_LEVEL": "DEBUG"
+  "variables": [
+    {
+      "name": "ALLOW_MAX",
+      "path": "ranges.allow.max",
+      "file": "thresholds.config.json"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "ALLOW_MAX": 29
+}
+```
+
+### POST /api/save
+
+Saves configuration changes with ETag validation.
+
+**Authentication**: Required (`can_view_configuration` permission)
+
+**Request:**
+```json
+{
+  "changes": [
+    {
+      "file": "thresholds.config.json",
+      "payloadType": "json",
+      "updates": [
+        {
+          "path": "ranges.allow.max",
+          "value": 35
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -425,32 +529,15 @@ Updates configuration variables:
 ```json
 {
   "success": true,
-  "updated": ["CRITICAL_THRESHOLD", "LOG_LEVEL"],
-  "newEtag": "2b3c4d5e6f7g",
-  "timestamp": "2024-01-15T10:31:00.000Z"
-}
-```
-
-### GET /api/audit
-
-Returns audit log entries:
-
-```json
-{
-  "entries": [
-    {
-      "timestamp": "2024-01-15T10:30:45.123Z",
-      "action": "UPDATE",
-      "variable": "CRITICAL_THRESHOLD",
-      "oldValue": 0.80,
-      "newValue": 0.85,
-      "user": "admin",
-      "reason": "security_update"
-    }
-  ],
-  "total": 150,
-  "page": 1,
-  "pageSize": 50
+  "result": {
+    "results": [
+      {
+        "file": "thresholds.config.json",
+        "backupPath": "thresholds.config__20251018_143022__admin.json.bak",
+        "etag": "new_etag_value"
+      }
+    ]
+  }
 }
 ```
 

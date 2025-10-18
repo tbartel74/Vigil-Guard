@@ -213,7 +213,7 @@ After installation, access the services at:
 | **ClickHouse HTTP** | http://localhost:8123 | admin/[auto-generated] |
 | **Prompt Guard API** | http://localhost:8000/docs | - |
 
-⚠️ **IMPORTANT**: Starting from v2.0, `install.sh` **automatically generates unique secure passwords** for all services. Credentials are displayed **ONLY ONCE** during installation - save them immediately!
+⚠️ **IMPORTANT**: `install.sh` **automatically generates unique secure passwords** for all services. Credentials are displayed **ONLY ONCE** during installation - save them immediately!
 
 ### Workflow Integration
 
@@ -256,7 +256,7 @@ After installation completes, you **must** manually configure n8n:
 
 📖 **Detailed guide**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
 
-### 🔒 Security: Automatic Password Generation (v2.0+)
+### 🔒 Security: Automatic Password Generation
 
 **✅ SECURE BY DEFAULT**: Vigil Guard automatically generates unique cryptographic passwords during installation:
 
@@ -406,9 +406,14 @@ Vigil Guard includes a comprehensive E2E test suite to validate detection accura
 ### Test Suite Overview
 
 - **58+ Tests** across 3 suites (smoke, bypass scenarios, false positives)
-- **85% Pass Rate** (23/27 tests passing)
+- **70% Pass Rate** (33/47 tests passing) - actively improving bypass detection
 - **100 Test Fixtures** (50 malicious + 50 benign prompts)
 - **CI/CD Integration** via GitHub Actions
+
+**Current Test Status** (see `services/workflow/TEST_SUMMARY.md` for details):
+- ✅ Smoke Tests: 3/3 (100%)
+- ✅ False Positive Tests: 15/15 (100%)
+- ⚠️ Bypass Scenarios: 15/29 (52%) - ongoing work to improve detection of sophisticated obfuscation techniques
 
 ### Running Tests
 
@@ -507,7 +512,13 @@ The system uses a unified configuration management approach:
 
 ### Network Configuration
 
-All services communicate via `n8n-network` external Docker network.
+All services communicate via `vigil-net` external Docker network.
+
+```bash
+# Network is created automatically by docker-compose.yml
+# Manual creation (if needed):
+docker network create vigil-net
+```
 
 ### Port Allocation
 
