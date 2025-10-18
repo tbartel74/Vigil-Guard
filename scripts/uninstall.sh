@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # Uninstall Vigil Guard - Remove all containers, volumes, and data
 
 # Colors
@@ -43,7 +46,7 @@ echo -e "${GREEN}✓${NC} All services removed"
 
 # Remove Docker network
 echo -e "${BLUE}[2/5]${NC} Removing Docker network..."
-docker network rm Vigil_Net 2>/dev/null || echo "Network already removed"
+docker network rm vigil-net 2>/dev/null || echo "Network already removed"
 echo -e "${GREEN}✓${NC} Docker network removed"
 
 # Remove node_modules
@@ -68,12 +71,12 @@ echo ""
 echo -e "${BLUE}[5/5]${NC} Verifying cleanup..."
 
 # Check for remaining containers
-REMAINING=$(docker ps -a --filter "label=com.docker.compose.project=Vigil_Guard" --format "{{.Names}}" 2>/dev/null | wc -l)
+REMAINING=$(docker ps -a --filter "label=com.docker.compose.project=vigil-guard" --format "{{.Names}}" 2>/dev/null | wc -l)
 if [ "$REMAINING" -eq 0 ]; then
     echo -e "${GREEN}✓${NC} No containers remaining"
 else
     echo -e "${YELLOW}⚠${NC} Found $REMAINING containers still present"
-    docker ps -a --filter "label=com.docker.compose.project=Vigil_Guard"
+    docker ps -a --filter "label=com.docker.compose.project=vigil-guard"
 fi
 
 echo ""

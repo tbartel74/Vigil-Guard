@@ -339,11 +339,37 @@ ufw enable
 
 ### 4. Regular Security Updates
 
+**Docker Image Security:**
+Vigil Guard uses SHA256 digest pinning for all external Docker images to prevent supply chain attacks:
+```yaml
+# docker-compose.yml (production)
+clickhouse:
+  image: clickhouse/clickhouse-server:24.1@sha256:44caeed7c81f...
+grafana:
+  image: grafana/grafana:latest@sha256:74144189b38447f...
+n8n:
+  image: n8nio/n8n:latest@sha256:fa410b71ccb5dde...
+caddy:
+  image: caddy:2-alpine@sha256:953131cfea8e12b...
+```
+
+**Updating pinned images:**
 ```bash
-# Update Docker images monthly
+# 1. Pull new images and get digests
+docker pull clickhouse/clickhouse-server:24.1
+docker images --digests | grep clickhouse
+
+# 2. Update docker-compose.yml with new SHA256
+# 3. Test in staging environment first
 docker-compose pull
 docker-compose up -d
 
+# 4. Verify all services healthy
+docker-compose ps
+```
+
+**npm dependencies:**
+```bash
 # Update npm dependencies
 npm update
 
