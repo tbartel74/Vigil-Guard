@@ -2,77 +2,111 @@
 
 > **Comprehensive security practices and guidelines for Vigil Guard deployment**
 
-## ⚠️ CRITICAL: Default Credentials Policy
+## ⚠️ CRITICAL: Credentials Policy
 
-**Vigil Guard ships with unified default credentials for quick testing and development:**
+**Vigil Guard automatically generates cryptographically secure passwords during installation.**
+
+### Installation Security
+
+When you run `install.sh`, the system:
+
+1. **Detects any default passwords** in `.env` file
+2. **Auto-generates secure credentials** using `openssl rand -base64 32`
+3. **Creates `.credentials.txt`** file with all generated passwords (chmod 600)
+4. **Updates `.env`** file with new credentials
 
 | Service | Username | Password | Port |
 |---------|----------|----------|------|
-| **Web UI** | `admin` | `admin123` | 5173 |
-| **Grafana** | `admin` | `admin123` | 3001 |
-| **ClickHouse** | `admin` | `admin123` | 8123 |
+| **Web UI** | `admin` | Auto-generated (32 chars) | 5173 |
+| **Grafana** | `admin` | Auto-generated (32 chars) | 3001 |
+| **ClickHouse** | `admin` | Auto-generated (32 chars) | 8123 |
 | **n8n** | (create on first access) | - | 5678 |
+
+### ⚠️ CRITICAL: Save Your Credentials
+
+After installation completes:
+
+```bash
+# Generated passwords are saved to .credentials.txt
+cat .credentials.txt
+
+# IMPORTANT: Copy credentials to secure password manager
+# Then delete the file:
+rm .credentials.txt
+```
 
 ### Security Recommendations
 
-1. **Development/Testing Environment**: Default credentials are acceptable
+1. **Development/Testing**: Generated passwords are secure by default
 2. **Production Deployment**:
-   - ⚠️ **Change ALL passwords immediately after installation**
-   - ⚠️ **Update credentials in `.env` file before running `install.sh`**
-   - ⚠️ **Configure strong JWT_SECRET (32+ characters)**
+   - ✅ **Passwords auto-generated** (no manual password setting required)
+   - ⚠️ **Save `.credentials.txt` to password manager immediately**
+   - ⚠️ **Delete `.credentials.txt` after saving credentials**
    - ⚠️ **Enable HTTPS via Caddy reverse proxy**
    - ⚠️ **Restrict network access to services (firewall rules)**
 
-### How to Change Credentials
+### How to Rotate Credentials
+
+Credentials are automatically generated during installation. To rotate them manually:
 
 #### Step 1: Stop All Services
 ```bash
 docker-compose down
 ```
 
-#### Step 2: Update .env File
+#### Step 2: Generate New Passwords
+```bash
+# Generate secure random passwords (32 characters)
+CLICKHOUSE_PASS=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+GRAFANA_PASS=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+N8N_PASS=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
+SESSION_SECRET=$(openssl rand -base64 48 | tr -d '\n')
+
+# Display generated passwords
+echo "ClickHouse: $CLICKHOUSE_PASS"
+echo "Grafana: $GRAFANA_PASS"
+echo "n8n: $N8N_PASS"
+echo "JWT Secret: $JWT_SECRET"
+echo "Session Secret: $SESSION_SECRET"
+```
+
+#### Step 3: Update .env File
 ```bash
 nano .env
 ```
 
-Edit the following variables:
+Replace the following variables with generated passwords:
 ```bash
-# CRITICAL: Change these passwords!
-CLICKHOUSE_PASSWORD=admin123          # ← Change this
-GF_SECURITY_ADMIN_PASSWORD=admin123   # ← Change this
-N8N_BASIC_AUTH_PASSWORD=admin123      # ← Change this
-JWT_SECRET=your-secret-here           # ← Change this (32+ characters)
+CLICKHOUSE_PASSWORD=<CLICKHOUSE_PASS>
+GF_SECURITY_ADMIN_PASSWORD=<GRAFANA_PASS>
+N8N_BASIC_AUTH_PASSWORD=<N8N_PASS>
+JWT_SECRET=<JWT_SECRET>
+SESSION_SECRET=<SESSION_SECRET>
 ```
 
-**Generate secure passwords:**
-```bash
-# Generate a secure random password (32 characters)
-openssl rand -base64 32 | tr -d '/+=' | head -c 32
-```
-
-#### Step 3: Change Web UI Password
-1. Login to Web UI: http://localhost:5173/ui
-2. Use default credentials: `admin` / `admin123`
+#### Step 4: Change Web UI Password
+1. Login to Web UI: http://localhost/ui/
+2. Use your current admin credentials
 3. Navigate to **Settings** (user icon in top-right)
 4. Click **Change Password**
 5. Enter a strong password (minimum 8 characters)
 6. Save changes
 
-#### Step 4: Restart Services
+#### Step 5: Restart Services
 ```bash
 docker-compose up -d
 ```
 
-#### Step 5: Verify Password Changes
+#### Step 6: Verify Password Changes
 ```bash
 # Test ClickHouse with new password
-curl -u admin:<NEW_PASSWORD> http://localhost:8123/ping
+curl -u admin:<CLICKHOUSE_PASS> http://localhost:8123/ping
 
 # Test Grafana with new password
-curl -u admin:<NEW_PASSWORD> http://localhost:3001/api/health
+curl -u admin:<GRAFANA_PASS> http://localhost:3001/api/health
 
 # Login to Web UI with new password
-# Should no longer accept admin123
 ```
 
 ## 🔐 Authentication & Authorization
@@ -100,9 +134,10 @@ The system supports granular permissions:
 
 #### Default Admin Account
 - **Username**: `admin`
-- **Password**: `admin123` (change immediately!)
+- **Password**: Auto-generated during installation (found in `.credentials.txt`)
 - **Permissions**: All permissions enabled
 - **Database**: SQLite at `/data/users.db`
+- **First Login**: Use password from `.credentials.txt`, then change via Settings
 
 #### Creating Additional Users
 
@@ -251,7 +286,7 @@ Complete change history maintained in `audit.log`:
 
 | Threat | Risk | Mitigation |
 |--------|------|------------|
-| **Default credentials** | CRITICAL | Change immediately after installation |
+| **Default credentials** | CRITICAL | Auto-generated during installation, saved to `.credentials.txt` |
 | **SQL Injection** | HIGH | Parameterized queries with better-sqlite3 |
 | **Path Traversal** | HIGH | Filename validation, whitelist pattern |
 | **XSS** | MEDIUM | React automatic escaping, CSP headers |
@@ -333,10 +368,10 @@ tail -f vigil_data/web-ui/audit.log
 ## 📋 Security Checklist
 
 ### Installation
-- [ ] Changed all passwords in .env file
-- [ ] Changed Web UI admin password
-- [ ] Verified new passwords work
-- [ ] Generated strong JWT_SECRET (32+ characters)
+- [ ] Saved `.credentials.txt` to secure password manager
+- [ ] Deleted `.credentials.txt` file after saving
+- [ ] Verified auto-generated passwords work for all services
+- [ ] Changed Web UI admin password via Settings page (optional, already secure)
 
 ### Production Deployment
 - [ ] Configured HTTPS for production
@@ -389,18 +424,35 @@ tail -f vigil_data/web-ui/audit.log
 
 If you lose admin credentials:
 
+**Option 1: Check `.credentials.txt` backup**
 ```bash
-# Reset admin password via database
+# If you still have the credentials file
+cat .credentials.txt
+```
+
+**Option 2: Reset via database**
+```bash
+# Generate new password hash using Node.js
+node -e "const bcrypt = require('bcrypt'); bcrypt.hash('new_password', 12, (err, hash) => console.log(hash));"
+
+# Update database
 sqlite3 vigil_data/web-ui/users.db
 ```
 
 ```sql
--- Generate new password hash (bcrypt, 12 rounds)
--- Use online bcrypt generator or Node.js script
-
+-- Use the generated hash from above
 UPDATE users
 SET password_hash = '$2b$12$new_hash_here'
 WHERE username = 'admin';
+```
+
+**Option 3: Re-run installation**
+```bash
+# WARNING: This will regenerate ALL credentials
+docker-compose down
+rm .env
+cp config/.env.example .env
+./install.sh
 ```
 
 ## 📚 Additional Resources
