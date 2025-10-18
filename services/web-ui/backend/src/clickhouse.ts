@@ -83,6 +83,7 @@ export interface PromptDetails {
   output_final: string;
   final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
   final_action: string;
+  /** Prompt Guard score as percentage (0-100 range). Note: ClickHouse stores this in basis points (0-10000). */
   pg_score_percent: number;
   sanitizer_score: number;
   main_criteria: string;
@@ -169,6 +170,8 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
           JSONExtractString(pipeline_flow_json, 'output_final') AS output_final,
           final_status,
           final_action,
+          -- Workflow stores pg_score_percent as integer (0-10000 representing 0.00-100.00%)
+          -- Normalize to percentage format (0-100) for UI display
           toFloat64(pg_score_percent / 100) AS pg_score_percent,
           toFloat64(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0)) AS sanitizer_score,
           arrayStringConcat(

@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_processed
   threat_score          Float64,
   threat_severity       LowCardinality(String),
   pg_score              Float64,
-  pg_score_percent      Float64,
+  pg_score_percent      Float64,  -- Stored as basis points: 0-10000 (represents 0.00-100.00%)
 
   final_status          LowCardinality(String),
   final_action          LowCardinality(String),
