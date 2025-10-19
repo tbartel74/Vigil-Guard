@@ -198,18 +198,18 @@ export default function Documentation() {
   const currentCategory = currentSection?.category || "Getting Started";
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100">
+    <div className="flex h-screen bg-surface-base text-slate-100">
       {/* Sidebar */}
       <aside className={`
         fixed lg:relative z-30 h-full w-64
-        bg-slate-900/80 border-r border-slate-800 overflow-y-auto
+        bg-surface-darker border-r border-slate-800 overflow-y-auto
         transform transition-transform duration-300 ease-in-out
         lg:transform-none
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="p-4 flex flex-col gap-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-400" /> Docs Center
+            <BookOpen className="w-5 h-5 text-blue-400" /> Docs Center
           </h2>
           <nav className="flex flex-col gap-2 text-sm">
             {docSections.map((section) => (
@@ -218,8 +218,8 @@ export default function Documentation() {
                 onClick={() => navigateToSection(section.id)}
                 className={`text-left px-3 py-2 rounded-md transition-colors ${
                   activeSection === section.id
-                    ? "bg-indigo-500/20 text-indigo-400 font-medium"
-                    : "text-slate-300 hover:text-indigo-400 hover:bg-slate-800/50"
+                    ? "bg-blue-500/20 text-blue-400 font-medium"
+                    : "text-slate-300 hover:text-blue-400 hover:bg-slate-800/50"
                 }`}
               >
                 {section.icon} {section.title}
@@ -243,7 +243,7 @@ export default function Documentation() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 p-4 bg-slate-900/50">
+        <div className="flex items-center justify-between border-b border-slate-800 p-4 bg-surface-dark/80">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -257,7 +257,7 @@ export default function Documentation() {
                 )}
               </svg>
             </button>
-            <HelpCircle className="w-5 h-5 text-indigo-400" />
+            <HelpCircle className="w-5 h-5 text-blue-400" />
             <h1 className="text-xl font-semibold">Assistant & Documentation</h1>
           </div>
           <div className="hidden sm:flex gap-2">
@@ -285,7 +285,7 @@ export default function Documentation() {
         {/* Tabs */}
         <Tabs defaultValue="getting-started" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col p-6 overflow-hidden">
           {!searchActive && (
-            <TabsList className="bg-slate-900/60 border border-slate-800">
+            <TabsList className="bg-surface-dark border border-slate-800">
               <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
               <TabsTrigger value="configuration">Configuration</TabsTrigger>
             </TabsList>
@@ -306,7 +306,7 @@ export default function Documentation() {
             {searchActive ? (
               <div className="space-y-4">
                 {searchResults.length === 0 ? (
-                  <Card className="bg-slate-900/60 border-slate-800">
+                  <Card className="bg-surface-dark border-slate-800">
                     <CardBody>
                       <p className="text-slate-400 text-center py-8">
                         No results found for "{searchQuery}". Try different keywords.
@@ -317,7 +317,7 @@ export default function Documentation() {
                   searchResults.map((result, idx) => (
                     <Card
                       key={idx}
-                      className="bg-slate-900/60 border-slate-800 hover:border-indigo-500/50 cursor-pointer transition-all"
+                      className="bg-surface-dark border-slate-800 hover:border-blue-500/50 cursor-pointer transition-all"
                       onClick={() => {
                         navigateToSection(result.section.id);
                         clearSearch();
@@ -354,7 +354,7 @@ export default function Documentation() {
                   {loading ? (
                     <div className="flex items-center justify-center py-20">
                       <div className="text-center">
-                        <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
                         <p className="text-slate-400">Loading documentation...</p>
                       </div>
                     </div>
@@ -368,8 +368,8 @@ export default function Documentation() {
                               key={section.id}
                               className={`cursor-pointer transition-all ${
                                 activeSection === section.id
-                                  ? "bg-indigo-500/10 border-indigo-500/50"
-                                  : "bg-slate-900/60 border-slate-800 hover:border-indigo-500/30"
+                                  ? "bg-blue-500/10 border-blue-500/50"
+                                  : "bg-surface-dark border-slate-800 hover:border-blue-500/30"
                               }`}
                               onClick={() => navigateToSection(section.id)}
                             >
@@ -386,7 +386,7 @@ export default function Documentation() {
 
                       {/* Active document content */}
                       {currentCategory === category && (
-                        <Card className="bg-slate-900/60 border-slate-800">
+                        <Card className="bg-surface-dark border-slate-800">
                           <CardHeader>
                             <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
                               <span className="text-3xl">{currentSection?.icon}</span>
@@ -443,7 +443,7 @@ export default function Documentation() {
                                               }
                                             }
                                           }}
-                                          className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                                          className="text-blue-400 hover:text-blue-300 underline cursor-pointer"
                                           {...props}
                                         />
                                       );
@@ -454,7 +454,7 @@ export default function Documentation() {
                                         href={href}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-indigo-400 hover:text-indigo-300 underline"
+                                        className="text-blue-400 hover:text-blue-300 underline"
                                         {...props}
                                       />
                                     );
@@ -491,7 +491,7 @@ export default function Documentation() {
                                   ),
                                   blockquote: ({ node, ...props }) => (
                                     <blockquote
-                                      className="border-l-4 border-indigo-500/50 bg-indigo-500/5 pl-4 pr-4 py-2 my-4 italic text-slate-400"
+                                      className="border-l-4 border-blue-500/50 bg-blue-500/5 pl-4 pr-4 py-2 my-4 italic text-slate-400"
                                       {...props}
                                     />
                                   ),
