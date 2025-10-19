@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # Restart Vigil Guard services
 
 # Colors
