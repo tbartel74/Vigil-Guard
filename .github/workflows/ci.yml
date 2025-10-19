@@ -66,9 +66,9 @@ jobs:
       - name: Install dependencies
         working-directory: services/web-ui/frontend
         run: |
-          rm -rf node_modules package-lock.json
           npm install
           npm install --force @rollup/rollup-linux-x64-gnu
+          npm install --no-save @tailwindcss/oxide-linux-x64-gnu@$(node -p "require('@tailwindcss/oxide/package.json').version")
           npm rebuild rollup
 
       - name: TypeScript type check
@@ -78,6 +78,8 @@ jobs:
       - name: Build
         working-directory: services/web-ui/frontend
         run: npm run build
+        env:
+          NAPI_RS_FORCE_WASI: 1
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ./scripts/run-vite.cjs dev --port 5173",
-    "dev:no-cache": "node ./scripts/run-vite.cjs dev --port 5173 --force --clearScreen false",
+    "dev": "vite dev --port 5173",
+    "dev:no-cache": "vite dev --port 5173 --force --clearScreen false",
     "no-cache": "./no-cache-dev.sh",
-    "build": "node ./scripts/run-vite.cjs build",
-    "preview": "node ./scripts/run-vite.cjs preview --port 5173"
+    "build": "vite build",
+    "preview": "vite preview --port 5173"
   },
   "dependencies": {
     "focus-trap-react": "^11.0.4",
