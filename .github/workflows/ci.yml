@@ -66,8 +66,7 @@ jobs:
       - name: Install dependencies
         working-directory: services/web-ui/frontend
         run: |
-          rm -rf node_modules package-lock.json
-          npm install
+          npm ci
           npm install --force @rollup/rollup-linux-x64-gnu
           npm rebuild rollup
         env:
