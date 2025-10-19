@@ -13,7 +13,7 @@ services:
   # MONITORING STACK (Start first)
   # ============================================
   clickhouse:
-    image: clickhouse/clickhouse-server:24.1
+    image: clickhouse/clickhouse-server:24.1@sha256:44caeed7c81f7934c28a8ffa3a422a4ca96cf3bccc486d21311e5133ce88d49f
     container_name: vigil-clickhouse
     ports:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
@@ -41,7 +41,7 @@ services:
       retries: 3
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:latest@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
     container_name: vigil-grafana
     environment:
       GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-vertamedia-clickhouse-datasource}
@@ -72,7 +72,7 @@ services:
   # WORKFLOW ENGINE
   # ============================================
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:latest@sha256:fa410b71ccb5ddee9f9e4b25a964fbc8fcf56744d5f24dc4d2b8b414ae76ee26
     container_name: vigil-n8n
     user: "node"
     working_dir: /home/node
@@ -184,7 +184,7 @@ services:
   # REVERSE PROXY (Main entry point)
   # ============================================
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2-alpine@sha256:953131cfea8e12bfe1c631a36308e9660e4389f0c3dfb3be957044d3ac92d446
     container_name: vigil-caddy
     restart: unless-stopped
     ports:

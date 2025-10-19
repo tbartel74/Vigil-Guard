@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # View logs for Vigil Guard services
 
 # Colors
@@ -75,26 +78,31 @@ echo -e "${BLUE}Vigil Guard - Service Logs${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
+# Build docker-compose logs arguments array (avoids empty string word splitting)
+DOCKER_LOGS_ARGS=()
+[ -n "$FOLLOW" ] && DOCKER_LOGS_ARGS+=("$FOLLOW")
+DOCKER_LOGS_ARGS+=(--tail="$LINES")
+
 case $SERVICE in
     web-ui)
         echo -e "${YELLOW}Web UI Services Logs:${NC}"
-        docker-compose logs "$FOLLOW" --tail="$LINES" web-ui-backend web-ui-frontend
+        docker-compose logs "${DOCKER_LOGS_ARGS[@]}" web-ui-backend web-ui-frontend
         ;;
     n8n)
         echo -e "${YELLOW}n8n Logs:${NC}"
-        docker-compose logs "$FOLLOW" --tail="$LINES" n8n
+        docker-compose logs "${DOCKER_LOGS_ARGS[@]}" n8n
         ;;
     monitoring)
         echo -e "${YELLOW}Monitoring Stack Logs:${NC}"
-        docker-compose logs "$FOLLOW" --tail="$LINES" clickhouse grafana
+        docker-compose logs "${DOCKER_LOGS_ARGS[@]}" clickhouse grafana
         ;;
     prompt-guard)
         echo -e "${YELLOW}Prompt Guard API Logs:${NC}"
-        docker-compose logs "$FOLLOW" --tail="$LINES" prompt-guard-api
+        docker-compose logs "${DOCKER_LOGS_ARGS[@]}" prompt-guard-api
         ;;
     all)
         echo -e "${YELLOW}All Services Logs:${NC}"
-        docker-compose logs "$FOLLOW" --tail="$LINES"
+        docker-compose logs "${DOCKER_LOGS_ARGS[@]}"
         ;;
     *)
         echo "Unknown service: $SERVICE"
