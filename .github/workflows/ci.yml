@@ -64,9 +64,9 @@ jobs:
             ${{ runner.os }}-npm-
 
       - name: Install dependencies
+        working-directory: services/web-ui/frontend
         run: |
           npm ci
-          cd services/web-ui/frontend
           npm install --force @rollup/rollup-linux-x64-gnu
           npm rebuild rollup
         env:

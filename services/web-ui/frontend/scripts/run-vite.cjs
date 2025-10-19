@@ -11,9 +11,25 @@ if (args.length === 0) {
 
 process.env.ROLLUP_SKIP_NODEJS_NATIVE_BUILD = "1";
 process.env.NAPI_RS_FORCE_WASI = "1";
-const binDir = path.resolve(process.cwd(), "node_modules", ".bin");
+
+// In npm workspaces monorepo, binaries are installed in root node_modules/.bin
+// Try workspace node_modules/.bin first, then fallback to root
+const fs = require("node:fs");
+const workspaceBinDir = path.resolve(process.cwd(), "node_modules", ".bin");
+const rootBinDir = path.resolve(process.cwd(), "../../../node_modules", ".bin");
 const isWindows = process.platform === "win32";
-const viteBin = path.join(binDir, isWindows ? "vite.cmd" : "vite");
+const viteName = isWindows ? "vite.cmd" : "vite";
+
+let viteBin;
+if (fs.existsSync(path.join(workspaceBinDir, viteName))) {
+  viteBin = path.join(workspaceBinDir, viteName);
+} else if (fs.existsSync(path.join(rootBinDir, viteName))) {
+  viteBin = path.join(rootBinDir, viteName);
+} else {
+  console.error("Error: vite binary not found in workspace or root node_modules/.bin");
+  console.error("Tried:", workspaceBinDir, "and", rootBinDir);
+  process.exit(1);
+}
 
 const child = spawn(viteBin, args, {
   stdio: "inherit",
