@@ -243,7 +243,7 @@ export default function Documentation() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 p-4 bg-surface-dark/80">
+        <div className="flex items-center justify-between border-b border-slate-800 p-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -285,7 +285,7 @@ export default function Documentation() {
         {/* Tabs */}
         <Tabs defaultValue="getting-started" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col p-6 overflow-hidden">
           {!searchActive && (
-            <TabsList className="bg-surface-dark border border-slate-800">
+            <TabsList className="bg-slate-800 border border-slate-600">
               <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
               <TabsTrigger value="configuration">Configuration</TabsTrigger>
             </TabsList>
@@ -306,7 +306,7 @@ export default function Documentation() {
             {searchActive ? (
               <div className="space-y-4">
                 {searchResults.length === 0 ? (
-                  <Card className="bg-surface-dark border-slate-800">
+                  <Card className="border-slate-700">
                     <CardBody>
                       <p className="text-slate-400 text-center py-8">
                         No results found for "{searchQuery}". Try different keywords.
@@ -317,7 +317,7 @@ export default function Documentation() {
                   searchResults.map((result, idx) => (
                     <Card
                       key={idx}
-                      className="bg-surface-dark border-slate-800 hover:border-blue-500/50 cursor-pointer transition-all"
+                      className="border-slate-700 hover:border-blue-500/50 cursor-pointer transition-all"
                       onClick={() => {
                         navigateToSection(result.section.id);
                         clearSearch();
@@ -369,7 +369,7 @@ export default function Documentation() {
                               className={`cursor-pointer transition-all ${
                                 activeSection === section.id
                                   ? "bg-blue-500/10 border-blue-500/50"
-                                  : "bg-surface-dark border-slate-800 hover:border-blue-500/30"
+                                  : "border-slate-700 hover:border-blue-500/30"
                               }`}
                               onClick={() => navigateToSection(section.id)}
                             >
@@ -386,7 +386,7 @@ export default function Documentation() {
 
                       {/* Active document content */}
                       {currentCategory === category && (
-                        <Card className="bg-surface-dark border-slate-800">
+                        <Card className="border-slate-700">
                           <CardHeader>
                             <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
                               <span className="text-3xl">{currentSection?.icon}</span>
