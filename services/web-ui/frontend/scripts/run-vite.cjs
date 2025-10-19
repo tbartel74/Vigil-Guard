@@ -10,6 +10,7 @@ if (args.length === 0) {
 }
 
 process.env.ROLLUP_SKIP_NODEJS_NATIVE_BUILD = "1";
+process.env.NAPI_RS_FORCE_WASI = "1";
 const binDir = path.resolve(process.cwd(), "node_modules", ".bin");
 const isWindows = process.platform === "win32";
 const viteBin = path.join(binDir, isWindows ? "vite.cmd" : "vite");
