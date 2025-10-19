@@ -1,9 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # Download Llama Prompt Guard Model Script
 # This script helps download the Llama Prompt Guard 2 model from Hugging Face
-
-set -e
 
 # Colors for output
 RED='\033[0;31m'

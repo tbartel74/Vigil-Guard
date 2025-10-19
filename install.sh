@@ -3,7 +3,8 @@
 # Vigil Guard - Complete Installation Script
 # This script automates the installation of all components
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
 
 # Colors for output
 RED='\033[0;31m'
@@ -313,10 +314,19 @@ create_data_directories() {
 
         # ClickHouse data (UID 101:101)
         if [ -d "vigil_data/clickhouse" ]; then
-            chown -R 101:101 vigil_data/clickhouse 2>/dev/null || {
-                log_warning "Cannot set ownership (need sudo), using fallback permissions"
-                chmod 755 vigil_data/clickhouse
-            }
+            if ! chown -R 101:101 vigil_data/clickhouse 2>/dev/null; then
+                log_error "Cannot set ownership for ClickHouse data directory (UID 101:101)"
+                log_error "ClickHouse may fail to start due to permission issues"
+                echo ""
+                log_info "Run with sudo to fix: sudo chown -R 101:101 vigil_data/clickhouse"
+                log_info "Or: Run full install with sudo: sudo ./install.sh"
+                echo ""
+                read -p "Continue anyway? (y/N): " -n 1 -r
+                echo ""
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                    exit 1
+                fi
+            fi
             chmod -R 750 vigil_data/clickhouse 2>/dev/null || true
             log_success "ClickHouse: 750 (owner: 101:101)"
         fi
@@ -365,7 +375,13 @@ create_docker_network() {
         log_info "Docker network 'vigil-net' already exists"
         # Remove it and let Docker Compose create it with correct labels
         log_info "Removing existing network to ensure correct configuration..."
-        docker network rm vigil-net 2>/dev/null || true
+        if ! docker network rm vigil-net 2>&1; then
+            log_error "Failed to remove existing vigil-net network"
+            log_error "Network may be in use by running containers"
+            log_info "Check with: docker network inspect vigil-net"
+            log_info "Force removal: docker-compose down && docker network rm vigil-net"
+            exit 1
+        fi
     fi
 
     # Let Docker Compose create the network with proper labels during 'up' phase
@@ -434,14 +450,18 @@ initialize_clickhouse() {
 
     # Create database
     log_info "Creating ${CLICKHOUSE_DB} database..."
-    if docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF >/dev/null 2>&1
+    DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
 CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
 EOF
-    then
+)
+
+    if [ $? -eq 0 ]; then
         log_success "Database created"
     else
         log_error "Failed to create database"
-        return 1
+        log_error "ClickHouse error: $DB_CREATE_OUTPUT"
+        log_info "Check credentials in .env file"
+        exit 1
     fi
 
     # Execute table creation script

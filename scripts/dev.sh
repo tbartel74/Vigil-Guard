@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail  # Exit on error, undefined vars, pipe failures
+IFS=$'\n\t'        # Safe word splitting
+
 # Start Vigil Guard in development mode (without Docker for GUI)
 
 # Colors
@@ -122,10 +125,13 @@ start_docker_services() {
 
     if ! docker ps --format '{{.Names}}' | grep -q '^vigil-clickhouse$'; then
         echo -e "${YELLOW}Starting monitoring stack...${NC}"
-        (cd "$MONITORING_DIR" && $DOCKER_COMPOSE up -d) || {
+        if ! (cd "$MONITORING_DIR" && $DOCKER_COMPOSE up -d 2>&1); then
             echo -e "${RED}✗${NC} Failed to start monitoring stack"
-            return 1
-        }
+            echo ""
+            log_error "Cannot proceed without monitoring services"
+            log_info "Check Docker logs: docker-compose -f $MONITORING_DIR/docker-compose.yml logs"
+            exit 1
+        fi
         echo -e "${GREEN}✓${NC} Monitoring stack started"
     else
         echo -e "${GREEN}✓${NC} Monitoring stack already running"
@@ -133,10 +139,13 @@ start_docker_services() {
 
     if ! docker ps --format '{{.Names}}' | grep -q '^vigil-n8n$'; then
         echo -e "${YELLOW}Starting n8n...${NC}"
-        (cd "$WORKFLOW_DIR" && $DOCKER_COMPOSE up -d) || {
+        if ! (cd "$WORKFLOW_DIR" && $DOCKER_COMPOSE up -d 2>&1); then
             echo -e "${RED}✗${NC} Failed to start n8n"
-            return 1
-        }
+            echo ""
+            log_error "Cannot proceed without n8n workflow engine"
+            log_info "Check Docker logs: docker-compose -f $WORKFLOW_DIR/docker-compose.yml logs"
+            exit 1
+        fi
         echo -e "${GREEN}✓${NC} n8n started"
     else
         echo -e "${GREEN}✓${NC} n8n already running"
