@@ -68,9 +68,8 @@ jobs:
         run: |
           npm install
           npm install --force @rollup/rollup-linux-x64-gnu
+          npm install --no-save @tailwindcss/oxide-linux-x64-gnu@$(node -p "require('@tailwindcss/oxide/package.json').version")
           npm rebuild rollup
-        env:
-          NAPI_RS_FORCE_WASI: 1
 
       - name: TypeScript type check
         working-directory: services/web-ui/frontend
