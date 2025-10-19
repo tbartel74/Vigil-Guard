@@ -107,17 +107,64 @@ echo ""
 
 # Check if logged in
 log_info "Checking Hugging Face authentication..."
-if ! $PYTHON_CMD -c "from huggingface_hub import whoami; whoami()" >/dev/null 2>&1; then
-    log_warning "Not logged in to Hugging Face"
-    echo ""
-    log_info "Please login to Hugging Face:"
-    echo ""
-    echo "  1. Get your token from: https://huggingface.co/settings/tokens"
-    echo "  2. Run: huggingface-cli login"
-    echo "  3. Or set environment variable: export HF_TOKEN=your_token_here"
-    echo ""
-    log_info "After logging in, run this script again."
-    exit 1
+AUTH_OUTPUT=$($PYTHON_CMD -c "from huggingface_hub import whoami; whoami()" 2>&1)
+AUTH_STATUS=$?
+
+if [ $AUTH_STATUS -ne 0 ]; then
+    # Parse error to determine the cause
+    if echo "$AUTH_OUTPUT" | grep -qi "ModuleNotFoundError\|ImportError"; then
+        log_error "Failed to import huggingface_hub module"
+        log_error "Error output:"
+        echo "$AUTH_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  Try reinstalling: $PYTHON_CMD -m pip install --user --upgrade huggingface-hub"
+        exit 1
+    elif echo "$AUTH_OUTPUT" | grep -qi "URLError\|ConnectionError\|NetworkError\|Failed to connect\|Connection refused"; then
+        log_error "Cannot connect to Hugging Face (network issue)"
+        log_error "Error output:"
+        echo "$AUTH_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check your internet connection"
+        log_info "  2. Verify firewall/proxy settings"
+        log_info "  3. Try accessing: https://huggingface.co"
+        exit 1
+    elif echo "$AUTH_OUTPUT" | grep -qi "401\|403\|unauthorized\|token.*invalid\|token.*expired"; then
+        log_error "Hugging Face token is invalid or expired"
+        log_error "Error output:"
+        echo "$AUTH_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Steps to fix:"
+        log_info "  1. Get a new token: https://huggingface.co/settings/tokens"
+        log_info "  2. Run: huggingface-cli login"
+        log_info "  3. Or set: export HF_TOKEN=your_new_token"
+        exit 1
+    elif echo "$AUTH_OUTPUT" | grep -qi "500\|502\|503\|504\|service unavailable\|server error"; then
+        log_error "Hugging Face API is experiencing issues"
+        log_error "Error output:"
+        echo "$AUTH_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Please try again later or check: https://status.huggingface.co"
+        exit 1
+    else
+        # Generic not logged in message
+        log_warning "Not logged in to Hugging Face"
+        if [ -n "$AUTH_OUTPUT" ]; then
+            echo ""
+            log_info "Error details:"
+            echo "$AUTH_OUTPUT" | sed 's/^/    /'
+        fi
+        echo ""
+        log_info "Please login to Hugging Face:"
+        echo ""
+        echo "  1. Get your token from: https://huggingface.co/settings/tokens"
+        echo "  2. Run: huggingface-cli login"
+        echo "  3. Or set environment variable: export HF_TOKEN=your_token_here"
+        echo ""
+        log_info "After logging in, run this script again."
+        exit 1
+    fi
 else
     HF_USER=$($PYTHON_CMD -c "from huggingface_hub import whoami; print(whoami()['name'])" 2>/dev/null || echo "unknown")
     log_success "Logged in as: $HF_USER"

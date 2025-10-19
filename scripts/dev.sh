@@ -200,8 +200,49 @@ FRONTEND_PID=$!
 stop_servers() {
     echo ""
     echo -e "${YELLOW}Stopping dev servers...${NC}"
-    kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
-    wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+
+    # Track cleanup status
+    CLEANUP_FAILED=false
+
+    # Stop backend process
+    if [ -n "$BACKEND_PID" ]; then
+        if kill "$BACKEND_PID" 2>/dev/null; then
+            wait "$BACKEND_PID" 2>/dev/null || true
+            echo -e "${GREEN}✓${NC} Backend stopped (PID $BACKEND_PID)"
+        else
+            if ps -p "$BACKEND_PID" >/dev/null 2>&1; then
+                echo -e "${RED}✗${NC} Failed to stop backend (PID $BACKEND_PID)"
+                echo -e "${YELLOW}⚠${NC} Try: kill -9 $BACKEND_PID"
+                CLEANUP_FAILED=true
+            else
+                echo -e "${BLUE}ℹ${NC} Backend already stopped"
+            fi
+        fi
+    fi
+
+    # Stop frontend process
+    if [ -n "$FRONTEND_PID" ]; then
+        if kill "$FRONTEND_PID" 2>/dev/null; then
+            wait "$FRONTEND_PID" 2>/dev/null || true
+            echo -e "${GREEN}✓${NC} Frontend stopped (PID $FRONTEND_PID)"
+        else
+            if ps -p "$FRONTEND_PID" >/dev/null 2>&1; then
+                echo -e "${RED}✗${NC} Failed to stop frontend (PID $FRONTEND_PID)"
+                echo -e "${YELLOW}⚠${NC} Try: kill -9 $FRONTEND_PID"
+                CLEANUP_FAILED=true
+            else
+                echo -e "${BLUE}ℹ${NC} Frontend already stopped"
+            fi
+        fi
+    fi
+
+    if [ "$CLEANUP_FAILED" = true ]; then
+        echo ""
+        echo -e "${RED}⚠ Cleanup incomplete - some processes may still be running${NC}"
+        echo -e "${YELLOW}Check with:${NC} ps aux | grep -E 'node|vite|tsx'"
+        exit 1
+    fi
+
     exit 0
 }
 
