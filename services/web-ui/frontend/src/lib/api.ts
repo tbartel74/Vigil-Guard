@@ -263,3 +263,83 @@ export async function rollbackToVersion(tag: string) {
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+
+// ============================================================================
+// INVESTIGATION - ADVANCED PROMPT SEARCH
+// ============================================================================
+
+export interface SearchParams {
+  startDate?: string;
+  endDate?: string;
+  textQuery?: string;
+  status?: 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | null;
+  minScore?: number;
+  maxScore?: number;
+  categories?: string[];
+  sortBy?: 'timestamp' | 'threat_score' | 'final_status';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  pageSize: number;
+}
+
+export interface SearchResultRow {
+  event_id: string;
+  timestamp: string;
+  prompt_input: string;
+  final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
+  threat_score: number;
+  detected_categories: string[];
+  pipeline_flow: string;    // JSON: input_raw, normalized, sanitized, final output
+  scoring: string;          // JSON: score_breakdown, match_details with patterns
+  prompt_guard: string;     // JSON: PG score, risk_level, confidence
+  final_decision: string;   // JSON: action_taken, internal_note, source
+  sanitizer: string;        // JSON: decision, breakdown, removal_pct
+}
+
+export interface SearchResponse {
+  results: SearchResultRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+export async function searchPrompts(params: SearchParams): Promise<SearchResponse> {
+  const queryParams = new URLSearchParams();
+
+  // Add all non-null/undefined parameters
+  if (params.startDate) queryParams.set('startDate', params.startDate);
+  if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.textQuery) queryParams.set('textQuery', params.textQuery);
+  if (params.status) queryParams.set('status', params.status);
+  if (params.minScore !== undefined && params.minScore !== null) queryParams.set('minScore', String(params.minScore));
+  if (params.maxScore !== undefined && params.maxScore !== null) queryParams.set('maxScore', String(params.maxScore));
+  if (params.categories && params.categories.length > 0) queryParams.set('categories', params.categories.join(','));
+  if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+  queryParams.set('page', String(params.page));
+  queryParams.set('pageSize', String(params.pageSize));
+
+  const r = await authenticatedFetch(`${API}/prompts/search?${queryParams.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function exportPrompts(params: Omit<SearchParams, 'page' | 'pageSize'>, format: 'csv' | 'json'): Promise<Blob> {
+  const queryParams = new URLSearchParams();
+
+  queryParams.set('format', format);
+  if (params.startDate) queryParams.set('startDate', params.startDate);
+  if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.textQuery) queryParams.set('textQuery', params.textQuery);
+  if (params.status) queryParams.set('status', params.status);
+  if (params.minScore !== undefined && params.minScore !== null) queryParams.set('minScore', String(params.minScore));
+  if (params.maxScore !== undefined && params.maxScore !== null) queryParams.set('maxScore', String(params.maxScore));
+  if (params.categories && params.categories.length > 0) queryParams.set('categories', params.categories.join(','));
+  if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+
+  const r = await authenticatedFetch(`${API}/prompts/export?${queryParams.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.blob();
+}

@@ -7,7 +7,7 @@ import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getV
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats } from "./clickhouse.js";
+import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams } from "./clickhouse.js";
 
 const app = express();
 const PORT = 8787;
@@ -122,6 +122,139 @@ app.get("/api/prompts/list", authenticate, async (req, res) => {
   }
 });
 
+// ============================================================================
+// INVESTIGATION - ADVANCED PROMPT SEARCH
+// ============================================================================
+
+// Search prompts with advanced filters - requires authentication
+app.get("/api/prompts/search", authenticate, async (req, res) => {
+  try {
+    // Parse query parameters
+    const {
+      startDate,
+      endDate,
+      textQuery,
+      status,
+      minScore,
+      maxScore,
+      categories,
+      sortBy = 'timestamp',
+      sortOrder = 'DESC',
+      page = '1',
+      pageSize = '25'
+    } = req.query;
+
+    // Build search params
+    const searchParams: SearchParams = {
+      startDate: startDate as string | undefined,
+      endDate: endDate as string | undefined,
+      textQuery: textQuery as string | undefined,
+      status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
+      minScore: minScore ? Number(minScore) : undefined,
+      maxScore: maxScore ? Number(maxScore) : undefined,
+      categories: categories ? (categories as string).split(',').filter(c => c.trim() !== '') : undefined,
+      sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
+      sortOrder: sortOrder as 'ASC' | 'DESC',
+      page: Number(page),
+      pageSize: Number(pageSize)
+    };
+
+    // Execute search
+    const result = await searchPrompts(searchParams);
+
+    // Calculate pagination metadata
+    const pages = Math.ceil(result.total / searchParams.pageSize);
+
+    res.json({
+      results: result.rows,
+      total: result.total,
+      page: searchParams.page,
+      pageSize: searchParams.pageSize,
+      pages
+    });
+  } catch (e: any) {
+    console.error("Error searching prompts:", e);
+    res.status(500).json({ error: "Search failed", details: e.message });
+  }
+});
+
+// Export prompts to CSV or JSON - requires authentication
+app.get("/api/prompts/export", authenticate, async (req, res) => {
+  try {
+    const {
+      format = 'csv',
+      startDate,
+      endDate,
+      textQuery,
+      status,
+      minScore,
+      maxScore,
+      categories,
+      sortBy = 'timestamp',
+      sortOrder = 'DESC'
+    } = req.query;
+
+    // Build search params (limit to 10000 records for export)
+    const searchParams: SearchParams = {
+      startDate: startDate as string | undefined,
+      endDate: endDate as string | undefined,
+      textQuery: textQuery as string | undefined,
+      status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
+      minScore: minScore ? Number(minScore) : undefined,
+      maxScore: maxScore ? Number(maxScore) : undefined,
+      categories: categories ? (categories as string).split(',').filter(c => c.trim() !== '') : undefined,
+      sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
+      sortOrder: sortOrder as 'ASC' | 'DESC',
+      page: 1,
+      pageSize: 10000 // Export limit
+    };
+
+    // Execute search
+    const result = await searchPrompts(searchParams);
+
+    if (format === 'csv') {
+      // Convert to CSV
+      const csv = convertToCSV(result.rows);
+      res.header('Content-Type', 'text/csv');
+      res.header('Content-Disposition', `attachment; filename="prompts-export-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+    } else {
+      // Export as JSON
+      res.header('Content-Type', 'application/json');
+      res.header('Content-Disposition', `attachment; filename="prompts-export-${new Date().toISOString().split('T')[0]}.json"`);
+      res.json(result.rows);
+    }
+  } catch (e: any) {
+    console.error("Error exporting prompts:", e);
+    res.status(500).json({ error: "Export failed", details: e.message });
+  }
+});
+
+// Helper function to convert search results to CSV
+function convertToCSV(rows: any[]): string {
+  if (rows.length === 0) {
+    return 'timestamp,event_id,status,threat_score,prompt_input,categories\n';
+  }
+
+  // CSV header
+  const header = 'timestamp,event_id,status,threat_score,prompt_input,categories\n';
+
+  // CSV rows
+  const csvRows = rows.map(row => {
+    const timestamp = row.timestamp || '';
+    const eventId = row.event_id || '';
+    const status = row.final_status || '';
+    const score = row.threat_score || 0;
+    const prompt = (row.prompt_input || '').replace(/"/g, '""'); // Escape quotes
+    const categories = (row.detected_categories || []).join('; ');
+
+    return `"${timestamp}","${eventId}","${status}",${score},"${prompt}","${categories}"`;
+  }).join('\n');
+
+  return header + csvRows;
+}
+
+// Get specific prompt details by ID (MUST be after /search and /export!)
 app.get("/api/prompts/:id", authenticate, async (req, res) => {
   try {
     const eventId = req.params.id;

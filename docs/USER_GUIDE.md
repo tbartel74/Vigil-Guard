@@ -9,14 +9,15 @@
 1. [Overview](#overview)
 2. [Getting Started](#getting-started)
 3. [Monitoring Dashboard](#monitoring-dashboard)
-4. [Prompt Analyzer](#prompt-analyzer)
-5. [Configuration Management](#configuration-management)
+4. [Investigation Panel](#investigation-panel)
+5. [Prompt Analyzer](#prompt-analyzer)
+6. [Configuration Management](#configuration-management)
    - [Configuration Version History & Rollback](#configuration-version-history--rollback)
-6. [File Manager](#file-manager)
-7. [User Administration](#user-administration)
-8. [Settings & Preferences](#settings--preferences)
-9. [Best Practices](#best-practices)
-10. [Troubleshooting](#troubleshooting)
+7. [File Manager](#file-manager)
+8. [User Administration](#user-administration)
+9. [Settings & Preferences](#settings--preferences)
+10. [Best Practices](#best-practices)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -25,6 +26,7 @@
 The Vigil Guard Web UI provides a comprehensive interface for:
 
 - **Real-time Monitoring** - Live security metrics and threat detection analytics
+- **Investigation** - Advanced prompt search and detailed decision analysis
 - **Threat Analysis** - Detailed inspection of detected malicious prompts
 - **Configuration** - Dynamic security policy management
 - **File Management** - Direct configuration file editing with audit logging
@@ -190,6 +192,410 @@ Select analysis period:
 - 30 seconds - Standard monitoring (recommended)
 - 1 minute - Low-impact monitoring
 - 5 minutes - Background monitoring
+
+---
+
+## Investigation Panel
+
+**Location**: Investigation menu (left sidebar)
+
+**Required Permission**: Authentication required
+
+**Purpose**: Advanced prompt search and detailed decision analysis for forensic investigation of security events.
+
+### Overview
+
+The Investigation Panel is a powerful search interface for analyzing historical prompts with comprehensive filtering capabilities. Unlike the Prompt Analyzer (which shows recent prompts on the Monitoring dashboard), the Investigation Panel provides:
+
+- **Advanced Filtering** - Search by date range, text query, status, threat score, and categories
+- **Pagination** - Navigate through thousands of historical events efficiently
+- **Detailed Analysis** - Complete decision breakdown showing why prompts were blocked/sanitized/allowed
+- **Export Functionality** - Download search results in CSV or JSON format (up to 10,000 records)
+
+### Search Interface
+
+#### Search Filters
+
+**Date Range**
+- **Start Date** - Beginning of search period (YYYY-MM-DD format)
+- **End Date** - End of search period (YYYY-MM-DD format)
+- Both fields optional (leave empty to search all dates)
+- Time zone: Uses your configured timezone from Settings
+
+**Text Query**
+- Search prompt content for specific keywords or phrases
+- Case-insensitive substring matching
+- Example: "ignore previous instructions" finds all prompts containing that phrase
+- Leave empty to match all prompts
+
+**Status Filter**
+- **All** - Show all statuses (default)
+- **ALLOWED** - Only permitted prompts (green)
+- **SANITIZED** - Only modified prompts (yellow/orange)
+- **BLOCKED** - Only rejected prompts (red)
+
+**Threat Score Range**
+- **Min Score** - Minimum maliciousness score (0-100)
+- **Max Score** - Maximum maliciousness score (0-100)
+- Leave empty for no score filtering
+- Example: 85-100 shows only critical threats
+
+**Detected Categories**
+- Filter by specific threat categories (comma-separated)
+- Example: `prompt_injection,jailbreak,sql_injection`
+- Leave empty to show all categories
+- Category names are case-sensitive
+
+**Sorting Options**
+- **Sort By**:
+  - Timestamp (default) - Chronological order
+  - Threat Score - Risk severity order
+  - Status - Decision type order
+- **Sort Order**:
+  - DESC (newest/highest first) - default
+  - ASC (oldest/lowest first)
+
+**Pagination**
+- **Page Size** - Results per page (default: 50)
+  - Options: 10, 25, 50, 100
+- **Current Page** - Navigate through results
+- **Total Results** - Shows total matching prompts
+
+#### Search Actions
+
+**Search Button**
+- Execute search with current filters
+- Resets to page 1
+- Displays results table
+
+**Clear Filters Button**
+- Reset all filters to defaults
+- Clears text query and date range
+- Returns to "All" status and full score range
+
+**Export Dropdown**
+- **Export CSV** - Download results as CSV file (max 10,000 records)
+- **Export JSON** - Download results as JSON file (max 10,000 records)
+- Export uses current filter settings
+- Filename includes timestamp: `vigil-prompts-YYYYMMDD-HHMMSS.csv`
+
+### Results Table
+
+**Columns**:
+- **Timestamp** - When the prompt was processed (formatted with your timezone)
+- **Prompt Input** - Original input text (first 100 characters, truncated with "...")
+- **Status** - Color-coded decision badge:
+  - 🟢 **ALLOWED** - Prompt passed all checks
+  - 🟡 **SANITIZED** - Content modified for safety
+  - 🔴 **BLOCKED** - Request rejected entirely
+- **Threat Score** - Numeric maliciousness score (0-100):
+  - 0-29: Low risk (green)
+  - 30-64: Medium risk (yellow)
+  - 65-84: High risk (orange)
+  - 85-100: Critical risk (red)
+- **Categories** - Detected threat types (comma-separated pills)
+- **Actions** - "View Details" button to open analysis modal
+
+**Empty State**: Shows "No prompts found matching your search criteria" if no results
+
+**Pagination Controls**:
+- Page number display: "Page X of Y"
+- Previous/Next buttons
+- Jump to page input field
+- Results count: "Showing X-Y of Z total results"
+
+### Detailed Analysis Modal
+
+**Opens when**: Click "View Details" button on any prompt row
+
+**Modal Layout**: Full-screen overlay with dark background, centered content panel
+
+**Header**:
+- Modal title: "Prompt Analysis"
+- Close button (X) in top-right corner
+- Event ID and timestamp
+
+#### Modal Sections
+
+**1. Original Input**
+- **Label**: "Original Input"
+- **Content**: Full unmodified prompt text from user
+- **Formatting**: Monospace font, scrollable if lengthy
+- **Purpose**: See exactly what the user submitted
+
+**2. Output Returned to User**
+- **Label**: "Output Returned to User"
+- **Content**: What was sent to the LLM (or error message if blocked)
+- **Formatting**: Monospace font, scrollable
+- **Key Differences**:
+  - **ALLOWED**: Same as original (no modifications)
+  - **SANITIZED**: Shows redacted/modified version with [REDACTED] markers
+  - **BLOCKED**: Shows block message or empty
+
+**3. Status & Scores**
+- **Final Status**: Color-coded badge (ALLOWED/SANITIZED/BLOCKED)
+- **Sanitizer Score**: Internal scoring engine result (0-100)
+- **Prompt Guard Score**: External AI model confidence score (0.0-1.0)
+  - Only present if Prompt Guard integration is enabled
+  - Shows risk level: BENIGN / INJECTION / JAILBREAK
+- **Confidence**: Prompt Guard model confidence percentage
+
+**4. Decision Reason**
+- **Label**: "Why This Decision Was Made"
+- **Fields**:
+  - **Action Taken**: Technical decision (ALLOW/SANITIZE_LIGHT/SANITIZE_HEAVY/BLOCK)
+  - **Internal Note**: Human-readable explanation from decision engine
+    - Example: "High-confidence prompt injection detected via multiple patterns"
+  - **Decision Source**: Which component made final call (sanitizer/prompt_guard/unified_decision)
+- **Purpose**: Understand the rationale behind blocking/sanitizing
+
+**5. Score Breakdown by Category**
+- **Label**: "Score Breakdown by Category"
+- **Format**: Table with columns:
+  - Category name (e.g., `SQL_XSS_ATTACKS`, `GODMODE_JAILBREAK`)
+  - Points contributed to total score
+- **Example**:
+  ```
+  SQL_XSS_ATTACKS         65
+  ENCODING_SUSPICIOUS     36
+  PRIVILEGE_ESCALATION   82.5
+  ```
+- **Purpose**: Identify which detection rules triggered
+
+**6. Detected Patterns**
+- **Label**: "Detected Patterns (Pattern Matches)"
+- **Format**: List of detected patterns with details
+- **Each Entry Shows**:
+  - **Pattern Name**: Regex rule identifier
+  - **Category**: Threat type
+  - **Matched Sample**: Actual text that triggered the pattern
+  - **Regex Pattern**: The detection rule (for debugging)
+- **Example**:
+  ```
+  Pattern: xp_cmdshell_sql_injection
+  Category: SQL_XSS_ATTACKS
+  Matched: "'; EXEC xp_cmdshell('whoami')--"
+  Regex: xp_cmdshell\s*\(
+  ```
+- **Purpose**: Forensic analysis of why prompt was flagged
+
+**7. Processing Pipeline**
+- **Label**: "Processing Pipeline"
+- **Shows**: Step-by-step transformations:
+  - **Input (Raw)**: Original text
+  - **Normalized**: After homoglyph/leet speak decoding
+  - **PII Redacted**: After sensitive data removal
+  - **Sanitized**: After LIGHT/HEAVY redaction (if applied)
+  - **Final Output**: What was sent to LLM or returned as block message
+- **Purpose**: Trace how text was transformed through the system
+
+**Modal Actions**:
+- **Close Button** - Dismiss modal
+- **ESC Key** - Also closes modal
+
+### Use Cases
+
+#### 1. Investigating Blocked Prompts
+
+**Scenario**: User reports their legitimate prompt was blocked
+
+**Steps**:
+1. Open Investigation Panel
+2. Set date range to when incident occurred
+3. Search for user's prompt text in "Text Query"
+4. Filter by status: BLOCKED
+5. Click "View Details" on matching prompt
+6. Review "Decision Reason" - see why it was blocked
+7. Check "Detected Patterns" - identify overly sensitive rule
+8. Navigate to Configuration → Detection & Sensitivity
+9. Adjust threshold or pattern weight
+10. Test with similar prompts
+
+**Result**: False positive resolved, rule fine-tuned
+
+#### 2. Analyzing Attack Patterns
+
+**Scenario**: Multiple similar attacks detected in logs
+
+**Steps**:
+1. Set date range to attack window
+2. Filter by status: BLOCKED
+3. Filter by score: 85-100 (critical threats)
+4. Review results table for common patterns
+5. Click "View Details" on several examples
+6. Identify common categories (e.g., `prompt_injection,jailbreak`)
+7. Check "Detected Patterns" across multiple prompts
+8. Document attack signatures
+9. Update detection rules to strengthen defenses
+10. Export results as CSV for reporting
+
+**Result**: Attack pattern documented, defenses improved
+
+#### 3. Sanitization Audit
+
+**Scenario**: Verify PII redaction is working correctly
+
+**Steps**:
+1. Filter by status: SANITIZED
+2. Filter by categories: `pii_detected`
+3. Review results table
+4. Click "View Details" on sanitized prompts
+5. Compare "Original Input" vs. "Output Returned to User"
+6. Verify sensitive data (email, phone, SSN) was redacted
+7. Check for any missed PII
+8. If issues found, update PII patterns in Configuration
+
+**Result**: PII redaction validated, gaps identified and fixed
+
+#### 4. Compliance Reporting
+
+**Scenario**: Generate monthly security report
+
+**Steps**:
+1. Set date range to last month (YYYY-MM-01 to YYYY-MM-31)
+2. Click "Export CSV"
+3. Open in spreadsheet software
+4. Analyze:
+   - Total prompts processed
+   - Block rate percentage
+   - Top threat categories
+   - Hourly/daily trends
+5. Generate charts and summary statistics
+6. Include in compliance report
+
+**Result**: Data-driven security metrics for stakeholders
+
+#### 5. Forensic Analysis of Security Incident
+
+**Scenario**: Investigate suspected attack campaign
+
+**Steps**:
+1. Set date range to incident window
+2. Search for suspicious keywords (e.g., "ignore instructions", "jailbreak")
+3. Sort by Threat Score (DESC) to see worst offenders first
+4. Click "View Details" on high-score prompts
+5. Review "Processing Pipeline" to see encoding/obfuscation attempts
+6. Check "Score Breakdown" to identify attack vectors
+7. Export results as JSON for forensic archive
+8. Document findings in incident report
+
+**Result**: Complete forensic trail for security investigation
+
+### Best Practices
+
+**Efficient Searching**:
+- Start with broad filters (date range + status)
+- Narrow down with text query or categories
+- Use pagination to explore large result sets
+- Adjust page size based on screen size (50 recommended)
+
+**Performance Tips**:
+- Limit date range to relevant period (avoid searching all history)
+- Use specific text queries instead of wildcards
+- Export in batches if results exceed 10,000 records
+- Close modal after analysis to free browser memory
+
+**Data Analysis**:
+- Export to CSV for spreadsheet analysis
+- Export to JSON for programmatic processing
+- Compare patterns across different time periods
+- Cross-reference with Monitoring dashboard metrics
+
+**Security Investigations**:
+- Always check "Decision Reason" first to understand context
+- Review "Detected Patterns" to validate detection accuracy
+- Compare "Original Input" vs "Output" for sanitization verification
+- Use "Processing Pipeline" to detect obfuscation attempts
+
+**Documentation**:
+- Screenshot modal for incident reports
+- Export filtered results for audit logs
+- Document pattern adjustments in changelog
+- Keep forensic archives for compliance
+
+### Integration with Other Features
+
+**Monitoring Dashboard**:
+- Investigation provides detailed drill-down for dashboard metrics
+- Use dashboard to identify time periods of interest
+- Use Investigation to analyze specific prompts from those periods
+
+**Prompt Analyzer**:
+- Prompt Analyzer shows recent prompts (last 100)
+- Investigation provides historical search (all prompts)
+- Use both together for complete analysis workflow
+
+**Configuration Management**:
+- Investigation identifies problematic patterns
+- Configuration allows tuning those patterns
+- Iterative refinement: Investigate → Configure → Test → Repeat
+
+**User Administration**:
+- Track user who made configuration changes (via audit log)
+- Correlate changes with prompt analysis results
+- Ensure accountability for security policy decisions
+
+### Troubleshooting
+
+**No Results Found**
+
+**Symptoms**: Search returns empty results
+
+**Solutions**:
+1. Verify date range includes expected data
+2. Check if filters are too restrictive (clear and retry)
+3. Verify ClickHouse contains data in selected time range:
+   ```bash
+   docker exec vigil-clickhouse clickhouse-client -q "SELECT count() FROM n8n_logs.events_processed WHERE timestamp >= '2025-10-01'"
+   ```
+4. Check text query spelling (search is case-insensitive but exact substring)
+5. Try broader filters and narrow down incrementally
+
+**Modal Shows Incomplete Data**
+
+**Symptoms**: Some sections in modal are empty or show "N/A"
+
+**Solutions**:
+1. Verify the event was fully processed (check processing pipeline)
+2. Some fields may be null for older events (database schema changes)
+3. Prompt Guard data only present if integration is enabled
+4. Check backend logs for JSON parsing errors
+
+**Export Fails or Downloads Empty File**
+
+**Symptoms**: Export button doesn't download file or file is empty
+
+**Solutions**:
+1. Verify results exist (check total count)
+2. Check browser download settings (may be blocked)
+3. Try smaller export (reduce date range or add filters)
+4. Verify backend has write permissions
+5. Check browser console for errors (F12)
+
+**Slow Search Performance**
+
+**Symptoms**: Search takes >5 seconds to complete
+
+**Solutions**:
+1. Reduce date range to smaller window (e.g., 7 days instead of 30)
+2. Add specific filters to narrow results
+3. Verify ClickHouse is healthy:
+   ```bash
+   docker exec vigil-clickhouse clickhouse-client -q "SELECT 1"
+   ```
+4. Check ClickHouse resource usage (may need scaling)
+5. Consider archiving old data if database is very large
+
+**Pagination Not Working**
+
+**Symptoms**: Cannot navigate to next page or page jumps incorrectly
+
+**Solutions**:
+1. Verify total results count is greater than page size
+2. Check browser console for JavaScript errors
+3. Refresh page and retry search
+4. Try reducing page size to 25 or 10
+5. Clear browser cache and reload
 
 ---
 

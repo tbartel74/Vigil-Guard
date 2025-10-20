@@ -5,6 +5,7 @@ import ConfigLayout from "./components/ConfigLayout";
 import ConfigSection from "./components/ConfigSection";
 import GrafanaEmbed from "./components/GrafanaEmbed";
 import PromptAnalyzer from "./components/PromptAnalyzer";
+import Investigation from "./components/Investigation";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
@@ -369,6 +370,7 @@ export const router = createBrowserRouter(
       ),
       children: [
         { path: "/", element: <Monitoring /> },
+        { path: "/investigation", element: <Investigation /> },
         {
           path: "/config",
           element: <ConfigLayout />,

@@ -60,7 +60,7 @@ open http://localhost:5678
 
 ### Step 3: Activate Workflow
 
-1. Open the imported workflow: **Vigil-Guard-v1.3**
+1. Open the imported workflow: **Vigil-Guard-v1.4**
 2. **IMPORTANT:** Click the toggle switch in the **top-right corner** (OFF → ON)
 3. Status should change to: **Active** (green)
 4. Webhook is now registered and ready
@@ -125,7 +125,7 @@ curl -X POST http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1 
 
 **Solution:**
 1. Open n8n UI: http://localhost:5678
-2. Navigate to workflow: **Vigil-Guard-v1.3**
+2. Navigate to workflow: **Vigil-Guard-v1.4**
 3. Toggle to **Active** (top-right corner)
 4. Wait 2-3 seconds for registration
 5. Retry webhook call
