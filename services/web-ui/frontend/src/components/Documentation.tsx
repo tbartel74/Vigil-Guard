@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -12,6 +12,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/Tabs";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import ScrollArea from "./ui/ScrollArea";
+import docsManifest from "../generated/docs-manifest.json";
+import type { DocsManifest } from "../types/docs-manifest";
+
+// Documentation version and build info
+const DOC_VERSION = "1.4.0";
+const BUILD_DATE = "2025-10-20";
 
 // Documentation structure matching the docs/ directory
 interface DocSection {
@@ -41,6 +47,16 @@ const docSections: DocSection[] = [
   // Configuration
   { id: "configuration", title: "Configuration", file: "CONFIGURATION", category: "Configuration", icon: "🧠" },
   { id: "config-variables", title: "Config Variables", file: "CONFIG_VARIABLES", category: "Configuration", icon: "📋" },
+
+  // Security & API
+  { id: "authentication", title: "Authentication & Users", file: "AUTHENTICATION", category: "Security & API", icon: "🔐" },
+  { id: "api", title: "API Reference", file: "API", category: "Security & API", icon: "🔌" },
+  { id: "security", title: "Security Guide", file: "SECURITY", category: "Security & API", icon: "🛡️" },
+
+  // Advanced
+  { id: "detection-categories", title: "Detection Categories", file: "DETECTION_CATEGORIES", category: "Advanced", icon: "🎯" },
+  { id: "grafana-setup", title: "Grafana Setup", file: "GRAFANA_SETUP", category: "Advanced", icon: "📊" },
+  { id: "accessibility", title: "Accessibility (WCAG 2.1)", file: "ACCESSIBILITY", category: "Advanced", icon: "♿" },
 ];
 
 // Group sections by category
@@ -52,17 +68,21 @@ const groupedSections = docSections.reduce((acc, section) => {
   return acc;
 }, {} as Record<string, DocSection[]>);
 
-const categoryOrder = ["Getting Started", "Configuration"];
+const categoryOrder = ["Getting Started", "Configuration", "Security & API", "Advanced"];
 
 // Map categories to tab values
 const categoryToTab: Record<string, string> = {
   "Getting Started": "getting-started",
-  "Configuration": "configuration"
+  "Configuration": "configuration",
+  "Security & API": "security-api",
+  "Advanced": "advanced"
 };
 
 const tabToCategory: Record<string, string> = {
   "getting-started": "Getting Started",
-  "configuration": "Configuration"
+  "configuration": "Configuration",
+  "security-api": "Security & API",
+  "advanced": "Advanced"
 };
 
 export default function Documentation() {
@@ -75,29 +95,42 @@ export default function Documentation() {
   const [allDocs, setAllDocs] = useState<DocContent[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchActive, setSearchActive] = useState<boolean>(false);
+  const [externalDoc, setExternalDoc] = useState<{ title: string; path: string } | null>(null);
 
-  // Load all documentation on mount for search indexing
+  // Markdown cache - stable reference across renders
+  const markdownCache = useRef<Map<string, string>>(new Map()).current;
+
+  // Type-safe manifest with runtime validation
+  const typedManifest = docsManifest as DocsManifest;
+
+  // Load all documentation on mount for search indexing (parallel fetch)
   useEffect(() => {
     const loadAllDocs = async () => {
-      const docs: DocContent[] = [];
-
-      for (const section of docSections) {
+      // Fetch all documents in parallel instead of sequentially
+      const fetchPromises = docSections.map(async (section) => {
         try {
           const response = await fetch(`/ui/docs/${section.file}.md`);
           if (response.ok) {
             const text = await response.text();
-            docs.push({ section, content: text });
+            // Cache the markdown content
+            markdownCache.set(section.file, text);
+            return { section, content: text };
           }
         } catch (err) {
           console.error(`Error loading ${section.file}:`, err);
         }
-      }
+        return null;
+      });
+
+      // Wait for all fetches to complete
+      const results = await Promise.all(fetchPromises);
+      const docs = results.filter((doc): doc is DocContent => doc !== null);
 
       setAllDocs(docs);
     };
 
     loadAllDocs();
-  }, []);
+  }, []); // Run only once on mount
 
   // Initialize Fuse search
   const fuse = useMemo(() => {
@@ -143,7 +176,7 @@ export default function Documentation() {
     setSearchActive(false);
   };
 
-  // Load markdown content when section changes
+  // Load markdown content when section changes (with cache)
   useEffect(() => {
     const loadContent = async () => {
       setLoading(true);
@@ -154,6 +187,15 @@ export default function Documentation() {
           throw new Error("Section not found");
         }
 
+        // Check cache first to avoid redundant fetches
+        const cachedContent = markdownCache.get(section.file);
+        if (cachedContent) {
+          setContent(cachedContent);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch if not in cache
         const response = await fetch(`/ui/docs/${section.file}.md`);
 
         if (!response.ok) {
@@ -161,6 +203,8 @@ export default function Documentation() {
         }
 
         const text = await response.text();
+        // Update cache
+        markdownCache.set(section.file, text);
         setContent(text);
       } catch (err) {
         console.error("Error loading documentation:", err);
@@ -172,7 +216,7 @@ export default function Documentation() {
 
     loadContent();
     setSidebarOpen(false);
-  }, [activeSection]);
+  }, [activeSection]); // markdownCache has stable reference via useRef
 
   // Navigate to a section
   const navigateToSection = (sectionId: string) => {
@@ -180,17 +224,61 @@ export default function Documentation() {
     if (section) {
       setActiveSection(sectionId);
       setActiveTab(categoryToTab[section.category]);
+      setExternalDoc(null); // Clear external doc when navigating to curated section
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
   };
 
-  // Scroll to heading
+  // Load external document from manifest (with cache)
+  const loadExternalDoc = async (url: string, title: string, path: string) => {
+    setLoading(true);
+    try {
+      // Check cache first
+      const cachedContent = markdownCache.get(path);
+      if (cachedContent) {
+        setContent(cachedContent);
+        setExternalDoc({ title, path });
+        setActiveSection('external-document');
+        setSidebarOpen(false);
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        setLoading(false);
+        return;
+      }
+
+      // Fetch if not cached
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load document: ${response.statusText}`);
+      }
+      const text = await response.text();
+
+      // Update cache
+      markdownCache.set(path, text);
+
+      setContent(text);
+      setExternalDoc({ title, path });
+      setActiveSection('external-document'); // Special marker for external docs
+      setSidebarOpen(false);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    } catch (err) {
+      console.error('[Documentation] Error loading external document:', err);
+      setContent(`# Error Loading Document\n\nCould not load **${path}**\n\nPlease verify the file exists.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Scroll to heading (using scrollIntoView for nested scroll containers)
   const scrollToHeading = (headingId: string) => {
     const element = document.getElementById(headingId);
     if (element) {
-      const yOffset = -80;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
+      // scrollIntoView automatically finds the nearest scrollable ancestor (ScrollArea)
+      // block: 'start' scrolls element to the top of the visible area
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest'
+      });
     }
   };
 
@@ -211,6 +299,29 @@ export default function Documentation() {
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-blue-400" /> Docs Center
           </h2>
+
+          {/* Mobile search - visible only on small screens */}
+          <div className="lg:hidden">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Input
+                placeholder="Search docs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full text-sm pl-10 pr-8"
+              />
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <nav className="flex flex-col gap-2 text-sm">
             {docSections.map((section) => (
               <button
@@ -227,7 +338,8 @@ export default function Documentation() {
             ))}
           </nav>
           <div className="mt-auto pt-4 border-t border-slate-800 text-xs text-slate-500">
-            <p>Vigil Guard Docs v1.3</p>
+            <p>Vigil Guard Docs v{DOC_VERSION}</p>
+            <p className="text-slate-600 mt-1">Updated: {BUILD_DATE}</p>
           </div>
         </div>
       </aside>
@@ -288,6 +400,8 @@ export default function Documentation() {
             <TabsList className="bg-slate-800 border border-slate-600">
               <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
               <TabsTrigger value="configuration">Configuration</TabsTrigger>
+              <TabsTrigger value="security-api">Security & API</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
             </TabsList>
           )}
 
@@ -388,10 +502,21 @@ export default function Documentation() {
                       {currentCategory === category && (
                         <Card className="border-slate-700">
                           <CardHeader>
-                            <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                              <span className="text-3xl">{currentSection?.icon}</span>
-                              {currentSection?.title}
-                            </h2>
+                            {externalDoc ? (
+                              <div>
+                                <div className="text-sm text-slate-400 mb-2">
+                                  📄 External Document: <code className="text-blue-400">{externalDoc.path}</code>
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                                  {externalDoc.title}
+                                </h2>
+                              </div>
+                            ) : (
+                              <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+                                <span className="text-3xl">{currentSection?.icon}</span>
+                                {currentSection?.title}
+                              </h2>
+                            )}
                           </CardHeader>
                           <CardBody>
                             <article className="prose prose-invert prose-slate max-w-none">
@@ -432,14 +557,38 @@ export default function Documentation() {
                                               const targetId = href.substring(1);
                                               scrollToHeading(targetId);
                                             } else if (href.endsWith('.md')) {
-                                              const docName = href.replace('.md', '').replace(/\.\//g, '');
+                                              // Remove common prefixes: docs/, ../, ./
+                                              let docName = href
+                                                .replace(/^docs\//, '')           // docs/API.md → API.md
+                                                .replace(/^\.\.\/.*?\//, '')      // ../prompt-guard-api/README.md → README.md
+                                                .replace(/^\.\//, '')             // ./FILE.md → FILE.md
+                                                .replace('.md', '');              // API.md → API
+
+                                              // First try curated sections
                                               const section = docSections.find(s =>
                                                 s.file === docName ||
-                                                s.file.endsWith('/' + docName) ||
+                                                s.file.toUpperCase() === docName.toUpperCase() ||
                                                 s.id === docName.toLowerCase()
                                               );
+
                                               if (section) {
                                                 navigateToSection(section.id);
+                                              } else {
+                                                // Fallback to manifest for uncurated documents
+                                                const manifestEntry = typedManifest.documents?.find(doc =>
+                                                  href.includes(doc.path) ||
+                                                  href.endsWith(doc.file + '.md') ||
+                                                  doc.path.endsWith(href)
+                                                );
+
+                                                if (manifestEntry) {
+                                                  if (import.meta.env.DEV) {
+                                                    console.log(`[Documentation] Loading external doc from manifest: ${manifestEntry.path}`);
+                                                  }
+                                                  loadExternalDoc(manifestEntry.url, manifestEntry.title, manifestEntry.path);
+                                                } else {
+                                                  console.warn(`[Documentation] No section or manifest entry found for: ${href}`);
+                                                }
                                               }
                                             }
                                           }}

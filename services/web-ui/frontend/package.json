@@ -7,10 +7,15 @@
     "dev": "vite dev --port 5173",
     "dev:no-cache": "vite dev --port 5173 --force --clearScreen false",
     "no-cache": "./no-cache-dev.sh",
+    "sync-docs": "node scripts/sync-docs.js",
+    "generate-manifest": "node scripts/generate-docs-manifest.js",
+    "prepare-docs": "npm run sync-docs && npm run generate-manifest",
+    "prebuild": "npm run generate-manifest",
     "build": "vite build",
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
+    "@radix-ui/react-tabs": "^1.1.1",
     "focus-trap-react": "^11.0.4",
     "fuse.js": "^7.1.0",
     "lightningcss": "^1.30.1",

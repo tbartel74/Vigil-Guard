@@ -1,13 +1,17 @@
 # Technical Architecture
 
-**Last updated:** 2025-10-04
+**Last updated:** 2025-10-17
 
-This document explains the pipeline, node responsibilities, decision logic, data shapes, and includes Mermaid diagrams and I/O examples based on the uploaded workflow (nodes=34, code nodes=13).
+This document explains the pipeline, node responsibilities, decision logic, data shapes, and includes C4 architecture diagrams, Mermaid diagrams and I/O examples based on the current workflow (nodes=40, code nodes=16).
 
 ---
 
 ## 📋 Table of Contents
 
+- [🏗️ C4 Architecture Diagrams](#️-c4-architecture-diagrams)
+  - [Context Diagram (Level 1)](#context-diagram-level-1)
+  - [Container Diagram (Level 2)](#container-diagram-level-2)
+  - [Deployment Diagram](#deployment-diagram)
 - [🔄 Pipeline Overview](#-pipeline-overview)
 - [📦 Nodes & Responsibilities](#-nodes--responsibilities)
 - [🎯 Decision Logic & Thresholds](#-decision-logic--thresholds)
@@ -16,6 +20,163 @@ This document explains the pipeline, node responsibilities, decision logic, data
 - [📉 Metrics](#-metrics)
 - [🔒 Security](#-security)
 - [📚 References](#-references)
+
+---
+
+## 🏗️ C4 Architecture Diagrams
+
+The C4 model provides hierarchical views of Vigil Guard's architecture, from high-level context down to deployment details.
+
+### Context Diagram (Level 1)
+
+Shows Vigil Guard in the context of users and external systems.
+
+```mermaid
+graph TB
+    subgraph "External Actors"
+        User["Security Analyst<br/>(Configures policies,<br/>monitors threats)"]
+        APIUser["API Consumer<br/>(Sends prompts<br/>for validation)"]
+    end
+
+    subgraph "Vigil Guard System"
+        VG["Vigil Guard<br/><br/>Prompt injection detection<br/>and sanitization platform<br/><br/>40-node n8n workflow<br/>Web UI + Monitoring"]
+    end
+
+    subgraph "External Systems"
+        CH["ClickHouse<br/><br/>Analytics database<br/>Event logging"]
+        Grafana["Grafana<br/><br/>Monitoring dashboards<br/>Threat analytics"]
+        LLM["Llama Prompt Guard 2<br/><br/>ML-based threat detection<br/>(86M parameters)"]
+    end
+
+    User -->|"Configures policies<br/>Views monitoring<br/>(HTTPS/Web UI)"| VG
+    APIUser -->|"Sends prompts<br/>(HTTPS/Webhook)"| VG
+    VG -->|"Logs events<br/>(HTTP)"| CH
+    VG -->|"Embeds dashboards<br/>(iframe)"| Grafana
+    VG -->|"Validates prompts<br/>(REST API)"| LLM
+
+    style VG fill:#1e88e5,stroke:#0d47a1,color:#fff
+    style User fill:#66bb6a,stroke:#2e7d32,color:#fff
+    style APIUser fill:#66bb6a,stroke:#2e7d32,color:#fff
+    style CH fill:#ffa726,stroke:#ef6c00,color:#fff
+    style Grafana fill:#ffa726,stroke:#ef6c00,color:#fff
+    style LLM fill:#ffa726,stroke:#ef6c00,color:#fff
+```
+
+### Container Diagram (Level 2)
+
+Shows the main containers (applications/services) that make up Vigil Guard.
+
+```mermaid
+graph TB
+    subgraph "Vigil Guard Platform"
+        WebUI["Web UI<br/><br/>React + Vite<br/>Port: 5173<br/><br/>Configuration interface<br/>Monitoring dashboard"]
+        Backend["Backend API<br/><br/>Express.js<br/>Port: 8787<br/><br/>RESTful API<br/>JWT authentication<br/>File management"]
+        N8N["n8n Workflow<br/><br/>n8n Engine<br/>Port: 5678<br/><br/>40-node pipeline<br/>16 code nodes<br/>Threat detection"]
+        PromptGuard["Prompt Guard API<br/><br/>FastAPI<br/>Port: 8000<br/><br/>ML-based validation<br/>Llama Guard 2"]
+        Caddy["Reverse Proxy<br/><br/>Caddy<br/>Port: 80<br/><br/>Routes traffic<br/>SSL termination"]
+    end
+
+    subgraph "Data Stores"
+        SQLite["User Database<br/><br/>SQLite<br/>/data/users.db<br/><br/>User accounts<br/>Permissions RBAC"]
+        ClickHouse["Event Database<br/><br/>ClickHouse<br/>Port: 8123, 9000<br/><br/>Logs & analytics<br/>n8n_logs DB"]
+        ConfigFiles["Configuration<br/><br/>File System<br/>services/workflow/config/<br/><br/>Detection rules<br/>Thresholds (0-100)"]
+    end
+
+    WebUI -->|"API calls<br/>(HTTPS/REST)"| Backend
+    Backend -->|"User auth<br/>(SQL)"| SQLite
+    N8N -->|"Prompt validation<br/>(REST)"| PromptGuard
+    N8N -->|"Log events<br/>(HTTP)"| ClickHouse
+    N8N -->|"Read rules<br/>(File I/O)"| ConfigFiles
+    Backend -->|"Update config<br/>(File I/O)"| ConfigFiles
+    Caddy -->|"Routes /ui/*<br/>(HTTP)"| WebUI
+    Caddy -->|"Routes /n8n/*<br/>(HTTP)"| N8N
+
+    style WebUI fill:#42a5f5,stroke:#1976d2,color:#fff
+    style Backend fill:#42a5f5,stroke:#1976d2,color:#fff
+    style N8N fill:#42a5f5,stroke:#1976d2,color:#fff
+    style PromptGuard fill:#42a5f5,stroke:#1976d2,color:#fff
+    style Caddy fill:#5c6bc0,stroke:#3949ab,color:#fff
+    style SQLite fill:#ffca28,stroke:#f9a825,color:#000
+    style ClickHouse fill:#ffca28,stroke:#f9a825,color:#000
+    style ConfigFiles fill:#ffca28,stroke:#f9a825,color:#000
+```
+
+### Deployment Diagram
+
+Shows how containers are deployed in the Docker environment.
+
+```mermaid
+graph TB
+    subgraph "Docker Host (vigil-network)"
+        subgraph "Caddy Container"
+            C[Caddy :80]
+        end
+
+        subgraph "Web UI Containers"
+            F[Frontend<br/>nginx :80<br/>(internal)]
+            B[Backend<br/>Express :8787]
+        end
+
+        subgraph "Processing"
+            N[n8n :5678]
+            PG[Prompt Guard<br/>FastAPI :8000]
+        end
+
+        subgraph "Data Layer"
+            CH[ClickHouse<br/>:8123 (HTTP)<br/>:9000 (TCP)]
+            G[Grafana :3000]
+        end
+
+        subgraph "Volumes"
+            V1[vigil_data/<br/>web-ui/users.db<br/>config files]
+            V2[clickhouse-data/]
+            V3[grafana-data/]
+            V4[../vigil-llm-models/<br/>Llama-Prompt-Guard-2-86M/]
+        end
+    end
+
+    Client[Client Browser] -->|":80"| C
+    C -->|"/ui/* → :80<br/>(strip prefix)"| F
+    C -->|"/ui/api/* → :8787<br/>(strip prefix)"| B
+    C -->|"/n8n/* → :5678"| N
+    C -->|"/grafana/* → :3000"| G
+
+    B -.->|"mount"| V1
+    N -.->|"mount"| V1
+    CH -.->|"mount"| V2
+    G -.->|"mount"| V3
+    PG -.->|"mount (ro)"| V4
+
+    N -->|"HTTP"| CH
+    N -->|"HTTP"| PG
+    B -->|"SQL"| V1
+
+    style C fill:#5c6bc0,stroke:#3949ab,color:#fff
+    style F fill:#42a5f5,stroke:#1976d2,color:#fff
+    style B fill:#42a5f5,stroke:#1976d2,color:#fff
+    style N fill:#42a5f5,stroke:#1976d2,color:#fff
+    style PG fill:#42a5f5,stroke:#1976d2,color:#fff
+    style CH fill:#ef5350,stroke:#c62828,color:#fff
+    style G fill:#ef5350,stroke:#c62828,color:#fff
+    style V1 fill:#ffca28,stroke:#f9a825,color:#000
+    style V2 fill:#ffca28,stroke:#f9a825,color:#000
+    style V3 fill:#ffca28,stroke:#f9a825,color:#000
+    style V4 fill:#ffca28,stroke:#f9a825,color:#000
+    style Client fill:#66bb6a,stroke:#2e7d32,color:#fff
+```
+
+**Key Deployment Details:**
+
+- **Network**: All services communicate via `vigil-network` Docker network
+- **Reverse Proxy**: Caddy on port 80 is the main entry point
+  - Strips `/ui` prefix before proxying to nginx
+  - Frontend built with `base: "/ui/"` in Vite config
+- **Data Persistence**:
+  - User DB & config files: `vigil_data/` volume
+  - ClickHouse: `clickhouse-data/` volume
+  - Grafana: `grafana-data/` volume
+  - LLM model: External directory (license restrictions)
+- **Security**: Default credentials `admin/admin123` for all services (change in production!)
 
 ---
 
@@ -64,8 +225,10 @@ This document explains the pipeline, node responsibilities, decision logic, data
 | `Build+Sanitize NDJSON` | n8n-nodes-base.code | NDJSON emission |
 | `Logging to ClickHouse` | n8n-nodes-base.httpRequest | ClickHouse logging |
 | `Clean output` | n8n-nodes-base.set | Minimal downstream payload |
+| `Correlation_Engine` | n8n-nodes-base.code | Signal correlation & escalation |
+| *(Additional nodes)* | *(Various types)* | *(Config loading, merging, etc.)* |
 
-> **Note:** Names match the workflow exactly (n=34; Code=13).
+> **Note:** Names match the workflow exactly (n=40; Code nodes=16). The table above shows key nodes; full workflow includes additional nodes for config loading, merging, and control flow.
 
 ---
 
