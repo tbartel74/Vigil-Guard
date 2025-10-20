@@ -28,8 +28,9 @@ services/web-ui/frontend/public/docs/guides/
 # Keep UI-specific assets
 !services/web-ui/frontend/public/docs/pic/
 
-# Frontend - Generated manifest and types
-services/web-ui/frontend/src/generated/
+# Frontend - Generated manifest and types (allow stub for CI TypeScript check)
+services/web-ui/frontend/src/generated/*
+!services/web-ui/frontend/src/generated/docs-manifest.json
 
 # Environment variables
 .env
