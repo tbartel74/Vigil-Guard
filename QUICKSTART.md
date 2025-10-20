@@ -48,7 +48,7 @@ Once installation completes, open these URLs:
 | 🎨 **Web UI** | http://localhost:5173/ui | admin/admin123 |
 | ⚙️ **n8n** | http://localhost:5678 | (create on first access) |
 | 📊 **Grafana** | http://localhost:3001 | admin/admin123 |
-| 🔍 **ClickHouse** | http://localhost:8123 | admin/admin123 |
+| 🔍 **ClickHouse** | http://localhost:8123 | admin/[see .env file] |
 
 ## 4️⃣ Post-Installation Setup (Manual Steps)
 
@@ -66,7 +66,7 @@ After installation completes, you **must** perform these manual steps:
 2. Click **"Add Workflow"** → **"Import from File"**
 3. Import the workflow file from:
    ```
-   services/workflow/workflows/Vigil-Guard-v1.3.json
+   services/workflow/workflows/Vigil-Guard-v1.4.json
    ```
 4. The workflow will load with all 40 nodes
 
@@ -172,8 +172,8 @@ lsof -i :3001  # Grafana
 
 1. **✅ Complete n8n Setup** (REQUIRED - see Step 4 above)
    - Create n8n account
-   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.3.json`
-   - Configure ClickHouse credentials (admin/admin123)
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.4.json`
+   - Configure ClickHouse credentials (admin/[password from .env])
 
 2. **Configure Security Rules**
    - Open Web UI at http://localhost:5173/ui

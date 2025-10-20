@@ -9,7 +9,7 @@ export function getClickHouseClient(): ClickHouseClient {
     const database = process.env.CLICKHOUSE_DATABASE || 'n8n_logs';
     const username = process.env.CLICKHOUSE_USER || 'admin';
     // trufflehog:ignore - Default ClickHouse password for local development
-    const password = process.env.CLICKHOUSE_PASSWORD || 'admin123';
+    const password = process.env.CLICKHOUSE_PASSWORD || '';
 
     clickhouseClient = createClient({
       host: `http://${host}:${port}`,
@@ -312,6 +312,170 @@ export async function getFPStats(): Promise<FPStats> {
       top_reason: 'N/A',
       last_7_days: 0,
     };
+  }
+}
+
+// ============================================================================
+// INVESTIGATION - ADVANCED PROMPT SEARCH
+// ============================================================================
+
+export interface SearchParams {
+  startDate?: string;       // ISO 8601: "2025-10-19T00:00:00Z"
+  endDate?: string;         // ISO 8601: "2025-10-20T23:59:59Z"
+  textQuery?: string;       // Full-text search: "ignore all"
+  status?: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
+  minScore?: number;        // 0-100
+  maxScore?: number;        // 0-100
+  categories?: string[];    // ["SQL_INJECTION", "JAILBREAK_ATTEMPT"]
+  sortBy?: 'timestamp' | 'threat_score' | 'final_status';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;             // 1-indexed
+  pageSize: number;         // 25, 50, 100
+}
+
+export interface SearchResultRow {
+  event_id: string;
+  timestamp: string;
+  prompt_input: string;
+  final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
+  threat_score: number;
+  detected_categories: string[];
+  pipeline_flow: string;    // JSON: input_raw, normalized, sanitized, final output
+  scoring: string;          // JSON: score_breakdown, match_details with patterns
+  prompt_guard: string;     // JSON: PG score, risk_level, confidence
+  final_decision: string;   // JSON: action_taken, internal_note, source
+  sanitizer: string;        // JSON: decision, breakdown, removal_pct
+}
+
+export interface SearchResult {
+  rows: SearchResultRow[];
+  total: number;
+}
+
+/**
+ * Advanced prompt search with multiple filters
+ */
+export async function searchPrompts(params: SearchParams): Promise<SearchResult> {
+  const client = getClickHouseClient();
+
+  try {
+    const whereConditions: string[] = [];
+    const queryParams: Record<string, any> = {};
+
+    // Date range filter
+    if (params.startDate) {
+      whereConditions.push('timestamp >= {startDate:DateTime}');
+      queryParams.startDate = params.startDate.replace('T', ' ').replace('Z', '');
+    }
+    if (params.endDate) {
+      whereConditions.push('timestamp <= {endDate:DateTime}');
+      queryParams.endDate = params.endDate.replace('T', ' ').replace('Z', '');
+    }
+
+    // Text search (full-text with case-insensitive in ORIGINAL input - before sanitization)
+    if (params.textQuery && params.textQuery.trim() !== '') {
+      whereConditions.push('positionCaseInsensitive(original_input, {textQuery:String}) > 0');
+      queryParams.textQuery = params.textQuery.trim();
+    }
+
+    // Status filter
+    if (params.status) {
+      whereConditions.push('final_status = {status:String}');
+      queryParams.status = params.status;
+    }
+
+    // Threat score range
+    if (params.minScore !== undefined && params.minScore !== null) {
+      whereConditions.push('threat_score >= {minScore:UInt8}');
+      queryParams.minScore = params.minScore;
+    }
+    if (params.maxScore !== undefined && params.maxScore !== null) {
+      whereConditions.push('threat_score <= {maxScore:UInt8}');
+      queryParams.maxScore = params.maxScore;
+    }
+
+    // Detection categories filter (if any category matches)
+    if (params.categories && params.categories.length > 0) {
+      whereConditions.push(`
+        hasAny(
+          arrayMap(x -> JSONExtractString(x, 'category'),
+                   JSONExtractArrayRaw(scoring_json, 'match_details')),
+          {categories:Array(String)}
+        )
+      `);
+      queryParams.categories = params.categories;
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? `WHERE ${whereConditions.join(' AND ')}`
+      : '';
+
+    // Count total matching records
+    const countQuery = `
+      SELECT count() as total
+      FROM n8n_logs.events_processed
+      ${whereClause}
+    `;
+
+    const totalResult = await client.query({
+      query: countQuery,
+      query_params: queryParams,
+      format: 'JSONEachRow',
+    });
+
+    const totalData = await totalResult.json<{total: string}>();
+    const total = totalData.length > 0 ? Number(totalData[0].total) : 0;
+
+    // Fetch paginated results
+    const offset = (params.page - 1) * params.pageSize;
+    const sortBy = params.sortBy || 'timestamp';
+    const sortOrder = params.sortOrder || 'DESC';
+
+    // Validate sort column to prevent SQL injection
+    const allowedSortColumns = ['timestamp', 'threat_score', 'final_status'];
+    const safeSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'timestamp';
+
+    const dataQuery = `
+      SELECT
+        event_id,
+        formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%SZ') AS timestamp,
+        original_input AS prompt_input,
+        final_status,
+        toUInt8(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0)) AS threat_score,
+        arrayDistinct(
+          arrayMap(x -> JSONExtractString(x, 'category'),
+                   JSONExtractArrayRaw(scoring_json, 'match_details'))
+        ) AS detected_categories,
+        toString(pipeline_flow_json) AS pipeline_flow,
+        toString(scoring_json) AS scoring,
+        toString(prompt_guard_json) AS prompt_guard,
+        toString(final_decision_json) AS final_decision,
+        toString(sanitizer_json) AS sanitizer
+      FROM n8n_logs.events_processed
+      ${whereClause}
+      ORDER BY ${safeSortBy} ${sortOrder}
+      LIMIT {pageSize:UInt16} OFFSET {offset:UInt32}
+    `;
+
+    const dataResult = await client.query({
+      query: dataQuery,
+      query_params: {
+        ...queryParams,
+        pageSize: params.pageSize,
+        offset: offset,
+      },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await dataResult.json<SearchResultRow>();
+
+    return {
+      rows,
+      total,
+    };
+  } catch (error) {
+    console.error('ClickHouse query error (searchPrompts):', error);
+    throw error;
   }
 }
 

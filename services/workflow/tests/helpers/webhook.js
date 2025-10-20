@@ -82,7 +82,7 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
       `;
 
       // ClickHouse Basic Auth credentials (from environment or .env)
-      const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || 'admin123';
+      const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
       const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
 
       const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {

@@ -18,7 +18,7 @@ Benchmark suite for measuring Pattern_Matching_Engine performance before and aft
 
 ```bash
 # Rollback to pre-optimization version
-cp ../workflows/backup/Vigil-Guard-v1.3.json.before_2.2_* ../workflows/Vigil-Guard-v1.3.json
+cp ../workflows/backup/Vigil-Guard-v1.4.json.before_2.2_* ../workflows/Vigil-Guard-v1.4.json
 
 # Reimport workflow in n8n UI
 
