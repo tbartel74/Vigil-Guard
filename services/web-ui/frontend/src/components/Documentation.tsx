@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -13,6 +13,7 @@ import Input from "./ui/Input";
 import Button from "./ui/Button";
 import ScrollArea from "./ui/ScrollArea";
 import docsManifest from "../generated/docs-manifest.json";
+import type { DocsManifest } from "../types/docs-manifest";
 
 // Documentation version and build info
 const DOC_VERSION = "1.4.0";
@@ -95,7 +96,12 @@ export default function Documentation() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchActive, setSearchActive] = useState<boolean>(false);
   const [externalDoc, setExternalDoc] = useState<{ title: string; path: string } | null>(null);
-  const [markdownCache] = useState<Map<string, string>>(new Map());
+
+  // Markdown cache - stable reference across renders
+  const markdownCache = useRef<Map<string, string>>(new Map()).current;
+
+  // Type-safe manifest with runtime validation
+  const typedManifest = docsManifest as DocsManifest;
 
   // Load all documentation on mount for search indexing (parallel fetch)
   useEffect(() => {
@@ -124,7 +130,7 @@ export default function Documentation() {
     };
 
     loadAllDocs();
-  }, [markdownCache]);
+  }, []); // Run only once on mount
 
   // Initialize Fuse search
   const fuse = useMemo(() => {
@@ -210,7 +216,7 @@ export default function Documentation() {
 
     loadContent();
     setSidebarOpen(false);
-  }, [activeSection, markdownCache]);
+  }, [activeSection]); // markdownCache has stable reference via useRef
 
   // Navigate to a section
   const navigateToSection = (sectionId: string) => {
@@ -569,14 +575,16 @@ export default function Documentation() {
                                                 navigateToSection(section.id);
                                               } else {
                                                 // Fallback to manifest for uncurated documents
-                                                const manifestEntry = docsManifest.documents.find(doc =>
+                                                const manifestEntry = typedManifest.documents?.find(doc =>
                                                   href.includes(doc.path) ||
                                                   href.endsWith(doc.file + '.md') ||
                                                   doc.path.endsWith(href)
                                                 );
 
                                                 if (manifestEntry) {
-                                                  console.log(`[Documentation] Loading external doc from manifest: ${manifestEntry.path}`);
+                                                  if (import.meta.env.DEV) {
+                                                    console.log(`[Documentation] Loading external doc from manifest: ${manifestEntry.path}`);
+                                                  }
                                                   loadExternalDoc(manifestEntry.url, manifestEntry.title, manifestEntry.path);
                                                 } else {
                                                   console.warn(`[Documentation] No section or manifest entry found for: ${href}`);

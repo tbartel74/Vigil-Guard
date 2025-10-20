@@ -52,8 +52,10 @@ function copyRecursive(src, dest) {
       );
     }
   } else {
-    // Copy file
+    // Copy file and preserve timestamps
     fs.copyFileSync(src, dest);
+    const srcStats = fs.statSync(src);
+    fs.utimesSync(dest, srcStats.atime, srcStats.mtime);
     console.log(`  ✓ ${path.relative(TARGET_DIR, dest)}`);
   }
 }

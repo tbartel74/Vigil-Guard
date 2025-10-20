@@ -59,6 +59,15 @@ function scanDirectory(dir, baseDir = dir) {
     }
 
     const fullPath = path.join(dir, item);
+
+    // Security: Prevent path traversal via symlinks
+    const normalizedPath = path.normalize(fullPath);
+    const normalizedBase = path.normalize(baseDir);
+    if (!normalizedPath.startsWith(normalizedBase)) {
+      console.warn(`⚠️  Skipping path outside base directory: ${fullPath}`);
+      continue;
+    }
+
     const stats = fs.statSync(fullPath);
 
     if (stats.isDirectory()) {

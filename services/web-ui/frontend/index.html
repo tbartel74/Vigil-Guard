@@ -8,6 +8,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
+    <!-- CSP: 'unsafe-eval' required for Vite production builds with HMR/React Fast Refresh -->
+    <!-- React DevTools and development tooling require Function() constructor -->
+    <!-- TODO P4: Investigate CSP-compliant alternatives (hash-based nonces, build config) -->
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; frame-src http://localhost:3001;" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
