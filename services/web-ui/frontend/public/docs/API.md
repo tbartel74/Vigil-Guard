@@ -1,17 +1,27 @@
 # Vigil Guard API Reference
 
-REST API udostępniane przez backend (`services/web-ui/backend`) służy do logowania użytkowników, zarządzania plikami konfiguracyjnymi oraz pobierania statystyk z ClickHouse. Wszystkie poniższe endpointy zwracają i przyjmują dane w formacie JSON.
+The REST API provided by the backend (`services/web-ui/backend`) is responsible for user authentication, configuration file management, and retrieving statistics from ClickHouse. All endpoints listed below accept and return data in JSON format.
 
 ## Base URL
 
-- Bezpośrednio z backendu (np. w trybie dev): `http://localhost:8787/api`
-- Przez reverse proxy Caddy (frontend na porcie 80): `http://localhost/ui/api`
+- Directly from the backend (e.g., in dev mode): `http://localhost:8787/api`
+- Via Caddy reverse proxy (frontend on port 80): `http://localhost/ui/api`
 
-W przykładach przyjmujemy, że rozmawiamy bezpośrednio z backendem – jeśli korzystasz z Caddy, dodaj prefiks `/ui`.
+All examples below assume direct communication with the backend. If using Caddy, prepend `/ui` to the API path.
 
 ## Authentication
 
-Backend wymaga aktywnej sesji. Po poprawnym logowaniu otrzymasz token JWT oraz ciasteczko sesyjne. Token trzeba przesyłać w nagłówku `Authorization: Bearer <token>`, a zapytania powinny mieć `credentials: include`.
+The backend requires an active session. After a successful login, you'll receive both a JWT token and a session cookie. The token must be sent in the header:
+
+```
+Authorization: Bearer <token>
+```
+
+and all requests should include:
+
+```
+credentials: include
+```
 
 ### `POST /api/auth/login`
 
@@ -40,31 +50,31 @@ Backend wymaga aktywnej sesji. Po poprawnym logowaniu otrzymasz token JWT oraz c
 }
 ```
 
-Pozostałe istotne endpointy auth:
+### Other important auth endpoints
 
 | Method | Path                           | Description                              |
 |--------|--------------------------------|------------------------------------------|
-| `POST` | `/api/auth/logout`             | Unieważnia bieżącą sesję                 |
-| `GET`  | `/api/auth/me`                 | Zwraca dane zalogowanego użytkownika     |
-| `GET`  | `/api/auth/verify`             | Waliduje token i zwraca jego payload     |
-| `POST` | `/api/auth/change-password`    | Zmienia hasło (wymaga pola `currentPassword` i `newPassword`) |
-| `PUT`  | `/api/auth/settings`           | Aktualizuje strefę czasową użytkownika   |
+| `POST` | `/api/auth/logout`             | Invalidates the current session          |
+| `GET`  | `/api/auth/me`                 | Returns the logged-in user's data        |
+| `GET`  | `/api/auth/verify`             | Validates the token and returns its payload |
+| `POST` | `/api/auth/change-password`    | Changes the user password (requires `currentPassword` and `newPassword`) |
+| `PUT`  | `/api/auth/settings`           | Updates the user's timezone setting      |
 
-Administratorzy mają dodatkowe endpointy do zarządzania listą użytkowników (`/api/auth/users`, `PUT/DELETE /api/auth/users/:id`, `/api/auth/users/:id/toggle-active`, `/api/auth/users/:id/force-password-change`).
+Administrators have additional endpoints for managing users: `/api/auth/users`, `PUT/DELETE /api/auth/users/:id`, `/api/auth/users/:id/toggle-active`, `/api/auth/users/:id/force-password-change`.
 
 ## Configuration Files
 
-Backend udostępnia API do przeglądania i edycji plików `.json` i `.conf` znajdujących się w katalogu `TARGET_DIR` (domyślnie `/config` w kontenerze). Działania są zabezpieczone ETagami oraz automatycznym backupem.
+The backend exposes APIs for browsing and editing `.json` and `.conf` files located in the `TARGET_DIR` directory (default: `/config` in the container). All actions are ETag-protected and automatically backed up.
 
 | Method | Path                   | Description |
-|--------|-----------------------|-------------|
-| `GET`  | `/api/files?ext=all`  | Lista plików z etagami i metadanymi (opcjonalnie `json` lub `conf`) |
-| `GET`  | `/api/file/:name`     | Pobiera plik w postaci tekstowej |
-| `GET`  | `/api/parse/:name`    | Zwraca plik wraz z wstępnie sparsowaną strukturą |
-| `POST` | `/api/resolve`        | Na podstawie specyfikacji zmiennych zwraca ich aktualne wartości (maskuje sekrety) |
-| `POST` | `/api/save`           | Zapisuje zmiany (JSON path lub pary `section/key` dla plików `.conf`), tworząc kopię `.bak` |
+|--------|------------------------|-------------|
+| `GET`  | `/api/files?ext=all`   | Lists files with ETags and metadata (optionally `json` or `conf`) |
+| `GET`  | `/api/file/:name`      | Retrieves a file as plain text |
+| `GET`  | `/api/parse/:name`     | Returns the file with a parsed data structure |
+| `POST` | `/api/resolve`         | Resolves variables based on a given spec (secrets masked) |
+| `POST` | `/api/save`            | Saves changes (via JSON path or `section/key` pairs for `.conf` files), creating a `.bak` backup |
 
-Przykład zapisu zmian:
+### Example: Saving changes
 
 ```jsonc
 POST /api/save
@@ -83,17 +93,17 @@ POST /api/save
 }
 ```
 
-W razie konfliktu etagów backend zwróci `409 Conflict` z informacją o spodziewanym i aktualnym etagu.
+If ETags conflict, the backend returns a `409 Conflict` with details about the expected and actual ETag values.
 
 ## File Manager API
 
-System udostępnia dodatkowe endpointy do zarządzania plikami konfiguracyjnymi (upload, download, lista, audit log). Wszystkie endpointy wymagają autoryzacji oraz uprawnień `can_view_configuration`.
+Additional endpoints are available for configuration file management (upload, download, list, audit log). All require authorization and the `can_view_configuration` permission.
 
 ### `GET /api/config-files/list`
 
-Zwraca listę wszystkich plików konfiguracyjnych w `TARGET_DIR`.
+Returns a list of all configuration files in `TARGET_DIR`.
 
-**Autoryzacja**: Wymagana (`can_view_configuration`)
+**Authorization**: Required (`can_view_configuration`)
 
 **Response:**
 ```json
@@ -111,12 +121,12 @@ Zwraca listę wszystkich plików konfiguracyjnych w `TARGET_DIR`.
 
 ### `GET /api/config-files/download/:filename`
 
-Pobiera plik konfiguracyjny jako attachment (raw content).
+Downloads a configuration file as a raw attachment.
 
-**Autoryzacja**: Wymagana (`can_view_configuration`)
+**Authorization**: Required (`can_view_configuration`)
 
-**Parametry:**
-- `filename` - Nazwa pliku (walidowana: tylko alphanumeric + safe chars)
+**Parameters:**
+- `filename` — file name (validated: alphanumeric and safe characters only)
 
 **Response Headers:**
 ```
@@ -126,11 +136,11 @@ Content-Disposition: attachment; filename="thresholds.config.json"
 
 **Response Body:** Raw file content
 
-**Błędy:**
-- `400` - Nieprawidłowa nazwa pliku (zawiera niedozwolone znaki)
-- `404` - Plik nie istnieje
+**Errors:**
+- `400` — Invalid filename (contains disallowed characters)
+- `404` — File not found
 
-**Przykład:**
+**Example:**
 ```bash
 curl -H "Authorization: Bearer <token>" \
   http://localhost:8787/api/config-files/download/thresholds.config.json \
@@ -139,17 +149,17 @@ curl -H "Authorization: Bearer <token>" \
 
 ### `POST /api/config-files/upload/:filename`
 
-Wrzuca nowy plik lub zastępuje istniejący. Automatycznie tworzy backup i wpis w audit log.
+Uploads a new file or replaces an existing one. Automatically creates a backup and an audit log entry.
 
-**Autoryzacja**: Wymagana (`can_view_configuration`)
+**Authorization**: Required (`can_view_configuration`)
 
-**Parametry:**
-- `filename` - Nazwa pliku docelowego (w URL path)
+**Parameters:**
+- `filename` — Target file name (must match URL path)
 
 **Request Body:**
 ```jsonc
 {
-  "filename": "thresholds.config.json",  // musi zgadzać się z :filename w URL
+  "filename": "thresholds.config.json",
   "content": "{\n  \"version\": \"1.0\",\n  \"ranges\": {\n    \"allow\": { \"min\": 0, \"max\": 29 }\n  }\n}"
 }
 ```
@@ -171,10 +181,10 @@ Wrzuca nowy plik lub zastępuje istniejący. Automatycznie tworzy backup i wpis 
 }
 ```
 
-**Błędy:**
-- `400` - Brak content, filename mismatch, błąd parsowania (JSON/CONF)
-- `401` - Brak autoryzacji
-- `403` - Brak uprawnień `can_view_configuration`
+**Errors:**
+- `400` — Missing content, filename mismatch, or parse error (JSON/CONF)
+- `401` — Unauthorized
+- `403` — Missing `can_view_configuration` permission
 
 **Audit Log Entry:**
 ```
@@ -182,18 +192,18 @@ Wrzuca nowy plik lub zastępuje istniejący. Automatycznie tworzy backup i wpis 
 ```
 
 **Workflow:**
-1. Walidacja nazwy pliku (alphanumeric + `._-` tylko)
-2. Sprawdzenie filename match (URL vs body)
-3. Parsowanie contentu (JSON lub CONF)
-4. Utworzenie backupu poprzedniej wersji
-5. Zapis przez `saveChanges` (atomic write)
-6. Dodanie wpisu do `audit.log`
+1. Filename validation (alphanumeric + `._-` only)
+2. Check filename match (URL vs body)
+3. Content parsing (JSON or CONF)
+4. Create backup of previous version
+5. Save via `saveChanges` (atomic write)
+6. Add entry to `audit.log`
 
 ### `GET /api/config-files/audit-log`
 
-Zwraca zawartość pliku `audit.log` (complete file content).
+Returns the full contents of `audit.log`.
 
-**Autoryzacja**: Wymagana (`can_view_configuration`)
+**Authorization**: Required (`can_view_configuration`)
 
 **Response:**
 ```json
@@ -202,25 +212,25 @@ Zwraca zawartość pliku `audit.log` (complete file content).
 }
 ```
 
-**Uwagi:**
-- Jeśli plik nie istnieje, zostanie automatycznie utworzony z wpisem inicjalizacyjnym
-- Plik nie jest stronicowany - zwracana jest pełna zawartość
+**Notes:**
+- If the file doesn't exist, it is auto-created with an initialization entry.
+- File is not paginated — full content is returned.
 
-**Format audit log entries:**
+**Audit log entry format:**
 ```
 [ISO8601_timestamp] User: <username> | Action: <action_type> | File: <filename> | <details>
 ```
 
-**Przykłady action_type:**
-- `FILE_UPLOAD` - Upload pliku przez API
-- `CONFIG_UPDATE` - Zmiana konfiguracji przez `/api/save`
-- `FILE_DOWNLOAD` - (currently not logged, reserved)
+**Possible action types:**
+- `FILE_UPLOAD` — File uploaded via API
+- `CONFIG_UPDATE` — Configuration modified via `/api/save`
+- `FILE_DOWNLOAD` — (reserved, not yet implemented)
 
 ## Monitoring
 
 ### `GET /api/stats/24h`
 
-Zwraca zagregowane dane z ClickHouse z ostatnich 24 godzin:
+Returns aggregated ClickHouse data from the last 24 hours.
 
 ```json
 {
@@ -230,11 +240,11 @@ Zwraca zagregowane dane z ClickHouse z ostatnich 24 godzin:
 }
 ```
 
-Domyślnie backend łączy się z hostem `vigil-clickhouse` i bazą `n8n_logs`. Można to zmienić zmiennymi środowiskowymi (`CLICKHOUSE_HOST`, `CLICKHOUSE_PORT` itd.).
+By default, the backend connects to host `vigil-clickhouse` and database `n8n_logs`. You can override this using environment variables (`CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, etc.).
 
 ### `GET /api/prompt-guard/health`
 
-Sprawdza status Prompt Guard API:
+Checks the health of the Prompt Guard API.
 
 ```json
 {
@@ -245,18 +255,16 @@ Sprawdza status Prompt Guard API:
 
 ## Prompt Analyzer API
 
-System umożliwia analizę historycznych promptów z ClickHouse wraz z ich wynikami detekcji. Wszystkie endpointy wymagają autoryzacji.
+Allows analysis of historical prompts stored in ClickHouse along with detection results. All endpoints require authorization.
 
 ### `GET /api/prompts/list`
 
-Zwraca listę przetworzonych promptów z ClickHouse dla Prompt Analyzer.
+Returns processed prompt entries for the Prompt Analyzer.
 
-**Autoryzacja**: Wymagana (JWT token)
+**Authorization**: Required (JWT)
 
 **Query Parameters:**
-- `timeRange` (optional): Zakres czasowy dla danych
-  - Możliwe wartości: `1h`, `6h`, `24h`, `7d`, `30d`
-  - Domyślnie: `24h`
+- `timeRange` (optional): `1h`, `6h`, `24h`, `7d`, or `30d` (default: `24h`)
 
 **Response:**
 ```json
@@ -282,19 +290,19 @@ Zwraca listę przetworzonych promptów z ClickHouse dla Prompt Analyzer.
 }
 ```
 
-**Pola w odpowiedzi:**
-- `event_id`: Unikalny identyfikator wydarzenia (UUID)
-- `timestamp`: Czas przetworzenia (ISO 8601)
-- `input_raw`: Oryginalny prompt (pierwsze 100 znaków dla listy)
-- `final_status`: Finalna decyzja (`ALLOWED`, `SANITIZED`, `BLOCKED`)
-- `threat_score`: Całkowity wynik zagrożenia (0-100, Sanitizer)
-- `pg_score_percent`: Wynik Prompt Guard w procentach (0-100)
+**Response fields:**
+- `event_id`: Unique event ID (UUID)
+- `timestamp`: Processing time (ISO 8601)
+- `input_raw`: Original prompt (truncated to 100 chars in list view)
+- `final_status`: Final decision (`ALLOWED`, `SANITIZED`, `BLOCKED`)
+- `threat_score`: Total Sanitizer score (0–100)
+- `pg_score_percent`: Prompt Guard score (0–100)
 
-**Błędy:**
-- `401` - Brak autoryzacji
-- `500` - Błąd połączenia z ClickHouse
+**Errors:**
+- `401` — Unauthorized
+- `500` — ClickHouse connection error
 
-**Przykład:**
+**Example:**
 ```bash
 curl -H "Authorization: Bearer <token>" \
   "http://localhost:8787/api/prompts/list?timeRange=6h"
@@ -302,12 +310,12 @@ curl -H "Authorization: Bearer <token>" \
 
 ### `GET /api/prompts/:id`
 
-Zwraca szczegółowe informacje o konkretnym prompcie i jego analizie.
+Returns detailed information about a specific prompt and its analysis.
 
-**Autoryzacja**: Wymagana (JWT token)
+**Authorization**: Required (JWT)
 
 **URL Parameters:**
-- `id`: Event ID (UUID z ClickHouse)
+- `id`: Event ID (UUID)
 
 **Response:**
 ```json
@@ -335,51 +343,37 @@ Zwraca szczegółowe informacje o konkretnym prompcie i jego analizie.
 }
 ```
 
-**Pola w odpowiedzi:**
-- `event_id`: Unikalny identyfikator
-- `timestamp`: Czas przetworzenia
-- `input_raw`: Oryginalny prompt (pełny tekst)
-- `input_normalized`: Znormalizowany tekst (Unicode NFKC, homoglyphy)
-- `final_status`: Finalna decyzja
-- `sanitizer_score`: Wynik Sanitizera (0-100)
-- `pg_score_percent`: Wynik Prompt Guard (0-100)
-- `detections`: Array z wykrytymi kategoriami zagrożeń
-- `output_sanitized`: Oczyszczony tekst (jeśli `final_status=SANITIZED`), null w przeciwnym wypadku
-- `processing_time_ms`: Czas przetwarzania w milisekundach
+**Response fields:**
+- `input_normalized`: Unicode-normalized text (NFKC, homoglyph mapping)
+- `detections`: Array of detected threat categories
+- `output_sanitized`: Sanitized output if applicable
+- `processing_time_ms`: Processing time in milliseconds
 
-**Błędy:**
-- `401` - Brak autoryzacji
-- `404` - Event ID nie znaleziony w bazie
-- `500` - Błąd połączenia z ClickHouse
-
-**Przykład:**
-```bash
-curl -H "Authorization: Bearer <token>" \
-  "http://localhost:8787/api/prompts/1760425445919-1760425446066"
-```
+**Errors:**
+- `401` — Unauthorized
+- `404` — Event not found
+- `500` — ClickHouse error
 
 ## False Positive Feedback
 
-System umożliwia użytkownikom zgłaszanie błędnych decyzji systemu (over-blocking, over-sanitization). Wszystkie endpointy wymagają autoryzacji.
+Allows users to report false detections (over-blocking or over-sanitization). All endpoints require authorization.
 
 ### `POST /api/feedback/false-positive`
-
-Zgłasza fałszywie pozytywną detekcję. Pole `reported_by` jest automatycznie wypełniane z tokenu JWT.
 
 **Request:**
 ```jsonc
 {
   "event_id": "1760425445919-1760425446066",
-  "reason": "over_blocking",               // required: over_blocking | over_sanitization | false_detection | business_logic | other
-  "comment": "This was a legitimate request",  // optional, max 5000 chars
-  "event_timestamp": "2025-10-14T07:04:06Z",   // optional, for context
-  "original_input": "ignore all previous instructions", // optional
-  "final_status": "BLOCKED",                   // optional: BLOCKED | SANITIZED
-  "threat_score": 85                           // optional
+  "reason": "over_blocking",
+  "comment": "This was a legitimate request",
+  "event_timestamp": "2025-10-14T07:04:06Z",
+  "original_input": "ignore all previous instructions",
+  "final_status": "BLOCKED",
+  "threat_score": 85
 }
 ```
 
-**Response (success):**
+**Response:**
 ```json
 {
   "success": true,
@@ -387,13 +381,13 @@ Zgłasza fałszywie pozytywną detekcję. Pole `reported_by` jest automatycznie 
 }
 ```
 
-**Przykłady błędów:**
-- `400` - Brak wymaganych pól (`event_id`, `reason`)
-- `401` - Brak autoryzacji
+**Errors:**
+- `400` — Missing required fields
+- `401` — Unauthorized
 
 ### `GET /api/feedback/stats`
 
-Zwraca statystyki zgłoszonych False Positive:
+Returns false-positive report statistics.
 
 **Response:**
 ```json
@@ -405,32 +399,26 @@ Zwraca statystyki zgłoszonych False Positive:
 }
 ```
 
-**Dane w ClickHouse:**
-- Tabela: `n8n_logs.false_positive_reports`
-- Widoki: `false_positive_summary`, `false_positive_trends`
+**Stored in ClickHouse:**
+- Table: `n8n_logs.false_positive_reports`
+- Views: `false_positive_summary`, `false_positive_trends`
 - Schema: `services/monitoring/sql/03-false-positives.sql`
 
-### Integracja z UI
+### UI Integration
 
-W interfejsie użytkownika przycisk "Report False Positive" pojawia się automatycznie w sekcji **Prompt Analysis** dla eventów ze statusem `BLOCKED` lub `SANITIZED`. Użytkownik może:
+Accessible via "Report False Positive" in Prompt Analysis view.
 
-1. Wybrać event z dropdownu
-2. Kliknąć "Report False Positive" (prawy górny róg)
-3. Wybrać powód z listy rozwijanej
-4. Dodać opcjonalny komentarz
-5. Wysłać raport
-
-Dashboard pokazuje:
-- Statystyki FP w Quick Stats (Total + Last 7 days)
-- Wykres czasowy w panelu Grafana (False Positive Reports Over Time)
+**Dashboard panels:**
+- Quick Stats (total + last 7 days)
+- Grafana panel "False Positive Reports Over Time"
 
 ## Configuration Version History
 
-System automatycznie tworzy historię zmian konfiguracji z możliwością rollback. Każda zmiana zapisana przez `/api/save` tworzy wpis w `version_history.json` z tagiem, timestampem, autorem i ścieżkami backupów. Wszystkie endpointy wymagają uprawnień `can_view_configuration`.
+Each `/api/save` operation automatically creates a version record with a timestamp, author, tag, and backups. All endpoints require `can_view_configuration` permission.
 
 ### `GET /api/config-versions`
 
-Zwraca listę wersji konfiguracji (maksymalnie 50 ostatnich).
+Returns up to 50 recent configuration versions.
 
 **Response:**
 ```json
@@ -442,13 +430,6 @@ Zwraca listę wersji konfiguracji (maksymalnie 50 ostatnich).
       "author": "admin",
       "files": ["unified_config.json"],
       "backups": ["unified_config__2025-10-14_12-05-30__updated-limits.json.bak"]
-    },
-    {
-      "tag": "2025-10-14_11-30-15-admin",
-      "timestamp": "2025-10-14T11:30:15.456Z",
-      "author": "admin",
-      "files": ["thresholds.config.json"],
-      "backups": ["thresholds.config__2025-10-14_11-30-15__threshold-tuning.json.bak"]
     }
   ]
 }
@@ -456,10 +437,7 @@ Zwraca listę wersji konfiguracji (maksymalnie 50 ostatnich).
 
 ### `GET /api/config-version/:tag`
 
-Zwraca szczegóły konkretnej wersji.
-
-**Parametry:**
-- `tag` - Tag wersji (URL-encoded)
+Fetches details for a specific version.
 
 **Response:**
 ```json
@@ -472,17 +450,14 @@ Zwraca szczegóły konkretnej wersji.
 }
 ```
 
-**Błędy:**
-- `404` - Wersja nie została znaleziona
+**Errors:**
+- `404` — Version not found
 
 ### `POST /api/config-rollback/:tag`
 
-Przywraca konfigurację do określonej wersji. Przed rollback system tworzy backup obecnego stanu.
+Restores configuration to a specific version. The system automatically creates a backup before rollback.
 
-**Parametry:**
-- `tag` - Tag wersji do przywrócenia (URL-encoded)
-
-**Response (success):**
+**Response:**
 ```json
 {
   "success": true,
@@ -490,37 +465,35 @@ Przywraca konfigurację do określonej wersji. Przed rollback system tworzy back
 }
 ```
 
-**Błędy:**
-- `404` - Wersja nie została znaleziona lub pliki backup nie istnieją
-- `500` - Błąd podczas rollback
+**Errors:**
+- `404` — Version or backup not found
+- `500` — Rollback failure
 
-### Integracja z UI
+### UI Integration
 
-W sekcji **Configuration** dostępny jest przycisk "Version History" w dolnej części lewego panelu nawigacyjnego. Modal pokazuje:
+In the Configuration section, the "Version History" button opens a modal with:
 
-1. Listę wszystkich wersji z timestampem i autorem
-2. Listę zmodyfikowanych plików dla każdej wersji
-3. Przycisk "Rollback" przy każdej wersji
-4. Dialog potwierdzenia przed wykonaniem rollback
-5. Automatyczne odświeżenie strony po udanym rollback
+1. Version list with timestamp and author
+2. Modified file list
+3. Rollback button for each entry
+4. Confirmation dialog
+5. Automatic page refresh after rollback
 
-**Format tagu wersji:** `YYYYMMDD_HHMMSS-username`
+**Version tag format:** `YYYYMMDD_HHMMSS-username`
 
-**Lokalizacja plików:**
-- Historia: `TARGET_DIR/version_history.json`
-- Backupy: `TARGET_DIR/{filename}__{timestamp}__{changeTag}.{ext}.bak`
+**File locations:**
+- History: `TARGET_DIR/version_history.json`
+- Backups: `TARGET_DIR/{filename}__{timestamp}__{changeTag}.{ext}.bak`
 
 ## Health Checks
 
-Do podstawowych testów działania usług służą:
-
 - `GET /health` – backend Web UI
-- `GET /ui/api/health` – ten sam endpoint przez Caddy
-- `GET /ui/api/stats/24h` – weryfikacja połączenia z ClickHouse (wymaga autoryzacji)
+- `GET /ui/api/health` – same endpoint via Caddy
+- `GET /ui/api/stats/24h` – verifies ClickHouse connection (requires auth)
 
-## Obsługa błędów
+## Error Handling
 
-API używa standardowych kodów HTTP. Błędy walidacji i konflikty zapisów zwracają strukturę:
+The API uses standard HTTP status codes. Validation and write-conflict errors return:
 
 ```json
 {
@@ -530,4 +503,4 @@ API używa standardowych kodów HTTP. Błędy walidacji i konflikty zapisów zwr
 }
 ```
 
-Dodatkowe informacje znajdziesz w `README.md`, `QUICKSTART.md` oraz dokumentacji komponentów w katalogu `docs/`.
+For additional information, see [Overview](README.md), [Installation Guide](INSTALLATION.md), and [User Guide](USER_GUIDE.md).

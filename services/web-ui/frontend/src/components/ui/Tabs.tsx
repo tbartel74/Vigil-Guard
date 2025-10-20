@@ -1,19 +1,19 @@
-import React, { createContext, useContext, useState } from 'react';
+/**
+ * Tabs Component
+ *
+ * Production-ready accessible tabs using Radix UI primitives.
+ *
+ * Features:
+ * - Full WAI-ARIA compliance (role, aria-*, keyboard navigation)
+ * - Automatic keyboard support (Arrow keys, Home, End)
+ * - Screen reader announcements
+ * - Roving tabindex for focus management
+ *
+ * Based on: https://www.radix-ui.com/primitives/docs/components/tabs
+ */
 
-interface TabsContextType {
-  activeTab: string;
-  setActiveTab: (value: string) => void;
-}
-
-const TabsContext = createContext<TabsContextType | undefined>(undefined);
-
-function useTabsContext() {
-  const context = useContext(TabsContext);
-  if (!context) {
-    throw new Error('Tabs components must be used within a Tabs provider');
-  }
-  return context;
-}
+import * as RadixTabs from '@radix-ui/react-tabs';
+import React from 'react';
 
 interface TabsProps {
   defaultValue: string;
@@ -24,20 +24,16 @@ interface TabsProps {
 }
 
 export function Tabs({ defaultValue, value, onValueChange, children, className = '' }: TabsProps) {
-  const [internalValue, setInternalValue] = useState(defaultValue);
-  const activeTab = value !== undefined ? value : internalValue;
-
-  const setActiveTab = (newValue: string) => {
-    if (value === undefined) {
-      setInternalValue(newValue);
-    }
-    onValueChange?.(newValue);
-  };
-
   return (
-    <TabsContext.Provider value={{ activeTab, setActiveTab }}>
-      <div className={className}>{children}</div>
-    </TabsContext.Provider>
+    <RadixTabs.Root
+      defaultValue={defaultValue}
+      value={value}
+      onValueChange={onValueChange}
+      className={className}
+      orientation="horizontal"
+    >
+      {children}
+    </RadixTabs.Root>
   );
 }
 
@@ -48,12 +44,11 @@ interface TabsListProps {
 
 export function TabsList({ children, className = '' }: TabsListProps) {
   return (
-    <div
+    <RadixTabs.List
       className={`inline-flex items-center gap-1 p-1 rounded-lg bg-slate-900/60 border border-slate-800 ${className}`}
-      role="tablist"
     >
       {children}
-    </div>
+    </RadixTabs.List>
   );
 }
 
@@ -64,25 +59,19 @@ interface TabsTriggerProps {
 }
 
 export function TabsTrigger({ value, children, className = '' }: TabsTriggerProps) {
-  const { activeTab, setActiveTab } = useTabsContext();
-  const isActive = activeTab === value;
-
   return (
-    <button
-      role="tab"
-      aria-selected={isActive}
-      onClick={() => setActiveTab(value)}
+    <RadixTabs.Trigger
+      value={value}
       className={`
         px-4 py-2 text-sm font-medium rounded-md transition-colors
-        ${isActive
-          ? 'bg-slate-800 text-white shadow-sm'
-          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-        }
+        data-[state=active]:bg-slate-800 data-[state=active]:text-white data-[state=active]:shadow-sm
+        data-[state=inactive]:text-slate-400 data-[state=inactive]:hover:text-white data-[state=inactive]:hover:bg-slate-800/50
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900
         ${className}
       `.trim().replace(/\s+/g, ' ')}
     >
       {children}
-    </button>
+    </RadixTabs.Trigger>
   );
 }
 
@@ -93,15 +82,14 @@ interface TabsContentProps {
 }
 
 export function TabsContent({ value, children, className = '' }: TabsContentProps) {
-  const { activeTab } = useTabsContext();
-
-  if (activeTab !== value) {
-    return null;
-  }
-
   return (
-    <div role="tabpanel" className={className}>
+    <RadixTabs.Content
+      value={value}
+      className={className}
+      // Prevent unmounting for better performance
+      forceMount={undefined}
+    >
       {children}
-    </div>
+    </RadixTabs.Content>
   );
 }

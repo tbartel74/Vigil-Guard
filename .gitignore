@@ -20,6 +20,17 @@ dist/
 build/
 *.js.map
 
+# Frontend - Generated documentation (synced from /docs during build)
+services/web-ui/frontend/public/docs/**/*.md
+services/web-ui/frontend/public/docs/architecture/
+services/web-ui/frontend/public/docs/api/
+services/web-ui/frontend/public/docs/guides/
+# Keep UI-specific assets
+!services/web-ui/frontend/public/docs/pic/
+
+# Frontend - Generated manifest and types
+services/web-ui/frontend/src/generated/
+
 # Environment variables
 .env
 .env.local
