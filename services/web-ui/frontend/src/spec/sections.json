@@ -34,6 +34,13 @@
       "description": "Download and upload configuration files with audit logging",
       "overview": "Manage configuration files directly by downloading current versions or uploading modified files. All file operations are logged in the audit log for security and compliance tracking.",
       "groups": []
+    },
+    {
+      "id": "plugin",
+      "title": "Web Browser Plugin",
+      "description": "Configure browser extension settings and webhook endpoints",
+      "overview": "Manage configuration for the Vigil Guard browser extension. Set webhook URL, GUI address, and enable/disable plugin integration. Browser extensions automatically fetch this configuration on install and refresh every 5 minutes.",
+      "groups": []
     }
   ]
 }

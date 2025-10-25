@@ -109,3 +109,12 @@ services/workflow/config/version_history.json
 services/workflow/config/*.bak
 TODO.md
 mustfix.md
+
+# Browser Plugin - now part of the project
+# plugin/
+
+# Study documents (not for repository)
+clickhouse_retention_study.md
+
+# Grafana datasource with secrets (generated from .example by install.sh)
+services/monitoring/grafana/provisioning/datasources/clickhouse.yml

@@ -1,0 +1,31 @@
+apiVersion: 1
+
+# ============================================
+# IMPORTANT: Password Auto-Rotation
+# ============================================
+# This is a TEMPLATE file. During installation, ./install.sh will:
+# 1. Copy this file to clickhouse.yml
+# 2. Replace CLICKHOUSE_PASSWORD_PLACEHOLDER with the actual password from .env
+#
+# The generated clickhouse.yml is in .gitignore and contains the real password.
+# This template stays in the repository with a placeholder.
+# ============================================
+
+datasources:
+  - name: ClickHouse
+    type: vertamedia-clickhouse-datasource
+    uid: PDEE91DDB90597936
+    access: proxy
+    url: http://vigil-clickhouse:8123
+    basicAuth: true
+    basicAuthUser: admin
+    jsonData:
+      defaultDatabase: n8n_logs
+      usePOST: false
+      addCorsHeader: true
+      useYandexCloudAuthorization: false
+    secureJsonData:
+      # Placeholder - will be replaced by install.sh with password from .env
+      basicAuthPassword: CLICKHOUSE_PASSWORD_PLACEHOLDER
+    isDefault: true
+    editable: false

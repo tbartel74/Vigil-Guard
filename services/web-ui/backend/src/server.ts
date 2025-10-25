@@ -8,6 +8,8 @@ import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
 import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams } from "./clickhouse.js";
+import pluginConfigRoutes from "./pluginConfigRoutes.js";
+import { initPluginConfigTable } from "./pluginConfigOps.js";
 
 const app = express();
 const PORT = 8787;
@@ -62,6 +64,9 @@ app.get("/health", (req, res) => {
 
 // Authentication routes (public)
 app.use("/api/auth", authRoutes);
+
+// Plugin configuration routes (public /plugin-config, protected /plugin-config/settings)
+app.use("/api", pluginConfigRoutes);
 
 // Stats endpoint - requires authentication
 app.get("/api/stats/24h", authenticate, async (req, res) => {
@@ -531,6 +536,14 @@ app.post("/api/config-rollback/:tag", authenticate, requireConfigurationAccess, 
 
 app.listen(PORT, () => {
   console.log(`Backend listening on http://0.0.0.0:${PORT}`);
+
+  // Initialize plugin configuration database table
+  try {
+    initPluginConfigTable();
+    console.log('[Server] Plugin configuration table initialized');
+  } catch (error) {
+    console.error('[Server] Failed to initialize plugin config table:', error);
+  }
 });
 
 function getByPath(root: any, dotPath: string) {
