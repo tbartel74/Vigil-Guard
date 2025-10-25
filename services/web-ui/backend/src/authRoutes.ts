@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { userDb } from './database.js';
 import {
   generateToken,
@@ -10,6 +11,24 @@ import {
 } from './auth.js';
 
 const router = Router();
+
+// Rate limiter for login endpoint - prevents brute force attacks
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+});
+
+// Rate limiter for password change - prevents password grinding attacks
+const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // 3 attempts per window (stricter than login)
+  message: { error: 'Too many password change attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Middleware to check if user has permission to manage users
 function requireUserManagement(req: Request, res: Response, next: Function) {
@@ -22,8 +41,8 @@ function requireUserManagement(req: Request, res: Response, next: Function) {
   next();
 }
 
-// Login endpoint
-router.post('/login', async (req: Request, res: Response) => {
+// Login endpoint (rate limited - 5 attempts per 15 minutes)
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -155,8 +174,8 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
   });
 });
 
-// Change password
-router.post('/change-password', authenticate, async (req: Request, res: Response) => {
+// Change password (rate limited - 3 attempts per 15 minutes)
+router.post('/change-password', passwordChangeLimiter, authenticate, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -300,8 +319,8 @@ router.post('/users', authenticate, requireUserManagement, async (req: Request, 
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password (uses bcrypt with 12 rounds - OWASP recommendation)
+    const hashedPassword = await hashPassword(password);
 
     // Create user
     const userId = await userDb.createUser({
@@ -365,9 +384,9 @@ router.put('/users/:id', authenticate, requireUserManagement, async (req: Reques
       }
     }
 
-    // If password is being updated, hash it
+    // If password is being updated, hash it (uses bcrypt with 12 rounds)
     if (updates.password) {
-      updates.password_hash = await bcrypt.hash(updates.password, 10);
+      updates.password_hash = await hashPassword(updates.password);
       delete updates.password;
     }
 

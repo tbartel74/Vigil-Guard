@@ -13,8 +13,15 @@ declare global {
   }
 }
 
-// JWT secret - in production this should be in environment variable
-const JWT_SECRET = process.env.JWT_SECRET || 'vigil-guard-secret-key-change-in-production';
+// JWT secret - MUST be set via environment variable (OWASP ASVS V2.1)
+// No fallback allowed - fail fast on application startup if not properly configured
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error(
+    'SECURITY ERROR: JWT_SECRET environment variable must be set and at least 32 characters long. ' +
+    'Generate one using: openssl rand -base64 48'
+  );
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 // Generate JWT token
@@ -40,9 +47,9 @@ export function verifyToken(token: string): any {
   }
 }
 
-// Hash password
+// Hash password with bcrypt - 12 rounds per OWASP recommendation
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
+  return bcrypt.hash(password, 12);
 }
 
 // Compare password with hash
@@ -53,14 +60,13 @@ export async function comparePassword(password: string, hash: string): Promise<b
 // Authentication middleware
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
-    // Check for token in various places
+    // SECURITY: Only accept token from Authorization header or httpOnly cookie
+    // Never from query params (leaks to logs/history) or body (leaks to request logs)
     let token = req.headers.authorization?.split(' ')[1]; // Bearer token
     if (!token) {
-      token = req.cookies?.token; // Cookie
+      token = req.cookies?.token; // httpOnly cookie
     }
-    if (!token) {
-      token = req.body?.token || req.query?.token; // Body or query param
-    }
+    // REMOVED: req.body?.token || req.query?.token (security risk - FG-04)
 
     if (!token) {
       return res.status(401).json({ error: 'No authentication token provided' });
@@ -117,10 +123,12 @@ export function authorize(...allowedRoles: string[]) {
 // Optional authentication - doesn't fail if no token, just doesn't set user
 export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
   try {
+    // SECURITY: Only accept from Authorization header or httpOnly cookie (FG-04)
     let token = req.headers.authorization?.split(' ')[1];
     if (!token) {
       token = req.cookies?.token;
     }
+    // REMOVED: No query/body token support (security risk)
 
     if (token) {
       const decoded = verifyToken(token);
