@@ -16,7 +16,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 ### Key Features
 
-- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 29+ pattern categories
+- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 33 pattern categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
@@ -401,7 +401,7 @@ Chat Input → Input Validation → PII Redaction → Normalization
 | **SANITIZE_HEAVY** | 65-84 | Aggressive content removal |
 | **BLOCK** | 85-100 | Reject content entirely |
 
-### Detection Categories (29+)
+### Detection Categories (33)
 
 **Critical Threats:**
 - CRITICAL_INJECTION
@@ -494,11 +494,26 @@ Current detection capabilities:
 
 Comprehensive documentation is available in the `docs/` directory:
 
+### Core Documentation
 - [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
+- [User Guide](docs/USER_GUIDE.md) - Complete user manual
 - [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
-- [API Documentation](docs/API.md) - API endpoints and usage
-- [Test Suite Guide](services/workflow/tests/README.md) - Testing and validation
+- [API Documentation](docs/API.md) - REST API endpoints and usage
+- [Security Guide](docs/SECURITY.md) - Security policies and best practices
 - [Technical Architecture](docs/architecture/architecture.md) - System design details
+
+### Component Documentation
+- [Browser Extension Guide](docs/plugin/BROWSER_EXTENSION.md) - Plugin installation and configuration
+- [Browser Extension Quick Start](docs/plugin/QUICK_START.md) - 5-minute plugin setup
+- [Browser Extension Architecture](docs/plugin/HYBRID_ARCHITECTURE.md) - Technical implementation details
+- [Test Suite Guide](services/workflow/tests/README.md) - E2E testing and validation
+- [Prompt Guard API](prompt-guard-api/README.md) - LLM Guard service documentation
+
+### Reference Materials
+- [Detection Categories](docs/DETECTION_CATEGORIES.md) - All 33 threat patterns
+- [Configuration Variables](docs/CONFIG_VARIABLES.md) - Variable mapping reference
+- [Model Setup](MODEL_SETUP.md) - Llama Prompt Guard download guide
+- [Quick Start](QUICKSTART.md) - 5-minute installation guide
 
 ## 🔧 Configuration
 
