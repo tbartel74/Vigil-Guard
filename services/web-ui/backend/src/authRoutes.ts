@@ -42,7 +42,7 @@ function requireUserManagement(req: Request, res: Response, next: Function) {
 }
 
 // Login endpoint (rate limited - 5 attempts per 15 minutes)
-router.post('/login', loginLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginLimiter as any, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -175,7 +175,7 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
 });
 
 // Change password (rate limited - 3 attempts per 15 minutes)
-router.post('/change-password', passwordChangeLimiter, authenticate, async (req: Request, res: Response) => {
+router.post('/change-password', passwordChangeLimiter as any, authenticate, async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
