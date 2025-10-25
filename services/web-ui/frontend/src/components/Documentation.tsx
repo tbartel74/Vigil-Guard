@@ -53,6 +53,11 @@ const docSections: DocSection[] = [
   { id: "api", title: "API Reference", file: "API", category: "Security & API", icon: "🔌" },
   { id: "security", title: "Security Guide", file: "SECURITY", category: "Security & API", icon: "🛡️" },
 
+  // Browser Extension
+  { id: "browser-extension", title: "Browser Extension Overview", file: "plugin/BROWSER_EXTENSION", category: "Browser Extension", icon: "🧩" },
+  { id: "plugin-quick-start", title: "Quick Start Guide", file: "plugin/QUICK_START", category: "Browser Extension", icon: "🚀" },
+  { id: "plugin-architecture", title: "Technical Architecture", file: "plugin/HYBRID_ARCHITECTURE", category: "Browser Extension", icon: "🏗️" },
+
   // Advanced
   { id: "detection-categories", title: "Detection Categories", file: "DETECTION_CATEGORIES", category: "Advanced", icon: "🎯" },
   { id: "grafana-setup", title: "Grafana Setup", file: "GRAFANA_SETUP", category: "Advanced", icon: "📊" },
@@ -68,13 +73,14 @@ const groupedSections = docSections.reduce((acc, section) => {
   return acc;
 }, {} as Record<string, DocSection[]>);
 
-const categoryOrder = ["Getting Started", "Configuration", "Security & API", "Advanced"];
+const categoryOrder = ["Getting Started", "Configuration", "Security & API", "Browser Extension", "Advanced"];
 
 // Map categories to tab values
 const categoryToTab: Record<string, string> = {
   "Getting Started": "getting-started",
   "Configuration": "configuration",
   "Security & API": "security-api",
+  "Browser Extension": "browser-extension",
   "Advanced": "advanced"
 };
 
@@ -82,6 +88,7 @@ const tabToCategory: Record<string, string> = {
   "getting-started": "Getting Started",
   "configuration": "Configuration",
   "security-api": "Security & API",
+  "browser-extension": "Browser Extension",
   "advanced": "Advanced"
 };
 
