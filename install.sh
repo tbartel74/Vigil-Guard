@@ -267,20 +267,25 @@ setup_environment() {
         fi
     fi
 
-    # Update Grafana ClickHouse datasource configuration with current password
-    log_info "Updating Grafana datasource configuration..."
+    # Create Grafana ClickHouse datasource configuration from template
+    log_info "Creating Grafana datasource configuration from template..."
     CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+    CLICKHOUSE_DATASOURCE_TEMPLATE="services/monitoring/grafana/provisioning/datasources/clickhouse.yml.example"
     CLICKHOUSE_DATASOURCE_FILE="services/monitoring/grafana/provisioning/datasources/clickhouse.yml"
 
-    if [ -f "$CLICKHOUSE_DATASOURCE_FILE" ]; then
+    if [ -f "$CLICKHOUSE_DATASOURCE_TEMPLATE" ]; then
+        # Copy template and replace placeholder with actual password
+        cp "$CLICKHOUSE_DATASOURCE_TEMPLATE" "$CLICKHOUSE_DATASOURCE_FILE"
+
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|basicAuthPassword: .*|basicAuthPassword: ${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
+            sed -i '' "s|CLICKHOUSE_PASSWORD_PLACEHOLDER|${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
         else
-            sed -i "s|basicAuthPassword: .*|basicAuthPassword: ${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
+            sed -i "s|CLICKHOUSE_PASSWORD_PLACEHOLDER|${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
         fi
-        log_success "Grafana datasource configured with updated ClickHouse password"
+        log_success "Grafana datasource configured with ClickHouse password from .env"
     else
-        log_warning "Grafana datasource config file not found: $CLICKHOUSE_DATASOURCE_FILE"
+        log_error "Grafana datasource template not found: $CLICKHOUSE_DATASOURCE_TEMPLATE"
+        exit 1
     fi
 
     echo ""

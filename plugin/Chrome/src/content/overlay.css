@@ -1,0 +1,72 @@
+/* Vigil Guard Overlay Input - v0.3.0 - Defense in Depth */
+
+/* Status indicator - przy prawym dolnym rogu (bardziej widoczny) */
+.vigil-status-indicator {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  z-index: 999999;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+}
+
+.vigil-status-indicator.allow {
+  background-color: #10b981; /* green-500 */
+}
+
+.vigil-status-indicator.sanitize {
+  background-color: #f59e0b; /* amber-500 */
+}
+
+.vigil-status-indicator.block {
+  background-color: #ef4444; /* red-500 */
+}
+
+.vigil-status-indicator.processing {
+  background-color: #3b82f6; /* blue-500 */
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* Tooltip dla statusu - po lewej stronie */
+.vigil-status-indicator::after {
+  content: attr(data-status);
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.vigil-status-indicator:hover::after {
+  opacity: 1;
+}
+
+/* Ukryj oryginalny input podczas ładowania */
+body.vigil-loading #prompt-textarea {
+  opacity: 0.5;
+  pointer-events: none;
+}

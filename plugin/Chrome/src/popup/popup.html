@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vigil Guard</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo-section">
+      <img src="../../assets/vigil_logo.png" alt="Vigil Guard" class="logo">
+    </div>
+
+    <!-- Status -->
+    <div class="status-section">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-text" id="status-text">Connecting...</span>
+    </div>
+
+    <!-- Info -->
+    <div class="info-section">
+      <div class="info-line">
+        <span class="info-label">Version:</span>
+        <span id="version" class="info-value">—</span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">GUI:</span>
+        <span id="gui-url" class="info-value">—</span>
+      </div>
+      <div class="info-line">
+        <span class="info-label">Webhook:</span>
+        <span id="webhook-status" class="info-value">—</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-section">
+      <button id="refresh-config" class="btn-refresh">
+        Refresh Configuration
+      </button>
+    </div>
+
+    <!-- Copyright -->
+    <div class="copyright">
+      © 2025 Vigil Guard
+      <div class="copyright-sub">Real-time AI Protection</div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

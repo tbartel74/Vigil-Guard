@@ -9,6 +9,7 @@ import Investigation from "./components/Investigation";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
+import { PluginConfiguration } from "./components/PluginConfiguration";
 import Documentation from "./components/Documentation";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import { MobileProvider } from "./context/MobileContext";
@@ -376,6 +377,7 @@ export const router = createBrowserRouter(
           element: <ConfigLayout />,
           children: [
             { path: "/config", element: <Navigate to="/config/overview" replace /> },
+            { path: "/config/plugin", element: <PluginConfiguration /> },
             { path: "/config/:sectionId", element: <ConfigSection /> }
           ]
         },

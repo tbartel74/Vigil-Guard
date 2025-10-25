@@ -18,6 +18,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 - 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 29+ pattern categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
+- 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching
 - ⚙️ **Dynamic Configuration** - Web-based GUI for managing security policies
@@ -44,6 +45,12 @@ Advanced prompt search and analysis interface for investigating security events 
 
 ![Investigation Panel](docs/pic/investigation-panel.png)
 
+### Browser Extension
+Client-side protection with real-time prompt validation for ChatGPT and Claude.ai:
+
+![Plugin Popup](docs/pic/plugin-popup.png)
+![Plugin in Action](docs/pic/plugin-in-action.png)
+
 ## 📁 Project Structure
 
 ```
@@ -69,16 +76,28 @@ vigil-guard/
 │   └── proxy/                # Caddy reverse proxy
 │       ├── Caddyfile
 │       └── docker-compose.yml
-├── prompt-guard-api/         # Llama Prompt Guard service (NEW)
+├── prompt-guard-api/         # Llama Prompt Guard service
 │   ├── app.py               # FastAPI application
 │   ├── Dockerfile           # Container definition
 │   ├── docker-compose.yml   # Service orchestration
 │   ├── requirements.txt     # Python dependencies
 │   └── README.md            # Setup instructions
+├── plugin/                    # Browser Extension (NEW)
+│   ├── Chrome/               # Chrome extension files
+│   │   ├── manifest.json    # Extension manifest (v3)
+│   │   ├── background.js    # Service worker
+│   │   ├── content.js       # Content script
+│   │   ├── popup.html       # Extension popup UI
+│   │   └── popup.js         # Popup logic
+│   └── README.md            # Installation guide
 ├── docs/                      # Documentation
 │   ├── api/                   # API reference
 │   ├── guides/                # User guides
 │   ├── architecture/          # Technical docs
+│   ├── plugin/                # Browser extension docs
+│   │   ├── BROWSER_EXTENSION.md    # Main documentation
+│   │   ├── QUICK_START.md          # Quick start guide
+│   │   └── HYBRID_ARCHITECTURE.md  # Technical architecture
 │   └── README.md
 ├── scripts/                   # Automation scripts
 ├── config/                    # Shared configuration

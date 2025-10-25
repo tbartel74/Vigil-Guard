@@ -1,5 +1,136 @@
 {
-  "generated": "stub",
-  "count": 0,
-  "documents": []
+  "generated": "2025-10-25T10:12:58.402Z",
+  "count": 13,
+  "documents": [
+    {
+      "path": "ACCESSIBILITY.md",
+      "file": "ACCESSIBILITY",
+      "directory": ".",
+      "url": "/ui/docs/ACCESSIBILITY.md",
+      "title": "Accessibility Implementation - Phase 1",
+      "category": "root",
+      "size": 11988,
+      "modified": "2025-10-20T16:14:28.565Z"
+    },
+    {
+      "path": "API.md",
+      "file": "API",
+      "directory": ".",
+      "url": "/ui/docs/API.md",
+      "title": "Vigil Guard API Reference",
+      "category": "root",
+      "size": 13556,
+      "modified": "2025-10-20T16:14:28.566Z"
+    },
+    {
+      "path": "architecture/architecture.md",
+      "file": "architecture",
+      "directory": "architecture",
+      "url": "/ui/docs/architecture/architecture.md",
+      "title": "Technical Architecture",
+      "category": "architecture",
+      "size": 15016,
+      "modified": "2025-10-20T16:14:28.571Z"
+    },
+    {
+      "path": "AUTHENTICATION.md",
+      "file": "AUTHENTICATION",
+      "directory": ".",
+      "url": "/ui/docs/AUTHENTICATION.md",
+      "title": "Authentication & User Management",
+      "category": "root",
+      "size": 9547,
+      "modified": "2025-10-20T16:14:28.566Z"
+    },
+    {
+      "path": "CONFIG_VARIABLES.md",
+      "file": "CONFIG_VARIABLES",
+      "directory": ".",
+      "url": "/ui/docs/CONFIG_VARIABLES.md",
+      "title": "Configuration Variables Reference",
+      "category": "root",
+      "size": 4373,
+      "modified": "2025-10-20T16:14:28.567Z"
+    },
+    {
+      "path": "CONFIGURATION.md",
+      "file": "CONFIGURATION",
+      "directory": ".",
+      "url": "/ui/docs/CONFIGURATION.md",
+      "title": "Configuration Reference",
+      "category": "root",
+      "size": 26417,
+      "modified": "2025-10-20T16:14:28.567Z"
+    },
+    {
+      "path": "DETECTION_CATEGORIES.md",
+      "file": "DETECTION_CATEGORIES",
+      "directory": ".",
+      "url": "/ui/docs/DETECTION_CATEGORIES.md",
+      "title": "Detection Categories Reference",
+      "category": "root",
+      "size": 13984,
+      "modified": "2025-10-20T16:14:28.567Z"
+    },
+    {
+      "path": "GRAFANA_SETUP.md",
+      "file": "GRAFANA_SETUP",
+      "directory": ".",
+      "url": "/ui/docs/GRAFANA_SETUP.md",
+      "title": "Grafana Setup Guide",
+      "category": "root",
+      "size": 20645,
+      "modified": "2025-10-20T16:14:28.567Z"
+    },
+    {
+      "path": "INSTALLATION.md",
+      "file": "INSTALLATION",
+      "directory": ".",
+      "url": "/ui/docs/INSTALLATION.md",
+      "title": "Installation Guide",
+      "category": "root",
+      "size": 13143,
+      "modified": "2025-10-20T16:14:28.568Z"
+    },
+    {
+      "path": "README.md",
+      "file": "README",
+      "directory": ".",
+      "url": "/ui/docs/README.md",
+      "title": "Vigil Guard - Local Configuration Panel",
+      "category": "root",
+      "size": 9891,
+      "modified": "2025-10-20T16:14:28.569Z"
+    },
+    {
+      "path": "SANITIZATION_FIX_2025-10-20.md",
+      "file": "SANITIZATION_FIX_2025-10-20",
+      "directory": ".",
+      "url": "/ui/docs/SANITIZATION_FIX_2025-10-20.md",
+      "title": "Sanitization Fix - October 20, 2025",
+      "category": "root",
+      "size": 7597,
+      "modified": "2025-10-20T16:14:28.569Z"
+    },
+    {
+      "path": "SECURITY.md",
+      "file": "SECURITY",
+      "directory": ".",
+      "url": "/ui/docs/SECURITY.md",
+      "title": "Security Guide",
+      "category": "root",
+      "size": 17257,
+      "modified": "2025-10-20T16:14:28.570Z"
+    },
+    {
+      "path": "USER_GUIDE.md",
+      "file": "USER_GUIDE",
+      "directory": ".",
+      "url": "/ui/docs/USER_GUIDE.md",
+      "title": "Vigil Guard - User Guide",
+      "category": "root",
+      "size": 43590,
+      "modified": "2025-10-20T16:14:28.570Z"
+    }
+  ]
 }

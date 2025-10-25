@@ -1,5 +1,5 @@
 {
-  "name": "Vigil-Guard-v1.3",
+  "name": "Vigil-Guard-v1.4",
   "nodes": [
     {
       "parameters": {
@@ -8,10 +8,10 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        720,
-        -128
+        -5264,
+        -1040
       ],
-      "id": "b737c003-c6dd-4db4-bf9a-5114cbbf9567",
+      "id": "ed67ca7e-d0e5-47bc-a5f4-391564819f94",
       "name": "When chat message received",
       "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
     },
@@ -22,10 +22,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6432,
-        -96
+        448,
+        -1008
       ],
-      "id": "525cbc5d-95b7-4bc2-9e44-afab4bd577f8",
+      "id": "6944c510-e959-4d68-b80d-2102fe4bf884",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -50,17 +50,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        6656,
-        -96
+        672,
+        -1008
       ],
-      "id": "0874210c-405b-4ea2-a8c6-ba60cdbd13e6",
+      "id": "370ea391-0930-464c-aa27-5e727a97364c",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
       "credentials": {
         "httpBasicAuth": {
-          "id": "KReeUSmHWvtuVVsD",
-          "name": "clikhouse"
+          "id": "bolvzGrkrBMMpXCf",
+          "name": "clickhouse"
         }
       }
     },
@@ -71,10 +71,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2384,
-        -96
+        -3600,
+        -1008
       ],
-      "id": "975413ab-f7e1-430d-a884-ed2692376e12",
+      "id": "cc459d0c-d9c7-4310-aefc-be14d50e1355",
       "name": "Config Loader"
     },
     {
@@ -89,10 +89,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2176,
-        -112
+        -3808,
+        -1024
       ],
-      "id": "2324234d-0352-48f8-82be-cf20f8c1108d",
+      "id": "12c7beb3-77fa-4607-bd9d-4e75df5c0127",
       "name": "Merge"
     },
     {
@@ -113,10 +113,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1184,
-        -128
+        -4800,
+        -1040
       ],
-      "id": "18b127d7-3613-45f1-9218-980c7eca64b3",
+      "id": "565ab5a1-d03e-4b33-8724-0a75face20fe",
       "name": "Keep only set"
     },
     {
@@ -128,10 +128,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        128
+        -4208,
+        -784
       ],
-      "id": "750b54a7-bc9b-4a0f-bca2-3201d9aeefc5",
+      "id": "7179c31d-ab53-4bfe-8a2f-af09224fea90",
       "name": "Extract from File"
     },
     {
@@ -143,10 +143,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        320
+        -4208,
+        -592
       ],
-      "id": "ef806954-ec43-4a48-8234-85b1fcaf04e7",
+      "id": "4b4cd9f3-d8f0-4694-9c35-8dc5397e7b9d",
       "name": "Extract from File1"
     },
     {
@@ -156,10 +156,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3040,
-        -96
+        -2944,
+        -1008
       ],
-      "id": "b23b4ef2-cf59-41a1-9c4c-c400c7e70435",
+      "id": "09f24c45-0b0f-41e0-9e5f-a8d6a5ed24ba",
       "name": "Normalize_Node"
     },
     {
@@ -185,10 +185,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        6864,
-        -96
+        928,
+        -1008
       ],
-      "id": "19c6f08d-c91e-414f-871e-43a51dedf827",
+      "id": "a9a83eb7-5639-4aa5-a20c-69bfcba5d129",
       "name": "Clean output"
     },
     {
@@ -202,10 +202,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        320
+        -4384,
+        -592
       ],
-      "id": "4798f15a-025e-4d4a-97e0-91e16952d365",
+      "id": "21b28d1c-ee14-414d-b7d1-aebe17019a66",
       "name": "Loading config files *.conf"
     },
     {
@@ -219,10 +219,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        128
+        -4384,
+        -784
       ],
-      "id": "3ee970af-b36d-4d1e-8e89-8689aa7417cd",
+      "id": "8a15edc8-2bf4-4a1e-b8ba-795d847f8f45",
       "name": "Loading config files *.json"
     },
     {
@@ -232,10 +232,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4016,
-        -96
+        -1968,
+        -1008
       ],
-      "id": "516d2955-6cd5-4285-857c-f6f08aa3075f",
+      "id": "ead5b178-108f-4df6-b0f9-0b1d6330f10d",
       "name": "Unified Decision Engine"
     },
     {
@@ -245,10 +245,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3520,
-        -96
+        -2464,
+        -1008
       ],
-      "id": "c3cad698-2ba6-4a02-a859-eaec3d182a38",
+      "id": "c6766b05-21b7-4026-b60a-46533ea04225",
       "name": "Allowlist_Validator"
     },
     {
@@ -258,10 +258,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4528,
-        -96
+        -1456,
+        -1008
       ],
-      "id": "f6167298-fd5b-4f2f-a7ac-80db3dbca93d",
+      "id": "47b566e0-a797-4351-b893-159057efdfd6",
       "name": "Sanitization_Enforcement"
     },
     {
@@ -271,10 +271,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2816,
-        -96
+        -3168,
+        -1008
       ],
-      "id": "bd381af6-50c7-47bd-9957-49aa58dfbe83",
+      "id": "f923534b-7e53-4005-935a-09eaee47028e",
       "name": "PII_Redactor"
     },
     {
@@ -284,10 +284,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4256,
-        -96
+        -1728,
+        -1008
       ],
-      "id": "1f2c0409-e7a9-4d3d-83b5-8188106d2f93",
+      "id": "e4b6227b-d204-4122-b5e1-e89b4b6122b6",
       "name": "Correlation_Engine"
     },
     {
@@ -297,10 +297,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3760,
-        -96
+        -2224,
+        -1008
       ],
-      "id": "e7486d67-b7ee-4e34-90fc-19451ccd30e8",
+      "id": "e8a5f2e1-2807-4512-9693-98986cc64c3b",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -312,10 +312,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        528
+        -4208,
+        -384
       ],
-      "id": "93bdadf7-3c78-4c7c-8ba4-667500f092de",
+      "id": "ee3684fd-b155-4a12-835b-f518abedbb7b",
       "name": "Extract from File2"
     },
     {
@@ -329,10 +329,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        528
+        -4384,
+        -384
       ],
-      "id": "c0d0fd1b-c4d2-4a14-808a-86757c03aa15",
+      "id": "a7801b47-12f1-4f69-bed3-ec3586d45957",
       "name": "Loading config files *.conf1"
     },
     {
@@ -344,10 +344,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        736
+        -4208,
+        -176
       ],
-      "id": "9a58f251-d170-40d8-8d1c-106e7ca823bc",
+      "id": "91e941c7-4e1c-4396-ab7e-4b28863eddb9",
       "name": "Extract from File3"
     },
     {
@@ -361,10 +361,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        736
+        -4384,
+        -176
       ],
-      "id": "4d318ab5-e31b-4ca2-bb95-030e174d3e7a",
+      "id": "2801e95d-b037-43cd-a766-4459efc8888a",
       "name": "Loading config files *.conf2"
     },
     {
@@ -376,10 +376,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        944
+        -4208,
+        32
       ],
-      "id": "55d30e07-ecdf-42b2-9da2-5b4ae14c8d81",
+      "id": "fd0ec6ff-dc25-4e2f-9681-556e122395f1",
       "name": "Extract from File4"
     },
     {
@@ -393,10 +393,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        944
+        -4384,
+        32
       ],
-      "id": "0771491a-06da-4715-82e0-37cddea89535",
+      "id": "97a5b3c6-0924-4723-a45e-b2d5a78a3096",
       "name": "Loading config files *.conf3"
     },
     {
@@ -408,10 +408,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        1776,
-        1168
+        -4208,
+        256
       ],
-      "id": "254ce85e-bb7a-4c12-b56c-3a0f427e37f2",
+      "id": "56b6e5eb-e7c3-48e1-82e7-6a16016deeb5",
       "name": "Extract from File5"
     },
     {
@@ -425,10 +425,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        1600,
-        1168
+        -4384,
+        256
       ],
-      "id": "af8e1488-4f14-4f56-98a6-c0879f034796",
+      "id": "253bd462-e896-455b-9b60-b772fccf7976",
       "name": "Loading config files *.conf4"
     },
     {
@@ -438,10 +438,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6192,
-        -96
+        208,
+        -1008
       ],
-      "id": "03f6c218-c3ed-4a48-ae61-9b7c4f18e59b",
+      "id": "ac4fba87-f06f-42e3-a591-b86954c09603",
       "name": "Finale Decision"
     },
     {
@@ -455,10 +455,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        5952,
-        -96
+        -32,
+        -1008
       ],
-      "id": "c464cf1a-1067-4840-b3aa-73bad49ed6cd",
+      "id": "e8cdeee3-229b-4b08-a519-d08038ca4aaa",
       "name": "Merge1"
     },
     {
@@ -489,10 +489,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4784,
-        -96
+        -1200,
+        -1008
       ],
-      "id": "6fc50a7d-87ff-475f-bffe-fe6ebc3967e3",
+      "id": "151ad3fd-8494-42f3-b74b-bd2535c7ebfa",
       "name": "If"
     },
     {
@@ -502,10 +502,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5680,
-        32
+        -304,
+        -880
       ],
-      "id": "43a263ba-d4c2-4840-8b2c-5de83a08b0f5",
+      "id": "d9218db3-8bb1-4a28-b2fa-734321c07453",
       "name": "LLM Context Restore"
     },
     {
@@ -515,10 +515,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5072,
-        16
+        -912,
+        -896
       ],
-      "id": "7638bcb7-e1f8-45f2-943b-a6c1ca6937f2",
+      "id": "25dfe3c7-65d3-47ae-adb1-1de0e83f2bb2",
       "name": "Prepare LLM Request"
     },
     {
@@ -528,24 +528,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5264,
-        160
+        -720,
+        -752
       ],
-      "id": "2320730b-f50a-48d5-bde4-611ad1b9ed4e",
+      "id": "1b33c134-01c7-4c05-bc5d-e1ac0954500e",
       "name": "Prompt Guard API"
     },
     {
       "parameters": {
-        "mode": "combineByPosition",
-        "options": {}
+        "mode": "combineByPosition"
       },
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        5456,
-        32
+        -528,
+        -880
       ],
-      "id": "8ec5e855-dbaf-4c3d-aa23-4e29959d25fd",
+      "id": "233428ae-3b01-43b0-be3c-645adeb8fd1b",
       "name": "Merge2"
     },
     {
@@ -555,10 +554,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3280,
-        -96
+        -2704,
+        -1008
       ],
-      "id": "781a5415-bfee-45dc-abba-09d2c38ab82b",
+      "id": "663de637-06cc-4765-97a0-2abaeea4cf5f",
       "name": "Bloom_Prefilter"
     },
     {
@@ -570,11 +569,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        560,
-        -224
+        -5424,
+        -1136
       ],
       "typeVersion": 1,
-      "id": "f9c88eb5-61c3-46ff-83fb-8e388ae9380f",
+      "id": "cda66c79-c560-4d22-8624-bb8a7cad3daf",
       "name": "Sticky Note1"
     },
     {
@@ -587,10 +586,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        720,
-        448
+        -5264,
+        -464
       ],
-      "id": "f5875319-1541-472c-891f-4fb4f1fa2a08",
+      "id": "09d5f5bf-6753-4b9c-a6b1-2b354a7e5a86",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -603,11 +602,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        544,
-        320
+        -5440,
+        -592
       ],
       "typeVersion": 1,
-      "id": "98755165-7937-4c2e-b0f4-403ade2870aa",
+      "id": "44131ab7-ce21-4806-9c3f-d052fe20dff6",
       "name": "Sticky Note2"
     },
     {
@@ -617,10 +616,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2560,
-        -96
+        -3424,
+        -1008
       ],
-      "id": "3443cb11-0b03-4740-a12e-45d2c2573703",
+      "id": "016d3a22-b310-4c12-8a5b-f41728d618a7",
       "name": "Input_Validator"
     },
     {
@@ -651,10 +650,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2688,
-        256
+        -3296,
+        -656
       ],
-      "id": "a9ffd04e-80c6-42fa-9fd6-0d380aa85970",
+      "id": "e1c3598e-7435-43ac-99b4-f675c6f2e3e5",
       "name": "Validation Check"
     },
     {
@@ -664,11 +663,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6176,
-        272
+        192,
+        -640
       ],
-      "id": "3069e828-c986-428f-afff-7c9f2570aad3",
+      "id": "88fd9c05-2228-45f6-9cc6-bbae3ef62e4a",
       "name": "Early Block Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * output to plugin - Format response for browser extension\n * Reads from Build+Sanitize NDJSON node\n */\n\n// Get data from Build+Sanitize NDJSON (not from $input!)\nconst buildOutput = $('Build+Sanitize NDJSON').item.json;\n\nconsole.log('Build output keys:', Object.keys(buildOutput || {}));\n\nconst ndjson = buildOutput?.ndjson;\n\nif (!ndjson) {\n  console.log('❌ No ndjson data from Build+Sanitize NDJSON');\n  return [{\n    json: {\n      action: 'allow',\n      reason: 'no_ndjson_data',\n      error: 'Could not read data from Build+Sanitize NDJSON node'\n    }\n  }];\n}\n\n// Extract decision data\nconst finalStatus = ndjson.final_decision?.status || 'ALLOWED';\nconst threatScore = ndjson.scoring?.sanitizer_score || ndjson.scoring?.prompt_guard_score || 0;\nconst cleanedPrompt = ndjson.chat_payload?.chatInput || '';\nconst sessionId = ndjson.sessionId || 'unknown';\n\nconsole.log('Final status:', finalStatus);\nconsole.log('Threat score:', threatScore);\nconsole.log('Cleaned prompt:', cleanedPrompt);\n\n// Map status to action\nlet action = 'allow';\nif (finalStatus === 'BLOCKED' || threatScore >= 85) {\n  action = 'block';\n} else if (finalStatus === 'SANITIZED' || threatScore >= 30) {\n  action = 'sanitize';\n}\n\n// Build response for plugin\nconst response = {\n  action: action,\n  reason: finalStatus.toLowerCase(),\n  threat_score: threatScore,\n  sessionId: sessionId\n};\n\n// Try to get original request body from Webhook\ntry {\n  const webhookInput = $('Webhook').first().json;\n  const originalBody = webhookInput?._debug?.fullBody;\n  \n  // If sanitizing and we have original body, build sanitizedBody\n  if (action === 'sanitize' && originalBody && originalBody.messages) {\n    response.sanitizedBody = {\n      ...originalBody,\n      messages: [{\n        ...originalBody.messages[0],\n        content: {\n          content_type: \"text\",\n          parts: [cleanedPrompt]\n        }\n      }]\n    };\n    console.log('✅ Built sanitizedBody with cleaned prompt');\n  } else if (action !== 'allow') {\n    // Fallback - return cleaned prompt as simple field\n    response.chatInput = cleanedPrompt;\n  }\n} catch (e) {\n  console.log('⚠️ Could not access Webhook data:', e.message);\n  if (action !== 'allow') {\n    response.chatInput = cleanedPrompt;\n  }\n}\n\nconsole.log('Final response:', JSON.stringify(response, null, 2));\n\n// Return single object\nreturn [{\n  json: response\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -768
+      ],
+      "id": "ef34e25c-36ab-46fb-9c6a-9ac5b89bdde7",
+      "name": "output to plugin"
     }
   ],
   "pinData": {},
@@ -687,6 +699,11 @@
     "Logging to Clikhouse": {
       "main": [
         [
+          {
+            "node": "output to plugin",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "Clean output",
             "type": "main",
@@ -1130,14 +1147,14 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "7321866c-08e5-4008-a3a9-94878539de45",
+  "versionId": "9e6ecfca-de45-44a4-9750-5cd2b71e2d4d",
   "meta": {
-    "instanceId": "5538966735a4cabf274c5a32f47737f1967b1d921c7234c59c547b4679ca5d23"
+    "instanceId": "dfa197c84cd7f4ad8dd4d19b7082aa2a21efac19e31eeea4eeb47113ea54eee9"
   },
-  "id": "Ad43hnlbblwL6dLC",
+  "id": "Hem9Nqtc9GAC4OMh",
   "tags": []
 }
