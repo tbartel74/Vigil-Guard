@@ -204,6 +204,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup required environment variables
+        run: |
+          echo "CLICKHOUSE_PASSWORD=ci-test-clickhouse-password-32chars-min" >> $GITHUB_ENV
+          echo "GF_SECURITY_ADMIN_PASSWORD=ci-test-grafana-password-here" >> $GITHUB_ENV
+          echo "JWT_SECRET=ci-test-jwt-secret-32chars-minimum-required-here" >> $GITHUB_ENV
+          echo "SESSION_SECRET=ci-test-session-secret-1234567890abcdef123456" >> $GITHUB_ENV
+
       - name: Validate docker-compose.yml
         run: docker compose config > /dev/null
 
