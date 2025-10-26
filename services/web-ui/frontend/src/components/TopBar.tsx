@@ -79,8 +79,7 @@ export default function TopBar() {
           <img
             src={vigilLogo}
             alt="Vigil Logo"
-            className="w-8 h-8 rounded-full object-cover"
-            style={{ clipPath: 'circle(50%)' }}
+            className="w-10 h-10 rounded-full object-contain bg-white/10 p-1"
           />
           <div>
             <div className="text-lg font-bold tracking-tight text-white">
