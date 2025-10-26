@@ -293,16 +293,13 @@ export async function getSystemDiskStats(): Promise<SystemDiskStats> {
       return data[0];
     }
 
-    // Fallback if no data
-    return {
-      total_space: 0,
-      total_space_human: '0 B',
-      free_space: 0,
-      free_space_human: '0 B',
-      used_space: 0,
-      used_space_human: '0 B',
-      used_percent: 0,
-    };
+    // Empty results from system.disks is NEVER normal - every ClickHouse instance has disk stats
+    console.error('CRITICAL: ClickHouse returned no disk stats - this should never happen');
+    throw new Error(
+      'Failed to retrieve disk usage statistics. ' +
+      'System disk information is unavailable. ' +
+      'Please check ClickHouse configuration and permissions on system.disks table.'
+    );
   } catch (error) {
     console.error('ClickHouse query error (getSystemDiskStats):', error);
     throw error;
