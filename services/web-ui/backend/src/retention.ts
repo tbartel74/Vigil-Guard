@@ -179,6 +179,17 @@ export async function updateRetentionConfig(
 async function applyTTLToTable(tableName: string, ttlDays: number): Promise<void> {
   const client = getClickHouseClient();
 
+  // CRITICAL: Validate table name against whitelist to prevent SQL injection
+  const ALLOWED_TABLES = ['events_raw', 'events_processed'];
+  if (!ALLOWED_TABLES.includes(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}`);
+  }
+
+  // Validate ttlDays is a safe integer
+  if (!Number.isInteger(ttlDays) || ttlDays < 1 || ttlDays > 3650) {
+    throw new Error(`Invalid TTL days: ${ttlDays}`);
+  }
+
   try {
     // MODIFY TTL on the table
     // Note: ClickHouse allows MODIFY TTL to change existing TTL expressions
@@ -309,11 +320,17 @@ export async function getSystemDiskStats(): Promise<SystemDiskStats> {
  */
 export async function forceCleanup(tableName: 'events_raw' | 'events_processed' | 'all'): Promise<void> {
   const client = getClickHouseClient();
+  const ALLOWED_TABLES = ['events_raw', 'events_processed'];
 
   try {
-    const tables = tableName === 'all' ? ['events_raw', 'events_processed'] : [tableName];
+    const tables = tableName === 'all' ? ALLOWED_TABLES : [tableName];
 
     for (const table of tables) {
+      // CRITICAL: Validate table name before using in query to prevent SQL injection
+      if (!ALLOWED_TABLES.includes(table)) {
+        throw new Error(`Invalid table name: ${table}`);
+      }
+
       // OPTIMIZE TABLE FINAL triggers merges and TTL cleanup
       const optimizeQuery = `OPTIMIZE TABLE n8n_logs.${table} FINAL`;
       await client.query({
@@ -334,6 +351,12 @@ export async function forceCleanup(tableName: 'events_raw' | 'events_processed' 
  */
 export async function getPartitionInfo(tableName: 'events_raw' | 'events_processed'): Promise<any[]> {
   const client = getClickHouseClient();
+
+  // Defense in depth: validate even though we use parameterized query
+  const ALLOWED_TABLES = ['events_raw', 'events_processed'];
+  if (!ALLOWED_TABLES.includes(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}`);
+  }
 
   try {
     const query = `
