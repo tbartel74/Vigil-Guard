@@ -109,6 +109,7 @@ services/workflow/config/version_history.json
 services/workflow/config/*.bak
 TODO.md
 mustfix.md
+TEST_ANALYSIS.md
 
 # Browser Plugin - now part of the project
 # plugin/
