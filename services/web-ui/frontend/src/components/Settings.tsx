@@ -148,81 +148,6 @@ export function Settings() {
             </div>
           </div>
 
-          {/* Password Change */}
-          <div className="pt-6 border-t border-slate-700">
-            <h2 className="text-lg font-semibold text-white mb-4">Password Security</h2>
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                  Current Password
-                </label>
-                <input
-                  id="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                    New Password
-                  </label>
-                  <input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoComplete="new-password"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoComplete="new-password"
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-text-secondary">
-                Password must be at least 8 characters long. After changing password, you will be logged out.
-              </p>
-
-              {/* Password change message */}
-              {passwordMessage && (
-                <div className={`px-4 py-3 rounded-lg ${
-                  passwordMessage.type === 'success'
-                    ? 'bg-green-500/10 border border-green-500/30 text-green-300'
-                    : 'bg-red-500/10 border border-red-500/30 text-red-300'
-                }`}>
-                  {passwordMessage.text}
-                </div>
-              )}
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={changingPassword}
-                  className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {changingPassword ? 'Changing Password...' : 'Change Password'}
-                </button>
-              </div>
-            </form>
-          </div>
-
           {/* Permissions Info */}
           <div className="pt-6 border-t border-slate-700">
             <h2 className="text-lg font-semibold text-white mb-4">Your Permissions</h2>
@@ -264,6 +189,87 @@ export function Settings() {
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Password Security - Separate Card */}
+      <div className="mt-6 bg-slate-800/50 rounded-lg border border-slate-700 p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-white">Password Security</h2>
+          <p className="text-xs text-text-secondary mt-1">Change your account password</p>
+        </div>
+
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div>
+            <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-300 mb-2">
+              Current Password
+            </label>
+            <input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoComplete="current-password"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="newPassword" className="block text-sm font-medium text-slate-300 mb-2">
+                New Password
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+                Confirm New Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-text-secondary">
+            Password must be at least 8 characters long. After changing password, you will be logged out.
+            <br />
+            <span className="text-yellow-400">⚠️ Security: Maximum 3 password change attempts per 15 minutes.</span>
+          </p>
+
+          {/* Password change message */}
+          {passwordMessage && (
+            <div className={`px-4 py-3 rounded-lg ${
+              passwordMessage.type === 'success'
+                ? 'bg-green-500/10 border border-green-500/30 text-green-300'
+                : 'bg-red-500/10 border border-red-500/30 text-red-300'
+            }`}>
+              {passwordMessage.text}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {changingPassword ? 'Changing Password...' : 'Change Password'}
             </button>
           </div>
         </form>
