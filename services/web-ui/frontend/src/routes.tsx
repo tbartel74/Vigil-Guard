@@ -17,7 +17,7 @@ import { MobileProvider } from "./context/MobileContext";
 import * as api from "./lib/api";
 
 const Monitoring = () => {
-  const GRAFANA_ORIGIN = import.meta.env.VITE_GRAFANA_ORIGIN || 'http://localhost:3001';
+  const GRAFANA_ORIGIN = import.meta.env.VITE_GRAFANA_ORIGIN || 'http://localhost/grafana';
   const [refreshInterval, setRefreshInterval] = useState<number>(30);
   const [timeRange, setTimeRange] = useState<string>("6h");
   const [stats, setStats] = useState({ requests_processed: 0, threats_blocked: 0, content_sanitized: 0 });
