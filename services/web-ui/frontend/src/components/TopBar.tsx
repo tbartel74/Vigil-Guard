@@ -3,7 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { FocusTrap } from "focus-trap-react";
 import { useAuth } from "../context/AuthContext";
 import { useMobile } from "../context/MobileContext";
-import vigilLogo from "../assets/vigil_logo.png";
+
+const vigilLogo = "/ui/vigil_logo.png";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
