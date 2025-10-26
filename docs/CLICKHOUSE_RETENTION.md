@@ -100,6 +100,12 @@ ORDER BY id;
    - Immediately deletes expired data
    - Available per-table or all tables
 
+**Visual Interface:**
+
+![Data Retention Configuration Interface](pic/data-retention-config.png)
+
+The Data Retention configuration screen provides real-time disk usage monitoring, TTL policy management, and force cleanup controls for both events_raw and events_processed tables.
+
 ### API Endpoints
 
 ```

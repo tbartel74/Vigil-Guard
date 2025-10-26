@@ -926,6 +926,109 @@ Dynamic security policy management through web interface with real-time validati
 
 ---
 
+### Data Retention Policy
+
+**Location**: Configuration → System → Data Retention
+
+**Required Permission**: `can_view_configuration`
+
+**Purpose**: Manage automatic data lifecycle policies to prevent unbounded disk usage growth
+
+**Overview**:
+
+Data Retention Policy provides centralized management of ClickHouse TTL (Time To Live) settings for automatic cleanup of old event logs. The interface displays real-time disk usage, allows TTL configuration, and provides force cleanup controls.
+
+**Key Features**:
+
+1. **System Disk Usage Dashboard**
+   - Total/Used/Free space metrics
+   - Visual progress bar with color-coded thresholds:
+     - Green: < Warning threshold (default 80%)
+     - Yellow: Warning threshold to Critical threshold (80-90%)
+     - Red: > Critical threshold (90%)
+   - Real-time usage percentage
+
+2. **Table Statistics**
+   - Per-table metrics for `events_raw` and `events_processed`
+   - Row count, disk size, compressed size
+   - Compression ratio (shows data efficiency)
+   - Partition count and date ranges
+   - Oldest and newest records
+
+3. **TTL Configuration**
+   - **events_raw**: Debug data with default 90-day retention
+   - **events_processed**: Full analysis data with default 365-day retention
+   - Configurable range: 1-3650 days
+   - Warning threshold: 1-100% (default 80%)
+   - Critical threshold: 1-100% (default 90%)
+   - Audit trail shows last modifier and timestamp
+
+4. **Force Cleanup Controls**
+   - Execute `OPTIMIZE TABLE FINAL` to immediately delete expired data
+   - Available per-table or for all tables
+   - Useful after TTL policy changes
+   - Confirmation dialog prevents accidental execution
+
+**How to Configure Retention Policy**:
+
+1. **Navigate to Retention Settings**:
+   - Go to Configuration section
+   - Scroll to "System" section in left panel
+   - Click "Data Retention"
+
+2. **Review Current Disk Usage**:
+   - Check system disk usage percentage
+   - Review per-table statistics
+   - Identify tables consuming most space
+
+3. **Adjust TTL Settings**:
+   - Modify "Events Raw TTL (days)" for debug data
+   - Modify "Events Processed TTL (days)" for analysis data
+   - Adjust warning/critical thresholds if needed
+
+4. **Save Changes**:
+   - Click "Save Changes" button
+   - System automatically applies TTL to ClickHouse tables
+   - Confirmation message displays success
+   - Audit trail updated with your username
+
+5. **Force Cleanup (Optional)**:
+   - Click "Force Cleanup" for specific table or "All Tables"
+   - Confirm action in dialog
+   - Wait for cleanup to complete
+   - Refresh to see updated disk usage
+
+**Default Retention Periods**:
+
+| Table | Default TTL | Purpose | Est. Size @ 5K prompts/day |
+|-------|-------------|---------|---------------------------|
+| events_raw | 90 days | Debug data, raw webhook inputs | 0.9-1.8 GB |
+| events_processed | 365 days | Full analysis data | 9-18 GB |
+
+**Best Practices**:
+
+- **Monitor disk usage regularly** - Check dashboard at least weekly
+- **Set appropriate retention periods** - Balance compliance needs with disk space
+- **Plan for growth** - Calculate expected data volume based on prompt volume
+- **Test changes in non-production** - Verify TTL changes before production deployment
+- **Backup before major changes** - Create database backup before changing retention policies
+- **Use force cleanup after TTL changes** - Immediately reclaim disk space after reducing retention periods
+
+**Troubleshooting**:
+
+**Issue**: Disk usage not decreasing after TTL change
+- **Solution**: Click "Force Cleanup" to trigger immediate deletion. TTL normally runs hourly during background merges.
+
+**Issue**: Changes not saving
+- **Solution**: Verify you have `can_view_configuration` permission. Check browser console for errors.
+
+**Issue**: Partition count very high
+- **Solution**: Consider increasing TTL to allow more data aggregation, or use force cleanup to drop old partitions.
+
+📖 **Detailed documentation**: See [CLICKHOUSE_RETENTION.md](CLICKHOUSE_RETENTION.md) for technical details, architecture, and advanced operations.
+
+---
+
 ## File Manager
 
 **Location**: Configuration → File Manager
