@@ -115,6 +115,7 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:*}
       - JWT_SECRET=${JWT_SECRET:?ERROR - JWT_SECRET must be set in .env file (min 32 characters)}
       - SESSION_SECRET=${SESSION_SECRET:?ERROR - SESSION_SECRET must be set in .env file}
+      - WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD:?ERROR - WEB_UI_ADMIN_PASSWORD must be set in .env file (run ./install.sh)}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
       - DATABASE_PATH=/app/data/users.db
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-vigil-clickhouse}

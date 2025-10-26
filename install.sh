@@ -148,16 +148,16 @@ generate_secure_passwords() {
     # Replace passwords in .env file
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS requires empty string after -i
-        sed -i '' "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
-        sed -i '' "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
-        sed -i '' "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env
-        sed -i '' "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+        sed -i '' "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env || { log_error "Failed to update CLICKHOUSE_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env || { log_error "Failed to update GF_SECURITY_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env || { log_error "Failed to update WEB_UI_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env || { log_error "Failed to update SESSION_SECRET in .env"; exit 1; }
     else
         # Linux sed
-        sed -i "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
-        sed -i "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
-        sed -i "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env
-        sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+        sed -i "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env || { log_error "Failed to update CLICKHOUSE_PASSWORD in .env"; exit 1; }
+        sed -i "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env || { log_error "Failed to update GF_SECURITY_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env || { log_error "Failed to update WEB_UI_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env || { log_error "Failed to update SESSION_SECRET in .env"; exit 1; }
     fi
 
     log_success "Secure passwords generated and configured"
