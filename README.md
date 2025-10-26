@@ -45,6 +45,11 @@ Advanced prompt search and analysis interface for investigating security events 
 
 ![Investigation Panel](docs/pic/investigation-panel.png)
 
+### Data Retention Policy
+Automatic data lifecycle management with configurable TTL policies, disk usage monitoring, and force cleanup controls:
+
+![Data Retention Configuration](docs/pic/data-retention-config.png)
+
 ### Browser Extension
 Client-side protection with real-time prompt validation for ChatGPT and Claude.ai:
 
@@ -646,6 +651,6 @@ Built with:
 
 **Made with ❤️ for LLM Security**
 
-[Documentation](docs/) • [Installation](docs/INSTALLATION.md) • [User Guide](docs/USER_GUIDE.md) • [Configuration](docs/CONFIGURATION.md) • [API](docs/API.md)
+[Documentation](docs/) • [Installation](docs/INSTALLATION.md) • [User Guide](docs/USER_GUIDE.md) • [Configuration](docs/CONFIGURATION.md) • [Data Retention](docs/CLICKHOUSE_RETENTION.md) • [API](docs/API.md)
 
 </div>

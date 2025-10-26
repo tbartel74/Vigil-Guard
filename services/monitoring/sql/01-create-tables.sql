@@ -12,6 +12,8 @@ CREATE DATABASE IF NOT EXISTS n8n_logs;
 -- ============
 -- events_raw
 -- ============
+-- Retention: 90 days (debug data, raw webhook inputs)
+-- TTL: Automatic deletion after 90 days
 CREATE TABLE IF NOT EXISTS n8n_logs.events_raw
 (
   event_id            String,
@@ -28,11 +30,18 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_raw
 ENGINE = MergeTree
 PARTITION BY partition_date
 ORDER BY (timestamp, event_id)
-SETTINGS index_granularity = 8192;
+TTL toDateTime(timestamp) + INTERVAL 90 DAY DELETE
+SETTINGS
+  index_granularity = 8192,
+  merge_with_ttl_timeout = 3600,
+  ttl_only_drop_parts = 1;
 
 -- ==================
 -- events_processed
 -- ==================
+-- Retention: 365 days (full analysis data)
+-- TTL: Automatic deletion after 365 days
+-- Estimated size: 9-18 GB @ 5000 prompts/day (study: clickhouse_retention_study.md)
 CREATE TABLE IF NOT EXISTS n8n_logs.events_processed
 (
   id                    UUID,
@@ -77,7 +86,11 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_processed
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (timestamp, sessionId, id)
-SETTINGS index_granularity = 8192;
+TTL toDateTime(timestamp) + INTERVAL 365 DAY DELETE
+SETTINGS
+  index_granularity = 8192,
+  merge_with_ttl_timeout = 3600,
+  ttl_only_drop_parts = 1;
 
 -- Optional helper table for NDJSON landing (if you ever need it).
 -- Uncomment if you want a raw NDJSON bucket + MV into events_processed.

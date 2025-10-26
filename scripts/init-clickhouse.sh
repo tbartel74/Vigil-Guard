@@ -38,7 +38,8 @@ CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
 CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
 
 # Check if ClickHouse container is running
-if ! docker ps | grep -q vigil-clickhouse; then
+# Note: grep -q with pipefail causes SIGPIPE, use grep > /dev/null instead
+if ! docker ps | grep vigil-clickhouse > /dev/null 2>&1; then
     log_error "ClickHouse container (vigil-clickhouse) is not running"
     log_info "Start it with: docker-compose up -d clickhouse"
     exit 1
@@ -152,6 +153,27 @@ else
     exit 1
 fi
 
+# Execute retention config schema
+log_info "Creating retention config table..."
+RETENTION_OUTPUT=$(cat services/monitoring/sql/05-retention-config.sql | \
+   docker exec -i vigil-clickhouse clickhouse-client \
+    --user "$CLICKHOUSE_USER" \
+    --password "$CLICKHOUSE_PASSWORD" \
+    --database n8n_logs \
+    --multiquery 2>&1)
+RETENTION_STATUS=$?
+
+if [ $RETENTION_STATUS -eq 0 ]; then
+    log_success "Retention config table created"
+else
+    log_error "Failed to create retention config table"
+    log_error "SQL execution output:"
+    echo "$RETENTION_OUTPUT" | sed 's/^/    /'
+    log_info "Script path: services/monitoring/sql/05-retention-config.sql"
+    log_info "Check for syntax errors in the SQL file"
+    exit 1
+fi
+
 # Verify installation
 log_info "Verifying database structure..."
 TABLE_COUNT=$(docker exec vigil-clickhouse clickhouse-client \
@@ -160,7 +182,7 @@ TABLE_COUNT=$(docker exec vigil-clickhouse clickhouse-client \
     --database n8n_logs \
     -q "SHOW TABLES" 2>/dev/null | wc -l)
 
-if [ "$TABLE_COUNT" -ge 6 ]; then
+if [ "$TABLE_COUNT" -ge 7 ]; then
     log_success "ClickHouse initialized successfully!"
     echo ""
     echo -e "${GREEN}Tables and views created:${NC}"
@@ -171,7 +193,7 @@ if [ "$TABLE_COUNT" -ge 6 ]; then
         -q "SHOW TABLES" | sed 's/^/  • /'
     echo ""
 else
-    log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥6)"
+    log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥7)"
     exit 1
 fi
 

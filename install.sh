@@ -551,14 +551,37 @@ EOF
         return 1
     fi
 
+    # Execute retention config schema
+    log_info "Creating retention config table..."
+    RETENTION_OUTPUT=$(cat services/monitoring/sql/05-retention-config.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    RETENTION_STATUS=$?
+
+    if [ $RETENTION_STATUS -eq 0 ]; then
+        log_success "Retention config table created"
+    else
+        log_error "Failed to create retention config table"
+        log_error "ClickHouse error output:"
+        echo "$RETENTION_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/05-retention-config.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
+        log_info "     - Syntax errors in SQL"
+        log_info "     - Database does not exist"
+        log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+        echo ""
+        return 1
+    fi
+
     # Verify installation
     log_info "Verifying database structure..."
     TABLE_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
-    if [ "$TABLE_COUNT" -ge 6 ]; then
+    if [ "$TABLE_COUNT" -ge 7 ]; then
         log_success "ClickHouse initialized successfully ($TABLE_COUNT tables/views)"
     else
-        log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥6)"
+        log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥7)"
     fi
 
     echo ""
