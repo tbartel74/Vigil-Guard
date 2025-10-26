@@ -149,8 +149,8 @@ class UserDatabase {
     ).get('admin') as { count: number };
 
     if (adminExists.count === 0) {
-      // Generate secure random password (32 characters, URL-safe base64)
-      const defaultPassword = randomBytes(24).toString('base64url');
+      // Read password from .env (set by install.sh) or generate as fallback
+      const defaultPassword = process.env.WEB_UI_ADMIN_PASSWORD || randomBytes(24).toString('base64url');
       const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
       this.createUser({
@@ -166,12 +166,15 @@ class UserDatabase {
         timezone: 'UTC'
       });
 
+      const passwordSource = process.env.WEB_UI_ADMIN_PASSWORD ? 'WEB_UI_ADMIN_PASSWORD from .env' : 'randomly generated';
+
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('🔐 Default Admin Account Created');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
       console.log('Username: admin');
       console.log(`Password: ${defaultPassword}`);
+      console.log(`Source: ${passwordSource}`);
       console.log('');
       console.log('⚠️  IMPORTANT: Save this password now!');
       console.log('⚠️  You will be required to change it on first login.');

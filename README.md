@@ -237,7 +237,7 @@ After installation, access the services at:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Web UI** | http://localhost:5173/ui | admin/[see backend console] ⚠️ |
+| **Web UI** | http://localhost/ui | admin/[from install.sh] ⚠️ |
 | **n8n Workflow** | http://localhost:5678 | (create on first access) |
 | **Grafana Dashboard** | http://localhost:3001 | admin/[auto-generated] |
 | **ClickHouse HTTP** | http://localhost:8123 | admin/[auto-generated] |
@@ -350,14 +350,13 @@ rm .env
 
 #### Web UI Initial Access
 
-The Web UI generates a secure random password on first backend startup:
+The Web UI admin password is auto-generated during installation:
 
 ```bash
-# 1. Start backend: docker-compose up -d web-ui-backend
-# 2. Check console output for generated password:
-#    docker logs vigil-web-ui-backend | grep "Password:"
-# 3. Login: admin/<generated-password>
-# 4. System forces password change on first login
+# Password displayed during ./install.sh execution
+# Saved in .env as WEB_UI_ADMIN_PASSWORD
+# Login: admin/<password-from-install>
+# System forces password change on first login
 ```
 
 📖 **Complete security guide**: See [docs/SECURITY.md](docs/SECURITY.md)
