@@ -1,6 +1,6 @@
 {
-  "generated": "2025-10-25T10:12:58.402Z",
-  "count": 13,
+  "generated": "2025-10-26T15:11:14.839Z",
+  "count": 17,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -43,6 +43,16 @@
       "modified": "2025-10-20T16:14:28.566Z"
     },
     {
+      "path": "CLICKHOUSE_RETENTION.md",
+      "file": "CLICKHOUSE_RETENTION",
+      "directory": ".",
+      "url": "/ui/docs/CLICKHOUSE_RETENTION.md",
+      "title": "ClickHouse Data Retention Policy",
+      "category": "root",
+      "size": 12396,
+      "modified": "2025-10-26T14:46:06.683Z"
+    },
+    {
       "path": "CONFIG_VARIABLES.md",
       "file": "CONFIG_VARIABLES",
       "directory": ".",
@@ -59,8 +69,8 @@
       "url": "/ui/docs/CONFIGURATION.md",
       "title": "Configuration Reference",
       "category": "root",
-      "size": 26417,
-      "modified": "2025-10-20T16:14:28.567Z"
+      "size": 29939,
+      "modified": "2025-10-25T12:07:41.147Z"
     },
     {
       "path": "DETECTION_CATEGORIES.md",
@@ -91,6 +101,36 @@
       "category": "root",
       "size": 13143,
       "modified": "2025-10-20T16:14:28.568Z"
+    },
+    {
+      "path": "plugin/BROWSER_EXTENSION.md",
+      "file": "BROWSER_EXTENSION",
+      "directory": "plugin",
+      "url": "/ui/docs/plugin/BROWSER_EXTENSION.md",
+      "title": "Vigil Guard Browser Extension",
+      "category": "plugin",
+      "size": 24366,
+      "modified": "2025-10-25T12:20:05.963Z"
+    },
+    {
+      "path": "plugin/HYBRID_ARCHITECTURE.md",
+      "file": "HYBRID_ARCHITECTURE",
+      "directory": "plugin",
+      "url": "/ui/docs/plugin/HYBRID_ARCHITECTURE.md",
+      "title": "Vigil Guard Plugin - HYBRID Architecture (3-Layer Defense)",
+      "category": "plugin",
+      "size": 12177,
+      "modified": "2025-10-25T12:20:05.963Z"
+    },
+    {
+      "path": "plugin/QUICK_START.md",
+      "file": "QUICK_START",
+      "directory": "plugin",
+      "url": "/ui/docs/plugin/QUICK_START.md",
+      "title": "Vigil Guard Browser Extension - Quick Start Guide",
+      "category": "plugin",
+      "size": 3472,
+      "modified": "2025-10-25T12:20:05.963Z"
     },
     {
       "path": "README.md",
@@ -129,8 +169,8 @@
       "url": "/ui/docs/USER_GUIDE.md",
       "title": "Vigil Guard - User Guide",
       "category": "root",
-      "size": 43590,
-      "modified": "2025-10-20T16:14:28.570Z"
+      "size": 47638,
+      "modified": "2025-10-26T15:08:44.937Z"
     }
   ]
 }

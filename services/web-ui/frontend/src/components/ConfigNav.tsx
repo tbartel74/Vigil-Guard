@@ -48,22 +48,6 @@ export default function ConfigNav() {
           Configure automatic cleanup policies and disk usage monitoring
         </div>
       </NavLink>
-
-      <NavLink
-        to="/config/plugin"
-        className={({ isActive }) =>
-          `block px-3 py-3 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-darker ${
-            isActive
-              ? "bg-slate-800 text-white"
-              : "text-text-secondary hover:text-white hover:bg-slate-800/50"
-          }`
-        }
-      >
-        <div className="font-medium mb-1">Browser Extension</div>
-        <div className="text-xs text-text-secondary leading-relaxed">
-          Configure settings for Chrome extension client-side protection
-        </div>
-      </NavLink>
     </nav>
   );
 }
