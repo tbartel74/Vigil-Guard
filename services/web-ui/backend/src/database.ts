@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
+import { randomBytes, randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
@@ -148,9 +149,9 @@ class UserDatabase {
     ).get('admin') as { count: number };
 
     if (adminExists.count === 0) {
-      // trufflehog:ignore - Default demo password, user prompted to change on first login
-      const defaultPassword = 'admin123';
-      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      // Generate secure random password (32 characters, URL-safe base64)
+      const defaultPassword = randomBytes(24).toString('base64url');
+      const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
       this.createUser({
         username: 'admin',
@@ -161,14 +162,21 @@ class UserDatabase {
         can_view_monitoring: true,
         can_view_configuration: true,
         can_manage_users: true,
-        force_password_change: false,
+        force_password_change: true,
         timezone: 'UTC'
       });
 
-      console.log('Default admin user created:');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔐 Default Admin Account Created');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('');
       console.log('Username: admin');
-      console.log('Password: admin123');
-      console.log('⚠️  Please change the default password after first login!');
+      console.log(`Password: ${defaultPassword}`);
+      console.log('');
+      console.log('⚠️  IMPORTANT: Save this password now!');
+      console.log('⚠️  You will be required to change it on first login.');
+      console.log('');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
   }
 
@@ -315,7 +323,7 @@ class UserDatabase {
 
   // Session operations
   createSession(userId: number, token: string, expiresIn: number = 86400): string {
-    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `sess_${Date.now()}_${randomUUID()}`;
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     const stmt = this.db.prepare(`
