@@ -10,6 +10,7 @@ import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.j
 import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams } from "./clickhouse.js";
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
+import retentionRoutes from "./retentionRoutes.js";
 
 const app = express();
 const PORT = 8787;
@@ -67,6 +68,9 @@ app.use("/api/auth", authRoutes);
 
 // Plugin configuration routes (public /plugin-config, protected /plugin-config/settings)
 app.use("/api", pluginConfigRoutes);
+
+// Retention policy routes (protected - requires can_view_configuration)
+app.use("/api/retention", retentionRoutes);
 
 // Stats endpoint - requires authentication
 app.get("/api/stats/24h", authenticate, async (req, res) => {

@@ -343,3 +343,99 @@ export async function exportPrompts(params: Omit<SearchParams, 'page' | 'pageSiz
   if (!r.ok) throw new Error(await r.text());
   return r.blob();
 }
+
+// ============================================================================
+// RETENTION POLICY API
+// ============================================================================
+
+export interface RetentionConfig {
+  id: number;
+  events_raw_ttl_days: number;
+  events_processed_ttl_days: number;
+  merge_with_ttl_timeout_seconds: number;
+  ttl_only_drop_parts: number;
+  warn_disk_usage_percent: number;
+  critical_disk_usage_percent: number;
+  last_modified_at: string;
+  last_modified_by: string;
+}
+
+export interface DiskUsageStats {
+  table_name: string;
+  total_rows: number;
+  total_bytes: number;
+  total_bytes_human: string;
+  compressed_bytes: number;
+  compressed_bytes_human: string;
+  partition_count: number;
+  oldest_partition: string;
+  newest_partition: string;
+  compression_ratio: number;
+}
+
+export interface SystemDiskStats {
+  total_space: number;
+  total_space_human: string;
+  free_space: number;
+  free_space_human: string;
+  used_space: number;
+  used_space_human: string;
+  used_percent: number;
+}
+
+export interface DiskUsageResponse {
+  success: boolean;
+  tables: DiskUsageStats[];
+  system: SystemDiskStats;
+}
+
+/**
+ * Get current retention policy configuration
+ */
+export async function getRetentionConfig(): Promise<{ success: boolean; config: RetentionConfig }> {
+  const r = await authenticatedFetch(`${API}/retention/config`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Update retention policy configuration
+ */
+export async function updateRetentionConfig(updates: Partial<RetentionConfig>): Promise<{ success: boolean; config: RetentionConfig; message: string }> {
+  const r = await authenticatedFetch(`${API}/retention/config`, {
+    method: "PUT",
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get disk usage statistics
+ */
+export async function getRetentionDiskUsage(): Promise<DiskUsageResponse> {
+  const r = await authenticatedFetch(`${API}/retention/disk-usage`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Force immediate cleanup of expired data
+ */
+export async function forceRetentionCleanup(table: 'events_raw' | 'events_processed' | 'all'): Promise<{ success: boolean; message: string }> {
+  const r = await authenticatedFetch(`${API}/retention/cleanup`, {
+    method: "POST",
+    body: JSON.stringify({ table })
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get partition information for a table
+ */
+export async function getRetentionPartitions(table: 'events_raw' | 'events_processed'): Promise<{ success: boolean; table: string; partitions: any[] }> {
+  const r = await authenticatedFetch(`${API}/retention/partitions/${table}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
