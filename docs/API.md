@@ -37,7 +37,7 @@ credentials: include
 // Request body
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "<password-from-backend-console>"  // Get from: docker logs vigil-web-ui-backend
 }
 
 // Response body

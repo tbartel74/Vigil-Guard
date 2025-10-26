@@ -47,9 +47,12 @@ The Vigil Guard Web UI provides a comprehensive interface for:
 ### Login
 
 1. Navigate to: `http://localhost/ui` (or your configured domain)
-2. Enter your credentials:
-   - Default admin: `admin / admin123` (⚠️ change immediately!)
+2. Get admin password from backend console:
+   - Run: `docker logs vigil-web-ui-backend | grep "Password:"`
+   - Username: `admin`
+   - Password: `[32-character random password displayed once]`
 3. Click **Login**
+4. **System will force password change** on first login - choose a strong new password
 
 ### Dashboard Overview
 
@@ -1441,9 +1444,10 @@ The File Manager allows administrators to:
 **Solutions**:
 1. Verify username and password
 2. Check if account is active (admin must verify)
-3. Try default admin credentials: `admin / admin123`
-4. Check backend logs for authentication errors
-5. Verify JWT token configuration
+3. Get admin password from backend logs: `docker logs vigil-web-ui-backend | grep "Password:"`
+4. If password not shown (already started), reset by deleting `data/users.db` and restarting backend
+5. Check backend logs for authentication errors
+6. Verify JWT token configuration
 
 #### Grafana Panels Not Loading
 
