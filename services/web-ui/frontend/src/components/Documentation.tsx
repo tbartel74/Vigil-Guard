@@ -61,6 +61,7 @@ const docSections: DocSection[] = [
   // Advanced
   { id: "detection-categories", title: "Detection Categories", file: "DETECTION_CATEGORIES", category: "Advanced", icon: "🎯" },
   { id: "grafana-setup", title: "Grafana Setup", file: "GRAFANA_SETUP", category: "Advanced", icon: "📊" },
+  { id: "clickhouse-retention", title: "Data Retention Policy", file: "CLICKHOUSE_RETENTION", category: "Advanced", icon: "🗄️" },
   { id: "accessibility", title: "Accessibility (WCAG 2.1)", file: "ACCESSIBILITY", category: "Advanced", icon: "♿" },
 ];
 
