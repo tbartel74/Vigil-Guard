@@ -153,6 +153,7 @@ jobs:
                 -e NODE_ENV=test \
                 -e JWT_SECRET=ci-test-jwt-secret-32chars-minimum-required-here \
                 -e SESSION_SECRET=ci-session-secret-1234567890abcdef123456 \
+                -e WEB_UI_ADMIN_PASSWORD=ci-test-web-ui-password-32chars-minimum \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
               sleep 5
@@ -210,9 +211,16 @@ jobs:
           echo "GF_SECURITY_ADMIN_PASSWORD=ci-test-grafana-password-here" >> $GITHUB_ENV
           echo "JWT_SECRET=ci-test-jwt-secret-32chars-minimum-required-here" >> $GITHUB_ENV
           echo "SESSION_SECRET=ci-test-session-secret-1234567890abcdef123456" >> $GITHUB_ENV
+          echo "WEB_UI_ADMIN_PASSWORD=ci-test-web-ui-password-32chars-minimum" >> $GITHUB_ENV
 
       - name: Validate docker-compose.yml
         run: docker compose config > /dev/null
+        env:
+          CLICKHOUSE_PASSWORD: ci-test-clickhouse-password-32chars-min
+          GF_SECURITY_ADMIN_PASSWORD: ci-test-grafana-password-here
+          JWT_SECRET: ci-test-jwt-secret-32chars-minimum-required-here
+          SESSION_SECRET: ci-test-session-secret-1234567890abcdef123456
+          WEB_UI_ADMIN_PASSWORD: ci-test-web-ui-password-32chars-minimum
 
       - name: Check required services
         run: |
