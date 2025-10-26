@@ -139,22 +139,25 @@ generate_secure_passwords() {
         exit 1
     fi
 
-    # Generate 3 unique passwords (n8n uses account creation wizard)
+    # Generate 4 unique passwords (n8n uses account creation wizard)
     CLICKHOUSE_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 32)
     GRAFANA_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 32)
+    WEB_UI_ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=\n' | head -c 32)
     SESSION_SECRET=$(openssl rand -base64 64 | tr -d '/+=\n' | head -c 64)
 
     # Replace passwords in .env file
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS requires empty string after -i
-        sed -i '' "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
-        sed -i '' "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
-        sed -i '' "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+        sed -i '' "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env || { log_error "Failed to update CLICKHOUSE_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env || { log_error "Failed to update GF_SECURITY_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env || { log_error "Failed to update WEB_UI_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i '' "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env || { log_error "Failed to update SESSION_SECRET in .env"; exit 1; }
     else
         # Linux sed
-        sed -i "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env
-        sed -i "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env
-        sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env
+        sed -i "s|CLICKHOUSE_PASSWORD=.*|CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}|g" .env || { log_error "Failed to update CLICKHOUSE_PASSWORD in .env"; exit 1; }
+        sed -i "s|GF_SECURITY_ADMIN_PASSWORD=.*|GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}|g" .env || { log_error "Failed to update GF_SECURITY_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i "s|WEB_UI_ADMIN_PASSWORD=.*|WEB_UI_ADMIN_PASSWORD=${WEB_UI_ADMIN_PASSWORD}|g" .env || { log_error "Failed to update WEB_UI_ADMIN_PASSWORD in .env"; exit 1; }
+        sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=${SESSION_SECRET}|g" .env || { log_error "Failed to update SESSION_SECRET in .env"; exit 1; }
     fi
 
     log_success "Secure passwords generated and configured"
@@ -173,15 +176,21 @@ generate_secure_passwords() {
     echo -e "  Username: ${BLUE}admin${NC}"
     echo -e "  Password: ${BLUE}${GRAFANA_PASSWORD}${NC}"
     echo ""
+    echo -e "${GREEN}Web UI Admin Account:${NC}"
+    echo -e "  Username: ${BLUE}admin${NC}"
+    echo -e "  Password: ${BLUE}${WEB_UI_ADMIN_PASSWORD}${NC}"
+    echo -e "  ${YELLOW}Note: You will be forced to change this password on first login${NC}"
+    echo ""
     echo -e "${GREEN}Backend Session Secret:${NC}"
     echo -e "  ${BLUE}${SESSION_SECRET}${NC}"
     echo ""
     echo -e "${RED}⚠️  IMPORTANT NEXT STEPS:${NC}"
     echo -e "  1. ${YELLOW}COPY${NC} these credentials to a secure password manager ${RED}NOW${NC}"
     echo -e "  2. These passwords are ${RED}NOT${NC} shown again after this screen"
-    echo -e "  3. You will need them to access Grafana and ClickHouse"
-    echo -e "  4. n8n account: Create via wizard at ${BLUE}http://localhost:5678${NC} on first visit"
-    echo -e "  5. If lost, you can regenerate by re-running: ${BLUE}./install.sh${NC}"
+    echo -e "  3. You will need them to access Web UI, Grafana, and ClickHouse"
+    echo -e "  4. Web UI: Login at ${BLUE}http://localhost/ui${NC} with admin password above"
+    echo -e "  5. n8n account: Create via wizard at ${BLUE}http://localhost:5678${NC} on first visit"
+    echo -e "  6. If lost, you can regenerate by re-running: ${BLUE}./install.sh${NC}"
     echo ""
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""

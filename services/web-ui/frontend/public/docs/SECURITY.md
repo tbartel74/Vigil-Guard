@@ -37,13 +37,13 @@ After installation completes:
 
 1. **Development/Testing**:
    - ✅ All passwords (Web UI, ClickHouse, Grafana) are auto-generated and cryptographically secure
-   - ⚠️ **IMPORTANT**: Save Web UI password from console output on first backend startup
+   - ⚠️ **IMPORTANT**: Save Web UI password from `install.sh` output during installation
    - ⚠️ **Force password change** required on first Web UI login
 2. **Production Deployment**:
    - ✅ **All service passwords auto-generated** (32+ characters, cryptographically secure)
-   - ⚠️ **Save Web UI admin password** from first startup console output immediately
+   - ⚠️ **Save Web UI admin password** from `install.sh` output immediately
    - ⚠️ **Change Web UI password** on first login (forced by system)
-   - ⚠️ **Save all credentials** (displayed during installation/first run) to password manager
+   - ⚠️ **Save all credentials** (displayed during `./install.sh` execution) to password manager
    - ⚠️ **Enable HTTPS via Caddy reverse proxy**
    - ⚠️ **Restrict network access to services (firewall rules)**
 
@@ -136,13 +136,13 @@ The system supports granular permissions:
 
 #### Default Admin Account
 - **Username**: `admin`
-- **Password**: Auto-generated 32-character random password (displayed once in console on first backend startup)
+- **Password**: Auto-generated 32-character random password (displayed during `install.sh`)
 - **Email**: `admin@vigilguard.local`
 - **Permissions**: All permissions enabled
 - **Database**: SQLite at `/data/users.db`
 - **First Login**:
-  1. Copy password from backend console output (shown once only)
-  2. Login with `admin/<generated-password>`
+  1. Use password displayed during installation (also in `.env` as `WEB_UI_ADMIN_PASSWORD`)
+  2. Login at http://localhost/ui with `admin/<password-from-install>`
   3. System will **force password change** before granting access
   4. Choose a strong new password (minimum 8 characters, 12+ recommended)
 
@@ -502,9 +502,9 @@ tail -f vigil_data/web-ui/audit.log
 ## 📋 Security Checklist
 
 ### Installation
-- [ ] Saved auto-generated passwords (ClickHouse, Grafana) displayed during installation to secure password manager
+- [ ] Saved auto-generated passwords (ClickHouse, Grafana, Web UI) displayed during `./install.sh` execution to secure password manager
 - [ ] Verified auto-generated passwords work for Grafana and ClickHouse
-- [ ] **CRITICAL**: Saved Web UI admin password from console output during first backend startup
+- [ ] **CRITICAL**: Saved Web UI admin password from `install.sh` output (also in `.env` as `WEB_UI_ADMIN_PASSWORD`)
 - [ ] Completed forced password change on first Web UI login
 - [ ] Created additional admin user with strong password (optional)
 

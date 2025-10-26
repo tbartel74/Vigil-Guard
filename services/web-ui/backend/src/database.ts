@@ -149,8 +149,14 @@ class UserDatabase {
     ).get('admin') as { count: number };
 
     if (adminExists.count === 0) {
-      // Generate secure random password (32 characters, URL-safe base64)
-      const defaultPassword = randomBytes(24).toString('base64url');
+      // Enforce WEB_UI_ADMIN_PASSWORD is set (no fallback) - OWASP ASVS V2.1
+      if (!process.env.WEB_UI_ADMIN_PASSWORD || process.env.WEB_UI_ADMIN_PASSWORD.length < 12) {
+        throw new Error(
+          'SECURITY ERROR: WEB_UI_ADMIN_PASSWORD environment variable must be set and at least 12 characters long. ' +
+          'Generate one using: ./install.sh or manually: openssl rand -base64 32 | tr -d "/+=\\n" | head -c 32'
+        );
+      }
+      const defaultPassword = process.env.WEB_UI_ADMIN_PASSWORD;
       const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
       this.createUser({
@@ -171,9 +177,10 @@ class UserDatabase {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
       console.log('Username: admin');
-      console.log(`Password: ${defaultPassword}`);
+      console.log('Password: [Set via WEB_UI_ADMIN_PASSWORD in .env - see install.sh output]');
+      console.log('Source: WEB_UI_ADMIN_PASSWORD environment variable');
       console.log('');
-      console.log('⚠️  IMPORTANT: Save this password now!');
+      console.log('⚠️  IMPORTANT: Use password from install.sh output!');
       console.log('⚠️  You will be required to change it on first login.');
       console.log('');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

@@ -431,10 +431,9 @@ docker network create vigil-network
 
 ## Quick Start for New Users
 
-1. `./install.sh` → Start backend → Get password: `docker logs vigil-web-ui-backend | grep "Password:"` → Access Web UI at http://localhost/ui → Login with generated password → Complete forced password change
+1. `./install.sh` → **Save password from install output** (displayed with other credentials) → Access Web UI at http://localhost/ui → Login: `admin/<password-from-install>` → Complete forced password change
 2. **⚠️ Configure n8n**: http://localhost:5678 → Import `services/workflow/workflows/Vigil-Guard-v1.4.json` → Set ClickHouse credentials (host:vigil-clickhouse, port:8123, db:n8n_logs, user:admin, pass:[from .env]) → Activate workflow
-3. **⚠️ Change default password** in Settings
-4. Create users in Administration, configure permissions, monitor dashboard, adjust security policies
+3. Create users in Administration, configure permissions, monitor dashboard, adjust security policies
 
 **Docs**: `docs/{INSTALLATION,AUTHENTICATION,CONFIGURATION,API}.md`, `prompt-guard-api/README.md`
 

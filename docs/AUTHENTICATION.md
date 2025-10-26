@@ -238,16 +238,18 @@ Email: admin@vigilguard.local
 ```
 
 **Password Generation**:
-- Uses cryptographically secure random number generator (`crypto.randomBytes()`)
-- 32 characters (base64url encoding)
-- Displayed **once** in console output during first backend startup
+- Auto-generated during `./install.sh` execution
+- Uses cryptographically secure random number generator (`openssl rand -base64 32`)
+- 32 characters (URL-safe encoding)
+- Displayed **once** during installation (also saved in `.env` as `WEB_UI_ADMIN_PASSWORD`)
 - **Force password change required** on first login
 
 **⚠️ CRITICAL SECURITY STEPS**:
-1. **Copy the password immediately** from console output - it will not be shown again
-2. Login with the generated password
-3. You will be **forced to change the password** before accessing the system
-4. Choose a strong new password (minimum 12 characters recommended)
+1. **Copy the password immediately** from `install.sh` output - it is displayed only once during installation
+2. Password is also stored in `.env` file as `WEB_UI_ADMIN_PASSWORD` for reference
+3. Login with the generated password: http://localhost/ui
+4. You will be **forced to change the password** before accessing the system
+5. Choose a strong new password (minimum 12 characters recommended)
 
 ## Protected Routes
 
