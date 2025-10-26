@@ -41,11 +41,7 @@
     handle_path /grafana/* {
         reverse_proxy grafana:3000
     }
-    
-    handle_path /clickhouse/* {
-        reverse_proxy clickhouse:8123
-    }
-    
+
     # WAŻNE: Zakomentuj lub usuń file_server!
     # To powoduje że zwraca "GUI działa"
     
