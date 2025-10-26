@@ -237,7 +237,7 @@ After installation, access the services at:
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Web UI** | http://localhost:5173/ui | admin/admin123 ⚠️ |
+| **Web UI** | http://localhost:5173/ui | admin/[see backend console] ⚠️ |
 | **n8n Workflow** | http://localhost:5678 | (create on first access) |
 | **Grafana Dashboard** | http://localhost:3001 | admin/[auto-generated] |
 | **ClickHouse HTTP** | http://localhost:8123 | admin/[auto-generated] |
@@ -326,7 +326,7 @@ When you run `./install.sh`, the script will:
 
 - ✅ **No default passwords** - Every installation gets unique credentials
 - ✅ **Cryptographic randomness** - Uses `openssl rand -base64` for entropy
-- ✅ **Auto-detection of admin123** - Forces regeneration if found in existing `.env`
+- ✅ **Web UI password generation** - Backend generates secure random password on first run
 - ✅ **Fail-secure backend** - Backend exits if `SESSION_SECRET` not set
 - ✅ **One-time display** - Credentials shown only during installation
 - ✅ **Platform-aware** - Works on macOS and Linux
@@ -350,11 +350,14 @@ rm .env
 
 #### Web UI Initial Access
 
-The Web UI retains the default `admin/admin123` credential for initial access only:
+The Web UI generates a secure random password on first backend startup:
 
 ```bash
-# First login: admin/admin123
-# Then immediately change via Settings → Change Password
+# 1. Start backend: docker-compose up -d web-ui-backend
+# 2. Check console output for generated password:
+#    docker logs vigil-web-ui-backend | grep "Password:"
+# 3. Login: admin/<generated-password>
+# 4. System forces password change on first login
 ```
 
 📖 **Complete security guide**: See [docs/SECURITY.md](docs/SECURITY.md)

@@ -227,17 +227,27 @@ Available timezones:
 - Transaction support for atomic operations
 - File-based SQLite database with proper permissions
 
-## Default Credentials
+## Default Admin Account
 
-On first startup, the system creates a default administrator account:
+On first startup, the system automatically creates a default administrator account with a **randomly generated password**:
 
 ```
 Username: admin
-Password: admin123
-Email: admin@vigil-guard.local
+Password: [randomly generated 32-character password]
+Email: admin@vigilguard.local
 ```
 
-**⚠️ IMPORTANT**: Change the default password immediately after first login!
+**Password Generation**:
+- Uses cryptographically secure random number generator (`crypto.randomBytes()`)
+- 32 characters (base64url encoding)
+- Displayed **once** in console output during first backend startup
+- **Force password change required** on first login
+
+**⚠️ CRITICAL SECURITY STEPS**:
+1. **Copy the password immediately** from console output - it will not be shown again
+2. Login with the generated password
+3. You will be **forced to change the password** before accessing the system
+4. Choose a strong new password (minimum 12 characters recommended)
 
 ## Protected Routes
 

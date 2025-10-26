@@ -244,7 +244,7 @@ The Web UI includes a comprehensive authentication system with RBAC:
 **Features**:
 - JWT token-based auth with RBAC (3 permissions: monitoring, configuration, user management)
 - SQLite database with bcrypt password hashing (12 rounds)
-- Default credentials: admin/admin123 (⚠️ change immediately!)
+- Default credentials: admin/[auto-generated 32-char password] (displayed once in backend console)
 - User CRUD operations, active/inactive status, forced password resets
 - Timezone preferences, last admin protection
 
@@ -267,7 +267,7 @@ The Web UI manages configuration through a unified variable mapping system:
 
 ### Logging & Monitoring
 
-**ClickHouse**: Database `n8n_logs` with 2 tables (events_raw, events_processed), partitioned by month, default credentials: `admin/admin123`
+**ClickHouse**: Database `n8n_logs` with 2 tables (events_raw, events_processed), partitioned by month, credentials auto-generated during `install.sh`
 
 **Real-time Statistics**: Dashboard auto-refreshes every 30s, queries last 24h metrics (requests, threats blocked, sanitized)
 
@@ -392,7 +392,7 @@ docker network create vigil-network
 
 **Ports**: n8n:5678, Web UI:5173/8787, Grafana:3001, ClickHouse:8123/9000
 
-**ClickHouse Issues**: Check credentials (admin/admin123), verify container running, confirm SQL scripts mounted, convert string→number in frontend
+**ClickHouse Issues**: Check credentials in `.env` file, verify container running, confirm SQL scripts mounted, convert string→number in frontend
 
 **Config Locations**: Workflow: `services/workflow/config/*.{json,conf}`, Specs: `services/web-ui/frontend/src/spec/variables.json`, Docs: `./docs/`
 
@@ -431,7 +431,7 @@ docker network create vigil-network
 
 ## Quick Start for New Users
 
-1. `./install.sh` → Access Web UI at http://localhost:5173/ui → Login: `admin/admin123`
+1. `./install.sh` → Start backend → Get password: `docker logs vigil-web-ui-backend | grep "Password:"` → Access Web UI at http://localhost/ui → Login with generated password → Complete forced password change
 2. **⚠️ Configure n8n**: http://localhost:5678 → Import `services/workflow/workflows/Vigil-Guard-v1.4.json` → Set ClickHouse credentials (host:vigil-clickhouse, port:8123, db:n8n_logs, user:admin, pass:[from .env]) → Activate workflow
 3. **⚠️ Change default password** in Settings
 4. Create users in Administration, configure permissions, monitor dashboard, adjust security policies

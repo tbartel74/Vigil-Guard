@@ -17,7 +17,7 @@ When you run `install.sh`, the system:
 
 | Service | Username | Password | Port |
 |---------|----------|----------|------|
-| **Web UI** | `admin` | `admin123` ⚠️ **CHANGE IMMEDIATELY** | 5173 |
+| **Web UI** | `admin` | Auto-generated (32 chars) ⚠️ **Shown once at startup** | 5173 |
 | **Grafana** | `admin` | Auto-generated (32 chars) | 3001 |
 | **ClickHouse** | `admin` | Auto-generated (32 chars) | 8123 |
 | **n8n** | (create on first access) | - | 5678 |
@@ -36,12 +36,14 @@ After installation completes:
 ### Security Recommendations
 
 1. **Development/Testing**:
-   - ClickHouse, Grafana passwords are auto-generated and secure by default
-   - **⚠️ IMPORTANT**: Change Web UI password from `admin123` to a strong password via Settings
+   - ✅ All passwords (Web UI, ClickHouse, Grafana) are auto-generated and cryptographically secure
+   - ⚠️ **IMPORTANT**: Save Web UI password from console output on first backend startup
+   - ⚠️ **Force password change** required on first Web UI login
 2. **Production Deployment**:
-   - ✅ **ClickHouse/Grafana passwords auto-generated** (no manual setting required)
-   - ⚠️ **Change Web UI admin password immediately** after first login
-   - ⚠️ **Save all credentials** (displayed during installation) to password manager
+   - ✅ **All service passwords auto-generated** (32+ characters, cryptographically secure)
+   - ⚠️ **Save Web UI admin password** from first startup console output immediately
+   - ⚠️ **Change Web UI password** on first login (forced by system)
+   - ⚠️ **Save all credentials** (displayed during installation/first run) to password manager
    - ⚠️ **Enable HTTPS via Caddy reverse proxy**
    - ⚠️ **Restrict network access to services (firewall rules)**
 
@@ -134,10 +136,15 @@ The system supports granular permissions:
 
 #### Default Admin Account
 - **Username**: `admin`
-- **Password**: `admin123` (default - **CHANGE IMMEDIATELY** after first login)
+- **Password**: Auto-generated 32-character random password (displayed once in console on first backend startup)
+- **Email**: `admin@vigilguard.local`
 - **Permissions**: All permissions enabled
 - **Database**: SQLite at `/data/users.db`
-- **First Login**: Login with `admin/admin123`, then navigate to Settings → Change Password
+- **First Login**:
+  1. Copy password from backend console output (shown once only)
+  2. Login with `admin/<generated-password>`
+  3. System will **force password change** before granting access
+  4. Choose a strong new password (minimum 8 characters, 12+ recommended)
 
 #### Creating Additional Users
 
@@ -286,7 +293,7 @@ Complete change history maintained in `audit.log`:
 
 | Threat | Risk | Mitigation |
 |--------|------|------------|
-| **Default credentials** | CRITICAL | ClickHouse/Grafana auto-generated; Web UI defaults to `admin123` - must be changed manually |
+| **Default credentials** | MEDIUM | All passwords auto-generated with crypto.randomBytes(); Web UI forces password change on first login |
 | **SQL Injection** | HIGH | Parameterized queries with better-sqlite3 |
 | **Path Traversal** | HIGH | Filename validation, whitelist pattern |
 | **XSS** | MEDIUM | React automatic escaping, CSP headers |
@@ -497,7 +504,8 @@ tail -f vigil_data/web-ui/audit.log
 ### Installation
 - [ ] Saved auto-generated passwords (ClickHouse, Grafana) displayed during installation to secure password manager
 - [ ] Verified auto-generated passwords work for Grafana and ClickHouse
-- [ ] **CRITICAL**: Changed Web UI admin password from `admin123` via Settings page
+- [ ] **CRITICAL**: Saved Web UI admin password from console output during first backend startup
+- [ ] Completed forced password change on first Web UI login
 - [ ] Created additional admin user with strong password (optional)
 
 ### Production Deployment

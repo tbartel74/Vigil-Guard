@@ -23,13 +23,21 @@ and all requests should include:
 credentials: include
 ```
 
+**Rate Limiting**: Authentication endpoints are protected against brute force attacks:
+- **Login endpoint**: 5 attempts per 15 minutes
+- **Password change**: 3 attempts per 15 minutes
+- When limit exceeded, the API returns HTTP `429 Too Many Requests` with a JSON error message
+- Rate limit headers are included in responses: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`
+
 ### `POST /api/auth/login`
+
+**Rate Limited**: 5 attempts per 15 minutes per IP address
 
 ```jsonc
 // Request body
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "<password-from-backend-console>"  // Get from: docker logs vigil-web-ui-backend
 }
 
 // Response body
@@ -57,7 +65,7 @@ credentials: include
 | `POST` | `/api/auth/logout`             | Invalidates the current session          |
 | `GET`  | `/api/auth/me`                 | Returns the logged-in user's data        |
 | `GET`  | `/api/auth/verify`             | Validates the token and returns its payload |
-| `POST` | `/api/auth/change-password`    | Changes the user password (requires `currentPassword` and `newPassword`) |
+| `POST` | `/api/auth/change-password`    | Changes the user password (requires `currentPassword` and `newPassword`) **[Rate Limited: 3/15min]** |
 | `PUT`  | `/api/auth/settings`           | Updates the user's timezone setting      |
 
 Administrators have additional endpoints for managing users: `/api/auth/users`, `PUT/DELETE /api/auth/users/:id`, `/api/auth/users/:id/toggle-active`, `/api/auth/users/:id/force-password-change`.
