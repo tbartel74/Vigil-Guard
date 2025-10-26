@@ -28,7 +28,7 @@ export async function setup() {
   }
 
   console.log('✅ ClickHouse password loaded from .env');
-  console.log(`   Password: ${process.env.CLICKHOUSE_PASSWORD.substring(0, 8)}...${process.env.CLICKHOUSE_PASSWORD.substring(process.env.CLICKHOUSE_PASSWORD.length - 4)}`);
+  console.log('   Password length:', process.env.CLICKHOUSE_PASSWORD.length);
 
   // Verify n8n is running
   try {

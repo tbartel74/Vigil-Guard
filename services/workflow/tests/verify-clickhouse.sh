@@ -21,7 +21,7 @@ if [ -f "../../.env" ]; then
     CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" ../../.env | cut -d'=' -f2)
     if [ -n "$CLICKHOUSE_PASSWORD" ]; then
         echo -e "${GREEN}✓${NC} Znaleziono CLICKHOUSE_PASSWORD w .env"
-        echo -e "  Hasło: ${YELLOW}${CLICKHOUSE_PASSWORD}${NC}"
+        echo -e "  Password length: ${#CLICKHOUSE_PASSWORD} characters"
         read -p "Użyć tego hasła? (y/n): " use_env
         if [ "$use_env" != "y" ]; then
             CLICKHOUSE_PASSWORD=""
@@ -113,6 +113,6 @@ echo -e "${GREEN}✓ Wszystkie testy przeszły pomyślnie!${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo
 echo -e "${YELLOW}Możesz teraz uruchomić testy:${NC}"
-echo -e "  export CLICKHOUSE_PASSWORD='${CLICKHOUSE_PASSWORD}'"
+echo -e "  # Password already configured in ../../.env"
 echo -e "  npm test"
 echo
