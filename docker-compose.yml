@@ -23,7 +23,8 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-admin}
       CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD:?ERROR - CLICKHOUSE_PASSWORD must be set in .env file}"
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:-1}
-      CLICKHOUSE_ALWAYS_RUN_INITDB_SCRIPTS: "1"
+      # Note: Init scripts run automatically on first start with empty volume
+      # Volume cleanup in install.sh ensures clean initialization with new password
     volumes:
       - ./vigil_data/clickhouse:/var/lib/clickhouse
       - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
@@ -49,6 +50,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:?ERROR - GF_SECURITY_ADMIN_PASSWORD must be set in .env file}"
       GF_SECURITY_ALLOW_EMBEDDING: ${GF_SECURITY_ALLOW_EMBEDDING:-true}
       GF_SECURITY_COOKIE_SAMESITE: ${GF_SECURITY_COOKIE_SAMESITE:-lax}
+      # Anonymous access required for iframe embeds in Web UI (restricted to Viewer role, read-only)
+      # Web UI itself is protected by JWT authentication - this only affects embedded dashboards
       GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-true}
       GF_AUTH_ANONYMOUS_ORG_ROLE: ${GF_AUTH_ANONYMOUS_ORG_ROLE:-Viewer}
       GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost/grafana}

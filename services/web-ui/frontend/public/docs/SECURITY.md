@@ -58,9 +58,17 @@ After installation completes:
    - Default passwords detected (`admin123`)
    - Missing `SESSION_SECRET`
 
-2. **Automatic Cleanup Phase**:
+2. **Password Generation Phase**:
+   - Generates 32+ character random passwords using `openssl rand`
+   - Updates `.env` file with new credentials
+   - Updates Grafana datasource config template
+
+3. **Automatic Cleanup Phase**:
    ```bash
-   # Stops ClickHouse container
+   # Verifies Docker daemon is accessible
+   docker info
+
+   # Stops ClickHouse container if running
    docker-compose stop clickhouse
 
    # Removes container
@@ -68,17 +76,16 @@ After installation completes:
 
    # Removes old volume data (prevents password conflicts)
    rm -rf vigil_data/clickhouse
+
+   # Verifies deletion succeeded
+   [ -d vigil_data/clickhouse ] && exit 1
    ```
 
-3. **Password Generation Phase**:
-   - Generates 32+ character random passwords
-   - Updates `.env` file
-   - Updates Grafana datasource config
-
 4. **Clean Start Phase**:
-   - ClickHouse starts with clean volume
+   - ClickHouse starts with clean, empty volume
    - New password is used from the start
    - No old credentials remain in any cache or volume
+   - Init scripts create fresh database schema
 
 **Why This Matters:**
 - ✅ Prevents authentication failures due to password mismatches
