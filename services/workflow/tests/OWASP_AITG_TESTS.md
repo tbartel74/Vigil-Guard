@@ -62,7 +62,7 @@ New tests based on payloads from **OWASP AI Testing Guide (AITG-APP)** for categ
 
 2. **n8n workflow must be active**:
    - Open http://localhost:5678
-   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.4.json` (if not already)
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.5.json` (if not already)
    - Ensure workflow is **ACTIVE** (green button)
 
 3. **ClickHouse must be accessible**:

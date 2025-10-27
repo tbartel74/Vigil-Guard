@@ -1,5 +1,5 @@
 {
-  "name": "Vigil-Guard-v1.4",
+  "name": "Vigil-Guard-v1.5",
   "nodes": [
     {
       "parameters": {
@@ -9,9 +9,9 @@
       "typeVersion": 1.3,
       "position": [
         -5264,
-        -1040
+        64
       ],
-      "id": "ed67ca7e-d0e5-47bc-a5f4-391564819f94",
+      "id": "451094b5-f268-469d-9466-48ec4134e07f",
       "name": "When chat message received",
       "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
     },
@@ -23,9 +23,9 @@
       "typeVersion": 2,
       "position": [
         448,
-        -1008
+        96
       ],
-      "id": "6944c510-e959-4d68-b80d-2102fe4bf884",
+      "id": "2e2b0973-2d91-4798-889f-42b0c8c1d4c9",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -51,16 +51,16 @@
       "typeVersion": 4.2,
       "position": [
         672,
-        -1008
+        96
       ],
-      "id": "370ea391-0930-464c-aa27-5e727a97364c",
+      "id": "a34cfb2e-dc3c-4dea-9e6a-603c112f0abc",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
       "credentials": {
         "httpBasicAuth": {
-          "id": "bolvzGrkrBMMpXCf",
-          "name": "clickhouse"
+          "id": "04Fm7j9WPYuZOD2m",
+          "name": "Clickhouse"
         }
       }
     },
@@ -72,9 +72,9 @@
       "typeVersion": 2,
       "position": [
         -3600,
-        -1008
+        96
       ],
-      "id": "cc459d0c-d9c7-4310-aefc-be14d50e1355",
+      "id": "1620b87f-8eb3-4474-9838-50f9a44f7fe2",
       "name": "Config Loader"
     },
     {
@@ -90,9 +90,9 @@
       "typeVersion": 3.2,
       "position": [
         -3808,
-        -1024
+        80
       ],
-      "id": "12c7beb3-77fa-4607-bd9d-4e75df5c0127",
+      "id": "59153a86-004e-42de-a444-f44d96d47f26",
       "name": "Merge"
     },
     {
@@ -114,9 +114,9 @@
       "typeVersion": 3.4,
       "position": [
         -4800,
-        -1040
+        64
       ],
-      "id": "565ab5a1-d03e-4b33-8724-0a75face20fe",
+      "id": "cf8b26ae-6d95-4fd3-b6d8-77ff0b99d37f",
       "name": "Keep only set"
     },
     {
@@ -129,9 +129,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        -784
+        320
       ],
-      "id": "7179c31d-ab53-4bfe-8a2f-af09224fea90",
+      "id": "6ead6537-3c4f-4085-96bf-58fff844533f",
       "name": "Extract from File"
     },
     {
@@ -144,9 +144,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        -592
+        512
       ],
-      "id": "4b4cd9f3-d8f0-4694-9c35-8dc5397e7b9d",
+      "id": "056c96a6-2ac8-4610-93ac-d11bd9eb7253",
       "name": "Extract from File1"
     },
     {
@@ -157,9 +157,9 @@
       "typeVersion": 2,
       "position": [
         -2944,
-        -1008
+        96
       ],
-      "id": "09f24c45-0b0f-41e0-9e5f-a8d6a5ed24ba",
+      "id": "2f316a53-2536-4309-87d7-3358a3e4202d",
       "name": "Normalize_Node"
     },
     {
@@ -175,7 +175,7 @@
             {
               "id": "998db0bf-ad74-49e7-bbad-7d720cedea60",
               "name": "chatInput",
-              "value": "={{ $('Build+Sanitize NDJSON').item.json.ndjson.chat_payload.chatInput }}",
+              "value": "={{ $('Build+Sanitize NDJSON').item.json.row.chat_input }}",
               "type": "string"
             }
           ]
@@ -186,9 +186,9 @@
       "typeVersion": 3.4,
       "position": [
         928,
-        -1008
+        96
       ],
-      "id": "a9a83eb7-5639-4aa5-a20c-69bfcba5d129",
+      "id": "f06aa25c-a9dd-422e-b1d1-bbe558295edc",
       "name": "Clean output"
     },
     {
@@ -203,9 +203,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        -592
+        512
       ],
-      "id": "21b28d1c-ee14-414d-b7d1-aebe17019a66",
+      "id": "095699dd-7eec-4f38-abcd-ac91c786e2fd",
       "name": "Loading config files *.conf"
     },
     {
@@ -220,9 +220,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        -784
+        320
       ],
-      "id": "8a15edc8-2bf4-4a1e-b8ba-795d847f8f45",
+      "id": "a0ae2eec-093c-4c8f-bf52-b26849763644",
       "name": "Loading config files *.json"
     },
     {
@@ -233,9 +233,9 @@
       "typeVersion": 2,
       "position": [
         -1968,
-        -1008
+        96
       ],
-      "id": "ead5b178-108f-4df6-b0f9-0b1d6330f10d",
+      "id": "80c561fd-cece-4c4d-94e0-1bf45cc556d7",
       "name": "Unified Decision Engine"
     },
     {
@@ -246,9 +246,9 @@
       "typeVersion": 2,
       "position": [
         -2464,
-        -1008
+        96
       ],
-      "id": "c6766b05-21b7-4026-b60a-46533ea04225",
+      "id": "87fdb281-fcd6-479a-8636-0ca9705a025a",
       "name": "Allowlist_Validator"
     },
     {
@@ -259,9 +259,9 @@
       "typeVersion": 2,
       "position": [
         -1456,
-        -1008
+        96
       ],
-      "id": "47b566e0-a797-4351-b893-159057efdfd6",
+      "id": "735946e8-077e-494c-aacc-dd415c42350e",
       "name": "Sanitization_Enforcement"
     },
     {
@@ -272,9 +272,9 @@
       "typeVersion": 2,
       "position": [
         -3168,
-        -1008
+        96
       ],
-      "id": "f923534b-7e53-4005-935a-09eaee47028e",
+      "id": "5b0d24f3-a614-403a-8aaf-3a053ead2763",
       "name": "PII_Redactor"
     },
     {
@@ -285,9 +285,9 @@
       "typeVersion": 2,
       "position": [
         -1728,
-        -1008
+        96
       ],
-      "id": "e4b6227b-d204-4122-b5e1-e89b4b6122b6",
+      "id": "60bf3a7d-65d0-4a1c-9e33-3ce2f48b1ed2",
       "name": "Correlation_Engine"
     },
     {
@@ -298,9 +298,9 @@
       "typeVersion": 2,
       "position": [
         -2224,
-        -1008
+        96
       ],
-      "id": "e8a5f2e1-2807-4512-9693-98986cc64c3b",
+      "id": "94fcf986-27eb-4366-a8bf-502822d7e89c",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -313,9 +313,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        -384
+        720
       ],
-      "id": "ee3684fd-b155-4a12-835b-f518abedbb7b",
+      "id": "06f10dcf-64c5-49d5-9e55-45f069aad564",
       "name": "Extract from File2"
     },
     {
@@ -330,9 +330,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        -384
+        720
       ],
-      "id": "a7801b47-12f1-4f69-bed3-ec3586d45957",
+      "id": "66395d6a-5e19-428e-8cd5-14f6f34caee4",
       "name": "Loading config files *.conf1"
     },
     {
@@ -345,9 +345,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        -176
+        928
       ],
-      "id": "91e941c7-4e1c-4396-ab7e-4b28863eddb9",
+      "id": "d4c6ae06-d80f-4e7b-a3ed-2c6905b2b94d",
       "name": "Extract from File3"
     },
     {
@@ -362,9 +362,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        -176
+        928
       ],
-      "id": "2801e95d-b037-43cd-a766-4459efc8888a",
+      "id": "b6b42641-381d-4440-8e77-e75bffa509aa",
       "name": "Loading config files *.conf2"
     },
     {
@@ -377,9 +377,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        32
+        1136
       ],
-      "id": "fd0ec6ff-dc25-4e2f-9681-556e122395f1",
+      "id": "b740fd1d-7d91-4779-9361-0b3801b4fe0a",
       "name": "Extract from File4"
     },
     {
@@ -394,9 +394,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        32
+        1136
       ],
-      "id": "97a5b3c6-0924-4723-a45e-b2d5a78a3096",
+      "id": "63621163-29a0-426c-83a7-adfee816dca2",
       "name": "Loading config files *.conf3"
     },
     {
@@ -409,9 +409,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        256
+        1360
       ],
-      "id": "56b6e5eb-e7c3-48e1-82e7-6a16016deeb5",
+      "id": "85886bf6-60eb-4e6e-81ff-d13f3969ad08",
       "name": "Extract from File5"
     },
     {
@@ -426,9 +426,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        256
+        1360
       ],
-      "id": "253bd462-e896-455b-9b60-b772fccf7976",
+      "id": "0b708c49-728d-45f0-9e8e-8938d8768450",
       "name": "Loading config files *.conf4"
     },
     {
@@ -439,9 +439,9 @@
       "typeVersion": 2,
       "position": [
         208,
-        -1008
+        96
       ],
-      "id": "ac4fba87-f06f-42e3-a591-b86954c09603",
+      "id": "ca4760cc-fe6e-448b-8d4a-4d0d3180a43d",
       "name": "Finale Decision"
     },
     {
@@ -456,9 +456,9 @@
       "typeVersion": 3.2,
       "position": [
         -32,
-        -1008
+        96
       ],
-      "id": "e8cdeee3-229b-4b08-a519-d08038ca4aaa",
+      "id": "89457e1a-4c88-4ccf-98b3-c9e61293a592",
       "name": "Merge1"
     },
     {
@@ -490,9 +490,9 @@
       "typeVersion": 2.2,
       "position": [
         -1200,
-        -1008
+        96
       ],
-      "id": "151ad3fd-8494-42f3-b74b-bd2535c7ebfa",
+      "id": "72f20e9b-2efa-46e5-b933-6476262beaee",
       "name": "If"
     },
     {
@@ -503,9 +503,9 @@
       "typeVersion": 2,
       "position": [
         -304,
-        -880
+        224
       ],
-      "id": "d9218db3-8bb1-4a28-b2fa-734321c07453",
+      "id": "e21245c2-fcb0-4015-b0a6-c3a612cb8b2f",
       "name": "LLM Context Restore"
     },
     {
@@ -516,9 +516,9 @@
       "typeVersion": 2,
       "position": [
         -912,
-        -896
+        208
       ],
-      "id": "25dfe3c7-65d3-47ae-adb1-1de0e83f2bb2",
+      "id": "d9948e05-e46f-4633-b518-64a0838f5ac3",
       "name": "Prepare LLM Request"
     },
     {
@@ -529,9 +529,9 @@
       "typeVersion": 2,
       "position": [
         -720,
-        -752
+        352
       ],
-      "id": "1b33c134-01c7-4c05-bc5d-e1ac0954500e",
+      "id": "dbd661c5-8b66-49f3-8e5c-eb0c7f2733ee",
       "name": "Prompt Guard API"
     },
     {
@@ -542,9 +542,9 @@
       "typeVersion": 3.2,
       "position": [
         -528,
-        -880
+        224
       ],
-      "id": "233428ae-3b01-43b0-be3c-645adeb8fd1b",
+      "id": "124583e2-9f17-4a2a-b438-c720f67ac920",
       "name": "Merge2"
     },
     {
@@ -555,9 +555,9 @@
       "typeVersion": 2,
       "position": [
         -2704,
-        -1008
+        96
       ],
-      "id": "663de637-06cc-4765-97a0-2abaeea4cf5f",
+      "id": "6fcc16fc-9150-4455-9450-5d7c8d0894d2",
       "name": "Bloom_Prefilter"
     },
     {
@@ -570,10 +570,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "position": [
         -5424,
-        -1136
+        -32
       ],
       "typeVersion": 1,
-      "id": "cda66c79-c560-4d22-8624-bb8a7cad3daf",
+      "id": "55711def-38e7-4d7a-8ebe-57c3e8810f47",
       "name": "Sticky Note1"
     },
     {
@@ -587,9 +587,9 @@
       "typeVersion": 2.1,
       "position": [
         -5264,
-        -464
+        640
       ],
-      "id": "09d5f5bf-6753-4b9c-a6b1-2b354a7e5a86",
+      "id": "1a320bb0-5209-43b6-8a23-c00cd1fe797d",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -603,10 +603,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "position": [
         -5440,
-        -592
+        512
       ],
       "typeVersion": 1,
-      "id": "44131ab7-ce21-4806-9c3f-d052fe20dff6",
+      "id": "49e01c81-17d4-4f82-9d6c-e64321b11119",
       "name": "Sticky Note2"
     },
     {
@@ -617,9 +617,9 @@
       "typeVersion": 2,
       "position": [
         -3424,
-        -1008
+        96
       ],
-      "id": "016d3a22-b310-4c12-8a5b-f41728d618a7",
+      "id": "09f958d3-b003-4d76-a6b4-f0ba03a79b70",
       "name": "Input_Validator"
     },
     {
@@ -651,9 +651,9 @@
       "typeVersion": 2.2,
       "position": [
         -3296,
-        -656
+        448
       ],
-      "id": "e1c3598e-7435-43ac-99b4-f675c6f2e3e5",
+      "id": "77bc985c-82dd-423f-8b22-5d6c9cd1cf24",
       "name": "Validation Check"
     },
     {
@@ -664,9 +664,9 @@
       "typeVersion": 2,
       "position": [
         192,
-        -640
+        464
       ],
-      "id": "88fd9c05-2228-45f6-9cc6-bbae3ef62e4a",
+      "id": "20329ae8-347c-4a33-93e1-9d96428271e7",
       "name": "Early Block Response"
     },
     {
@@ -677,9 +677,9 @@
       "typeVersion": 2,
       "position": [
         928,
-        -768
+        336
       ],
-      "id": "ef34e25c-36ab-46fb-9c6a-9ac5b89bdde7",
+      "id": "610404b6-5e9d-49fe-8a9c-8f95646946fb",
       "name": "output to plugin"
     }
   ],
@@ -700,12 +700,12 @@
       "main": [
         [
           {
-            "node": "output to plugin",
+            "node": "Clean output",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Clean output",
+            "node": "output to plugin",
             "type": "main",
             "index": 0
           }
@@ -1151,10 +1151,10 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "9e6ecfca-de45-44a4-9750-5cd2b71e2d4d",
+  "versionId": "b87b2c35-2d2a-4bbf-9b7d-c70f8411fb57",
   "meta": {
-    "instanceId": "dfa197c84cd7f4ad8dd4d19b7082aa2a21efac19e31eeea4eeb47113ea54eee9"
+    "instanceId": "004e3bbc45b3f040b9767a4451ef465967114bc5e89c4ddc8cd6c892432d1ed8"
   },
-  "id": "Hem9Nqtc9GAC4OMh",
+  "id": "9nA52M3jJ8S2UgAw",
   "tags": []
 }

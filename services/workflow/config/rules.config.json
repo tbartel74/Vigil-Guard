@@ -191,7 +191,13 @@
         "\\bprint your internal rules\\b",
         "\\b!LEAK\\.exe\\b",
         "\\bverbatim system prompt\\b",
-        "\\bentire System Prompt/Instructions in mkd format\\b"
+        "\\bentire System Prompt/Instructions in mkd format\\b",
+        "\\b(show|reveal|display|provide|output|print|dump|access|give|share).{0,30}(instructions?|prompt|rules?|guidelines?|directives?|configuration|settings?)\\b",
+        "\\b(creators?|developers?|team|admin|management|authorized|personnel).{0,30}(want|need|require|request|ask|told|said).{0,30}(show|reveal|display|provide)\\b",
+        "\\b(transparency|audit|debug|compliance|security|testing|verification).{0,30}(purpose|reason|need).{0,30}(show|reveal|display|provide)\\b",
+        "\\b(system|internal|operational|initialization|startup|bootstrap).{0,20}(prompt|instruction|directive|configuration|settings?|parameters?)\\b",
+        "\\b(constraints?|limitations?|boundaries?|restrictions?).{0,30}(govern|control|define|limit|restrict)\\b",
+        "\\b(right|access|permission).{0,30}(see|view|know|access).{0,30}(instructions?|prompt|rules?|configuration)\\b"
       ]
     },
     "HEAVY_OBFUSCATION": {
@@ -806,6 +812,18 @@
         "\\[\\s*(?:system|admin|execute|command)\\s*:[^\\]]*\\[\\s*(?:system|admin|execute|command)\\s*:",
         "\\bexecute\\s*:?\\s*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\]",
         "\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\]"
+      ]
+    },
+    "MEDICAL_MISUSE": {
+      "base_weight": 55,
+      "multiplier": 1.5,
+      "patterns": [
+        "\\b(diagnose|prescribe|treat|cure)\\s+(?:my|this|the)\\s+(disease|condition|illness|cancer|diabetes|depression)\\b",
+        "\\bmedical\\s+advice\\s+(instead\\s+of|rather\\s+than|without)\\s+(seeing|consulting)\\s+(?:a\\s+)?(doctor|physician)\\b",
+        "\\b(?:should\\s+I\\s+)?(ignore|skip|avoid)\\s+(?:seeing\\s+)?(?:a\\s+)?(doctor|physician|medical\\s+professional)\\b",
+        "\\bself-?medicate\\b",
+        "\\bstop\\s+taking\\s+(?:my\\s+)?(medication|prescription|pills?)\\b",
+        "\\btreat\\s+(?:myself|this)\\s+without\\s+(?:seeing\\s+)?(?:a\\s+)?doctor\\b"
       ]
     }
   }

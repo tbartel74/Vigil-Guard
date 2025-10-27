@@ -33,6 +33,21 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      n8n:
+        image: n8nio/n8n:latest
+        env:
+          N8N_PORT: 5678
+          N8N_PROTOCOL: http
+          N8N_HOST: localhost
+          EXECUTIONS_MODE: regular
+        ports:
+          - 5678:5678
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:5678 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -68,32 +83,21 @@ jobs:
           curl -u admin:admin123 \
             'http://localhost:8123/?query=SHOW+TABLES+FROM+n8n_logs'
 
-      - name: Setup n8n
-        working-directory: services/workflow
+      - name: Wait for n8n to be ready
         run: |
-          # Install n8n globally
-          npm install -g n8n@latest
-
-          # Create n8n directory
-          mkdir -p ~/.n8n
-
-          # Start n8n in background
-          N8N_PORT=5678 \
-          N8N_PROTOCOL=http \
-          N8N_HOST=localhost \
-          EXECUTIONS_MODE=regular \
-          n8n start &
-
-          # Wait for n8n to be ready (max 60 seconds)
-          echo "Waiting for n8n to start..."
-          for i in {1..60}; do
+          echo "Waiting for n8n service to be ready..."
+          # n8n service should be healthy thanks to health check
+          # Just verify it's accessible
+          for i in {1..30}; do
             if curl -s http://localhost:5678 > /dev/null; then
-              echo "n8n is ready!"
-              break
+              echo "✅ n8n is ready!"
+              exit 0
             fi
-            echo "Waiting... ($i/60)"
-            sleep 1
+            echo "⏳ Waiting... ($i/30)"
+            sleep 2
           done
+          echo "❌ n8n failed to start"
+          exit 1
 
       - name: Import and activate workflow
         working-directory: services/workflow
