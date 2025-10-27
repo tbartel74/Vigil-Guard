@@ -400,6 +400,27 @@ docker network create vigil-network
 
 ## Recent Improvements
 
+**Version 1.5.0 (2025-10-27)** - CURRENT:
+- **PROMPT_LEAK Detection Upgrade** (P0)
+  - Improved detection: 38.3% → 55.0% (+16.67pp, +43% relative)
+  - Replaced 15 rigid patterns with 6 flexible regex (.{0,30} wildcards)
+  - OWASP AITG-APP-07 tests: 26/61 → 45/61 passing (+19 tests)
+  - False positives: 0% (0/20 benign prompts)
+  - User-accepted balance: "akceptowalne" - further increases too restrictive
+- **MEDICAL_MISUSE Category** (P2)
+  - New detection category (55×1.5=82.5 → SANITIZE_HEAVY)
+  - 6 patterns: self-diagnosis, self-medication, avoiding doctors
+  - Detection: 60% (6/10 malicious prompts)
+  - False positives: 0% (0/15 benign medical discussions)
+  - Prevents dangerous medical advice while allowing education
+- **Phase 2.5 Test Fix** (P2)
+  - Updated expectations: accept BLOCKED or SANITIZED for combined attacks
+  - All 12/12 tests passing (was failing before)
+- **Workflow Version**: Upgraded to v1.5.json (v1.4 archived)
+- **Documentation**: Updated DETECTION_CATEGORIES.md (v1.3.1 → v1.5.0)
+- **Commits**: f4c97be (P0), ff417bf (P2)
+
+**Version 1.4.0 (2025-10-20)**:
 **Version 1.4.0 (2025-10-20)** - CURRENT:
 - **CRITICAL FIX: Sanitization System Rewrite**
   - Fixed broken sanitization - system now removes detected malicious patterns

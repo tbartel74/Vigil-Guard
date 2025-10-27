@@ -16,7 +16,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 ### Key Features
 
-- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 33 pattern categories
+- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 34 detection categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
@@ -272,7 +272,7 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil-Guard-v1.4.json`
+   - Import: `services/workflow/workflows/Vigil-Guard-v1.5.json`
 
 3. **Configure ClickHouse Credentials**
    - Locate "Logging to ClickHouse" node in workflow
