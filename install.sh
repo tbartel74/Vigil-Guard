@@ -210,6 +210,17 @@ setup_environment() {
         log_success ".env file created"
         echo ""
 
+        # CRITICAL SECURITY: Clean up any existing ClickHouse volume before password generation
+        # (in case of re-installation after manual cleanup)
+        if [ -d "vigil_data/clickhouse" ]; then
+            log_warning "Found existing ClickHouse volume - removing to prevent password conflicts..."
+            docker-compose stop clickhouse 2>/dev/null || true
+            docker-compose rm -f clickhouse 2>/dev/null || true
+            rm -rf vigil_data/clickhouse
+            log_success "Old volume removed"
+            echo ""
+        fi
+
         # MANDATORY: Generate secure passwords for new installations
         log_warning "⚠️  Auto-generating secure passwords (no default credentials allowed)..."
         echo ""
@@ -273,6 +284,19 @@ setup_environment() {
             log_info "Auto-generating secure passwords to replace defaults..."
             echo ""
             generate_secure_passwords
+
+            # CRITICAL SECURITY: Remove old ClickHouse volume to prevent password mismatch
+            log_warning "Cleaning up old ClickHouse volume to prevent password conflicts..."
+            if [ -d "vigil_data/clickhouse" ]; then
+                log_info "Stopping ClickHouse container if running..."
+                docker-compose stop clickhouse 2>/dev/null || true
+                docker-compose rm -f clickhouse 2>/dev/null || true
+
+                log_info "Removing old ClickHouse volume data..."
+                rm -rf vigil_data/clickhouse
+                log_success "Old ClickHouse volume removed - will recreate with new password"
+                echo ""
+            fi
         fi
     fi
 

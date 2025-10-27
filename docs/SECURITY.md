@@ -47,6 +47,58 @@ After installation completes:
    - ⚠️ **Enable HTTPS via Caddy reverse proxy**
    - ⚠️ **Restrict network access to services (firewall rules)**
 
+### Automatic Password Rotation Security
+
+**🔒 CRITICAL SECURITY FEATURE**: When `install.sh` generates new passwords, it automatically removes old ClickHouse data volumes to prevent password mismatches.
+
+**What happens during password regeneration:**
+
+1. **Detection Phase**: `install.sh` detects if:
+   - `.env` file doesn't exist (fresh install)
+   - Default passwords detected (`admin123`)
+   - Missing `SESSION_SECRET`
+
+2. **Automatic Cleanup Phase**:
+   ```bash
+   # Stops ClickHouse container
+   docker-compose stop clickhouse
+
+   # Removes container
+   docker-compose rm -f clickhouse
+
+   # Removes old volume data (prevents password conflicts)
+   rm -rf vigil_data/clickhouse
+   ```
+
+3. **Password Generation Phase**:
+   - Generates 32+ character random passwords
+   - Updates `.env` file
+   - Updates Grafana datasource config
+
+4. **Clean Start Phase**:
+   - ClickHouse starts with clean volume
+   - New password is used from the start
+   - No old credentials remain in any cache or volume
+
+**Why This Matters:**
+- ✅ Prevents authentication failures due to password mismatches
+- ✅ Ensures old passwords cannot be used after rotation
+- ✅ Eliminates security risk of cached credentials
+- ✅ Automatic - no manual intervention required
+
+**To Regenerate All Passwords:**
+```bash
+# Simply re-run install.sh
+./install.sh
+
+# Script will:
+# 1. Detect existing installation
+# 2. Automatically clean up old ClickHouse volume
+# 3. Generate new passwords
+# 4. Display credentials ONCE (save them!)
+# 5. Reinitialize database with new password
+```
+
 ### How to Rotate Credentials
 
 Credentials are automatically generated during installation. To rotate them manually:
