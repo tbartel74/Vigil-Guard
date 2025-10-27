@@ -421,7 +421,6 @@ docker network create vigil-network
 - **Commits**: f4c97be (P0), ff417bf (P2)
 
 **Version 1.4.0 (2025-10-20)**:
-**Version 1.4.0 (2025-10-20)** - CURRENT:
 - **CRITICAL FIX: Sanitization System Rewrite**
   - Fixed broken sanitization - system now removes detected malicious patterns
   - Sanitization uses same patterns from Pattern_Matching_Engine (not hardcoded subset)
