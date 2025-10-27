@@ -813,6 +813,18 @@
         "\\bexecute\\s*:?\\s*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*\\]",
         "\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\].*\\[\\s*(?:system|admin)\\s*:[^\\]]*(?:ignore|override|bypass)[^\\]]*\\]"
       ]
+    },
+    "MEDICAL_MISUSE": {
+      "base_weight": 55,
+      "multiplier": 1.5,
+      "patterns": [
+        "\\b(diagnose|prescribe|treat|cure)\\s+(?:my|this|the)\\s+(disease|condition|illness|cancer|diabetes|depression)\\b",
+        "\\bmedical\\s+advice\\s+(instead\\s+of|rather\\s+than|without)\\s+(seeing|consulting)\\s+(?:a\\s+)?(doctor|physician)\\b",
+        "\\b(?:should\\s+I\\s+)?(ignore|skip|avoid)\\s+(?:seeing\\s+)?(?:a\\s+)?(doctor|physician|medical\\s+professional)\\b",
+        "\\bself-?medicate\\b",
+        "\\bstop\\s+taking\\s+(?:my\\s+)?(medication|prescription|pills?)\\b",
+        "\\btreat\\s+(?:myself|this)\\s+without\\s+(?:seeing\\s+)?(?:a\\s+)?doctor\\b"
+      ]
     }
   }
 }

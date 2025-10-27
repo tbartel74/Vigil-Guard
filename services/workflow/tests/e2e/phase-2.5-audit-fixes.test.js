@@ -166,7 +166,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
       // - Pattern matching (emoji + jailbreak)
       // - Fail-closed if PG API times out
       assertDetection(event, {
-        status: 'SANITIZED', // Heavy sanitization expected
+        status: ['BLOCKED', 'SANITIZED'], // Accept both (BLOCKED is more secure after PR#21 hardening)
         minScore: 60 // At least approaching SANITIZE_HEAVY threshold
       });
     }, 30000);
