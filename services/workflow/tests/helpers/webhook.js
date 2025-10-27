@@ -157,10 +157,16 @@ export async function sendAndVerify(chatInput, options = {}) {
 export function assertDetection(event, expected) {
   const errors = [];
 
-  if (expected.status && event.final_status !== expected.status) {
-    errors.push(
-      `Expected status ${expected.status}, got ${event.final_status}`
-    );
+  if (expected.status) {
+    const acceptableStatuses = Array.isArray(expected.status)
+      ? expected.status
+      : [expected.status];
+
+    if (!acceptableStatuses.includes(event.final_status)) {
+      errors.push(
+        `Expected status ${acceptableStatuses.join(' OR ')}, got ${event.final_status}`
+      );
+    }
   }
 
   if (expected.minScore !== undefined && event.sanitizer.score < expected.minScore) {
