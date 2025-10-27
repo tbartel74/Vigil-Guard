@@ -2,6 +2,42 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚡ IMPORTANT: Check Available Skills First!
+
+**Before starting ANY task, ALWAYS check for relevant Skills in `.claude/skills/`:**
+
+```bash
+# Available Skills (6 core)
+.claude/skills/
+├── n8n-vigil-workflow/          # Detection patterns, workflow development
+├── vigil-testing-e2e/           # Vitest testing, fixtures, validation
+├── react-tailwind-vigil-ui/     # Frontend components, forms, API integration
+├── clickhouse-grafana-monitoring/ # Database queries, dashboards, retention
+├── docker-vigil-orchestration/  # Container management, deployment
+└── vigil-security-patterns/     # Authentication, secrets, security best practices
+```
+
+**Why this matters:**
+- Skills contain **tested procedures** for complex operations
+- Skills prevent **critical mistakes** (e.g., volume cleanup, password rotation)
+- Skills ensure **consistency** across team members
+- Skills save **hours of debugging** by following proven workflows
+
+**How to use:**
+1. Read task description
+2. Check which Skill(s) apply (keyword match in description)
+3. Follow Skill guidance for implementation
+4. Cross-reference with main CLAUDE.md for project-specific details
+
+**Example workflow:**
+```
+Task: "Fix ClickHouse authentication issues"
+→ Check: clickhouse-grafana-monitoring Skill (connection details, auth troubleshooting)
+→ Check: docker-vigil-orchestration Skill (container restart procedures)
+→ Check: vigil-security-patterns Skill (password rotation, secret management)
+→ Execute with guidance from all 3 Skills
+```
+
 ## Project Directories
 
 **Main Repository**: `/Users/tomaszbartel/Documents/Projects/Vigil-Guard`

@@ -94,7 +94,10 @@ Llama-Prompt-Guard-2-86M/*
 vigil-llm-models/
 
 # Claude Code artifacts
-.claude/
+# Note: Skills (.claude/skills/) are team-shareable and version controlled
+# Only exclude user-specific settings
+.claude/settings/
+.claude/history/
 **/CLAUDE.md
 CLAUDE.md
 

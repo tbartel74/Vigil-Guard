@@ -350,12 +350,81 @@ curl -X POST http://localhost/ui/api/retention/cleanup \
 ## Troubleshooting
 
 ### Connection Failed
+
+**Most Common Cause: Password Mismatch** (volume has old password, .env has new password)
+
+**Diagnosis:**
 ```bash
 # Test connection
 docker exec vigil-clickhouse clickhouse-client -q "SELECT 1"
+# If fails: "Authentication failed: password is incorrect"
 
 # Check credentials in .env
-grep CLICKHOUSE_ .env
+grep CLICKHOUSE_PASSWORD .env
+# Should show 32+ character random string
+
+# Check if volume exists with old password
+ls -la vigil_data/clickhouse/
+# If directory exists, it contains old user data with old password
+```
+
+**Solution: Clean Volume Restart** (⚠️ DELETES ALL DATA!)
+
+```bash
+# IMPORTANT: Follow proper cleanup procedure from docker-vigil-orchestration Skill!
+
+# Step 1: Verify Docker daemon
+docker info >/dev/null 2>&1 || { echo "Docker not running"; exit 1; }
+
+# Step 2: Stop container
+docker-compose stop clickhouse
+docker-compose rm -f clickhouse
+
+# Step 3: Remove volume (with error handling!)
+if ! rm -rf vigil_data/clickhouse 2>&1; then
+    echo "CRITICAL: Failed to delete volume"
+    echo "Try: sudo rm -rf vigil_data/clickhouse"
+    exit 1
+fi
+
+# Step 4: Verify deletion
+if [ -d "vigil_data/clickhouse" ]; then
+    echo "ERROR: Directory still exists!"
+    exit 1
+fi
+
+# Step 5: Start with new password
+docker-compose up -d clickhouse
+
+# Step 6: Wait for init (60s)
+sleep 60
+
+# Step 7: Verify database
+docker exec vigil-clickhouse clickhouse-client -q "SHOW DATABASES"
+
+# Step 8: Reinitialize schema
+./scripts/init-clickhouse.sh
+```
+
+**Prevention:**
+The `install.sh` script automatically performs this cleanup during password rotation (PR #28).
+Always use `./install.sh` when regenerating passwords!
+
+### Shell Environment Override Issue
+
+**Symptom:** `.env` file correct, but container still uses old password
+
+**Cause:** Shell environment variable overriding `.env` file
+
+```bash
+# Check for environment override
+env | grep CLICKHOUSE_PASSWORD
+
+# If set, unset it
+unset CLICKHOUSE_PASSWORD
+
+# Or explicitly override when starting
+CLICKHOUSE_PASSWORD="new_password_from_env" docker-compose up -d
 ```
 
 ### No Data Logging
