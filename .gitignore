@@ -119,3 +119,7 @@ clickhouse_retention_study.md
 
 # Grafana datasource with secrets (generated from .example by install.sh)
 services/monitoring/grafana/provisioning/datasources/clickhouse.yml
+
+# Browser extension build artifacts
+plugin/Chrome.crx
+plugin/Chrome.pem

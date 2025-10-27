@@ -210,6 +210,103 @@ setup_environment() {
         log_success ".env file created"
         echo ""
 
+        # CRITICAL SECURITY: Check for existing ClickHouse volume
+        # User may want to preserve data from previous installation
+        if [ -d "vigil_data/clickhouse" ]; then
+            echo ""
+            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            log_warning "  Existing ClickHouse Volume Detected"
+            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            log_info "Found existing ClickHouse data at: vigil_data/clickhouse"
+            log_info "This volume may contain logs and data from a previous installation."
+            echo ""
+            log_warning "IMPORTANT DECISION REQUIRED:"
+            echo ""
+            log_info "New passwords will be generated for this installation."
+            log_info "The existing volume contains authentication data tied to old passwords."
+            echo ""
+            log_warning "Options:"
+            log_info "  1. ${GREEN}Remove volume${NC} - Clean installation with new passwords (RECOMMENDED)"
+            log_info "     • All existing data will be lost"
+            log_info "     • Fresh start with secure passwords"
+            log_info "     • No authentication issues"
+            echo ""
+            log_info "  2. ${YELLOW}Keep volume${NC} - Preserve existing data (MAY CAUSE ISSUES)"
+            log_info "     • Existing logs/data preserved"
+            log_info "     • Password mismatch will cause authentication failures"
+            log_info "     • You'll need to manually fix authentication"
+            echo ""
+
+            read -p "Remove existing ClickHouse volume? (Y/n): " -n 1 -r
+            echo ""
+            echo ""
+
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                # User chose to remove volume
+                log_info "Proceeding with volume cleanup..."
+                echo ""
+
+                # Verify Docker is accessible
+                if ! docker info >/dev/null 2>&1; then
+                    log_error "Docker daemon is not running or not accessible"
+                    log_error "Cannot stop ClickHouse container"
+                    log_info "Start Docker and try again"
+                    exit 1
+                fi
+
+                # Stop container if running
+                log_info "Stopping ClickHouse container if running..."
+                docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
+                docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
+
+                # Wait for full shutdown
+                sleep 2
+
+                # Remove volume with error handling
+                log_info "Removing old ClickHouse volume data..."
+                if ! rm -rf vigil_data/clickhouse 2>&1; then
+                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    log_error "  CRITICAL FAILURE: Cannot Remove ClickHouse Volume"
+                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo ""
+                    log_error "Failed to delete vigil_data/clickhouse"
+                    log_error "This will cause password authentication failures!"
+                    echo ""
+                    log_info "Possible solutions:"
+                    log_info "  1. Run with elevated permissions: sudo ./install.sh"
+                    log_info "  2. Manually remove: sudo rm -rf vigil_data/clickhouse"
+                    log_info "  3. Check if files are in use: lsof vigil_data/clickhouse"
+                    echo ""
+                    exit 1
+                fi
+
+                # Verify deletion succeeded
+                if [ -d "vigil_data/clickhouse" ]; then
+                    log_error "CRITICAL: Volume directory still exists after deletion attempt!"
+                    log_error "This indicates a serious filesystem or permission issue."
+                    log_error "Cannot proceed - authentication will fail."
+                    exit 1
+                fi
+
+                log_success "Old volume removed successfully"
+                echo ""
+            else
+                # User chose to keep volume
+                log_warning "Keeping existing ClickHouse volume as requested"
+                log_warning "⚠️  WARNING: This WILL cause password authentication failures!"
+                echo ""
+                log_info "After installation, you'll need to manually fix ClickHouse authentication:"
+                log_info "  1. Stop services: docker-compose down"
+                log_info "  2. Remove volume: rm -rf vigil_data/clickhouse"
+                log_info "  3. Restart with new password: docker-compose up -d"
+                echo ""
+                log_warning "Continuing with installation (authentication issues expected)..."
+                echo ""
+                sleep 3
+            fi
+        fi
+
         # MANDATORY: Generate secure passwords for new installations
         log_warning "⚠️  Auto-generating secure passwords (no default credentials allowed)..."
         echo ""
@@ -273,6 +370,72 @@ setup_environment() {
             log_info "Auto-generating secure passwords to replace defaults..."
             echo ""
             generate_secure_passwords
+
+            # CRITICAL SECURITY: Remove old ClickHouse volume to prevent password mismatch
+            echo ""
+            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            log_warning "  Password Rotation: ClickHouse Volume Cleanup Required"
+            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            log_info "Rotating from default passwords to secure auto-generated passwords"
+            log_info "Old ClickHouse volume must be removed to prevent authentication conflicts"
+            echo ""
+
+            if [ -d "vigil_data/clickhouse" ]; then
+                # Verify Docker is accessible
+                if ! docker info >/dev/null 2>&1; then
+                    log_error "Docker daemon not accessible - cannot perform cleanup"
+                    log_error "Start Docker and try again"
+                    exit 1
+                fi
+
+                # Stop and remove container
+                log_info "Stopping ClickHouse container if running..."
+                docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
+
+                log_info "Removing ClickHouse container if present..."
+                docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
+
+                # Wait for full shutdown
+                sleep 2
+
+                # Remove volume data with error handling
+                log_info "Removing old ClickHouse volume data..."
+                if ! rm -rf vigil_data/clickhouse 2>&1; then
+                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    log_error "  CRITICAL SECURITY FAILURE: Password Rotation Cannot Complete"
+                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo ""
+                    log_error "Cannot remove old ClickHouse volume at vigil_data/clickhouse"
+                    log_error "System CANNOT rotate to secure passwords with old volume present"
+                    echo ""
+                    log_warning "SECURITY IMPACT:"
+                    log_warning "  • System will continue using default/insecure passwords"
+                    log_warning "  • This is a CRITICAL SECURITY VULNERABILITY"
+                    log_warning "  • You MUST resolve this before deploying to production"
+                    echo ""
+                    log_info "Manual intervention required:"
+                    log_info "  1. Stop all services: docker-compose down"
+                    log_info "  2. Remove volume: sudo rm -rf vigil_data/clickhouse"
+                    log_info "  3. Re-run installation: ./install.sh"
+                    echo ""
+                    log_error "ABORTING: Cannot proceed with insecure configuration"
+                    exit 1
+                fi
+
+                # Verify deletion succeeded
+                if [ -d "vigil_data/clickhouse" ]; then
+                    log_error "CRITICAL: Volume directory still exists after deletion!"
+                    log_error "Filesystem error detected - cannot complete password rotation"
+                    exit 1
+                fi
+
+                log_success "Old ClickHouse volume removed - will recreate with new password"
+                echo ""
+            else
+                log_info "No existing ClickHouse volume found - proceeding with password rotation"
+                echo ""
+            fi
         fi
     fi
 

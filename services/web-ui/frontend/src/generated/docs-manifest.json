@@ -1,5 +1,5 @@
 {
-  "generated": "2025-10-26T15:11:14.839Z",
+  "generated": "2025-10-26T19:34:53.367Z",
   "count": 17,
   "documents": [
     {
@@ -19,8 +19,8 @@
       "url": "/ui/docs/API.md",
       "title": "Vigil Guard API Reference",
       "category": "root",
-      "size": 13556,
-      "modified": "2025-10-20T16:14:28.566Z"
+      "size": 14101,
+      "modified": "2025-10-26T18:25:56.759Z"
     },
     {
       "path": "architecture/architecture.md",
@@ -39,8 +39,8 @@
       "url": "/ui/docs/AUTHENTICATION.md",
       "title": "Authentication & User Management",
       "category": "root",
-      "size": 9547,
-      "modified": "2025-10-20T16:14:28.566Z"
+      "size": 10324,
+      "modified": "2025-10-26T18:45:46.306Z"
     },
     {
       "path": "CLICKHOUSE_RETENTION.md",
@@ -99,8 +99,8 @@
       "url": "/ui/docs/INSTALLATION.md",
       "title": "Installation Guide",
       "category": "root",
-      "size": 13143,
-      "modified": "2025-10-20T16:14:28.568Z"
+      "size": 13277,
+      "modified": "2025-10-26T18:45:46.306Z"
     },
     {
       "path": "plugin/BROWSER_EXTENSION.md",
@@ -159,8 +159,8 @@
       "url": "/ui/docs/SECURITY.md",
       "title": "Security Guide",
       "category": "root",
-      "size": 17257,
-      "modified": "2025-10-20T16:14:28.570Z"
+      "size": 17858,
+      "modified": "2025-10-26T18:45:46.306Z"
     },
     {
       "path": "USER_GUIDE.md",
@@ -169,8 +169,8 @@
       "url": "/ui/docs/USER_GUIDE.md",
       "title": "Vigil Guard - User Guide",
       "category": "root",
-      "size": 47638,
-      "modified": "2025-10-26T15:08:44.937Z"
+      "size": 47967,
+      "modified": "2025-10-26T18:25:56.760Z"
     }
   ]
 }
