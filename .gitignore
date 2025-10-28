@@ -67,6 +67,11 @@ docker-compose.override.yml
 *__*
 backup/
 
+# PII Modernization - Never sync to repo
+vigil-guard-pii-rollback-*/
+services/presidio-pii-api/models/*.whl
+services/presidio-pii-api/models/*.tar.gz
+
 # Temporary files
 *.tmp
 *.temp
