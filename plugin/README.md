@@ -1,6 +1,6 @@
 # Vigil Guard Browser Extension
 
-**Version:** 0.3.0 (Beta)
+**Version:** 0.5.0 (Beta)
 **Status:** MVP - Production Ready
 **License:** Proprietary - Not for public distribution
 
@@ -22,7 +22,7 @@ The Vigil Guard Browser Extension is a Chrome browser plugin that provides real-
 ### Supported Platforms
 
 - ✅ **ChatGPT** (chat.openai.com, chatgpt.com)
-- ✅ **Claude.ai** (claude.ai)
+- ⚠️ **Claude.ai** (claude.ai) - FROZEN (experimental support discontinued)
 - 🚧 Other AI platforms (planned)
 
 ### Browser Compatibility
@@ -55,7 +55,7 @@ plugin/Chrome/
 │   ├── content/
 │   │   ├── overlay.js              # Overlay Proxy - textarea/button interception
 │   │   ├── overlay.css             # Visual status indicator styles
-│   │   └── content.js              # Content script (legacy/backup)
+│   │   └── content.js              # (NOT LOADED - development artifact only)
 │   ├── inject/
 │   │   ├── inline-interceptor.js   # Inline fallback interceptor
 │   │   └── interceptor.js          # External fetch/XHR interceptor
@@ -66,16 +66,15 @@ plugin/Chrome/
 │   └── assets/
 │       ├── vigil_logo.png          # Main logo
 │       └── icons/                  # Extension icons (16, 32, 48, 128)
-└── docs/                            # Documentation
 ```
 
 ### Architecture Models
 
 The extension implements **two complementary architectures**:
 
-#### 1. Overlay Proxy Architecture (Primary - v0.3.0)
+#### 1. Overlay Proxy Architecture (Primary - v0.5.0)
 
-**Active on:** ChatGPT, Claude.ai
+**Active on:** ChatGPT only (claude.ai support discontinued)
 
 **Mechanism:**
 - Content script directly intercepts Enter key events on textarea (capture + bubble phases)
@@ -108,9 +107,9 @@ Click Send button programmatically (if allowed)
 
 | Layer | Function | Rejection Rate | Location |
 |-------|----------|----------------|----------|
-| **Layer 1: Quick Filter** | Reject GET, no-body, non-chat, analytics requests | 90% | interceptor.js:135-159 |
-| **Layer 2: Body Validation** | Validate `messages` array structure and user content | 5% | interceptor.js:181-218 |
-| **Layer 3: Deduplication** | Eliminate duplicate requests within 2s window | 3% | content.js:356-412 |
+| **Layer 1: Quick Filter** | Reject GET, no-body, non-chat, analytics requests | 90% | interceptor.js |
+| **Layer 2: Body Validation** | Validate `messages` array structure and user content | 5% | interceptor.js |
+| **Layer 3: Deduplication** | Eliminate duplicate requests within 2s window | 3% | overlay.js |
 
 **Result:** Only ~2% of all fetch requests reach the webhook
 
@@ -180,7 +179,7 @@ browser-intake-datadoghq.com // DataDog telemetry
 {
   enabled: true,
   endpoint: 'http://localhost/ui/api/browser-filter',  // Vigil Guard backend (via Caddy)
-  n8nEndpoint: 'http://localhost:5678/webhook/[id]',   // n8n webhook (direct)
+  n8nEndpoint: 'http://localhost:5678/webhook/[your-webhook-id]',   // n8n webhook (direct)
   customWebhook: '',                                    // Optional: custom webhook URL
   apiKey: '',                                           // API key for backend (optional)
   mode: 'monitor',                                      // monitor, sanitize, block
@@ -189,16 +188,28 @@ browser-intake-datadoghq.com // DataDog telemetry
 }
 ```
 
-### Configuration via Popup UI
+### Configuration via Web UI (v0.5.0+)
 
-1. **Click extension icon** in browser toolbar
-2. **Available settings:**
-   - **Enable/Disable Protection** - Toggle protection on/off
-   - **Webhook URL** - Custom webhook endpoint
-   - **Mode** - Monitor/Sanitize/Block (planned)
-   - **Statistics** - Requests processed, threats blocked, content sanitized
+**Important:** Configuration is managed centrally through Vigil Guard Web UI.
+The browser extension popup is **read-only** and displays current status only.
 
-### Configuration via Storage
+**To configure the extension:**
+1. Open Vigil Guard Web UI: http://localhost/ui/
+2. Navigate to Configuration → Browser Extension
+3. Configure webhook URL, mode, and settings
+4. Settings sync automatically to extension via chrome.storage
+
+**Extension Popup (Read-Only Display):**
+- Connection status (Connected/Not Configured)
+- Current version
+- Web UI URL
+- Webhook status
+- Refresh button (reload config from storage)
+
+### Configuration via Storage (Advanced - Development Only)
+
+⚠️ **Warning:** Direct storage modification is for development/debugging only.
+Normal users should use Web UI configuration.
 
 Advanced users can modify settings directly:
 
@@ -472,7 +483,7 @@ window.VigilGuard.getStats()  // Should return {intercepted: N, pending: M}
 curl http://localhost:5678
 
 # Test webhook manually
-curl -X POST http://localhost:5678/webhook/[your-id] \
+curl -X POST http://localhost:5678/webhook/[your-webhook-id] \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"test","chatInput":"test"}'
 
@@ -644,9 +655,8 @@ plugin/
 │   │   ├── background/
 │   │   │   └── service-worker.js  # Background logic
 │   │   ├── content/
-│   │   │   ├── overlay.js         # Overlay Proxy (primary)
-│   │   │   ├── overlay.css        # Status indicator styles
-│   │   │   └── content.js         # Content script (backup)
+│   │   │   ├── overlay.js         # Overlay Proxy (active content script)
+│   │   │   └── overlay.css        # Status indicator styles
 │   │   ├── inject/
 │   │   │   ├── inline-interceptor.js   # Inline fallback
 │   │   │   └── interceptor.js          # External interceptor
@@ -711,7 +721,7 @@ Extension uses Manifest V3 (required for Chrome 88+):
 
 ## Roadmap
 
-### Current Version: 0.3.0 (Beta)
+### Current Version: 0.5.0 (Beta)
 
 **Status:** Production ready for internal use
 
@@ -720,7 +730,7 @@ Extension uses Manifest V3 (required for Chrome 88+):
 - ✅ 3-Layer Defense System
 - ✅ Request deduplication
 - ✅ ChatGPT support
-- ✅ Claude.ai support (partial)
+- ⚠️ Claude.ai support (FROZEN - discontinued)
 - ✅ n8n webhook integration
 - ✅ Browser popup UI
 - ✅ Statistics tracking
@@ -755,10 +765,11 @@ Extension uses Manifest V3 (required for Chrome 88+):
 
 ### Current Limitations
 
-1. **Claude.ai Support Incomplete**
-   - Overlay proxy works
-   - Request interceptor needs endpoint updates
-   - Solution: Update patterns in interceptor.js
+1. **Claude.ai Support FROZEN (Discontinued)**
+   - Development discontinued, experimental support removed
+   - manifest.json only includes ChatGPT domains
+   - Status: Not active in v0.5.0+
+   - Priority: Low (no plans to resume)
 
 2. **No Safari Support**
    - Safari uses different extension format (.safariextz)
@@ -842,6 +853,6 @@ A: Minimal impact (< 200ms local, < 1s remote). Layer 1 filter prevents overhead
 
 ---
 
-*Last Updated: 2025-10-24*
-*Version: 0.3.0*
+*Last Updated: 2025-10-28*
+*Version: 0.5.0*
 *Architecture: Overlay Proxy + 3-Layer Defense*
