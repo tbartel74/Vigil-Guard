@@ -792,7 +792,7 @@ Plugin is not public - report issues internally:
 1. Check existing documentation first
 2. Collect logs (Service Worker + Page Console)
 3. Include: Chrome version, OS, reproduction steps
-4. Document in `plugin/Chrome/docs/` directory
+4. Report to project maintainer with reproduction case
 
 ---
 
