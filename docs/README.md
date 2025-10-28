@@ -33,6 +33,7 @@ Complete documentation for Vigil Guard:
 | **[Detection Categories](DETECTION_CATEGORIES.md)** | Attack detection patterns and scoring reference |
 | **[Authentication](AUTHENTICATION.md)** | User management and RBAC |
 | **[API Documentation](API.md)** | REST API reference |
+| **[Troubleshooting Guide](TROUBLESHOOTING.md)** | Common issues and solutions |
 | **[Grafana Setup](GRAFANA_SETUP.md)** | Dashboard configuration |
 | **[Config Variables](CONFIG_VARIABLES.md)** | Variable reference |
 

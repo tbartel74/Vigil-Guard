@@ -97,6 +97,7 @@ vigil-llm-models/
 .claude/
 **/CLAUDE.md
 CLAUDE.md
+CHANGELOG.md
 
 # Project management and scripts (not for repository)
 IMPLEMENTATION_TODO.md
