@@ -275,51 +275,20 @@ The Web UI manages configuration through a unified variable mapping system:
 
 ### False Positive Monitoring System (Phase 3.4)
 
-User feedback loop for tracking over-blocking:
-- **Database**: `false_positive_reports` table with 2 views (summary, trends)
-- **API**: `POST /api/feedback/false-positive`, `GET /api/feedback/stats`
-- **UI**: Report button in PromptAnalyzer (BLOCKED/SANITIZED events only), dashboard stats panel
-- **Grafana**: 7 panels with reason distribution and temporal trends
+User feedback for tracking over-blocking: Report button in PromptAnalyzer (BLOCKED/SANITIZED events), API endpoints (`/api/feedback/*`), Grafana panels. See `docs/USER_GUIDE.md` for usage.
 
 ### Configuration Versioning & Rollback System (Phase 3.3)
 
-Git-like version control for configuration changes:
-- **Automatic versioning**: Every save creates backup (max 50 versions, auto-pruning, tag format: `YYYYMMDD_HHMMSS-username`)
-- **API**: `GET /api/config-versions`, `GET /api/config-version/:tag`, `POST /api/config-rollback/:tag`
-- **UI**: VersionHistoryModal in Configuration section with rollback confirmation dialog
-- **Safety**: Pre-rollback backups, ETag validation, atomic writes, author tracking, permission checks
+Git-like version control: Every save creates backup (max 50), rollback via VersionHistoryModal in Web UI. API: `/api/config-versions`, `/api/config-rollback/:tag`. See `docs/CONFIGURATION.md`.
 
 ### Data Retention Policy (Phase 3)
 
-Automatic data cleanup to prevent unbounded disk usage growth:
-- **TTL (Time To Live)**: ClickHouse automatic deletion at table level
-  - `events_raw`: 90 days (debug data, raw inputs)
-  - `events_processed`: 365 days (full analysis data)
-- **Retention Config Table**: Single-row `n8n_logs.retention_config` table stores policy settings
-- **Backend API**: `/api/retention/*` endpoints for configuration management
-  - `GET /api/retention/config` - Get current retention config
-  - `PUT /api/retention/config` - Update TTL days (1-3650 range)
-  - `GET /api/retention/disk-usage` - System and table-level disk metrics
-  - `POST /api/retention/cleanup` - Force immediate cleanup (OPTIMIZE TABLE FINAL)
-- **Frontend GUI**: Configuration → System → Data Retention (`/config/retention`)
-  - System disk usage overview with color-coded thresholds (green/yellow/red)
-  - Per-table statistics (rows, size, compression ratio, partitions)
-  - Editable TTL days with validation
-  - Warning/critical threshold configuration (default: 80%/90%)
-  - Manual force cleanup button
-- **Grafana Dashboard**: "ClickHouse Disk Usage & Retention" (UID: `clickhouse-disk-usage-001`)
-  - System disk usage gauge
-  - Table sizes over time (time series)
-  - Active partitions count
-  - Compression ratio monitoring
-  - Table statistics summary
-- **Estimated Size**: ~10-20 GB/year @ 5,000 prompts/day (see `clickhouse_retention_study.md`)
-- **TTL Behavior**:
-  - Checks every hour (`merge_with_ttl_timeout_seconds = 3600`)
-  - Deletes during background merge operations
-  - Drops whole partitions for efficiency (`ttl_only_drop_parts = 1`)
-- **Audit Trail**: All changes logged in `retention_config.last_modified_by`
-- **Documentation**: `docs/CLICKHOUSE_RETENTION.md`
+Automatic data cleanup via ClickHouse TTL:
+- **events_raw**: 90 days, **events_processed**: 365 days
+- **Configuration**: Web UI → Configuration → System → Data Retention
+- **Estimated Size**: ~10-20 GB/year @ 5,000 prompts/day
+
+**📖 Full Documentation**: See `docs/CLICKHOUSE_RETENTION.md` for API endpoints, Grafana dashboard, TTL configuration
 
 ## Security Considerations
 
@@ -390,64 +359,21 @@ docker network create vigil-network
 
 ## Troubleshooting
 
-**Ports**: n8n:5678, Web UI:5173/8787, Grafana:3001, ClickHouse:8123/9000
+**Quick Reference:**
+- **Ports**: n8n:5678, Web UI:5173/8787, Grafana:3001, ClickHouse:8123/9000
+- **ClickHouse**: Check `.env` credentials, verify container running
+- **Grafana**: Requires `GF_SECURITY_ALLOW_EMBEDDING=true`
+- **Config**: `services/workflow/config/*.{json,conf}`
 
-**ClickHouse Issues**: Check credentials in `.env` file, verify container running, confirm SQL scripts mounted, convert string→number in frontend
+**🔧 Detailed Troubleshooting**: See `docs/TROUBLESHOOTING.md` for comprehensive solutions to common issues
 
-**Config Locations**: Workflow: `services/workflow/config/*.{json,conf}`, Specs: `services/web-ui/frontend/src/spec/variables.json`, Docs: `./docs/`
+## Current Version
 
-**Grafana**: Requires `GF_SECURITY_ALLOW_EMBEDDING=true`
-
-## Recent Improvements
-
-**Version 1.5.0 (2025-10-27)** - CURRENT:
-- **PROMPT_LEAK Detection Upgrade** (P0)
-  - Improved detection: 38.3% → 55.0% (+16.67pp, +43% relative)
-  - Replaced 15 rigid patterns with 6 flexible regex (.{0,30} wildcards)
-  - OWASP AITG-APP-07 tests: 26/61 → 45/61 passing (+19 tests)
-  - False positives: 0% (0/20 benign prompts)
-  - User-accepted balance: "akceptowalne" - further increases too restrictive
-- **MEDICAL_MISUSE Category** (P2)
-  - New detection category (55×1.5=82.5 → SANITIZE_HEAVY)
-  - 6 patterns: self-diagnosis, self-medication, avoiding doctors
-  - Detection: 60% (6/10 malicious prompts)
-  - False positives: 0% (0/15 benign medical discussions)
-  - Prevents dangerous medical advice while allowing education
-- **Phase 2.5 Test Fix** (P2)
-  - Updated expectations: accept BLOCKED or SANITIZED for combined attacks
-  - All 12/12 tests passing (was failing before)
-- **Workflow Version**: Upgraded to v1.5.json (v1.4 archived)
-- **Documentation**: Updated DETECTION_CATEGORIES.md (v1.3.1 → v1.5.0)
-- **Commits**: f4c97be (P0), ff417bf (P2)
-
-**Version 1.4.0 (2025-10-20)**:
-- **CRITICAL FIX: Sanitization System Rewrite**
-  - Fixed broken sanitization - system now removes detected malicious patterns
-  - Sanitization uses same patterns from Pattern_Matching_Engine (not hardcoded subset)
-  - SANITIZE_LIGHT: Removes LOW/MEDIUM severity patterns (10 categories)
-  - SANITIZE_HEAVY: Removes ALL detected patterns (33 categories)
-  - Sanitized output now actually clean (before: identical to input despite SANITIZED status)
-- **Investigation Panel** - Advanced prompt search interface
-  - Full-text search in original prompts (before sanitization)
-  - Multi-criteria filtering: date range, status, threat score, categories
-  - Sortable results table with pagination
-  - CSV/JSON export functionality
-  - Detailed event inspection with decision breakdown
-  - Real-time search with 365+ event support
-- **Search Engine Fix**: ClickHouse queries use `original_input` column (not JSON extraction)
-- **Security Enhancement**: Removed hardcoded ClickHouse passwords from codebase
-  - Password auto-generated during `install.sh` (32-char random)
-  - Stored securely in `.env` file
-  - Documentation updated to reference `.env` instead of showing passwords
-- **Workflow Version**: Upgraded to v1.4.json (v1.3 archived)
-- **Backend Stability**: Added Python deps to Dockerfile for better-sqlite3 compilation
-
-**Earlier Versions (1.0.0 - 1.3.0)**:
-- **v1.3.0**: Responsive mobile-first UI (768px breakpoint), WCAG modal accessibility, Design System with semantic tokens and reusable components (Button, Card)
-- **v1.2.0**: Bloom filter configuration decoupling, all thresholds moved from code to unified_config.json
-- **v1.1.0**: ClickHouse integration with live stats API, auto-refresh dashboard, audit trail with username tracking
-- **v1.0.0**: Complete RBAC authentication system, JWT tokens, user management panel, SQLite database
-- **2024**: Microservices architecture migration, monorepo with npm workspaces, unified docker-compose.yml
+**Version 1.5.0 (2025-10-27)**
+- **PROMPT_LEAK Detection**: 38.3% → 55.0% detection rate (+43% relative improvement)
+- **MEDICAL_MISUSE Category**: New category preventing dangerous medical advice (60% detection, 0% false positives)
+- **Phase 2.5 Tests**: All 12/12 tests passing
+- **Workflow**: Upgraded to v1.5.json
 
 ## Quick Start for New Users
 
@@ -494,169 +420,24 @@ Chrome extension (v0.3.0 Beta) providing real-time protection for ChatGPT/Claude
 
 **Docs**: `plugin/{README.md,Chrome/docs/HYBRID_ARCHITECTURE.md,QUICK_START.md,DEVELOPMENT_PLAN.md}`
 
-## Claude Code Skills Ecosystem
+## Claude Code Skills & Commands
 
-This project includes a comprehensive Skills system to accelerate development with context-aware guidance.
+This project uses **Claude Code Skills** for context-aware guidance. Skills activate automatically based on your query.
 
-### Available Skills (6 Core)
+### Available Skills (6)
 
-Skills are located in `.claude/skills/` and provide specialized expertise:
+1. **n8n-vigil-workflow** - Detection patterns, workflow development, sanitization
+2. **vigil-testing-e2e** - Vitest testing (58+ tests), fixtures, validation
+3. **react-tailwind-vigil-ui** - React + Vite + Tailwind, forms, authentication
+4. **clickhouse-grafana-monitoring** - SQL queries, dashboards, analytics
+5. **docker-vigil-orchestration** - Container deployment, troubleshooting
+6. **vigil-security-patterns** - Auth, secrets, input validation, OWASP
 
-1. **n8n-vigil-workflow** - Workflow development, detection patterns, sanitization
-   - Use when: Adding detection patterns, configuring thresholds, working with rules.config.json
-   - Triggers: "detection pattern", "workflow", "n8n", "sanitization"
-
-2. **vigil-testing-e2e** - Vitest testing framework with 58+ tests
-   - Use when: Writing tests, debugging failures, managing fixtures, validating patterns
-   - Triggers: "test", "vitest", "fixture", "bypass scenario", "false positive"
-
-3. **react-tailwind-vigil-ui** - React + Vite + Tailwind CSS frontend
-   - Use when: Building components, API integration, authentication, forms, routing
-   - Triggers: "React", "component", "form", "UI", "authentication", "ETag"
-
-4. **clickhouse-grafana-monitoring** - Analytics and dashboards
-   - Use when: Querying logs, creating dashboards, analyzing metrics, investigating events
-   - Triggers: "ClickHouse", "Grafana", "query", "logs", "analytics", "dashboard"
-
-5. **docker-vigil-orchestration** - Container management
-   - Use when: Deploying services, managing Docker network, troubleshooting containers
-   - Triggers: "Docker", "docker-compose", "deploy", "container", "vigil-network"
-
-6. **vigil-security-patterns** - Security best practices
-   - Use when: Implementing auth, handling secrets, input validation, preventing injection
-   - Triggers: "security", "authentication", "password", "CORS", "injection", "RBAC"
-
-### Custom Commands (4 Workflows)
-
-Slash commands for common tasks (`.claude/commands/`):
+### Custom Commands (4)
 
 - `/add-detection-pattern [name]` - TDD workflow for new patterns
-- `/run-full-test-suite` - Execute all tests with health checks
-- `/commit-with-validation` - Pre-commit checks and git commit
+- `/run-full-test-suite` - All tests + health checks
+- `/commit-with-validation` - Pre-commit validation + git commit
 - `/deploy-service [name]` - Deploy with health verification
 
-### How Skills Work
-
-**3-Layer Progressive Context Loading:**
-- **Layer 1**: Metadata (YAML frontmatter) - Always loaded, enables discovery
-- **Layer 2**: SKILL.md body - Loaded when Skill triggers
-- **Layer 3**: Supporting files (docs/, examples/, scripts/) - Accessed on-demand
-
-**Composability:** Multiple Skills can activate together for complex tasks.
-
-Example: "Add SQL injection pattern and test it"
-- Activates: `n8n-vigil-workflow` + `vigil-testing-e2e`
-- Provides: Pattern configuration + Test creation workflow
-
-### Using Skills
-
-**Automatic Discovery:**
-Skills activate automatically based on query keywords:
-```
-"How do I add a detection pattern?"
-→ Activates: n8n-vigil-workflow
-
-"Run tests for bypass scenarios"
-→ Activates: vigil-testing-e2e
-
-"Create a configuration form"
-→ Activates: react-tailwind-vigil-ui
-```
-
-**Check Loaded Skills:**
-```
-/status
-```
-
-**List Commands:**
-```
-/
-```
-
-### Benefits
-
-- **Faster Development**: 20-30% productivity improvement
-- **Consistent Quality**: Best practices embedded in workflows
-- **Reduced Errors**: TDD and validation built into commands
-- **Better Onboarding**: New developers productive in hours, not days
-- **No Context Limits**: Progressive loading prevents token overflow
-
-### Skills File Structure
-
-```
-.claude/
-├── skills/
-│   ├── n8n-vigil-workflow/
-│   │   ├── SKILL.md                  # Core guidance
-│   │   ├── docs/
-│   │   │   └── detection-categories.md
-│   │   ├── examples/
-│   │   │   └── add-pattern-example.json
-│   │   └── scripts/
-│   │       └── validate-pattern.sh
-│   ├── vigil-testing-e2e/
-│   ├── react-tailwind-vigil-ui/
-│   ├── clickhouse-grafana-monitoring/
-│   ├── docker-vigil-orchestration/
-│   └── vigil-security-patterns/
-└── commands/
-    ├── add-detection-pattern.md
-    ├── run-full-test-suite.md
-    ├── commit-with-validation.md
-    └── deploy-service.md
-```
-
-### Skill Integration Examples
-
-**Example 1: Adding Detection Pattern**
-```
-User: "Add emoji obfuscation detection"
-Skills Activated: n8n-vigil-workflow + vigil-testing-e2e
-Workflow:
-1. Create test fixture (vigil-testing-e2e)
-2. Add test case (vigil-testing-e2e)
-3. Run test - should fail (vigil-testing-e2e)
-4. Add pattern via GUI (n8n-vigil-workflow)
-5. Verify test passes (vigil-testing-e2e)
-6. Use /commit-with-validation
-```
-
-**Example 2: Troubleshooting Service**
-```
-User: "ClickHouse container won't start"
-Skills Activated: docker-vigil-orchestration + clickhouse-grafana-monitoring
-Guidance:
-1. Check Docker logs (docker-vigil-orchestration)
-2. Verify network (docker-vigil-orchestration)
-3. Test connection (clickhouse-grafana-monitoring)
-4. Verify credentials (clickhouse-grafana-monitoring)
-```
-
-**Example 3: Building Configuration UI**
-```
-User: "Create form for threshold configuration"
-Skills Activated: react-tailwind-vigil-ui + n8n-vigil-workflow
-Guidance:
-1. Understand thresholds (n8n-vigil-workflow)
-2. Create form component (react-tailwind-vigil-ui)
-3. API integration with ETag (react-tailwind-vigil-ui)
-4. Test configuration changes (n8n-vigil-workflow)
-```
-
-### Maintaining Skills
-
-**Update Skills When:**
-- Adding new features or patterns
-- Discovering better practices
-- Finding common errors/solutions
-- New workflows emerge
-
-**Version Control:**
-Skills are git-committed and team-shareable:
-```bash
-git add .claude/
-git commit -m "docs(skills): Update detection pattern workflow"
-```
-
-**Testing Skills:**
-Verify discovery by asking questions that should trigger specific Skills.
+**📚 Full Documentation**: See `.claude/SKILLS_USAGE_GUIDE.md` for detailed usage, examples, and integration patterns.
