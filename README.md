@@ -507,6 +507,7 @@ Comprehensive documentation is available in the `docs/` directory:
 - [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
 - [API Documentation](docs/API.md) - REST API endpoints and usage
 - [Security Guide](docs/SECURITY.md) - Security policies and best practices
+- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
 - [Technical Architecture](docs/architecture/architecture.md) - System design details
 
 ### Component Documentation
@@ -653,6 +654,6 @@ Built with:
 
 **Made with ❤️ for LLM Security**
 
-[Documentation](docs/) • [Installation](docs/INSTALLATION.md) • [User Guide](docs/USER_GUIDE.md) • [Configuration](docs/CONFIGURATION.md) • [Data Retention](docs/CLICKHOUSE_RETENTION.md) • [API](docs/API.md)
+[Documentation](docs/) • [Installation](docs/INSTALLATION.md) • [User Guide](docs/USER_GUIDE.md) • [Configuration](docs/CONFIGURATION.md) • [Troubleshooting](docs/TROUBLESHOOTING.md) • [API](docs/API.md)
 
 </div>
