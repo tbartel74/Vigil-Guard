@@ -56,6 +56,8 @@ WORKDIR /app
 # Copy application files
 COPY app.py /app/
 COPY config/ /app/config/
+COPY validators/ /app/validators/
+COPY docs/ /app/docs/
 
 # Security: Create non-root user
 RUN useradd -m -u 1001 -s /bin/bash presidio && \

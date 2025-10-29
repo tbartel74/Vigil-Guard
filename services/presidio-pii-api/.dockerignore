@@ -22,10 +22,9 @@ ENV/
 *.swo
 *~
 
-# Documentation
+# Documentation (exclude non-essential docs)
 README.md
-docs/
-*.md
+# Keep docs/ for API_CONTRACT.md (needed in runtime)
 
 # Tests
 tests/

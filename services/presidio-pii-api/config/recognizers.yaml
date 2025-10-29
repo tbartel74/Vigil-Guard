@@ -1,0 +1,300 @@
+# Custom PII Recognizers for Presidio Analyzer
+# Version: 1.6.0
+# Language Support: Polish (pl)
+
+# This file defines custom pattern-based recognizers for Polish PII types
+# that are not available in Presidio's built-in recognizers.
+#
+# Each recognizer includes:
+# - Regex patterns with confidence scores
+# - Context keywords (boost score when found nearby)
+# - Validator functions (checksum validation)
+
+recognizers:
+  # ============================================================================
+  # PL_REGON - Polish Business ID (9 or 14 digits)
+  # ============================================================================
+  # REGON (Rejestr Gospodarki Narodowej) is a unique business identifier
+  # Format: 9 digits (small businesses) or 14 digits (large businesses)
+  # Checksum: Weighted modulo-11 algorithm (different for 9 vs 14)
+  # ============================================================================
+  - name: PL_REGON
+    supported_language: pl
+    supported_entity: PL_REGON
+    patterns:
+      # REGON-9 formatted (with hyphens): 123-456-789
+      - name: regon_9_formatted
+        regex: '\b\d{3}-\d{3}-\d{3}\b'
+        score: 0.85
+
+      # REGON-9 bare (no hyphens): 123456789
+      - name: regon_9_bare
+        regex: '\b\d{9}\b'
+        score: 0.60
+
+      # REGON-14 formatted (with hyphens): 123-456-789-12345
+      - name: regon_14_formatted
+        regex: '\b\d{3}-\d{3}-\d{3}-\d{5}\b'
+        score: 0.90
+
+      # REGON-14 bare (no hyphens): 12345678912345
+      - name: regon_14_bare
+        regex: '\b\d{14}\b'
+        score: 0.65
+
+    # Context keywords that boost confidence when found near the match
+    # Window: ±30 characters from match
+    context:
+      - "regon"
+      - "REGON"
+      - "firmy"
+      - "przedsiębiorstwa"
+      - "przedsiebiorstwa"  # without Polish chars
+      - "spółki"
+      - "spolki"  # without Polish chars
+      - "krs"
+      - "KRS"
+      - "wpis"
+      - "rejestr"
+      - "ewidencji"
+      - "statystyczny"
+
+    # Validator function (implemented in validators/polish.py)
+    validators:
+      - checksum_regon
+
+  # ============================================================================
+  # PL_NIP - Polish Tax Identification Number (10 digits)
+  # ============================================================================
+  # NIP (Numer Identyfikacji Podatkowej) is a taxpayer ID
+  # Format: 10 digits, often formatted as XXX-XXX-XX-XX
+  # Checksum: Weighted modulo-11 algorithm
+  # ============================================================================
+  - name: PL_NIP
+    supported_language: pl
+    supported_entity: PL_NIP
+    patterns:
+      # NIP formatted (with hyphens): 123-456-78-90
+      - name: nip_formatted
+        regex: '\b\d{3}-\d{3}-\d{2}-\d{2}\b'
+        score: 0.95
+
+      # NIP partially formatted: 123-456-7890
+      - name: nip_partial
+        regex: '\b\d{3}-\d{3}-\d{4}\b'
+        score: 0.75
+
+      # NIP bare (no hyphens): 1234567890
+      # Lower score due to higher false positive risk
+      - name: nip_bare
+        regex: '\b\d{10}\b'
+        score: 0.50
+
+    # Context keywords for NIP detection
+    context:
+      - "nip"
+      - "NIP"
+      - "podatku"
+      - "podatkowy"
+      - "identyfikacji"
+      - "podatkowego"
+      - "vat"
+      - "VAT"
+      - "faktura"
+      - "podatnika"
+      - "nr NIP"
+      - "numer NIP"
+      - "NIP:"
+
+    # Validator function (implemented in validators/polish.py)
+    validators:
+      - checksum_nip
+
+  # ============================================================================
+  # PL_ID_CARD - Polish ID Card Number (Dowód osobisty)
+  # ============================================================================
+  # Format: 3 letters + 6 digits (e.g., ABC123456)
+  # Series changed over time:
+  # - Old format (pre-2001): 2 letters + 7 digits
+  # - Current format (2001+): 3 letters + 6 digits
+  # No checksum validation available
+  # ============================================================================
+  - name: PL_ID_CARD
+    supported_language: pl
+    supported_entity: PL_ID_CARD
+    patterns:
+      # Current format: ABC123456 or ABC 123456 (with optional space)
+      - name: id_card_current
+        regex: '\b[A-Z]{3}\s?\d{6}\b'
+        score: 0.85
+
+      # Old format: AB1234567 or AB 1234567
+      - name: id_card_old
+        regex: '\b[A-Z]{2}\s?\d{7}\b'
+        score: 0.75
+
+    # Context keywords for ID card detection
+    context:
+      - "dowód"
+      - "dowod"  # without Polish chars
+      - "osobisty"
+      - "tożsamości"
+      - "tozsamosci"  # without Polish chars
+      - "seria"
+      - "numer"
+      - "dokumentu"
+      - "ID"
+      - "identyfikacyjny"
+      - "nr dowodu"
+      - "nr ID"
+
+    # No checksum validator (ID cards don't have checksums)
+    validators: []
+
+  # ============================================================================
+  # PL_PESEL_ENHANCED - Enhanced PESEL with Context (11 digits)
+  # ============================================================================
+  # PESEL (Powszechny Elektroniczny System Ewidencji Ludności) is a national ID
+  # Format: 11 digits (YYMMDDXXXXC)
+  # - YY: year of birth (last 2 digits)
+  # - MM: month of birth (with century encoding)
+  # - DD: day of birth
+  # - XXXX: serial number + sex indicator
+  # - C: checksum digit (weighted modulo-10)
+  #
+  # Note: Presidio has built-in PL_NATIONAL_ID recognizer for PESEL,
+  # but it may lack context awareness and checksum validation.
+  # This enhanced version adds:
+  # - Context keywords boost
+  # - Explicit checksum validation
+  # - Higher confidence scoring
+  # ============================================================================
+  - name: PL_PESEL_ENHANCED
+    supported_language: pl
+    supported_entity: PL_PESEL
+    patterns:
+      # PESEL (11 digits, no formatting)
+      - name: pesel_11_digits
+        regex: '\b\d{11}\b'
+        score: 0.60  # Lower base score, boosted by context + checksum
+
+      # PESEL with spaces/hyphens (for readability): 920321 00157
+      - name: pesel_formatted
+        regex: '\b\d{6}[\s-]?\d{5}\b'
+        score: 0.70
+
+    # Context keywords for PESEL detection
+    # These significantly boost confidence when found nearby
+    context:
+      - "pesel"
+      - "PESEL"
+      - "urodzenia"
+      - "identyfikacyjny"
+      - "osobisty"
+      - "ewidencji"
+      - "powszechny"
+      - "elektroniczny"
+      - "numer PESEL"
+      - "nr PESEL"
+      - "PESEL:"
+      - "identyfikator"
+      - "ludności"
+      - "ludnosci"  # without Polish chars
+
+    # Validator function (implemented in validators/polish.py)
+    validators:
+      - checksum_pesel
+
+# ============================================================================
+# Configuration Notes
+# ============================================================================
+#
+# 1. Pattern Matching:
+#    - All patterns use word boundaries (\b) to avoid partial matches
+#    - Scores are base confidence (0.0-1.0) before context/validator boosts
+#
+# 2. Context Enhancement:
+#    - Context keywords are searched within ±30 characters of match
+#    - Each context match adds +0.05 to +0.20 to base score
+#    - Multiple context words can stack (max +0.30 total)
+#
+# 3. Checksum Validation:
+#    - Validators are Python functions in validators/polish.py
+#    - Valid checksum adds +0.10 to +0.20 to score
+#    - Invalid checksum reduces score to 0.0 (match rejected)
+#
+# 4. Score Calculation Formula:
+#    final_score = min(1.0, base_score + context_boost + checksum_boost)
+#
+# 5. Threshold:
+#    - Default threshold: 0.7 (configurable via API)
+#    - Matches below threshold are filtered out
+#
+# ============================================================================
+# False Positive Mitigation
+# ============================================================================
+#
+# Problem: 10-digit numbers (e.g., order IDs) can match NIP/REGON
+# Solutions:
+# 1. Context requirement: "nip", "regon" keywords nearby
+# 2. Checksum validation: Invalid checksums rejected
+# 3. Low base score for bare numbers (0.50-0.60)
+# 4. Higher threshold (0.7+) filters out low-confidence matches
+#
+# Example:
+#   Text: "Zamówienie nr 1234567890"
+#   - Matches NIP bare pattern (0.50 base)
+#   - No context keywords (0.00 boost)
+#   - Invalid checksum (rejected)
+#   - Final: 0.00 (below 0.7 threshold) ❌
+#
+#   Text: "NIP podatnika: 1234567890"
+#   - Matches NIP bare pattern (0.50 base)
+#   - Context: "NIP", "podatnika" (+0.25 boost)
+#   - Valid checksum (+0.15 boost)
+#   - Final: 0.90 (above threshold) ✅
+#
+# ============================================================================
+# Performance Considerations
+# ============================================================================
+#
+# - Regex patterns are compiled once at startup (cached)
+# - Context search uses simple string matching (fast)
+# - Checksum validation: O(n) where n = digit count (10-14)
+# - Typical latency: +5-20ms per recognizer per match
+#
+# For large texts (>5000 chars):
+# - Consider pre-filtering with bloom filter
+# - Split text into chunks (<1000 chars each)
+# - Process chunks in parallel (future optimization)
+#
+# ============================================================================
+# Testing Recommendations
+# ============================================================================
+#
+# Unit tests should cover:
+# 1. Valid patterns (formatted + bare)
+# 2. Invalid checksums (should be rejected)
+# 3. Context enhancement (score boosting)
+# 4. False positives (order numbers, phone numbers)
+# 5. Edge cases (leading zeros, special chars)
+#
+# See: tests/test_polish_recognizers.py
+#
+# ============================================================================
+# References
+# ============================================================================
+#
+# - REGON checksum: GUS (Główny Urząd Statystyczny)
+#   https://www.gov.pl/web/kas/numery-identyfikacyjne
+#
+# - NIP checksum: Ministry of Finance
+#   https://www.gov.pl/web/finanse/nip
+#
+# - PESEL checksum: Ministry of Interior
+#   https://www.gov.pl/web/gov/czym-jest-numer-pesel
+#
+# - ID Card format: Ministry of Interior
+#   https://www.gov.pl/web/gov/sprawdz-wzor-dowodu-osobistego
+#
+# ============================================================================
