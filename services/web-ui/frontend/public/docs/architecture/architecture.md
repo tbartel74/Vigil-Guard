@@ -176,7 +176,7 @@ graph TB
   - ClickHouse: `clickhouse-data/` volume
   - Grafana: `grafana-data/` volume
   - LLM model: External directory (license restrictions)
-- **Security**: Default credentials `admin/admin123` for all services (change in production!)
+- **Security**: All service passwords auto-generated during installation (cryptographically secure)
 
 ---
 

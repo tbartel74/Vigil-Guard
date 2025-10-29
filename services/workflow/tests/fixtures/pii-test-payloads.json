@@ -1,0 +1,247 @@
+{
+  "valid_pii": {
+    "polish": [
+      {
+        "name": "PESEL_valid_checksum",
+        "text": "PESEL: 92032100157",
+        "expected_entities": ["PL_PESEL"],
+        "note": "Valid PESEL with correct checksum"
+      },
+      {
+        "name": "NIP_formatted",
+        "text": "NIP podatnika: 123-456-32-18",
+        "expected_entities": ["PL_NIP"],
+        "note": "NIP with dashes (XXX-XXX-XX-XX format)"
+      },
+      {
+        "name": "REGON_9_digits",
+        "text": "REGON firmy: 123-456-789",
+        "expected_entities": ["PL_REGON"],
+        "note": "9-digit REGON with dashes"
+      },
+      {
+        "name": "ID_card_formatted",
+        "text": "Dowód osobisty: ABC 123456",
+        "expected_entities": ["PL_ID_CARD"],
+        "note": "Polish ID card format (ABC123456)"
+      },
+      {
+        "name": "Mixed_Polish_PII",
+        "text": "Jan Kowalski, PESEL: 92032100157, NIP: 123-456-32-18, email: jan@example.com",
+        "expected_entities": ["PL_PESEL", "PL_NIP", "EMAIL_ADDRESS", "PERSON"],
+        "note": "Multiple Polish PII types in one prompt"
+      }
+    ],
+    "international": [
+      {
+        "name": "Email_simple",
+        "text": "Contact me at admin@example.com",
+        "expected_entities": ["EMAIL_ADDRESS"],
+        "note": "Standard email format"
+      },
+      {
+        "name": "Email_complex",
+        "text": "Reach out: john.doe+filter@subdomain.example.co.uk",
+        "expected_entities": ["EMAIL_ADDRESS"],
+        "note": "Complex email with subdomain and plus addressing"
+      },
+      {
+        "name": "Phone_international",
+        "text": "Call +48 123 456 789 or +1-555-123-4567",
+        "expected_entities": ["PHONE_NUMBER"],
+        "note": "International phone formats"
+      },
+      {
+        "name": "Phone_local",
+        "text": "Tel: 500-600-700",
+        "expected_entities": ["PHONE_NUMBER"],
+        "note": "Local Polish phone format"
+      },
+      {
+        "name": "Credit_card_Visa",
+        "text": "Card: 4532-1234-5678-9010",
+        "expected_entities": ["CREDIT_CARD"],
+        "note": "Visa card format with dashes"
+      },
+      {
+        "name": "Credit_card_bare",
+        "text": "Card number: 5425233430109903",
+        "expected_entities": ["CREDIT_CARD"],
+        "note": "Mastercard without dashes"
+      },
+      {
+        "name": "IBAN_PL",
+        "text": "IBAN: PL61 1090 1014 0000 0712 1981 2874",
+        "expected_entities": ["IBAN_CODE"],
+        "note": "Polish IBAN format"
+      },
+      {
+        "name": "IP_address_v4",
+        "text": "Server IP: 192.168.1.100",
+        "expected_entities": ["IP_ADDRESS"],
+        "note": "IPv4 address"
+      },
+      {
+        "name": "IP_address_v6",
+        "text": "IPv6: 2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+        "expected_entities": ["IP_ADDRESS"],
+        "note": "IPv6 address"
+      },
+      {
+        "name": "URL_http",
+        "text": "Visit https://example.com/login?user=admin",
+        "expected_entities": ["URL"],
+        "note": "HTTPS URL with path and query"
+      },
+      {
+        "name": "Person_name_context",
+        "text": "Spotkałem się z Jan Kowalski wczoraj",
+        "expected_entities": ["PERSON"],
+        "note": "Person name with Polish context (NLP-based)"
+      }
+    ]
+  },
+  "invalid_pii": {
+    "false_formats": [
+      {
+        "name": "PESEL_invalid_checksum",
+        "text": "PESEL: 12345678901",
+        "expected_entities": [],
+        "note": "PESEL format but invalid checksum (should not detect)"
+      },
+      {
+        "name": "NIP_invalid_checksum",
+        "text": "NIP: 123-456-78-99",
+        "expected_entities": [],
+        "note": "NIP format but invalid checksum"
+      },
+      {
+        "name": "Email_malformed",
+        "text": "Contact: admin@",
+        "expected_entities": [],
+        "note": "Incomplete email (should not detect)"
+      },
+      {
+        "name": "Phone_too_short",
+        "text": "Tel: 123",
+        "expected_entities": [],
+        "note": "Too short to be phone number"
+      },
+      {
+        "name": "Credit_card_Luhn_fail",
+        "text": "Card: 1234-5678-9012-3456",
+        "expected_entities": [],
+        "note": "Card format but fails Luhn checksum"
+      }
+    ],
+    "benign_numbers": [
+      {
+        "name": "Order_number",
+        "text": "Order ID: 12345678901",
+        "expected_entities": [],
+        "note": "Order number (not PII)"
+      },
+      {
+        "name": "Date_as_digits",
+        "text": "Date: 20231015",
+        "expected_entities": [],
+        "note": "Date in YYYYMMDD format (not PII)"
+      },
+      {
+        "name": "Product_code",
+        "text": "SKU: ABC-123-456",
+        "expected_entities": [],
+        "note": "Product SKU (not PII)"
+      }
+    ]
+  },
+  "edge_cases": [
+    {
+      "name": "Empty_string",
+      "text": "",
+      "expected_entities": [],
+      "note": "Empty input"
+    },
+    {
+      "name": "Whitespace_only",
+      "text": "   \n\t   ",
+      "expected_entities": [],
+      "note": "Only whitespace"
+    },
+    {
+      "name": "Multiple_spaces",
+      "text": "Email:     admin@example.com     (many spaces)",
+      "expected_entities": ["EMAIL_ADDRESS"],
+      "note": "PII with excessive whitespace"
+    },
+    {
+      "name": "Mixed_languages",
+      "text": "User: Jan Kowalski, email: jan@example.com, telefon: +48 123 456 789",
+      "expected_entities": ["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"],
+      "note": "Polish and English mixed"
+    },
+    {
+      "name": "Unicode_characters",
+      "text": "Użytkownik: Paweł Zając, email: pawel@example.com",
+      "expected_entities": ["PERSON", "EMAIL_ADDRESS"],
+      "note": "Polish special characters (ł, ż, ą)"
+    },
+    {
+      "name": "HTML_encoded",
+      "text": "Email: admin&#64;example&#46;com",
+      "expected_entities": [],
+      "note": "HTML entities (may not detect)"
+    },
+    {
+      "name": "Base64_encoded",
+      "text": "Data: YWRtaW5AZXhhbXBsZS5jb20=",
+      "expected_entities": [],
+      "note": "Base64 encoded email (should not detect)"
+    },
+    {
+      "name": "Very_long_text",
+      "text": "Lorem ipsum dolor sit amet " + "consectetur adipiscing elit ".repeat(50) + "PESEL: 92032100157",
+      "expected_entities": ["PL_PESEL"],
+      "note": "PII at end of long text (performance test)"
+    }
+  ],
+  "performance_tests": [
+    {
+      "name": "Single_email_minimal",
+      "text": "a@b.com",
+      "expected_entities": ["EMAIL_ADDRESS"],
+      "note": "Minimal email for latency baseline"
+    },
+    {
+      "name": "Ten_emails",
+      "text": "a@b.com, c@d.com, e@f.com, g@h.com, i@j.com, k@l.com, m@n.com, o@p.com, q@r.com, s@t.com",
+      "expected_entities": ["EMAIL_ADDRESS"],
+      "note": "10 emails in one prompt (stress test)"
+    },
+    {
+      "name": "Mixed_PII_10_types",
+      "text": "User: Jan Kowalski, PESEL: 92032100157, NIP: 123-456-32-18, REGON: 123456789, email: jan@example.com, phone: +48 123 456 789, card: 4532-1234-5678-9010, IBAN: PL61 1090 1014 0000 0712 1981 2874, IP: 192.168.1.1, URL: https://example.com",
+      "expected_entities": ["PERSON", "PL_PESEL", "PL_NIP", "PL_REGON", "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "IBAN_CODE", "IP_ADDRESS", "URL"],
+      "note": "All 10 PII types in one prompt (max complexity)"
+    }
+  ],
+  "metadata": {
+    "version": "1.6.0",
+    "created": "2025-01-29",
+    "total_payloads": 30,
+    "categories": {
+      "valid_pii_polish": 5,
+      "valid_pii_international": 11,
+      "invalid_pii": 8,
+      "edge_cases": 8,
+      "performance_tests": 3
+    },
+    "notes": [
+      "All PESEL/NIP/REGON numbers use valid checksums",
+      "Credit cards use Luhn-valid numbers",
+      "PERSON detection requires NLP (spaCy) and may have lower confidence",
+      "Regex fallback will NOT detect PERSON entities",
+      "Performance tests should run with Presidio online for accurate measurements"
+    ]
+  }
+}

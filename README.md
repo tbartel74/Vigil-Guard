@@ -18,6 +18,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 - 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 34 detection categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
+- 🔒 **PII Detection** - Microsoft Presidio integration with 50+ entity types and custom Polish recognizers (NEW v1.6)
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching

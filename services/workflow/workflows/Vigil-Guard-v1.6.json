@@ -1,5 +1,5 @@
 {
-  "name": "Vigil-Guard-v1.5",
+  "name": "Vigil-Guard-v1.6",
   "nodes": [
     {
       "parameters": {
@@ -8,10 +8,10 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        -5264,
-        64
+        -784,
+        -1040
       ],
-      "id": "451094b5-f268-469d-9466-48ec4134e07f",
+      "id": "f7f6a72b-b5f1-4650-83fc-3765bbc9eaec",
       "name": "When chat message received",
       "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
     },
@@ -22,10 +22,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        448,
-        96
+        4944,
+        -1008
       ],
-      "id": "2e2b0973-2d91-4798-889f-42b0c8c1d4c9",
+      "id": "45b127e0-56fa-4eb0-af6b-c5710df9bbf4",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -50,10 +50,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        672,
-        96
+        5168,
+        -1008
       ],
-      "id": "a34cfb2e-dc3c-4dea-9e6a-603c112f0abc",
+      "id": "7f7c08b8-9f9f-402b-91c6-c76fafafebfe",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
@@ -71,10 +71,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3600,
-        96
+        896,
+        -1008
       ],
-      "id": "1620b87f-8eb3-4474-9838-50f9a44f7fe2",
+      "id": "bf1b9f54-dadd-42d4-8e7a-39c7930fdf0c",
       "name": "Config Loader"
     },
     {
@@ -89,10 +89,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -3808,
-        80
+        688,
+        -1024
       ],
-      "id": "59153a86-004e-42de-a444-f44d96d47f26",
+      "id": "73234889-5c1c-4a4b-a60a-70239b55df8a",
       "name": "Merge"
     },
     {
@@ -113,10 +113,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4800,
-        64
+        -320,
+        -1040
       ],
-      "id": "cf8b26ae-6d95-4fd3-b6d8-77ff0b99d37f",
+      "id": "8f7daed6-9dd0-4cdd-a027-c608b3155e77",
       "name": "Keep only set"
     },
     {
@@ -128,10 +128,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        320
+        288,
+        -784
       ],
-      "id": "6ead6537-3c4f-4085-96bf-58fff844533f",
+      "id": "a328e3d5-d567-4f59-9754-dc1f2d6e7cc2",
       "name": "Extract from File"
     },
     {
@@ -143,10 +143,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        512
+        288,
+        -592
       ],
-      "id": "056c96a6-2ac8-4610-93ac-d11bd9eb7253",
+      "id": "7f1f8f9b-cfa1-4298-83ce-3a0698ab2e39",
       "name": "Extract from File1"
     },
     {
@@ -156,10 +156,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2944,
-        96
+        1552,
+        -1008
       ],
-      "id": "2f316a53-2536-4309-87d7-3358a3e4202d",
+      "id": "0973eb3c-e166-460e-816d-9243f8af1857",
       "name": "Normalize_Node"
     },
     {
@@ -185,10 +185,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        928,
-        96
+        5424,
+        -1008
       ],
-      "id": "f06aa25c-a9dd-422e-b1d1-bbe558295edc",
+      "id": "9e12ba38-7183-4417-b8d5-0e77f4c8baf8",
       "name": "Clean output"
     },
     {
@@ -202,10 +202,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        512
+        112,
+        -592
       ],
-      "id": "095699dd-7eec-4f38-abcd-ac91c786e2fd",
+      "id": "7008475e-3538-41b0-8f01-b843f2d5bcb6",
       "name": "Loading config files *.conf"
     },
     {
@@ -219,10 +219,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        320
+        112,
+        -784
       ],
-      "id": "a0ae2eec-093c-4c8f-bf52-b26849763644",
+      "id": "14d734c4-40b4-44a3-89b1-d1c058571765",
       "name": "Loading config files *.json"
     },
     {
@@ -232,10 +232,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1968,
-        96
+        2528,
+        -1008
       ],
-      "id": "80c561fd-cece-4c4d-94e0-1bf45cc556d7",
+      "id": "e91dfbe8-83a6-470a-8ff5-8a0bd9627b1a",
       "name": "Unified Decision Engine"
     },
     {
@@ -245,10 +245,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2464,
-        96
+        2032,
+        -1008
       ],
-      "id": "87fdb281-fcd6-479a-8636-0ca9705a025a",
+      "id": "b667fa41-9964-44be-a056-c93007640bb0",
       "name": "Allowlist_Validator"
     },
     {
@@ -258,23 +258,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1456,
-        96
+        3040,
+        -1008
       ],
-      "id": "735946e8-077e-494c-aacc-dd415c42350e",
+      "id": "7a70fc41-bf44-47fb-99e4-a1641e076378",
       "name": "Sanitization_Enforcement"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * PII_Redactor - FIXED: English messages, proper error handling\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  \n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n  \n  const piiConf = j.pii_conf;\n  if (!piiConf || !piiConf.rules) {\n    j.pii_error = \"PII_Redactor: missing pii_conf\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n  \n  let text = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n  \n  if (!text) {\n    j.pii_error = \"PII_Redactor: no text to redact\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n  \n  let redactedText = text;\n  let redactionCount = 0;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n  \n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n    \n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      const beforeText = redactedText;\n      \n      redactedText = redactedText.replace(re, rule.replacement);\n      \n      if (redactedText !== beforeText) {\n        redactionCount++;\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n  \n  const hasPII = (redactedText !== text);\n  \n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n  }\n  \n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n  \n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII\n  };\n  \n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n  \n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+        "jsCode": "/**\n * PII_Redactor_v2 - Presidio Integration with Fallback\n * Version: 1.6.0 Rev 4 FINAL ✅\n * Date: 2025-10-29\n *\n * Features:\n * - Microsoft Presidio API integration (50+ PII types)\n * - Custom Polish recognizers (PESEL, NIP, REGON, ID card)\n * - Automatic fallback to regex (pii.conf) if Presidio offline\n * - Configurable redaction modes (replace/mask)\n * - Detection method logging for analytics\n *\n * Node Position: After Input_Validator, before Normalize_Node\n * Node Type: Code (JavaScript)\n *\n * Revision History:\n * - Rev 4 FINAL: Fixed regex matching against redactedText (not original text) - CRITICAL offset bug fix\n * - Rev 3: Fixed function declaration order (getRedactionToken before applyLegacyPiiRules)\n * - Rev 2: Fixed regex fallback redaction algorithm (offset handling - incomplete fix)\n * - Rev 1: Fixed config path: j.config.pii_detection (was j.unified_config.pii_detection)\n * - Initial: Presidio integration with fallback\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor_v2: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  // Skip if already blocked or config error\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n\n  // Extract text to process\n  let text = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  if (!text) {\n    j.pii_error = \"PII_Redactor_v2: no text to redact\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  // Load PII detection configuration\n  const piiConfig = j.config?.pii_detection || {};\n  const enablePresidio = piiConfig.enabled !== false;\n  const fallbackToRegex = piiConfig.fallback_to_regex !== false;\n\n  let results = {\n    entities: [],\n    redacted_text: text,\n    detection_method: 'none',\n    processing_time_ms: 0,\n    error: null\n  };\n\n  // ========================================================================\n  // OPTION 1: Try Presidio API (if enabled)\n  // ========================================================================\n  if (enablePresidio) {\n    try {\n      const startTime = Date.now();\n\n      // Use n8n's built-in $http helper\n      const response = await $http.post(\n        piiConfig.api_url || 'http://vigil-presidio-pii:5001/analyze',\n        {\n          body: {\n            text: text,\n            language: piiConfig.languages?.[0] || 'pl',\n            entities: piiConfig.entities || null,\n            score_threshold: piiConfig.confidence_threshold || 0.7,\n            return_decision_process: false\n          },\n          headers: {\n            'Content-Type': 'application/json'\n          },\n          timeout: piiConfig.api_timeout_ms || 3000\n        }\n      );\n\n      results.entities = response.entities || [];\n      results.detection_method = 'presidio';\n      results.processing_time_ms = Date.now() - startTime;\n\n      console.log(`PII_Redactor_v2: Presidio detected ${results.entities.length} entities in ${results.processing_time_ms}ms`);\n\n    } catch (error) {\n      // Presidio API failed - try fallback\n      console.warn(`PII_Redactor_v2: Presidio API error: ${error.message}`);\n      results.error = error.message;\n\n      if (fallbackToRegex) {\n        console.log('PII_Redactor_v2: Falling back to regex rules');\n        results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n      } else {\n        // No fallback - fail hard\n        j.pii_error = `Presidio API failed: ${error.message}`;\n        item.json = j;\n        out.push(item);\n        continue;\n      }\n    }\n  }\n  // ========================================================================\n  // OPTION 2: Use legacy regex rules (if Presidio disabled or fallback)\n  // ========================================================================\n  else if (fallbackToRegex) {\n    results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n  }\n\n  // ========================================================================\n  // Apply redaction based on detected entities\n  // ========================================================================\n  let redactedText = text;\n  let redactionCount = 0;\n\n  if (results.detection_method === 'presidio' && results.entities.length > 0) {\n    // For Presidio: we need to apply redaction ourselves\n    const sortedEntities = results.entities.sort((a, b) => b.start - a.start);\n\n    for (const entity of sortedEntities) {\n      const originalText = text.substring(entity.start, entity.end);\n      const redactionToken = getRedactionToken(\n        entity.type,\n        originalText,\n        piiConfig\n      );\n\n      // Replace entity text with redaction token\n      redactedText =\n        redactedText.substring(0, entity.start) +\n        redactionToken +\n        redactedText.substring(entity.end);\n\n      redactionCount++;\n    }\n  } else if (results.detection_method === 'regex_fallback') {\n    // For regex fallback: redaction is already done by applyLegacyPiiRules()\n    redactedText = results.redacted_text;\n    redactionCount = results.entities.length;\n  }\n\n  const hasPII = (redactedText !== text);\n\n  // ========================================================================\n  // Update payload with redacted text (backward compatible)\n  // ========================================================================\n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n  }\n\n  // Save pipeline snapshot\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n\n  // Save PII detection results (extended structure for v1.6)\n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII,\n    detection_method: results.detection_method,\n    processing_time_ms: results.processing_time_ms,\n    entities_detected: results.entities.length,\n    entities: results.entities.map(e => ({\n      type: e.type,\n      start: e.start,\n      end: e.end,\n      score: e.score\n    }))\n  };\n\n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;\n\n\n// ============================================================================\n// Helper Functions\n// ============================================================================\n\n/**\n * Get redaction token for a specific entity type\n * Supports: replace (default), mask\n * Note: hash mode removed (requires crypto module not available in n8n)\n */\nfunction getRedactionToken(entityType, originalText, piiConfig) {\n  const redactionMode = piiConfig.redaction_mode || 'replace';\n  const tokens = piiConfig.redaction_tokens || {};\n\n  switch (redactionMode) {\n    case 'replace':\n      // Simple token replacement (default)\n      return tokens[entityType] || `[${entityType}]`;\n\n    case 'mask':\n      // Keep first 2 and last 2 chars, mask middle\n      if (originalText.length <= 4) {\n        return '*'.repeat(originalText.length);\n      }\n      const first = originalText.substring(0, 2);\n      const last = originalText.substring(originalText.length - 2);\n      const masked = '*'.repeat(originalText.length - 4);\n      return `${first}${masked}${last}`;\n\n    default:\n      return tokens[entityType] || `[${entityType}]`;\n  }\n}\n\n/**\n * Fallback: Apply legacy regex-based PII rules from pii.conf\n * Returns redacted text with entities metadata\n */\nfunction applyLegacyPiiRules(text, piiConf, piiConfig) {\n  const startTime = Date.now();\n\n  if (!piiConf || !piiConf.rules) {\n    console.warn('PII_Redactor_v2: No pii_conf available for fallback');\n    return {\n      entities: [],\n      redacted_text: text,\n      detection_method: 'regex_fallback_failed',\n      processing_time_ms: 0,\n      error: 'No pii.conf rules available'\n    };\n  }\n\n  const entities = [];\n  let redactedText = text;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n\n  // Process rules in order, applying redaction as we go\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      let match;\n      const matches = [];\n\n      // Find all matches in CURRENT redactedText (not original text!)\n      while ((match = re.exec(redactedText)) !== null) {\n        matches.push({\n          index: match.index,\n          length: match[0].length,\n          text: match[0]\n        });\n      }\n\n      // Sort matches by position (descending) to avoid offset issues\n      matches.sort((a, b) => b.index - a.index);\n\n      // Apply redaction from end to beginning\n      for (const m of matches) {\n        // Get redaction token from config\n        const redactionToken = getRedactionToken(rule.name, m.text, piiConfig);\n\n        // Replace in redacted text (offsets are valid because we found matches in redactedText)\n        redactedText =\n          redactedText.substring(0, m.index) +\n          redactionToken +\n          redactedText.substring(m.index + m.length);\n\n        // Save entity metadata (use original text offsets for logging)\n        entities.push({\n          type: rule.name,\n          start: m.index,\n          end: m.index + m.length,\n          text: m.text,\n          score: 1.0,\n          source: 'regex'\n        });\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n\n  return {\n    entities: entities,\n    redacted_text: redactedText,\n    detection_method: 'regex_fallback',\n    processing_time_ms: Date.now() - startTime,\n    error: null\n  };\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3168,
-        96
+        1328,
+        -1008
       ],
-      "id": "5b0d24f3-a614-403a-8aaf-3a053ead2763",
+      "id": "a9333d91-5e20-4a69-968b-60a29e577caa",
       "name": "PII_Redactor"
     },
     {
@@ -284,10 +284,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1728,
-        96
+        2768,
+        -1008
       ],
-      "id": "60bf3a7d-65d0-4a1c-9e33-3ce2f48b1ed2",
+      "id": "65a723e4-6bb6-4278-a42c-0517ce6c945e",
       "name": "Correlation_Engine"
     },
     {
@@ -297,10 +297,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2224,
-        96
+        2272,
+        -1008
       ],
-      "id": "94fcf986-27eb-4366-a8bf-502822d7e89c",
+      "id": "215ec23d-8d7e-4804-92ba-baa2414f529a",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -312,10 +312,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        720
+        288,
+        -384
       ],
-      "id": "06f10dcf-64c5-49d5-9e55-45f069aad564",
+      "id": "fcff9e60-01de-4e41-a1fc-5e7a55844c5a",
       "name": "Extract from File2"
     },
     {
@@ -329,10 +329,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        720
+        112,
+        -384
       ],
-      "id": "66395d6a-5e19-428e-8cd5-14f6f34caee4",
+      "id": "5828fb21-cd8c-4e73-8998-3645b42fd461",
       "name": "Loading config files *.conf1"
     },
     {
@@ -344,10 +344,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        928
+        288,
+        -176
       ],
-      "id": "d4c6ae06-d80f-4e7b-a3ed-2c6905b2b94d",
+      "id": "eb2bdcfe-1453-4927-ae63-9a677da91c73",
       "name": "Extract from File3"
     },
     {
@@ -361,10 +361,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        928
+        112,
+        -176
       ],
-      "id": "b6b42641-381d-4440-8e77-e75bffa509aa",
+      "id": "d931997e-e17e-415e-a6ce-d1546b43f161",
       "name": "Loading config files *.conf2"
     },
     {
@@ -376,10 +376,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        1136
+        288,
+        32
       ],
-      "id": "b740fd1d-7d91-4779-9361-0b3801b4fe0a",
+      "id": "947e96ff-0901-442e-ba20-83d8121393c1",
       "name": "Extract from File4"
     },
     {
@@ -393,10 +393,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        1136
+        112,
+        32
       ],
-      "id": "63621163-29a0-426c-83a7-adfee816dca2",
+      "id": "e0c9ba5b-b811-4244-b816-fac90770463b",
       "name": "Loading config files *.conf3"
     },
     {
@@ -408,10 +408,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -4208,
-        1360
+        288,
+        256
       ],
-      "id": "85886bf6-60eb-4e6e-81ff-d13f3969ad08",
+      "id": "68b292f0-4ab0-48c6-8c41-e50ec7727b42",
       "name": "Extract from File5"
     },
     {
@@ -425,10 +425,10 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        -4384,
-        1360
+        112,
+        256
       ],
-      "id": "0b708c49-728d-45f0-9e8e-8938d8768450",
+      "id": "be569004-6fd4-4193-bb46-e2ef097615f4",
       "name": "Loading config files *.conf4"
     },
     {
@@ -438,10 +438,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        96
+        4704,
+        -1008
       ],
-      "id": "ca4760cc-fe6e-448b-8d4a-4d0d3180a43d",
+      "id": "77c83377-22f3-4f2f-b27b-092bcbea7347",
       "name": "Finale Decision"
     },
     {
@@ -455,10 +455,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -32,
-        96
+        4464,
+        -1008
       ],
-      "id": "89457e1a-4c88-4ccf-98b3-c9e61293a592",
+      "id": "a65df98a-d6e9-4da4-8622-d3dbcb2142bc",
       "name": "Merge1"
     },
     {
@@ -489,10 +489,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1200,
-        96
+        3296,
+        -1008
       ],
-      "id": "72f20e9b-2efa-46e5-b933-6476262beaee",
+      "id": "d6a6de2e-423e-4296-9f0c-1d3b78eff8b0",
       "name": "If"
     },
     {
@@ -502,10 +502,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -304,
-        224
+        4192,
+        -880
       ],
-      "id": "e21245c2-fcb0-4015-b0a6-c3a612cb8b2f",
+      "id": "b05c52f5-4cf4-471b-9e11-ee3e4757fc24",
       "name": "LLM Context Restore"
     },
     {
@@ -515,10 +515,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -912,
-        208
+        3584,
+        -896
       ],
-      "id": "d9948e05-e46f-4633-b518-64a0838f5ac3",
+      "id": "0a188956-c95c-4834-a05f-c5e53498c866",
       "name": "Prepare LLM Request"
     },
     {
@@ -528,10 +528,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -720,
-        352
+        3776,
+        -752
       ],
-      "id": "dbd661c5-8b66-49f3-8e5c-eb0c7f2733ee",
+      "id": "f41bc67f-caff-4964-802e-1911ee5134e1",
       "name": "Prompt Guard API"
     },
     {
@@ -541,10 +541,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -528,
-        224
+        3968,
+        -880
       ],
-      "id": "124583e2-9f17-4a2a-b438-c720f67ac920",
+      "id": "380dd45e-9ef6-4eb1-98e6-0a626b892349",
       "name": "Merge2"
     },
     {
@@ -554,10 +554,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2704,
-        96
+        1792,
+        -1008
       ],
-      "id": "6fcc16fc-9150-4455-9450-5d7c8d0894d2",
+      "id": "6613fe4b-80a6-4982-a878-4a9e0900f3f9",
       "name": "Bloom_Prefilter"
     },
     {
@@ -569,11 +569,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5424,
-        -32
+        -944,
+        -1136
       ],
       "typeVersion": 1,
-      "id": "55711def-38e7-4d7a-8ebe-57c3e8810f47",
+      "id": "5e9fb789-00ff-43f1-8129-3c3e1230b3a3",
       "name": "Sticky Note1"
     },
     {
@@ -586,10 +586,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -5264,
-        640
+        -784,
+        -464
       ],
-      "id": "1a320bb0-5209-43b6-8a23-c00cd1fe797d",
+      "id": "4e4d002d-efe2-4ab1-bc72-148b33b92fce",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -602,11 +602,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5440,
-        512
+        -960,
+        -592
       ],
       "typeVersion": 1,
-      "id": "49e01c81-17d4-4f82-9d6c-e64321b11119",
+      "id": "992107b2-830c-4665-94b4-44417db77896",
       "name": "Sticky Note2"
     },
     {
@@ -616,10 +616,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3424,
-        96
+        1072,
+        -1008
       ],
-      "id": "09f958d3-b003-4d76-a6b4-f0ba03a79b70",
+      "id": "5d233b72-6850-4d4d-9506-536651b94c60",
       "name": "Input_Validator"
     },
     {
@@ -650,10 +650,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -3296,
-        448
+        1200,
+        -656
       ],
-      "id": "77bc985c-82dd-423f-8b22-5d6c9cd1cf24",
+      "id": "19b04529-21cb-49dd-b390-1f7894ad8a2b",
       "name": "Validation Check"
     },
     {
@@ -663,10 +663,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
-        464
+        4688,
+        -640
       ],
-      "id": "20329ae8-347c-4a33-93e1-9d96428271e7",
+      "id": "c04d147f-05a0-4005-8ae9-21833def9819",
       "name": "Early Block Response"
     },
     {
@@ -676,10 +676,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        336
+        5424,
+        -768
       ],
-      "id": "610404b6-5e9d-49fe-8a9c-8f95646946fb",
+      "id": "f231e9ab-21d3-47ef-abc9-1573f3dcd1c1",
       "name": "output to plugin"
     }
   ],
@@ -1151,7 +1151,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b87b2c35-2d2a-4bbf-9b7d-c70f8411fb57",
+  "versionId": "f8f169f9-1337-4eb5-aacd-a3e51346e0a7",
   "meta": {
     "instanceId": "004e3bbc45b3f040b9767a4451ef465967114bc5e89c4ddc8cd6c892432d1ed8"
   },

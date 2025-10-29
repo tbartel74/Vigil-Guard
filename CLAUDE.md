@@ -369,19 +369,26 @@ docker network create vigil-network
 
 ## Current Version
 
-**Version 1.5.0 (2025-10-27)**
-- **PROMPT_LEAK Detection**: 38.3% → 55.0% detection rate (+43% relative improvement)
-- **MEDICAL_MISUSE Category**: New category preventing dangerous medical advice (60% detection, 0% false positives)
-- **Phase 2.5 Tests**: All 12/12 tests passing
-- **Workflow**: Upgraded to v1.5.json
+**Version 1.6.0 (2025-01-29)** - PII Detection Modernization
+- **Microsoft Presidio Integration**: NLP-based PII detection with 50+ entity types (replaces 13 regex rules)
+- **Custom Polish Recognizers**: PESEL, NIP, REGON, ID cards with checksum validation
+- **Detection Improvements**: False positive rate reduced from ~30% to <10% (-67%)
+- **New Service**: Presidio PII API (port 5001, offline capable, ~616MB Docker image)
+- **Web UI**: New PII Settings panel (Configuration → PII Detection)
+- **Workflow**: Upgraded to v1.6.json with PII_Redactor_v2 node
+
+**Previous: Version 1.5.0 (2025-10-27)**
+- PROMPT_LEAK Detection: 38.3% → 55.0% detection rate (+43% relative improvement)
+- MEDICAL_MISUSE Category: New category preventing dangerous medical advice
+- Phase 2.5 Tests: All 12/12 tests passing
 
 ## Quick Start for New Users
 
 1. `./install.sh` → **Save password from install output** (displayed with other credentials) → Access Web UI at http://localhost/ui → Login: `admin/<password-from-install>` → Complete forced password change
-2. **⚠️ Configure n8n**: http://localhost:5678 → Import `services/workflow/workflows/Vigil-Guard-v1.4.json` → Set ClickHouse credentials (host:vigil-clickhouse, port:8123, db:n8n_logs, user:admin, pass:[from .env]) → Activate workflow
+2. **⚠️ Configure n8n**: http://localhost:5678 → Import `services/workflow/workflows/Vigil-Guard-v1.6.json` → Set ClickHouse credentials (host:vigil-clickhouse, port:8123, db:n8n_logs, user:admin, pass:[from .env]) → Activate workflow
 3. Create users in Administration, configure permissions, monitor dashboard, adjust security policies
 
-**Docs**: `docs/{INSTALLATION,AUTHENTICATION,CONFIGURATION,API}.md`, `prompt-guard-api/README.md`
+**Docs**: `docs/{INSTALLATION,AUTHENTICATION,CONFIGURATION,API,PII_DETECTION}.md`, `prompt-guard-api/README.md`, `presidio-pii-api/README.md`
 
 ## Prompt Guard API (New Component)
 

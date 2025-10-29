@@ -106,6 +106,128 @@ app.get("/api/prompt-guard/health", authenticate, async (req, res) => {
   }
 });
 
+// ============================================================================
+// PII DETECTION - PRESIDIO API INTEGRATION
+// ============================================================================
+
+// PII Detection service health check endpoint - requires authentication
+app.get("/api/pii-detection/status", authenticate, async (req, res) => {
+  try {
+    const presidioUrl = process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001';
+    const response = await fetch(`${presidioUrl}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000)
+    });
+
+    if (!response.ok) {
+      return res.json({
+        status: 'offline',
+        fallback: 'regex',
+        error: `HTTP ${response.status}`
+      });
+    }
+
+    const data = await response.json();
+    res.json({
+      status: 'online',
+      version: data.version || 'unknown',
+      recognizers_loaded: data.recognizers_loaded || 0,
+      spacy_models: data.spacy_models || []
+    });
+  } catch (e: any) {
+    console.error("Error checking Presidio PII health:", e);
+    res.json({
+      status: 'offline',
+      fallback: 'regex',
+      error: e.message
+    });
+  }
+});
+
+// PII Detection entity types list - requires authentication
+app.get("/api/pii-detection/entity-types", authenticate, async (req, res) => {
+  try {
+    // Static list of supported PII entity types (from unified_config.json + custom recognizers)
+    const entityTypes = [
+      {
+        id: 'EMAIL_ADDRESS',
+        name: 'Email Address',
+        category: 'contact',
+        description: 'Email addresses in standard format (user@domain.com)'
+      },
+      {
+        id: 'PHONE_NUMBER',
+        name: 'Phone Number',
+        category: 'contact',
+        description: 'Phone numbers (international, local, formatted)'
+      },
+      {
+        id: 'PERSON',
+        name: 'Person Name',
+        category: 'identity',
+        description: 'Full names detected via NLP (context-aware)'
+      },
+      {
+        id: 'PL_PESEL',
+        name: 'PESEL (Polish National ID)',
+        category: 'identity',
+        description: '11-digit Polish identification number with checksum validation'
+      },
+      {
+        id: 'PL_NIP',
+        name: 'NIP (Polish Tax ID)',
+        category: 'business',
+        description: '10-digit Polish tax identification number with checksum validation'
+      },
+      {
+        id: 'PL_REGON',
+        name: 'REGON (Polish Business ID)',
+        category: 'business',
+        description: '9 or 14-digit Polish business registry number with checksum validation'
+      },
+      {
+        id: 'PL_ID_CARD',
+        name: 'Polish ID Card Number',
+        category: 'identity',
+        description: 'Polish identity card number (format: ABC123456)'
+      },
+      {
+        id: 'CREDIT_CARD',
+        name: 'Credit Card Number',
+        category: 'financial',
+        description: 'Credit card numbers (Visa, MasterCard, Amex) with Luhn checksum validation'
+      },
+      {
+        id: 'IBAN_CODE',
+        name: 'IBAN',
+        category: 'financial',
+        description: 'International Bank Account Number'
+      },
+      {
+        id: 'IP_ADDRESS',
+        name: 'IP Address',
+        category: 'technical',
+        description: 'IPv4 and IPv6 addresses'
+      },
+      {
+        id: 'URL',
+        name: 'URL',
+        category: 'technical',
+        description: 'Web URLs and domain names'
+      }
+    ];
+
+    res.json({
+      entities: entityTypes,
+      total: entityTypes.length,
+      categories: ['contact', 'identity', 'business', 'financial', 'technical']
+    });
+  } catch (e: any) {
+    console.error("Error fetching PII entity types:", e);
+    res.status(500).json({ error: "Failed to fetch entity types", details: e.message });
+  }
+});
+
 // Helper function to convert frontend timeRange to ClickHouse INTERVAL format
 function convertTimeRangeToInterval(timeRange: string): string {
   const mapping: Record<string, string> = {
