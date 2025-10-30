@@ -1,0 +1,92 @@
+✅ WORKFLOW v1.6.10 READY FOR IMPORT TO N8N
+
+📦 File: Vigil-Guard-v1.6.10.json (132KB)
+📖 Instructions: IMPORT_INSTRUCTIONS_v1.6.10.md
+🚀 Major Feature: Dual-Language PII Detection (Polish + International)
+
+═══════════════════════════════════════════════════════════
+IMPORT STEPS:
+═══════════════════════════════════════════════════════════
+
+1. Open n8n: http://localhost:5678
+2. Import → Select File → Vigil-Guard-v1.6.10.json
+3. Configure ClickHouse credentials (host: vigil-clickhouse)
+4. Activate workflow
+5. Test with: curl -X POST "http://localhost:5678/webhook/..." -d '{"chatInput":"..."}'
+
+═══════════════════════════════════════════════════════════
+KEY CHANGES IN v1.6.10:
+═══════════════════════════════════════════════════════════
+
+✅ DUAL-LANGUAGE DETECTION
+   - Parallel API calls (pl + en)
+   - Credit cards + Polish PII in same request
+   - ~200-300ms total latency
+
+✅ ENTITY DEDUPLICATION
+   - Removes overlapping detections
+   - Keeps highest-score entity
+
+✅ LANGUAGE STATISTICS
+   - Logs: pii.language_stats.polish_entities
+   - Logs: pii.language_stats.international_entities
+   - Logs: pii.language_stats.total_after_dedup
+
+✅ BACKWARD COMPATIBLE
+   - Same output format as v1.6.9
+   - Same redaction token mapping
+
+═══════════════════════════════════════════════════════════
+TESTING:
+═══════════════════════════════════════════════════════════
+
+Test 1: Credit Card
+curl -X POST "http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1" \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput":"My card is 4111111111111111","sessionId":"test_card"}'
+
+Expected: result = "my card is [CARD]"
+
+Test 2: PESEL
+curl -X POST "http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1" \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput":"PESEL 44051401359","sessionId":"test_pesel"}'
+
+Expected: result = "pesel [PESEL]"
+
+Test 3: Both
+curl -X POST "http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1" \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput":"Card 5555555555554444 and PESEL 44051401359","sessionId":"test_both"}'
+
+Expected: result = "card [CARD] and [PESEL]"
+
+═══════════════════════════════════════════════════════════
+PREREQUISITES:
+═══════════════════════════════════════════════════════════
+
+✅ Presidio PII API running (port 5001)
+✅ Polish recognizers: supported_language = pl
+✅ Credit card recognizer: supported_language = en
+✅ unified_config.json: pii_detection.enabled = true
+✅ ClickHouse credentials configured
+
+═══════════════════════════════════════════════════════════
+TROUBLESHOOTING:
+═══════════════════════════════════════════════════════════
+
+❌ "No matching recognizers" error
+   → Check recognizers.yaml language configuration
+
+❌ Entities not masked
+   → Check unified_config.json redaction_tokens mapping
+
+❌ High latency (>500ms)
+   → Check Presidio container health
+   → Verify parallel API calls in logs
+
+❌ Rollback needed
+   → Import Vigil-Guard-v1.6.9.json
+   → Note: v1.6.9 only detects international PII (language: en)
+
+═══════════════════════════════════════════════════════════

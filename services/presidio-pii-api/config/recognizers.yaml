@@ -15,7 +15,7 @@ recognizers:
   # EMAIL_ADDRESS - Email addresses (language-agnostic)
   # ============================================================================
   - name: EMAIL_ADDRESS_PL
-    supported_language: pl
+    supported_language: en
     supported_entity: EMAIL_ADDRESS
     patterns:
       # Standard email pattern
@@ -35,7 +35,7 @@ recognizers:
   # PHONE_NUMBER - Phone numbers (Polish and international)
   # ============================================================================
   - name: PHONE_NUMBER_PL
-    supported_language: pl
+    supported_language: en
     supported_entity: PHONE_NUMBER
     patterns:
       # Polish phone with +48 prefix
@@ -70,19 +70,34 @@ recognizers:
   # ============================================================================
   # PERSON - Names (Polish context)
   # ============================================================================
+  # FIXED v1.6.8: Require minimum 3 chars per word to reduce false positives
+  # Example false positive (OLD): "nadal jakos przypadkowo" → detected as name
+  # Fixed (NEW): Requires min 3 chars + context keywords for better precision
+  #
+  # Strategy: HIGH threshold (0.60) to prevent false positives
+  # Problem: Context enhancer adds unpredictable +0.05-0.15 boost
+  # Solution: Require explicit context keywords (pacjent, imię, nazwisko, etc.)
+  # - WITHOUT context: 0.45 + 0.05 = 0.50 < 0.60 → REJECTED ❌
+  # - WITH context keywords: 0.45 + 0.35 = 0.80 >= 0.60 → ACCEPTED ✅
+  # Trade-off: Names without context (e.g., "Jan Kowalski" alone) won't be detected
   - name: PERSON_PL
-    supported_language: pl
+    supported_language: en
     supported_entity: PERSON
     patterns:
-      # Polish name pattern: Capitalized words (2-3)
+      # Polish name pattern: Capitalized words (2 words, min 3 chars each)
       - name: person_full_name
-        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\b'
-        score: 0.65
+        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
+        score: 0.45  # Standard score (requires context to pass 0.60 threshold)
+
+      # Name with title (higher confidence due to context)
+      - name: person_with_title
+        regex: '\b(Pan|Pani|Dr|Prof|Mgr)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
+        score: 0.75  # High confidence - title indicates name
 
       # Name with multiple parts (e.g., Jan Kowalski-Nowak)
       - name: person_compound_name
-        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+){1,2}\b'
-        score: 0.70
+        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}){1,2}\b'
+        score: 0.50  # Medium confidence
     context:
       - "imię"
       - "imie"
@@ -91,8 +106,21 @@ recognizers:
       - "patient"
       - "klient"
       - "użytkownik"
+      - "user"
       - "pan"
       - "pani"
+      - "osoba"
+      - "person"
+      - "pesel"
+      - "PESEL"
+      - "nip"
+      - "NIP"
+      - "email"
+      - "e-mail"
+      - "telefon"
+      - "phone"
+      - "dowód"
+      - "dowod"
     validators: []
 
   # ============================================================================
@@ -288,6 +316,100 @@ recognizers:
     # Validator function (implemented in validators/polish.py)
     validators:
       - checksum_pesel
+
+  # ============================================================================
+  # CREDIT_CARD - Credit Card Numbers (International)
+  # ============================================================================
+  # Supports: Visa, Mastercard, American Express, Discover, JCB, Diners Club
+  # Validation: Luhn algorithm (modulo-10 checksum)
+  # Format: 13-19 digits, with or without hyphens/spaces
+  # ============================================================================
+  - name: CREDIT_CARD_ENHANCED
+    supported_language: en
+    supported_entity: CREDIT_CARD
+    patterns:
+      # Visa: starts with 4, length 13 or 16
+      - name: visa_formatted
+        regex: '\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'
+        score: 0.90
+
+      # Visa 13-digit
+      - name: visa_13_digit
+        regex: '\b4\d{12}\b'
+        score: 0.85
+
+      # Mastercard: starts with 51-55 or 2221-2720, length 16
+      - name: mastercard_formatted
+        regex: '\b5[1-5]\d{2}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'
+        score: 0.90
+
+      # Mastercard bare (16 digits starting with 5)
+      - name: mastercard_bare
+        regex: '\b5[1-5]\d{14}\b'
+        score: 0.85
+
+      # American Express: starts with 34 or 37, length 15
+      - name: amex_formatted
+        regex: '\b3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5}\b'
+        score: 0.90
+
+      # Amex bare (15 digits)
+      - name: amex_bare
+        regex: '\b3[47]\d{13}\b'
+        score: 0.85
+
+      # Discover: starts with 6011, 644-649, or 65
+      - name: discover_formatted
+        regex: '\b6(?:011|5\d{2}|4[4-9]\d)[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'
+        score: 0.90
+
+      # JCB: starts with 3528-3589, length 16
+      - name: jcb_formatted
+        regex: '\b35(?:2[8-9]|[3-8]\d)[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'
+        score: 0.85
+
+      # Diners Club: starts with 300-305, 36, or 38, length 14
+      - name: diners_formatted
+        regex: '\b3(?:0[0-5]|[68]\d)[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{2}\b'
+        score: 0.85
+
+      # Generic card pattern (13-19 digits) - lowest confidence
+      - name: generic_card
+        regex: '\b\d{13,19}\b'
+        score: 0.40  # Very low - requires context + Luhn validation
+
+    # Context keywords for credit card detection (English + Polish)
+    context:
+      # English keywords
+      - "card"
+      - "credit"
+      - "visa"
+      - "mastercard"
+      - "amex"
+      - "american express"
+      - "discover"
+      - "jcb"
+      - "diners"
+      - "payment"
+      - "number"
+      - "expires"
+      - "exp"
+      - "cvv"
+      - "cvc"
+      # Polish keywords
+      - "karta"
+      - "kredytowa"
+      - "debetowa"
+      - "płatność"
+      - "platnosc"
+      - "numer"
+      - "wygasa"
+      - "wazna"
+      - "ważna"
+
+    # Luhn checksum validation
+    validators:
+      - validate_credit_card
 
 # ============================================================================
 # Configuration Notes
