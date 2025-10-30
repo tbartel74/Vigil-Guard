@@ -20,6 +20,7 @@ show_usage() {
     echo "  n8n           - n8n workflow engine"
     echo "  monitoring    - ClickHouse and Grafana"
     echo "  prompt-guard  - Prompt Guard API"
+    echo "  presidio      - Presidio PII API"
     echo "  all           - All services (default)"
     echo ""
 }
@@ -56,6 +57,9 @@ case $SERVICE in
         ;;
     prompt-guard)
         restart_service "Prompt Guard API" "prompt-guard-api"
+        ;;
+    presidio)
+        restart_service "Presidio PII API" "presidio-pii-api"
         ;;
     all)
         echo -e "${YELLOW}Restarting all services...${NC}"

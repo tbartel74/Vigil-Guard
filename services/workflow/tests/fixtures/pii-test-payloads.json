@@ -98,6 +98,120 @@
         "text": "Spotkałem się z Jan Kowalski wczoraj",
         "expected_entities": ["PERSON"],
         "note": "Person name with Polish context (NLP-based)"
+      },
+      {
+        "name": "Person_name_English",
+        "text": "I met with John Smith and Sarah Johnson yesterday",
+        "expected_entities": ["PERSON"],
+        "note": "English person names (NLP-based)"
+      },
+      {
+        "name": "US_SSN_formatted",
+        "text": "SSN: 123-45-6789",
+        "expected_entities": ["US_SSN"],
+        "note": "US Social Security Number (XXX-XX-XXXX format)"
+      },
+      {
+        "name": "US_SSN_bare",
+        "text": "Social Security Number: 987654321",
+        "expected_entities": ["US_SSN"],
+        "note": "US SSN without dashes"
+      },
+      {
+        "name": "UK_NHS_number",
+        "text": "NHS Number: 123 456 7890",
+        "expected_entities": ["UK_NHS"],
+        "note": "UK National Health Service number"
+      },
+      {
+        "name": "UK_NI_number",
+        "text": "National Insurance: QQ 12 34 56 C",
+        "expected_entities": ["UK_NINO"],
+        "note": "UK National Insurance Number"
+      },
+      {
+        "name": "CA_SIN_formatted",
+        "text": "SIN: 123-456-789",
+        "expected_entities": ["CA_SIN"],
+        "note": "Canadian Social Insurance Number"
+      },
+      {
+        "name": "AU_Medicare_number",
+        "text": "Medicare Number: 1234 56789 0",
+        "expected_entities": ["AU_MEDICARE"],
+        "note": "Australian Medicare card number"
+      },
+      {
+        "name": "AU_TFN_number",
+        "text": "Tax File Number: 123 456 789",
+        "expected_entities": ["AU_TFN"],
+        "note": "Australian Tax File Number"
+      },
+      {
+        "name": "IBAN_DE",
+        "text": "IBAN: DE89 3704 0044 0532 0130 00",
+        "expected_entities": ["IBAN_CODE"],
+        "note": "German IBAN format"
+      },
+      {
+        "name": "IBAN_GB",
+        "text": "IBAN: GB29 NWBK 6016 1331 9268 19",
+        "expected_entities": ["IBAN_CODE"],
+        "note": "UK IBAN format"
+      },
+      {
+        "name": "IBAN_FR",
+        "text": "Account: FR14 2004 1010 0505 0001 3M02 606",
+        "expected_entities": ["IBAN_CODE"],
+        "note": "French IBAN format"
+      },
+      {
+        "name": "US_Phone_formats",
+        "text": "Call (555) 123-4567 or 555.123.4567",
+        "expected_entities": ["PHONE_NUMBER"],
+        "note": "US phone number formats"
+      },
+      {
+        "name": "UK_Phone_format",
+        "text": "Tel: +44 20 7946 0958",
+        "expected_entities": ["PHONE_NUMBER"],
+        "note": "UK phone number format"
+      },
+      {
+        "name": "Address_US",
+        "text": "Address: 123 Main Street, Apt 4B, New York, NY 10001",
+        "expected_entities": ["LOCATION"],
+        "note": "US postal address (NLP-based)"
+      },
+      {
+        "name": "Address_UK",
+        "text": "Address: 10 Downing Street, London SW1A 2AA, United Kingdom",
+        "expected_entities": ["LOCATION"],
+        "note": "UK postal address (NLP-based)"
+      },
+      {
+        "name": "Passport_number",
+        "text": "Passport: C1234567",
+        "expected_entities": ["PASSPORT"],
+        "note": "Passport number format"
+      },
+      {
+        "name": "Driver_License_US",
+        "text": "Driver's License: D1234567",
+        "expected_entities": ["US_DRIVER_LICENSE"],
+        "note": "US driver's license number"
+      },
+      {
+        "name": "Date_of_Birth",
+        "text": "Date of birth: 1990-03-21",
+        "expected_entities": ["DATE_TIME"],
+        "note": "Date of birth (sensitive date)"
+      },
+      {
+        "name": "Multiple_international_PII",
+        "text": "Patient: John Smith, DOB: 1990-03-21, SSN: 123-45-6789, Email: john.smith@example.com, Phone: +1-555-123-4567",
+        "expected_entities": ["PERSON", "DATE_TIME", "US_SSN", "EMAIL_ADDRESS", "PHONE_NUMBER"],
+        "note": "Multiple international PII types in medical context"
       }
     ]
   },
@@ -132,6 +246,24 @@
         "text": "Card: 1234-5678-9012-3456",
         "expected_entities": [],
         "note": "Card format but fails Luhn checksum"
+      },
+      {
+        "name": "US_SSN_invalid_format",
+        "text": "SSN: 999-99-9999",
+        "expected_entities": [],
+        "note": "Invalid US SSN (all 9s not allowed)"
+      },
+      {
+        "name": "UK_NHS_invalid_checksum",
+        "text": "NHS: 123 456 7899",
+        "expected_entities": [],
+        "note": "UK NHS number with invalid checksum"
+      },
+      {
+        "name": "IBAN_invalid_checksum",
+        "text": "IBAN: GB00 NWBK 6016 1331 9268 19",
+        "expected_entities": [],
+        "note": "IBAN format but invalid checksum"
       }
     ],
     "benign_numbers": [
@@ -200,7 +332,7 @@
     },
     {
       "name": "Very_long_text",
-      "text": "Lorem ipsum dolor sit amet " + "consectetur adipiscing elit ".repeat(50) + "PESEL: 92032100157",
+      "text": "Lorem ipsum dolor sit amet consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit consectetur adipiscing elit PESEL: 92032100157",
       "expected_entities": ["PL_PESEL"],
       "note": "PII at end of long text (performance test)"
     }
@@ -228,20 +360,32 @@
   "metadata": {
     "version": "1.6.0",
     "created": "2025-01-29",
-    "total_payloads": 30,
+    "updated": "2025-01-29",
+    "total_payloads": 57,
     "categories": {
       "valid_pii_polish": 5,
-      "valid_pii_international": 11,
-      "invalid_pii": 8,
+      "valid_pii_international": 30,
+      "invalid_pii": 11,
       "edge_cases": 8,
       "performance_tests": 3
+    },
+    "international_coverage": {
+      "US": ["SSN", "Phone", "Address", "Driver_License"],
+      "UK": ["NHS", "NINO", "Phone", "Address", "Passport", "IBAN"],
+      "Canada": ["SIN"],
+      "Australia": ["Medicare", "TFN"],
+      "Europe": ["IBAN_DE", "IBAN_FR", "IBAN_GB", "IBAN_PL"],
+      "Poland": ["PESEL", "NIP", "REGON", "ID_CARD"],
+      "Global": ["EMAIL", "PHONE", "CREDIT_CARD", "IP", "URL", "PERSON", "LOCATION", "DATE_TIME"]
     },
     "notes": [
       "All PESEL/NIP/REGON numbers use valid checksums",
       "Credit cards use Luhn-valid numbers",
-      "PERSON detection requires NLP (spaCy) and may have lower confidence",
-      "Regex fallback will NOT detect PERSON entities",
-      "Performance tests should run with Presidio online for accurate measurements"
+      "International PII: US SSN, UK NHS/NINO, CA SIN, AU Medicare/TFN",
+      "PERSON and LOCATION detection require NLP (spaCy) and may have lower confidence",
+      "Regex fallback will NOT detect NLP-based entities (PERSON, LOCATION)",
+      "Performance tests should run with Presidio online for accurate measurements",
+      "Invalid payloads include international formats (US SSN, UK NHS, IBAN checksums)"
     ]
   }
 }

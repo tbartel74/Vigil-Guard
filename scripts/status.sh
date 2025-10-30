@@ -77,6 +77,9 @@ check_service "ClickHouse HTTP     " "http://localhost:8123/ping" "200"
 # Prompt Guard API
 check_service "Prompt Guard API    " "http://localhost:8000/health" "200"
 
+# Presidio PII API
+check_service "Presidio PII API    " "http://localhost:5001/health" "200"
+
 if [ "$DOCKER_AVAILABLE" -eq 1 ]; then
     echo ""
     echo "Docker Containers (vigil-guard project):"
