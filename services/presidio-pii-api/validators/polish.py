@@ -41,9 +41,15 @@ def extract_digits(text: str) -> List[int]:
     """
     try:
         return [int(d) for d in text if d.isdigit()]
-    except (ValueError, MemoryError) as e:
-        logger.error(f"extract_digits failed for text length {len(text)}: {e}")
+    except (TypeError, AttributeError) as e:
+        # TypeError: text is not iterable (e.g., None, int)
+        # AttributeError: text has no .isdigit() method
+        logger.error(f"extract_digits failed - invalid input type {type(text).__name__}: {e}")
         return []  # Return empty list to indicate extraction failure
+    except MemoryError as e:
+        # Extremely rare - text is massive string causing memory exhaustion
+        logger.error(f"extract_digits failed - MemoryError for text length {len(text)}: {e}")
+        return []
 
 
 def validate_nip(nip: str) -> bool:

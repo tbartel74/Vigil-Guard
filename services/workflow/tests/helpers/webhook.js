@@ -13,8 +13,18 @@ export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a99
  * @throws {Error} With detailed error message if parsing fails
  */
 export function parseJSONSafely(jsonString, fieldName, context = '') {
+    // Check for null, undefined, or empty string BEFORE attempting parse
+    if (jsonString === null || jsonString === undefined || jsonString === '') {
+        const contextStr = context ? ` for session ${context}` : ' (no session context)';
+        throw new Error(
+            `${fieldName} is null or empty${contextStr}. ` +
+            `Check workflow execution logs - field was not populated. ` +
+            `This usually indicates ClickHouse connection failure or workflow misconfiguration.`
+        );
+    }
+
     try {
-        return JSON.parse(jsonString || '{}');
+        return JSON.parse(jsonString);
     } catch (error) {
         console.error(`❌ JSON parse failed for field: ${fieldName}`);
         if (context) console.error(`   Context: ${context}`);

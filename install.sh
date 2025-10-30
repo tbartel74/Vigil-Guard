@@ -610,18 +610,23 @@ initialize_clickhouse() {
     print_header "6/8 Initializing ClickHouse Database"
 
     # Load ClickHouse configuration from .env
-    if [ -f .env ]; then
-        CLICKHOUSE_CONTAINER_NAME=$(grep "^CLICKHOUSE_CONTAINER_NAME=" .env | cut -d'=' -f2)
-        CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
-        CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
-        CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
-        CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
+    if [ ! -f .env ]; then
+        log_error ".env file not found - installation cannot proceed"
+        log_error "Run: cp config/.env.example .env && ./install.sh"
+        exit 1
     fi
+
+    CLICKHOUSE_CONTAINER_NAME=$(grep "^CLICKHOUSE_CONTAINER_NAME=" .env | cut -d'=' -f2)
+    CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
+    CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+    CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
+    CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
+
     CLICKHOUSE_CONTAINER_NAME=${CLICKHOUSE_CONTAINER_NAME:-vigil-clickhouse}
     CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
     # Password must be set in .env - no fallback for security
     if [ -z "$CLICKHOUSE_PASSWORD" ]; then
-        log_error "CLICKHOUSE_PASSWORD not set in .env - installation cannot proceed"
+        log_error "CLICKHOUSE_PASSWORD empty in .env - installation cannot proceed"
         log_error "Run ./install.sh to generate secure credentials"
         exit 1
     fi
@@ -1001,17 +1006,22 @@ show_summary() {
     print_header "Installation Complete!"
 
     # Load configuration from .env for display
-    if [ -f .env ]; then
-        FRONTEND_PORT=$(grep "^FRONTEND_PORT=" .env | cut -d'=' -f2)
-        BACKEND_PORT=$(grep "^BACKEND_PORT=" .env | cut -d'=' -f2)
-        N8N_PORT=$(grep "^N8N_PORT=" .env | cut -d'=' -f2)
-        GRAFANA_PORT=$(grep "^GRAFANA_PORT=" .env | cut -d'=' -f2)
-        CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
-        CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
-        CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
-        CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
-        GF_SECURITY_ADMIN_PASSWORD=$(grep "^GF_SECURITY_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+    if [ ! -f .env ]; then
+        log_error ".env file not found - cannot display summary"
+        log_error "Run: cp config/.env.example .env && ./install.sh"
+        exit 1
     fi
+
+    FRONTEND_PORT=$(grep "^FRONTEND_PORT=" .env | cut -d'=' -f2)
+    BACKEND_PORT=$(grep "^BACKEND_PORT=" .env | cut -d'=' -f2)
+    N8N_PORT=$(grep "^N8N_PORT=" .env | cut -d'=' -f2)
+    GRAFANA_PORT=$(grep "^GRAFANA_PORT=" .env | cut -d'=' -f2)
+    CLICKHOUSE_HTTP_PORT=$(grep "^CLICKHOUSE_HTTP_PORT=" .env | cut -d'=' -f2)
+    CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
+    CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+    CLICKHOUSE_DB=$(grep "^CLICKHOUSE_DB=" .env | cut -d'=' -f2)
+    GF_SECURITY_ADMIN_PASSWORD=$(grep "^GF_SECURITY_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+
     FRONTEND_PORT=${FRONTEND_PORT:-5173}
     BACKEND_PORT=${BACKEND_PORT:-8787}
     N8N_PORT=${N8N_PORT:-5678}
@@ -1020,13 +1030,13 @@ show_summary() {
     CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
     # Password must be set in .env - no fallback for security
     if [ -z "$CLICKHOUSE_PASSWORD" ]; then
-        log_error "CLICKHOUSE_PASSWORD not set in .env - installation cannot proceed"
+        log_error "CLICKHOUSE_PASSWORD empty in .env - cannot display summary"
         exit 1
     fi
     CLICKHOUSE_DB=${CLICKHOUSE_DB:-n8n_logs}
     # Grafana password must be set - no fallback for security
     if [ -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
-        log_error "GF_SECURITY_ADMIN_PASSWORD not set in .env - installation cannot proceed"
+        log_error "GF_SECURITY_ADMIN_PASSWORD empty in .env - cannot display summary"
         exit 1
     fi
 
