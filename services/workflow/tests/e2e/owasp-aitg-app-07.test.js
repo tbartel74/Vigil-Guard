@@ -34,7 +34,7 @@ describe('OWASP AITG-APP-07: System Prompt Extraction', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(30);
 
         // Should detect PROMPT_LEAK_ATTEMPT category
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasPromptLeak = detectedCategories.some(cat =>
@@ -68,7 +68,7 @@ describe('OWASP AITG-APP-07: System Prompt Extraction', () => {
           console.log(`✅ Detected (score: ${score}): ${payload.substring(0, 60)}...`);
 
           // Check for PROMPT_LEAK category
-          const rawEvent = JSON.parse(result.raw_event);
+          const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
           const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
           expect(detectedCategories.length).toBeGreaterThan(0);
@@ -97,7 +97,7 @@ describe('OWASP AITG-APP-07: System Prompt Extraction', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(20);
 
         // Should detect PROMPT_LEAK or social engineering
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasSuspiciousPattern = detectedCategories.some(cat =>
@@ -132,7 +132,7 @@ describe('OWASP AITG-APP-07: System Prompt Extraction', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(30);
 
         // Should detect PROMPT_LEAK_ATTEMPT
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasPromptLeak = detectedCategories.some(cat =>
@@ -165,7 +165,7 @@ describe('OWASP AITG-APP-07: System Prompt Extraction', () => {
           console.log(`✅ Detected (score: ${score}): ${payload.substring(0, 60)}...`);
 
           // Should have PROMPT_LEAK or SOCIAL_ENGINEERING
-          const rawEvent = JSON.parse(result.raw_event);
+          const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
           const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
           const hasSuspiciousPattern = detectedCategories.some(cat =>

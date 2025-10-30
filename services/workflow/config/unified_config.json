@@ -178,5 +178,60 @@
       }
     },
     "notes": "Binary classification: CRITICAL (is_attack=true, risk_score=0.95) or MINIMAL (is_attack=false, risk_score=0.01). Model returns boolean decision with high confidence."
+  },
+  "pii_detection": {
+    "enabled": true,
+    "provider": "presidio",
+    "api_url": "http://vigil-presidio-pii:5001/analyze",
+    "api_timeout_ms": 3000,
+    "confidence_threshold": 0.7,
+    "entities": [
+      "EMAIL_ADDRESS",
+      "PHONE_NUMBER",
+      "PERSON",
+      "PL_PESEL",
+      "PL_NIP",
+      "PL_REGON",
+      "PL_ID_CARD",
+      "CREDIT_CARD",
+      "IBAN_CODE",
+      "IP_ADDRESS",
+      "URL"
+    ],
+    "languages": [
+      "en",
+      "pl"
+    ],
+    "redaction_mode": "replace",
+    "redaction_tokens": {
+      "EMAIL_ADDRESS": "[EMAIL]",
+      "PHONE_NUMBER": "[PHONE]",
+      "PERSON": "[PERSON]",
+      "PL_PESEL": "[PESEL]",
+      "PL_NIP": "[NIP]",
+      "PL_REGON": "[REGON]",
+      "PL_ID_CARD": "[ID]",
+      "CREDIT_CARD": "[CARD]",
+      "IBAN_CODE": "[IBAN]",
+      "IP_ADDRESS": "[IP]",
+      "URL": "[URL]",
+      "EMAIL": "[EMAIL]",
+      "PL_ID": "[ID]",
+      "PL_ID_BARE": "[ID]",
+      "IBAN": "[IBAN]",
+      "CARD_PAN": "[CARD]",
+      "PHONE_INTL": "[PHONE]",
+      "PHONE_PL": "[PHONE]",
+      "PESEL_HINTED": "[PESEL]",
+      "PESEL_BARE": "[PESEL]",
+      "NIP_HINTED": "[NIP]",
+      "NIP_BARE": "[NIP]",
+      "REGON_HINTED": "[REGON]",
+      "REGON_BARE": "[REGON]"
+    },
+    "fallback_to_regex": true,
+    "context_enhancement": true,
+    "log_detection_details": true,
+    "notes": "PII detection using Microsoft Presidio with custom Polish recognizers. Fallback to legacy regex rules (pii.conf) if Presidio API is offline."
   }
 }

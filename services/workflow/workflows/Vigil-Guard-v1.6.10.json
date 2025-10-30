@@ -1,5 +1,5 @@
 {
-  "name": "Vigil-Guard-v1.5",
+  "name": "Vigil Guard v1.6.10",
   "nodes": [
     {
       "parameters": {
@@ -8,24 +8,24 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.3,
       "position": [
-        -5264,
-        64
+        -5296,
+        -128
       ],
-      "id": "451094b5-f268-469d-9466-48ec4134e07f",
+      "id": "ea9f0524-d0f4-47df-82b2-454eba6f8539",
       "name": "When chat message received",
-      "webhookId": "fc047cb1-9f7a-4278-b3da-1fe3d4ddda95"
+      "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Build_Sanitized_NDJSON - strict mode for config values\n * UPDATED: Uses output_text from Final Decision as primary source\n */\n\nfunction err(msg){ throw new Error(msg); }\n\nfunction simpleHash(str){\n  let hash = 0;\n  for (let i = 0; i < str.length; i++){\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nconst isPlainObject = v => Object.prototype.toString.call(v) === \"[object Object]\";\nfunction firstDefined(...vals){ for (const v of vals) if (v !== undefined && v !== null) return v; return undefined; }\nfunction s(v){ if (v===undefined||v===null) return undefined; const t=String(v); return t.trim()?t:undefined; }\nfunction deepPrune(value,{removeEmptyObjects=false,removeEmptyArrays=false}={}){\n  if (Array.isArray(value)){\n    const arr = value.map(v=>deepPrune(v,{removeEmptyObjects,removeEmptyArrays})).filter(v=>v!==undefined);\n    if (removeEmptyArrays && arr.length===0) return undefined;\n    return arr;\n  }\n  if (isPlainObject(value)){\n    const out = {};\n    for (const [k,v] of Object.entries(value)){\n      const pruned = deepPrune(v,{removeEmptyObjects,removeEmptyArrays});\n      if (pruned !== undefined) out[k]=pruned;\n    }\n    if (removeEmptyObjects && Object.keys(out).length===0) return undefined;\n    return out;\n  }\n  if (value===null || value===undefined || (typeof value===\"number\" && Number.isNaN(value))) return undefined;\n  return value;\n}\nfunction J(x){ try { return JSON.stringify(x ?? {}); } catch { return \"{}\"; } }\n\nconst items = $input.all();\nif (!items.length) err(\"Build_Sanitized_NDJSON: no input items.\");\n\nconst out = [];\n\nfor (const item of items){\n  const j = item.json || {};\n\n  const san = j.__san || {};\n  const snap = j._pipeline_snapshots || san._pipeline_snapshots || {};\n  const norm = j.normalization || san.normalization || {};\n\n  const pgDecision = j.decision || {};\n  const routing = j.routing || {};\n  const metrics = j.metrics || {};\n  const technical = j.technical || {};\n  const audit = j.audit || {};\n  const messages = j.messages || {};\n\n  const sanitizerDecision = j.sanitizer_decision || {};\n\n  const cfg = j.config || {};\n  const rules = j.rules || {};\n  const thr = j.thresholds || {};\n\n  const sessionId = firstDefined(\n    j.sessionId,\n    san.sessionId,\n    j.chat_payload?.sessionId\n  ) || \"unknown\";\n  \n  const action = firstDefined(\n    j.action,\n    san.action,\n    j.chat_payload?.action\n  ) || \"sendMessage\";\n\n  const originalInput = s(firstDefined(\n    snap.beforeSanitization,\n    norm?.original,\n    san.chat_payload?.chatInput,\n    j.audit?.originalPrompt\n  )) || \"N/A\";\n\n  const normalizedInput = s(firstDefined(\n    snap.input_normalized,\n    norm?.canonical,\n    norm?.normalized,\n    originalInput\n  )) || originalInput;\n\n  const sanitizedText = s(firstDefined(\n    snap.afterSanitization,\n    san.chat_payload?.chatInput,\n    j.chat_payload?.chatInput\n  ));\n\n  const redactedText = s(firstDefined(\n    snap.afterPII,\n    sanitizedText\n  ));\n\n  const pgShouldBlock = !!(routing.shouldBlock || j._isBlocked);\n  const pgShouldWarn = !!(routing.shouldWarn || j._requiresSanitization);\n  const pgIsSafe = !!(routing.isSafe || j._shouldContinue);\n  \n  const sanitizerDecisionStr = sanitizerDecision.decision || 'ALLOW';\n  const sanitizerBlocked = (sanitizerDecisionStr === 'BLOCK');\n  \n  let finalStatus;\n  if (pgShouldBlock || sanitizerBlocked) {\n    finalStatus = \"BLOCKED\";\n  } else if (pgShouldWarn) {\n    finalStatus = \"SANITIZED\";\n  } else {\n    finalStatus = \"ALLOWED\";\n  }\n\n  const shouldBlock = (finalStatus === \"BLOCKED\");\n  const shouldWarn = (finalStatus === \"SANITIZED\");\n  const isSafe = (finalStatus === \"ALLOWED\");\n\n  // ✓ UPDATED: Priorytet dla output_text z Final Decision\n  const finalOutput = s(j.output_text) || \n                      (shouldBlock \n                        ? (s(messages?.user) || s(cfg?.enforcement?.block_message) || \"Content blocked by security policy\")\n                        : (redactedText || sanitizedText || s(j.chat_payload?.chatInput) || \"N/A\"));\n\n  const pgHasDecision = !!(pgDecision && (pgDecision.action !== undefined || pgDecision.severity !== undefined || pgDecision.scoreRaw !== undefined));\n  const blockedByPG = shouldBlock && pgHasDecision;\n  const blockedBySan = shouldBlock && !pgHasDecision;\n\n  let source = \"sanitizer_pre_pg\";\n  let actionTaken = firstDefined(pgDecision.action, finalStatus);\n  \n  if (finalStatus === \"BLOCKED\"){\n    if (blockedBySan) { \n      source = \"sanitizer_only\"; \n      actionTaken = \"BLOCK_BY_SANITIZER\"; \n    }\n    if (blockedByPG) { \n      source = \"prompt_guard\"; \n      actionTaken = pgDecision.action || \"BLOCK_BY_PROMPT_GUARD\"; \n    }\n  } else {\n    source = pgHasDecision ? \"prompt_guard\" : \"sanitizer_pre_pg\";\n    if (finalStatus === \"ALLOWED\") actionTaken = \"ALLOW\";\n    if (finalStatus === \"SANITIZED\") actionTaken = actionTaken || \"SANITIZE\";\n  }\n\n  const nd = {\n    sessionId,\n    action,\n    chat_payload: {\n      sessionId,\n      action,\n      chatInput: finalOutput\n    },\n    sanitizer: {\n      decision: sanitizerDecisionStr,\n      removal_pct: san.enforcement?.removalPct ?? j.enforcement?.removalPct ?? 0,\n      mode: san.enforcement?.mode || j.enforcement?.mode,\n      score: j.score || sanitizerDecision.score || 0,\n      breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {}\n    },\n    prompt_guard: pgHasDecision ? {\n      score: pgDecision.scoreRaw || metrics.injectionScore,\n      score_percent: pgDecision.scorePercent || metrics.scorePercent,\n      risk_level: pgDecision.riskLevel,\n      severity: pgDecision.severity,\n      action: pgDecision.action,\n      should_block: pgShouldBlock,\n      should_warn: pgShouldWarn,\n      is_safe: pgIsSafe,\n      confidence: metrics.confidence,\n      thresholds_used: technical.thresholdsUsed,\n      policies_used: technical.policiesUsed,\n      timestamp: audit.timestamp\n    } : {},\n    final_decision: {\n      status: finalStatus,\n      blocked: shouldBlock,\n      sanitized: shouldWarn,\n      allowed: isSafe,\n      action_taken: actionTaken,\n      user_message: s(messages?.user) || \"\",\n      internal_note: s(messages?.internal) || \"\",\n      source\n    },\n    pipeline_flow: {\n      input_raw: originalInput,\n      input_normalized: normalizedInput,\n      after_sanitization: sanitizedText || finalOutput,\n      after_pii_redaction: redactedText || finalOutput,\n      output_final: finalOutput,\n      output_status: finalStatus\n    },\n    scoring: {\n      sanitizer_score: Number(j.score ?? sanitizerDecision.score ?? 0),\n      prompt_guard_score: pgDecision.scoreRaw || metrics.injectionScore,\n      prompt_guard_percent: pgDecision.scorePercent || metrics.scorePercent,\n      combined_severity: firstDefined(\n        pgDecision.severity,\n        (j.score ?? 0) >= 76 ? 5 :\n        (j.score ?? 0) >= 56 ? 4 :\n        (j.score ?? 0) >= 30 ? 3 :\n        (j.score ?? 0) >= 10 ? 2 : 1\n      ),\n      score_breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      match_details: j.matchDetails || []\n    },\n    config_metadata: {\n      config_hash: (cfg && rules && thr) ? simpleHash(JSON.stringify({ cfg, rules, thr })) : \"no-config\",\n      config_version: cfg?.version || \"unknown\",\n      has_full_config: !!(cfg && rules && thr),\n      has_prompt_guard: pgHasDecision,\n      config_ref: {\n        normalization_unicode: cfg.normalization?.unicode_form,\n        scoring_ranges: thr?.ranges,\n        prompt_guard_thresholds: technical.thresholdsUsed\n      },\n      loader_info: j._loader\n    },\n    _audit: {\n      processing_timestamp: new Date().toISOString(),\n      pipeline_version: \"v2.2-merged\",\n      total_processing_time: metrics.processingTime,\n      final_action: actionTaken\n    },\n    normalization: norm || {},  // Include full normalization data (encoding, obfuscation, etc.)\n    validation: cfg._validation || j._validation || j.validation || {}  // Include validation results from Input_Validator (Phase 2.4)\n  };\n\n  const ndClean = deepPrune(nd);\n\n  const row = {\n    sessionId: ndClean.sessionId,\n    action: ndClean.action,\n    timestamp: ndClean._audit?.processing_timestamp,\n\n    original_input: ndClean.pipeline_flow?.input_raw,\n    normalized_input: ndClean.pipeline_flow?.input_normalized,\n    after_sanitization: ndClean.pipeline_flow?.after_sanitization,\n    after_pii_redaction: ndClean.pipeline_flow?.after_pii_redaction,\n    chat_input: ndClean.chat_payload?.chatInput,\n    result: ndClean.pipeline_flow?.output_final,\n\n    threat_score: ndClean.scoring?.sanitizer_score ?? ndClean.scoring?.prompt_guard_score ?? 0,\n    threat_severity: ndClean.prompt_guard?.risk_level ?? \"UNDEFINED\",\n    pg_score: ndClean.prompt_guard?.score ?? 0,\n    pg_score_percent: ndClean.prompt_guard?.score_percent ?? 0,\n    final_status: ndClean.final_decision?.status ?? \"UNKNOWN\",\n    final_action: ndClean._audit?.final_action ?? \"\",\n    user_message: ndClean.final_decision?.user_message ?? \"\",\n\n    removal_pct: ndClean.sanitizer?.removal_pct ?? 0,\n    threat_labels: [],\n    threat_matches: [],\n\n    config_version: ndClean.config_metadata?.config_version,\n    config_hash: ndClean.config_metadata?.config_hash,\n    pipeline_version: ndClean._audit?.pipeline_version,\n    processing_time_ms: ndClean._audit?.total_processing_time ?? 0,\n\n    sanitizer_json: J(ndClean.sanitizer),\n    prompt_guard_json: J(ndClean.prompt_guard),\n    scoring_json: J(ndClean.scoring),\n    final_decision_json: J(ndClean.final_decision),\n    pipeline_flow_json: J(ndClean.pipeline_flow),\n    config_metadata_json: J(ndClean.config_metadata),\n    raw_event: J(ndClean)\n  };\n\n  out.push({ json: { ndjson: ndClean, row } });\n}\n\nreturn out;\n"
+        "jsCode": "/**\n * Build_Sanitized_NDJSON - strict mode for config values\n * UPDATED: Uses output_text from Final Decision as primary source\n */\n\nfunction err(msg){ throw new Error(msg); }\n\nfunction simpleHash(str){\n  let hash = 0;\n  for (let i = 0; i < str.length; i++){\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nconst isPlainObject = v => Object.prototype.toString.call(v) === \"[object Object]\";\nfunction firstDefined(...vals){ for (const v of vals) if (v !== undefined && v !== null) return v; return undefined; }\nfunction s(v){ if (v===undefined||v===null) return undefined; const t=String(v); return t.trim()?t:undefined; }\nfunction deepPrune(value,{removeEmptyObjects=false,removeEmptyArrays=false}={}){\n  if (Array.isArray(value)){\n    const arr = value.map(v=>deepPrune(v,{removeEmptyObjects,removeEmptyArrays})).filter(v=>v!==undefined);\n    if (removeEmptyArrays && arr.length===0) return undefined;\n    return arr;\n  }\n  if (isPlainObject(value)){\n    const out = {};\n    for (const [k,v] of Object.entries(value)){\n      const pruned = deepPrune(v,{removeEmptyObjects,removeEmptyArrays});\n      if (pruned !== undefined) out[k]=pruned;\n    }\n    if (removeEmptyObjects && Object.keys(out).length===0) return undefined;\n    return out;\n  }\n  if (value===null || value===undefined || (typeof value===\"number\" && Number.isNaN(value))) return undefined;\n  return value;\n}\nfunction J(x){ try { return JSON.stringify(x ?? {}); } catch { return \"{}\"; } }\n\nconst items = $input.all();\nif (!items.length) err(\"Build_Sanitized_NDJSON: no input items.\");\n\nconst out = [];\n\nfor (const item of items){\n  const j = item.json || {};\n\n  const san = j.__san || {};\n  const snap = j._pipeline_snapshots || san._pipeline_snapshots || {};\n  const norm = j.normalization || san.normalization || {};\n\n  const pgDecision = j.decision || {};\n  const routing = j.routing || {};\n  const metrics = j.metrics || {};\n  const technical = j.technical || {};\n  const audit = j.audit || {};\n  const messages = j.messages || {};\n\n  const sanitizerDecision = j.sanitizer_decision || {};\n\n  const cfg = j.config || {};\n  const rules = j.rules || {};\n  const thr = j.thresholds || {};\n\n  const sessionId = firstDefined(\n    j.sessionId,\n    san.sessionId,\n    j.chat_payload?.sessionId\n  ) || \"unknown\";\n  \n  const action = firstDefined(\n    j.action,\n    san.action,\n    j.chat_payload?.action\n  ) || \"sendMessage\";\n\n  const originalInput = s(firstDefined(\n    j.chatInput,  // ✅ NEW: Read from root level (preserved original by PII_Redactor)\n    snap.beforeSanitization,\n    norm?.original,\n    j.audit?.originalPrompt  // Removed san.chat_payload?.chatInput (contains redacted text)\n  )) || \"N/A\";\n\n  const normalizedInput = s(firstDefined(\n    snap.input_normalized,\n    norm?.canonical,\n    norm?.normalized,\n    originalInput\n  )) || originalInput;\n\n  const sanitizedText = s(firstDefined(\n    snap.afterSanitization,\n    san.chat_payload?.chatInput,\n    j.chat_payload?.chatInput\n  ));\n\n  const redactedText = s(firstDefined(\n    snap.afterPII,\n    sanitizedText\n  ));\n\n  const pgShouldBlock = !!(routing.shouldBlock || j._isBlocked);\n  const pgShouldWarn = !!(routing.shouldWarn || j._requiresSanitization);\n  const pgIsSafe = !!(routing.isSafe || j._shouldContinue);\n  \n  const sanitizerDecisionStr = sanitizerDecision.decision || 'ALLOW';\n  const sanitizerBlocked = (sanitizerDecisionStr === 'BLOCK');\n  \n  let finalStatus;\n  if (pgShouldBlock || sanitizerBlocked) {\n    finalStatus = \"BLOCKED\";\n  } else if (pgShouldWarn) {\n    finalStatus = \"SANITIZED\";\n  } else {\n    finalStatus = \"ALLOWED\";\n  }\n\n  const shouldBlock = (finalStatus === \"BLOCKED\");\n  const shouldWarn = (finalStatus === \"SANITIZED\");\n  const isSafe = (finalStatus === \"ALLOWED\");\n\n  // ✓ UPDATED: Priorytet dla output_text z Final Decision\n  const finalOutput = s(j.output_text) || \n                      (shouldBlock \n                        ? (s(messages?.user) || s(cfg?.enforcement?.block_message) || \"Content blocked by security policy\")\n                        : (redactedText || sanitizedText || s(j.chat_payload?.chatInput) || \"N/A\"));\n\n  const pgHasDecision = !!(pgDecision && (pgDecision.action !== undefined || pgDecision.severity !== undefined || pgDecision.scoreRaw !== undefined));\n  const blockedByPG = shouldBlock && pgHasDecision;\n  const blockedBySan = shouldBlock && !pgHasDecision;\n\n  let source = \"sanitizer_pre_pg\";\n  let actionTaken = firstDefined(pgDecision.action, finalStatus);\n  \n  if (finalStatus === \"BLOCKED\"){\n    if (blockedBySan) { \n      source = \"sanitizer_only\"; \n      actionTaken = \"BLOCK_BY_SANITIZER\"; \n    }\n    if (blockedByPG) { \n      source = \"prompt_guard\"; \n      actionTaken = pgDecision.action || \"BLOCK_BY_PROMPT_GUARD\"; \n    }\n  } else {\n    source = pgHasDecision ? \"prompt_guard\" : \"sanitizer_pre_pg\";\n    if (finalStatus === \"ALLOWED\") actionTaken = \"ALLOW\";\n    if (finalStatus === \"SANITIZED\") actionTaken = actionTaken || \"SANITIZE\";\n  }\n\n  const nd = {\n    sessionId,\n    action,\n    chat_payload: {\n      sessionId,\n      action,\n      chatInput: finalOutput\n    },\n    sanitizer: {\n      decision: sanitizerDecisionStr,\n      removal_pct: san.enforcement?.removalPct ?? j.enforcement?.removalPct ?? 0,\n      mode: san.enforcement?.mode || j.enforcement?.mode,\n      score: j.score || sanitizerDecision.score || 0,\n      breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      pii: san.pii || j.pii || {}\n    },\n    prompt_guard: pgHasDecision ? {\n      score: pgDecision.scoreRaw || metrics.injectionScore,\n      score_percent: pgDecision.scorePercent || metrics.scorePercent,\n      risk_level: pgDecision.riskLevel,\n      severity: pgDecision.severity,\n      action: pgDecision.action,\n      should_block: pgShouldBlock,\n      should_warn: pgShouldWarn,\n      is_safe: pgIsSafe,\n      confidence: metrics.confidence,\n      thresholds_used: technical.thresholdsUsed,\n      policies_used: technical.policiesUsed,\n      timestamp: audit.timestamp\n    } : {},\n    final_decision: {\n      status: finalStatus,\n      blocked: shouldBlock,\n      sanitized: shouldWarn,\n      allowed: isSafe,\n      action_taken: actionTaken,\n      user_message: s(messages?.user) || \"\",\n      internal_note: s(messages?.internal) || \"\",\n      source\n    },\n    pipeline_flow: {\n      input_raw: originalInput,\n      input_normalized: normalizedInput,\n      after_sanitization: sanitizedText || finalOutput,\n      after_pii_redaction: redactedText || finalOutput,\n      output_final: finalOutput,\n      output_status: finalStatus\n    },\n    scoring: {\n      sanitizer_score: Number(j.score ?? sanitizerDecision.score ?? 0),\n      prompt_guard_score: pgDecision.scoreRaw || metrics.injectionScore,\n      prompt_guard_percent: pgDecision.scorePercent || metrics.scorePercent,\n      combined_severity: firstDefined(\n        pgDecision.severity,\n        (j.score ?? 0) >= 76 ? 5 :\n        (j.score ?? 0) >= 56 ? 4 :\n        (j.score ?? 0) >= 30 ? 3 :\n        (j.score ?? 0) >= 10 ? 2 : 1\n      ),\n      score_breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      match_details: j.matchDetails || []\n    },\n    config_metadata: {\n      config_hash: (cfg && rules && thr) ? simpleHash(JSON.stringify({ cfg, rules, thr })) : \"no-config\",\n      config_version: cfg?.version || \"unknown\",\n      has_full_config: !!(cfg && rules && thr),\n      has_prompt_guard: pgHasDecision,\n      config_ref: {\n        normalization_unicode: cfg.normalization?.unicode_form,\n        scoring_ranges: thr?.ranges,\n        prompt_guard_thresholds: technical.thresholdsUsed\n      },\n      loader_info: j._loader\n    },\n    _audit: {\n      processing_timestamp: new Date().toISOString(),\n      pipeline_version: \"v1.6.8\",\n      total_processing_time: metrics.processingTime,\n      final_action: actionTaken\n    },\n    normalization: norm || {},  // Include full normalization data (encoding, obfuscation, etc.)\n    validation: cfg._validation || j._validation || j.validation || {}  // Include validation results from Input_Validator (Phase 2.4)\n  };\n\n  const ndClean = deepPrune(nd);\n\n  const row = {\n    sessionId: ndClean.sessionId,\n    action: ndClean.action,\n    timestamp: ndClean._audit?.processing_timestamp,\n\n    original_input: originalInput,  // ✅ FIXED: Use calculated originalInput variable (j.chatInput)\n    normalized_input: ndClean.pipeline_flow?.input_normalized,\n    after_sanitization: ndClean.pipeline_flow?.after_sanitization,\n    after_pii_redaction: ndClean.pipeline_flow?.after_pii_redaction,\n    chat_input: ndClean.chat_payload?.chatInput,\n    result: ndClean.pipeline_flow?.output_final,\n\n    threat_score: ndClean.scoring?.sanitizer_score ?? ndClean.scoring?.prompt_guard_score ?? 0,\n    threat_severity: ndClean.prompt_guard?.risk_level ?? \"UNDEFINED\",\n    pg_score: ndClean.prompt_guard?.score ?? 0,\n    pg_score_percent: ndClean.prompt_guard?.score_percent ?? 0,\n    final_status: ndClean.final_decision?.status ?? \"UNKNOWN\",\n    final_action: ndClean._audit?.final_action ?? \"\",\n    user_message: ndClean.final_decision?.user_message ?? \"\",\n\n    removal_pct: ndClean.sanitizer?.removal_pct ?? 0,\n    threat_labels: [],\n    threat_matches: [],\n\n    config_version: ndClean.config_metadata?.config_version,\n    config_hash: ndClean.config_metadata?.config_hash,\n    pipeline_version: ndClean._audit?.pipeline_version,\n    processing_time_ms: ndClean._audit?.total_processing_time ?? 0,\n\n    sanitizer_json: J(ndClean.sanitizer),\n    prompt_guard_json: J(ndClean.prompt_guard),\n    scoring_json: J(ndClean.scoring),\n    final_decision_json: J(ndClean.final_decision),\n    pipeline_flow_json: J(ndClean.pipeline_flow),\n    config_metadata_json: J(ndClean.config_metadata),\n    raw_event: J(ndClean)\n  };\n\n  out.push({ json: { ndjson: ndClean, row } });\n}\n\nreturn out;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         448,
-        96
+        -96
       ],
-      "id": "2e2b0973-2d91-4798-889f-42b0c8c1d4c9",
+      "id": "efa9c2ce-cf5c-4d8c-a126-5ad085a4952a",
       "name": "Build+Sanitize NDJSON"
     },
     {
@@ -51,9 +51,9 @@
       "typeVersion": 4.2,
       "position": [
         672,
-        96
+        -96
       ],
-      "id": "a34cfb2e-dc3c-4dea-9e6a-603c112f0abc",
+      "id": "0eb35974-2756-4183-a9fd-7ec21a3578e4",
       "name": "Logging to Clikhouse",
       "retryOnFail": true,
       "alwaysOutputData": false,
@@ -72,9 +72,9 @@
       "typeVersion": 2,
       "position": [
         -3600,
-        96
+        -96
       ],
-      "id": "1620b87f-8eb3-4474-9838-50f9a44f7fe2",
+      "id": "ffa57fef-dc3e-4329-a7e3-fad988f39981",
       "name": "Config Loader"
     },
     {
@@ -90,9 +90,9 @@
       "typeVersion": 3.2,
       "position": [
         -3808,
-        80
+        -112
       ],
-      "id": "59153a86-004e-42de-a444-f44d96d47f26",
+      "id": "7e056d4c-5dba-4ee1-aaaf-3af7ac5e1a36",
       "name": "Merge"
     },
     {
@@ -113,10 +113,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4800,
-        64
+        -4832,
+        -128
       ],
-      "id": "cf8b26ae-6d95-4fd3-b6d8-77ff0b99d37f",
+      "id": "c8041b34-5b47-492a-a3d0-9210a89c970c",
       "name": "Keep only set"
     },
     {
@@ -129,9 +129,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        320
+        176
       ],
-      "id": "6ead6537-3c4f-4085-96bf-58fff844533f",
+      "id": "34010237-93dd-476e-8e42-e261c7c1699d",
       "name": "Extract from File"
     },
     {
@@ -144,9 +144,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        512
+        368
       ],
-      "id": "056c96a6-2ac8-4610-93ac-d11bd9eb7253",
+      "id": "2fd2aac2-de3b-4076-afc1-340137a9d7f8",
       "name": "Extract from File1"
     },
     {
@@ -157,9 +157,9 @@
       "typeVersion": 2,
       "position": [
         -2944,
-        96
+        -96
       ],
-      "id": "2f316a53-2536-4309-87d7-3358a3e4202d",
+      "id": "eacddca1-42aa-48e6-9866-d70cc534d04b",
       "name": "Normalize_Node"
     },
     {
@@ -186,9 +186,9 @@
       "typeVersion": 3.4,
       "position": [
         928,
-        96
+        -96
       ],
-      "id": "f06aa25c-a9dd-422e-b1d1-bbe558295edc",
+      "id": "ee0aa68e-f36f-496f-a197-a04192cba16d",
       "name": "Clean output"
     },
     {
@@ -203,9 +203,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        512
+        368
       ],
-      "id": "095699dd-7eec-4f38-abcd-ac91c786e2fd",
+      "id": "516f2a75-bcc0-453d-aa9a-1b95bdb234b6",
       "name": "Loading config files *.conf"
     },
     {
@@ -220,9 +220,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        320
+        176
       ],
-      "id": "a0ae2eec-093c-4c8f-bf52-b26849763644",
+      "id": "37d75806-85bb-4ae3-a0ba-9c5a1bb81c31",
       "name": "Loading config files *.json"
     },
     {
@@ -233,9 +233,9 @@
       "typeVersion": 2,
       "position": [
         -1968,
-        96
+        -96
       ],
-      "id": "80c561fd-cece-4c4d-94e0-1bf45cc556d7",
+      "id": "4798a040-1048-476f-ade7-18d2f9dcf96f",
       "name": "Unified Decision Engine"
     },
     {
@@ -246,36 +246,36 @@
       "typeVersion": 2,
       "position": [
         -2464,
-        96
+        -96
       ],
-      "id": "87fdb281-fcd6-479a-8636-0ca9705a025a",
+      "id": "d6274143-a3f1-4448-bffa-79e7127bb6e7",
       "name": "Allowlist_Validator"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Sanitization_Enforcement - VERSION 2.0\n *\n * FIXED: Now uses ACTUAL detected patterns from Pattern_Matching_Engine\n * instead of hardcoded patterns in unified_config.json\n *\n * Strategy:\n * - SANITIZE_LIGHT: Remove patterns from LOW/MEDIUM severity categories\n * - SANITIZE_HEAVY: Remove patterns from ALL detected categories\n * - Uses matchDetails from Pattern_Matching_Engine to get actual regex patterns\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n\n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n\n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\n/**\n * Category severity mapping for LIGHT sanitization\n * LOW/MEDIUM categories will be removed in LIGHT mode\n * HIGH/CRITICAL categories will be removed in HEAVY mode\n */\nconst LOW_MEDIUM_CATEGORIES = [\n  \"MILD_SUSPICIOUS\",\n  \"ENCODING_SUSPICIOUS\",\n  \"FORMAT_COERCION\",\n  \"HYPOTHETICAL_ESCAPE\",\n  \"UNFILTERED_REQUEST\",\n  \"REBEL_RESPONSE\",\n  \"ENCODING_INDICATORS\",\n  \"JAILBREAK_ATTEMPT\",\n  \"GODMODE_JAILBREAK\",\n  \"EXPLICIT_JAILBREAK\"\n];\n\nconst HIGH_CRITICAL_CATEGORIES = [\n  \"CRITICAL_INJECTION\",\n  \"CONTROL_OVERRIDE\",\n  \"PROMPT_LEAK_ATTEMPT\",\n  \"HEAVY_OBFUSCATION\",\n  \"DANGEROUS_CONTENT\",\n  \"PROMPT_TEMPLATING_MARKERS\",\n  \"SEPARATOR_ABUSE\",\n  \"TEMPLATE_TOKEN\",\n  \"HEADER_ESCAPE\",\n  \"DIVIDER_ABUSE\",\n  \"SQL_XSS_ATTACKS\",\n  \"PRIVILEGE_ESCALATION\",\n  \"COMMAND_INJECTION\",\n  \"PATH_TRAVERSAL\",\n  \"XXE_INJECTION\",\n  \"LDAP_INJECTION\",\n  \"SSRF_ATTEMPT\",\n  \"CRLF_INJECTION\",\n  \"NOSQL_INJECTION\",\n  \"TEMPLATE_INJECTION\"\n];\n\n/**\n * Extract all unique regex patterns from matchDetails\n * @param {Array} matchDetails - Array from Pattern_Matching_Engine\n * @param {Array} categoryFilter - List of category names to include (null = all)\n * @returns {Array} Array of regex pattern strings\n */\nfunction extractPatternsFromMatches(matchDetails, categoryFilter = null) {\n  const patterns = [];\n\n  if (!matchDetails || !Array.isArray(matchDetails)) {\n    return patterns;\n  }\n\n  for (const detail of matchDetails) {\n    // Skip if category filter specified and this category not in filter\n    if (categoryFilter && !categoryFilter.includes(detail.category)) {\n      continue;\n    }\n\n    // Skip non-pattern categories (Mixed Scripts, Encoding Detection, Obfuscation Detection)\n    if (!detail.matches || !Array.isArray(detail.matches)) {\n      continue;\n    }\n\n    // Extract patterns from matches\n    for (const match of detail.matches) {\n      if (match.pattern) {\n        patterns.push(match.pattern);\n      }\n    }\n  }\n\n  return patterns;\n}\n\n/**\n * Apply sanitization using detected patterns\n * @param {string} text - Original text\n * @param {Array} patterns - Array of regex pattern strings\n * @param {string} redact - Replacement token\n * @returns {Object} {out: sanitized text, removedPct: percentage removed, removedChars: count}\n */\nfunction applySanitizeFromMatches(text, patterns, redact) {\n  if (!patterns || !patterns.length) {\n    return { out: text, removedPct: 0, removedChars: 0 };\n  }\n\n  let out = text;\n  let removed = 0;\n  const uniquePatterns = [...new Set(patterns)]; // Remove duplicates\n\n  for (const pattern of uniquePatterns) {\n    try {\n      const re = new RegExp(pattern, \"giu\");\n      out = out.replace(re, (m) => {\n        removed += m.length;\n        return redact || \"\";\n      });\n    } catch (e) {\n      console.warn(`Invalid sanitization regex: ${pattern}`, e);\n    }\n  }\n\n  const removedPct = text.length ? Math.round((removed / text.length) * 100) : 0;\n  return { out, removedPct, removedChars: removed };\n}\n\n// ============================================================================\n// MAIN LOGIC\n// ============================================================================\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Sanitization_Enforcement: No input items');\n  return [];\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const decision = j.decision?.decision || \"ALLOW\";\n\n  // Skip if config error or validation failed\n  if (j.configError === true) {\n    console.error(\"Sanitization_Enforcement: Config error detected\");\n    item.json = j;\n    continue;\n  }\n\n  if (!j.config || !j.config.enforcement) {\n    console.error(\"Sanitization_Enforcement: Missing config.enforcement\");\n    j.error = \"Missing enforcement config\";\n    j.decision = { decision: \"ALLOW\", reason: \"CONFIG_ERROR\" };\n    item.json = j;\n    continue;\n  }\n\n  const inText = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n  const sessionId = j.sessionId ?? j.chat_payload?.sessionId ?? \"unknown\";\n  const action = j.action ?? j.chat_payload?.action ?? \"sendMessage\";\n  const matchDetails = j.matchDetails || [];\n\n  let finalText = inText;\n  let mode = \"none\";\n  let removalPct = 0;\n  let patternsUsed = [];\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.beforeSanitization = inText;\n\n  if (decision === \"SANITIZE_LIGHT\") {\n    // LIGHT: Remove only LOW/MEDIUM severity patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, LOW_MEDIUM_CATEGORIES);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_LIGHT but no LOW/MEDIUM patterns detected\");\n      finalText = inText;\n      mode = \"light_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[removed]\");\n      finalText = res.out;\n      removalPct = res.removedPct;\n      mode = \"light\";\n\n      console.log(`Sanitization_Enforcement LIGHT: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n    }\n  }\n  else if (decision === \"SANITIZE_HEAVY\") {\n    // HEAVY: Remove ALL detected patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, null);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_HEAVY but no patterns detected\");\n      finalText = inText;\n      mode = \"heavy_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[REDACTED]\");\n      removalPct = res.removedPct;\n\n      // Check if removal exceeds threshold (default: 60%)\n      const threshold = j.config.sanitization?.heavy?.max_removal_percent || 60;\n      const policy = j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\";\n\n      if (policy === \"block_if_exceeds\" && removalPct > threshold) {\n        // TOO MUCH removed - escalate to BLOCK\n        mergeDecision(j, 'BLOCK', 'sanitization_enforcement', {\n          removal_pct: removalPct,\n          sanitizer_decision: 'SANITIZE_HEAVY',\n          blocked_by_sanitizer: true,\n          threshold_exceeded: threshold,\n          patterns_attempted: patternsUsed.length\n        });\n\n        finalText = j.config.enforcement.block_message || \"Content blocked by security policy\";\n        mode = \"blocked_excessive_removal\";\n\n        console.log(`Sanitization_Enforcement: BLOCKED due to excessive removal (${removalPct}% > ${threshold}%)`);\n      } else {\n        // Acceptable removal - proceed with sanitization\n        finalText = res.out;\n        mode = \"heavy\";\n\n        console.log(`Sanitization_Enforcement HEAVY: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n      }\n    }\n  }\n  else if (decision === \"BLOCK\") {\n    j._isBlocked = true;\n    finalText = j.config.enforcement?.block_message || \"Content blocked by security policy\";\n    mode = \"blocked\";\n  }\n  else {\n    // ALLOW - no sanitization\n    mode = \"allow\";\n  }\n\n  // Update chat_payload with sanitized text\n  j.chat_payload = j.chat_payload || {};\n  j.chat_payload.sessionId = sessionId;\n  j.chat_payload.action = action;\n  j.chat_payload.chatInput = finalText;\n\n  j._pipeline_snapshots.afterSanitization = finalText;\n\n  j.enforcement = Object.assign({}, j.enforcement, {\n    mode,\n    removalPct,\n    patternsUsed: patternsUsed.length,\n    patternsPreview: patternsUsed.slice(0, 5).map(p => p.substring(0, 30))\n  });\n\n  j.__san = {\n    sessionId,\n    action,\n    chat_payload: { sessionId, action, chatInput: finalText },\n    _pipeline_snapshots: {\n      beforeSanitization: j._pipeline_snapshots.beforeSanitization,\n      afterSanitization: j._pipeline_snapshots.afterSanitization\n    },\n    normalization: j.normalization,\n    enforcement: {\n      mode,\n      removalPct,\n      patternsUsed: patternsUsed.length,\n      heavy_policy: j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\",\n      heavy_threshold_pct: j.config.sanitization?.heavy?.max_removal_percent || 60\n    }\n  };\n\n  j.__metadata = j.__metadata || {};\n  const finalStatus = j.decision?.decision || \"ALLOW\";\n  j.__metadata.should_run_prompt_guard = (finalStatus !== \"BLOCK\");\n\n  item.json = j;\n}\n\nreturn items;\n"
+        "jsCode": "/**\n * Sanitization_Enforcement - VERSION 2.0\n *\n * FIXED: Now uses ACTUAL detected patterns from Pattern_Matching_Engine\n * instead of hardcoded patterns in unified_config.json\n *\n * Strategy:\n * - SANITIZE_LIGHT: Remove patterns from LOW/MEDIUM severity categories\n * - SANITIZE_HEAVY: Remove patterns from ALL detected categories\n * - Uses matchDetails from Pattern_Matching_Engine to get actual regex patterns\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n\n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n\n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\n/**\n * Category severity mapping for LIGHT sanitization\n * LOW/MEDIUM categories will be removed in LIGHT mode\n * HIGH/CRITICAL categories will be removed in HEAVY mode\n */\nconst LOW_MEDIUM_CATEGORIES = [\n  \"MILD_SUSPICIOUS\",\n  \"ENCODING_SUSPICIOUS\",\n  \"FORMAT_COERCION\",\n  \"HYPOTHETICAL_ESCAPE\",\n  \"UNFILTERED_REQUEST\",\n  \"REBEL_RESPONSE\",\n  \"ENCODING_INDICATORS\",\n  \"JAILBREAK_ATTEMPT\",\n  \"GODMODE_JAILBREAK\",\n  \"EXPLICIT_JAILBREAK\"\n];\n\nconst HIGH_CRITICAL_CATEGORIES = [\n  \"CRITICAL_INJECTION\",\n  \"CONTROL_OVERRIDE\",\n  \"PROMPT_LEAK_ATTEMPT\",\n  \"HEAVY_OBFUSCATION\",\n  \"DANGEROUS_CONTENT\",\n  \"PROMPT_TEMPLATING_MARKERS\",\n  \"SEPARATOR_ABUSE\",\n  \"TEMPLATE_TOKEN\",\n  \"HEADER_ESCAPE\",\n  \"DIVIDER_ABUSE\",\n  \"SQL_XSS_ATTACKS\",\n  \"PRIVILEGE_ESCALATION\",\n  \"COMMAND_INJECTION\",\n  \"PATH_TRAVERSAL\",\n  \"XXE_INJECTION\",\n  \"LDAP_INJECTION\",\n  \"SSRF_ATTEMPT\",\n  \"CRLF_INJECTION\",\n  \"NOSQL_INJECTION\",\n  \"TEMPLATE_INJECTION\"\n];\n\n/**\n * Extract all unique regex patterns from matchDetails\n * @param {Array} matchDetails - Array from Pattern_Matching_Engine\n * @param {Array} categoryFilter - List of category names to include (null = all)\n * @returns {Array} Array of regex pattern strings\n */\nfunction extractPatternsFromMatches(matchDetails, categoryFilter = null) {\n  const patterns = [];\n\n  if (!matchDetails || !Array.isArray(matchDetails)) {\n    return patterns;\n  }\n\n  for (const detail of matchDetails) {\n    // Skip if category filter specified and this category not in filter\n    if (categoryFilter && !categoryFilter.includes(detail.category)) {\n      continue;\n    }\n\n    // Skip non-pattern categories (Mixed Scripts, Encoding Detection, Obfuscation Detection)\n    if (!detail.matches || !Array.isArray(detail.matches)) {\n      continue;\n    }\n\n    // Extract patterns from matches\n    for (const match of detail.matches) {\n      if (match.pattern) {\n        patterns.push(match.pattern);\n      }\n    }\n  }\n\n  return patterns;\n}\n\n/**\n * Apply sanitization using detected patterns\n * @param {string} text - Original text\n * @param {Array} patterns - Array of regex pattern strings\n * @param {string} redact - Replacement token\n * @returns {Object} {out: sanitized text, removedPct: percentage removed, removedChars: count}\n */\nfunction applySanitizeFromMatches(text, patterns, redact) {\n  if (!patterns || !patterns.length) {\n    return { out: text, removedPct: 0, removedChars: 0 };\n  }\n\n  let out = text;\n  let removed = 0;\n  const uniquePatterns = [...new Set(patterns)]; // Remove duplicates\n\n  for (const pattern of uniquePatterns) {\n    try {\n      const re = new RegExp(pattern, \"giu\");\n      out = out.replace(re, (m) => {\n        removed += m.length;\n        return redact || \"\";\n      });\n    } catch (e) {\n      console.warn(`Invalid sanitization regex: ${pattern}`, e);\n    }\n  }\n\n  const removedPct = text.length ? Math.round((removed / text.length) * 100) : 0;\n  return { out, removedPct, removedChars: removed };\n}\n\n// ============================================================================\n// MAIN LOGIC\n// ============================================================================\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Sanitization_Enforcement: No input items');\n  return [];\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const decision = j.decision?.decision || \"ALLOW\";\n\n  // Skip if config error or validation failed\n  if (j.configError === true) {\n    console.error(\"Sanitization_Enforcement: Config error detected\");\n    item.json = j;\n    continue;\n  }\n\n  if (!j.config || !j.config.enforcement) {\n    console.error(\"Sanitization_Enforcement: Missing config.enforcement\");\n    j.error = \"Missing enforcement config\";\n    j.decision = { decision: \"ALLOW\", reason: \"CONFIG_ERROR\" };\n    item.json = j;\n    continue;\n  }\n\n  const inText = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n  const sessionId = j.sessionId ?? j.chat_payload?.sessionId ?? \"unknown\";\n  const action = j.action ?? j.chat_payload?.action ?? \"sendMessage\";\n  const matchDetails = j.matchDetails || [];\n\n  let finalText = inText;\n  let mode = \"none\";\n  let removalPct = 0;\n  let patternsUsed = [];\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.beforeSanitization = inText;\n\n  if (decision === \"SANITIZE_LIGHT\") {\n    // LIGHT: Remove only LOW/MEDIUM severity patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, LOW_MEDIUM_CATEGORIES);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_LIGHT but no LOW/MEDIUM patterns detected\");\n      finalText = inText;\n      mode = \"light_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[removed]\");\n      finalText = res.out;\n      removalPct = res.removedPct;\n      mode = \"light\";\n\n      console.log(`Sanitization_Enforcement LIGHT: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n    }\n  }\n  else if (decision === \"SANITIZE_HEAVY\") {\n    // HEAVY: Remove ALL detected patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, null);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_HEAVY but no patterns detected\");\n      finalText = inText;\n      mode = \"heavy_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[REDACTED]\");\n      removalPct = res.removedPct;\n\n      // Check if removal exceeds threshold (default: 60%)\n      const threshold = j.config.sanitization?.heavy?.max_removal_percent || 60;\n      const policy = j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\";\n\n      if (policy === \"block_if_exceeds\" && removalPct > threshold) {\n        // TOO MUCH removed - escalate to BLOCK\n        mergeDecision(j, 'BLOCK', 'sanitization_enforcement', {\n          removal_pct: removalPct,\n          sanitizer_decision: 'SANITIZE_HEAVY',\n          blocked_by_sanitizer: true,\n          threshold_exceeded: threshold,\n          patterns_attempted: patternsUsed.length\n        });\n\n        finalText = j.config.enforcement.block_message || \"Content blocked by security policy\";\n        mode = \"blocked_excessive_removal\";\n\n        console.log(`Sanitization_Enforcement: BLOCKED due to excessive removal (${removalPct}% > ${threshold}%)`);\n      } else {\n        // Acceptable removal - proceed with sanitization\n        finalText = res.out;\n        mode = \"heavy\";\n\n        console.log(`Sanitization_Enforcement HEAVY: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n      }\n    }\n  }\n  else if (decision === \"BLOCK\") {\n    j._isBlocked = true;\n    finalText = j.config.enforcement?.block_message || \"Content blocked by security policy\";\n    mode = \"blocked\";\n  }\n  else {\n    // ALLOW - no sanitization\n    mode = \"allow\";\n  }\n\n  // Update chat_payload with sanitized text\n  j.chat_payload = j.chat_payload || {};\n  j.chat_payload.sessionId = sessionId;\n  j.chat_payload.action = action;\n  j.chat_payload.chatInput = finalText;\n\n  j._pipeline_snapshots.afterSanitization = finalText;\n\n  j.enforcement = Object.assign({}, j.enforcement, {\n    mode,\n    removalPct,\n    patternsUsed: patternsUsed.length,\n    patternsPreview: patternsUsed.slice(0, 5).map(p => p.substring(0, 30))\n  });\n\n  j.__san = {\n    sessionId,\n    action,\n    chat_payload: { sessionId, action, chatInput: finalText },\n    _pipeline_snapshots: {\n      beforeSanitization: j._pipeline_snapshots.beforeSanitization,\n      afterSanitization: j._pipeline_snapshots.afterSanitization\n    },\n    normalization: j.normalization,\n    enforcement: {\n      mode,\n      removalPct,\n      patternsUsed: patternsUsed.length,\n      heavy_policy: j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\",\n      heavy_threshold_pct: j.config.sanitization?.heavy?.max_removal_percent || 60\n    },\n    pii: j.pii || {}\n  };\n\n  j.__metadata = j.__metadata || {};\n  const finalStatus = j.decision?.decision || \"ALLOW\";\n  j.__metadata.should_run_prompt_guard = (finalStatus !== \"BLOCK\");\n\n  item.json = j;\n}\n\nreturn items;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -1456,
-        96
+        -96
       ],
-      "id": "735946e8-077e-494c-aacc-dd415c42350e",
+      "id": "06663d4a-36f0-47bc-bc8e-4a7e91e2bffe",
       "name": "Sanitization_Enforcement"
     },
     {
       "parameters": {
-        "jsCode": "/**\n * PII_Redactor - FIXED: English messages, proper error handling\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  \n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n  \n  const piiConf = j.pii_conf;\n  if (!piiConf || !piiConf.rules) {\n    j.pii_error = \"PII_Redactor: missing pii_conf\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n  \n  let text = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n  \n  if (!text) {\n    j.pii_error = \"PII_Redactor: no text to redact\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n  \n  let redactedText = text;\n  let redactionCount = 0;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n  \n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n    \n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      const beforeText = redactedText;\n      \n      redactedText = redactedText.replace(re, rule.replacement);\n      \n      if (redactedText !== beforeText) {\n        redactionCount++;\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n  \n  const hasPII = (redactedText !== text);\n  \n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n  }\n  \n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n  \n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII\n  };\n  \n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n  \n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+        "jsCode": "/**\n * PII_Redactor_v2 - Dual-Language Presidio Integration\n * Version: 1.6.10 - Dual-Language Detection (Polish + International)\n * Date: 2025-01-30\n *\n * Features:\n * - DUAL-LANGUAGE DETECTION: Calls Presidio API twice (pl + en)\n * - Parallel API calls for performance (Promise.all)\n * - Entity deduplication and merging\n * - Custom Polish recognizers (PESEL, NIP, REGON, ID card)\n * - International recognizers (Credit Card, Email, Phone, etc.)\n *\n * Revision History:\n * - Rev 8 (v1.6.10): DUAL-LANGUAGE detection (pl + en) for comprehensive PII coverage\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor_v2: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n\n  const originalChatInput = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  if (!j._original_input) {\n    j._original_input = originalChatInput;\n  }\n\n  let text = originalChatInput;\n\n  if (!text) {\n    j.pii_error = \"PII_Redactor_v2: no text to redact\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  const piiConfig = j.config?.pii_detection || {};\n  const enablePresidio = piiConfig.enabled !== false;\n  const fallbackToRegex = piiConfig.fallback_to_regex !== false;\n\n  let results = {\n    entities: [],\n    redacted_text: text,\n    detection_method: 'none',\n    processing_time_ms: 0,\n    error: null,\n    language_stats: {}\n  };\n\n  // DUAL-LANGUAGE DETECTION\n  if (enablePresidio) {\n    try {\n      const startTime = Date.now();\n      const axios = require('axios');\n      const apiUrl = piiConfig.api_url || 'http://vigil-presidio-pii:5001/analyze';\n      const scoreThreshold = piiConfig.confidence_threshold || 0.7;\n      const apiTimeout = piiConfig.api_timeout_ms || 3000;\n\n      const polishEntities = ['PL_PESEL', 'PL_NIP', 'PL_REGON', 'PL_ID_CARD'];\n      const internationalEntities = [\n        'CREDIT_CARD', 'EMAIL_ADDRESS', 'PHONE_NUMBER', 'PERSON',\n        'IBAN_CODE', 'IP_ADDRESS', 'URL'\n      ];\n\n      // PARALLEL API CALLS\n      const [plResponse, enResponse] = await Promise.all([\n        axios.post(apiUrl, {\n          text: text,\n          language: 'pl',\n          entities: polishEntities,\n          score_threshold: scoreThreshold,\n          return_decision_process: false\n        }, {\n          headers: { 'Content-Type': 'application/json' },\n          timeout: apiTimeout\n        }).catch(err => {\n          console.warn(`Polish API call failed: ${err.message}`);\n          return { data: { entities: [] } };\n        }),\n\n        axios.post(apiUrl, {\n          text: text,\n          language: 'en',\n          entities: internationalEntities,\n          score_threshold: scoreThreshold,\n          return_decision_process: false\n        }, {\n          headers: { 'Content-Type': 'application/json' },\n          timeout: apiTimeout\n        }).catch(err => {\n          console.warn(`International API call failed: ${err.message}`);\n          return { data: { entities: [] } };\n        })\n      ]);\n\n      const plEntities = plResponse.data.entities || [];\n      const enEntities = enResponse.data.entities || [];\n\n      const allEntities = [...plEntities, ...enEntities];\n      results.entities = deduplicateEntities(allEntities);\n      results.detection_method = 'presidio_dual_language';\n      results.processing_time_ms = Date.now() - startTime;\n      results.language_stats = {\n        polish_entities: plEntities.length,\n        international_entities: enEntities.length,\n        total_after_dedup: results.entities.length\n      };\n\n      console.log(\n        `Dual-language: ${results.entities.length} entities ` +\n        `(pl:${plEntities.length}, en:${enEntities.length}) in ${results.processing_time_ms}ms`\n      );\n\n    } catch (error) {\n      console.warn(`Presidio dual-language error: ${error.message}`);\n      results.error = error.message;\n\n      if (fallbackToRegex) {\n        console.log('Falling back to regex rules');\n        results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n      } else {\n        j.pii_error = `Presidio API failed: ${error.message}`;\n        item.json = j;\n        out.push(item);\n        continue;\n      }\n    }\n  } else if (fallbackToRegex) {\n    results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n  }\n\n  // APPLY REDACTION\n  let redactedText = text;\n  let redactionCount = 0;\n\n  if (results.detection_method === 'presidio_dual_language' && results.entities.length > 0) {\n    const sortedEntities = results.entities.sort((a, b) => b.start - a.start);\n\n    for (const entity of sortedEntities) {\n      const originalText = text.substring(entity.start, entity.end);\n      const redactionToken = getRedactionToken(entity.type, originalText, piiConfig);\n\n      redactedText =\n        redactedText.substring(0, entity.start) +\n        redactionToken +\n        redactedText.substring(entity.end);\n\n      redactionCount++;\n    }\n  } else if (results.detection_method === 'regex_fallback') {\n    redactedText = results.redacted_text;\n    redactionCount = results.entities.length;\n  }\n\n  const hasPII = (redactedText !== text);\n\n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n    j.chatInput = originalChatInput;\n  } else {\n    j.chatInput = originalChatInput;\n  }\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n\n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII,\n    detection_method: results.detection_method,\n    processing_time_ms: results.processing_time_ms,\n    entities_detected: results.entities.length,\n    language_stats: results.language_stats || {},\n    entities: results.entities.map(e => ({\n      type: e.type,\n      start: e.start,\n      end: e.end,\n      score: e.score\n    }))\n  };\n\n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;\n\nfunction deduplicateEntities(entities) {\n  if (entities.length <= 1) return entities;\n\n  const sorted = entities.sort((a, b) => {\n    if (a.start !== b.start) return a.start - b.start;\n    return b.score - a.score;\n  });\n\n  const unique = [];\n  for (const entity of sorted) {\n    const overlaps = unique.some(existing => {\n      return (\n        (entity.start >= existing.start && entity.start < existing.end) ||\n        (entity.end > existing.start && entity.end <= existing.end) ||\n        (entity.start <= existing.start && entity.end >= existing.end)\n      );\n    });\n\n    if (!overlaps) {\n      unique.push(entity);\n    }\n  }\n\n  return unique;\n}\n\nfunction getRedactionToken(entityType, originalText, piiConfig) {\n  const redactionMode = piiConfig.redaction_mode || 'replace';\n  const tokens = piiConfig.redaction_tokens || {};\n\n  switch (redactionMode) {\n    case 'replace':\n      return tokens[entityType] || `[${entityType}]`;\n\n    case 'mask':\n      if (originalText.length <= 4) {\n        return '*'.repeat(originalText.length);\n      }\n      const first = originalText.substring(0, 2);\n      const last = originalText.substring(originalText.length - 2);\n      const masked = '*'.repeat(originalText.length - 4);\n      return `${first}${masked}${last}`;\n\n    default:\n      return tokens[entityType] || `[${entityType}]`;\n  }\n}\n\nfunction applyLegacyPiiRules(text, piiConf, piiConfig) {\n  const startTime = Date.now();\n\n  if (!piiConf || !piiConf.rules) {\n    console.warn('No pii_conf available for fallback');\n    return {\n      entities: [],\n      redacted_text: text,\n      detection_method: 'regex_fallback_failed',\n      processing_time_ms: 0,\n      error: 'No pii.conf rules available'\n    };\n  }\n\n  const entities = [];\n  let redactedText = text;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      let match;\n      const matches = [];\n\n      while ((match = re.exec(redactedText)) !== null) {\n        matches.push({\n          index: match.index,\n          length: match[0].length,\n          text: match[0]\n        });\n      }\n\n      matches.sort((a, b) => b.index - a.index);\n\n      for (const m of matches) {\n        const redactionToken = getRedactionToken(rule.name, m.text, piiConfig);\n\n        redactedText =\n          redactedText.substring(0, m.index) +\n          redactionToken +\n          redactedText.substring(m.index + m.length);\n\n        entities.push({\n          type: rule.name,\n          start: m.index,\n          end: m.index + m.length,\n          text: m.text,\n          score: 1.0,\n          source: 'regex'\n        });\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n\n  return {\n    entities: entities,\n    redacted_text: redactedText,\n    detection_method: 'regex_fallback',\n    processing_time_ms: Date.now() - startTime,\n    error: null\n  };\n}\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -3168,
-        96
+        -96
       ],
-      "id": "5b0d24f3-a614-403a-8aaf-3a053ead2763",
-      "name": "PII_Redactor"
+      "id": "1d678bfb-3552-46ea-9cfc-e34f7f53f77d",
+      "name": "PII_Redactor_v2"
     },
     {
       "parameters": {
@@ -285,9 +285,9 @@
       "typeVersion": 2,
       "position": [
         -1728,
-        96
+        -96
       ],
-      "id": "60bf3a7d-65d0-4a1c-9e33-3ce2f48b1ed2",
+      "id": "2281e6dc-c048-45ca-9879-2d19cee0778c",
       "name": "Correlation_Engine"
     },
     {
@@ -298,9 +298,9 @@
       "typeVersion": 2,
       "position": [
         -2224,
-        96
+        -96
       ],
-      "id": "94fcf986-27eb-4366-a8bf-502822d7e89c",
+      "id": "f4f43063-6353-4bca-b58d-20865dcdce93",
       "name": "Pattern_Matching_Engine"
     },
     {
@@ -313,9 +313,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        720
+        576
       ],
-      "id": "06f10dcf-64c5-49d5-9e55-45f069aad564",
+      "id": "cd2a6cd0-f502-4a51-a2bb-9998981a9cd2",
       "name": "Extract from File2"
     },
     {
@@ -330,9 +330,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        720
+        576
       ],
-      "id": "66395d6a-5e19-428e-8cd5-14f6f34caee4",
+      "id": "b47545b4-bc2e-42a8-8f2b-dbf0f59335fb",
       "name": "Loading config files *.conf1"
     },
     {
@@ -345,9 +345,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        928
+        784
       ],
-      "id": "d4c6ae06-d80f-4e7b-a3ed-2c6905b2b94d",
+      "id": "31452111-df45-4897-81ce-5e9b412aa2e2",
       "name": "Extract from File3"
     },
     {
@@ -362,9 +362,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        928
+        784
       ],
-      "id": "b6b42641-381d-4440-8e77-e75bffa509aa",
+      "id": "d017fced-6b25-4508-b8d6-4d9818c79a6b",
       "name": "Loading config files *.conf2"
     },
     {
@@ -377,9 +377,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        1136
+        1008
       ],
-      "id": "b740fd1d-7d91-4779-9361-0b3801b4fe0a",
+      "id": "4dbcbe64-8069-440e-909e-180774df4e91",
       "name": "Extract from File4"
     },
     {
@@ -394,9 +394,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        1136
+        1008
       ],
-      "id": "63621163-29a0-426c-83a7-adfee816dca2",
+      "id": "4e0bf0d8-7cce-42e2-8e46-6adcd8242e23",
       "name": "Loading config files *.conf3"
     },
     {
@@ -409,9 +409,9 @@
       "typeVersion": 1,
       "position": [
         -4208,
-        1360
+        1232
       ],
-      "id": "85886bf6-60eb-4e6e-81ff-d13f3969ad08",
+      "id": "7dd747d7-c96d-4fa1-bfd6-d8571ba8b291",
       "name": "Extract from File5"
     },
     {
@@ -426,9 +426,9 @@
       "typeVersion": 1,
       "position": [
         -4384,
-        1360
+        1232
       ],
-      "id": "0b708c49-728d-45f0-9e8e-8938d8768450",
+      "id": "6eb6c5b0-f92d-4c44-9e7c-7d0227d63563",
       "name": "Loading config files *.conf4"
     },
     {
@@ -439,9 +439,9 @@
       "typeVersion": 2,
       "position": [
         208,
-        96
+        -96
       ],
-      "id": "ca4760cc-fe6e-448b-8d4a-4d0d3180a43d",
+      "id": "aaafca70-47bc-4833-a130-078ca29fa42d",
       "name": "Finale Decision"
     },
     {
@@ -456,9 +456,9 @@
       "typeVersion": 3.2,
       "position": [
         -32,
-        96
+        -96
       ],
-      "id": "89457e1a-4c88-4ccf-98b3-c9e61293a592",
+      "id": "bcced283-8088-4d2b-9332-dd3db4ceec3d",
       "name": "Merge1"
     },
     {
@@ -490,9 +490,9 @@
       "typeVersion": 2.2,
       "position": [
         -1200,
-        96
+        -96
       ],
-      "id": "72f20e9b-2efa-46e5-b933-6476262beaee",
+      "id": "e34c0777-3231-45f7-ad97-7bfee46ec2da",
       "name": "If"
     },
     {
@@ -503,9 +503,9 @@
       "typeVersion": 2,
       "position": [
         -304,
-        224
+        80
       ],
-      "id": "e21245c2-fcb0-4015-b0a6-c3a612cb8b2f",
+      "id": "65c6b974-d8be-4097-a21b-d146b1901c9a",
       "name": "LLM Context Restore"
     },
     {
@@ -516,9 +516,9 @@
       "typeVersion": 2,
       "position": [
         -912,
-        208
+        64
       ],
-      "id": "d9948e05-e46f-4633-b518-64a0838f5ac3",
+      "id": "8a799090-8564-48f3-901e-bb434d8887dc",
       "name": "Prepare LLM Request"
     },
     {
@@ -529,9 +529,9 @@
       "typeVersion": 2,
       "position": [
         -720,
-        352
+        208
       ],
-      "id": "dbd661c5-8b66-49f3-8e5c-eb0c7f2733ee",
+      "id": "174f03d2-5a41-4a7c-86fe-0063595ebaf3",
       "name": "Prompt Guard API"
     },
     {
@@ -542,9 +542,9 @@
       "typeVersion": 3.2,
       "position": [
         -528,
-        224
+        80
       ],
-      "id": "124583e2-9f17-4a2a-b438-c720f67ac920",
+      "id": "96c2fc25-ec06-4205-a28c-4ac91b4e4d59",
       "name": "Merge2"
     },
     {
@@ -555,9 +555,9 @@
       "typeVersion": 2,
       "position": [
         -2704,
-        96
+        -96
       ],
-      "id": "6fcc16fc-9150-4455-9450-5d7c8d0894d2",
+      "id": "8c483ae6-c308-4fb8-abb1-0de2a927ba20",
       "name": "Bloom_Prefilter"
     },
     {
@@ -569,11 +569,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5424,
-        -32
+        -5456,
+        -224
       ],
       "typeVersion": 1,
-      "id": "55711def-38e7-4d7a-8ebe-57c3e8810f47",
+      "id": "72f8e86d-e38f-48ca-a624-5334657cb7f4",
       "name": "Sticky Note1"
     },
     {
@@ -586,10 +586,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -5264,
-        640
+        -5296,
+        496
       ],
-      "id": "1a320bb0-5209-43b6-8a23-c00cd1fe797d",
+      "id": "6cd78d1e-60ba-4bf2-bca8-5fe624544bba",
       "name": "Webhook",
       "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
     },
@@ -602,11 +602,11 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        -5440,
-        512
+        -5472,
+        368
       ],
       "typeVersion": 1,
-      "id": "49e01c81-17d4-4f82-9d6c-e64321b11119",
+      "id": "8b9c1611-3f26-48d6-9a9a-7165e6ed04de",
       "name": "Sticky Note2"
     },
     {
@@ -617,9 +617,9 @@
       "typeVersion": 2,
       "position": [
         -3424,
-        96
+        -96
       ],
-      "id": "09f958d3-b003-4d76-a6b4-f0ba03a79b70",
+      "id": "5f13e8d0-8d14-4b8f-b1d3-3fe213fc1aff",
       "name": "Input_Validator"
     },
     {
@@ -651,9 +651,9 @@
       "typeVersion": 2.2,
       "position": [
         -3296,
-        448
+        304
       ],
-      "id": "77bc985c-82dd-423f-8b22-5d6c9cd1cf24",
+      "id": "e82d91d5-f6c7-4ce3-8690-4c9b460261f4",
       "name": "Validation Check"
     },
     {
@@ -664,9 +664,9 @@
       "typeVersion": 2,
       "position": [
         192,
-        464
+        320
       ],
-      "id": "20329ae8-347c-4a33-93e1-9d96428271e7",
+      "id": "cf1403da-83b8-4367-b2ac-7ec71bd9eaed",
       "name": "Early Block Response"
     },
     {
@@ -677,9 +677,9 @@
       "typeVersion": 2,
       "position": [
         928,
-        336
+        192
       ],
-      "id": "610404b6-5e9d-49fe-8a9c-8f95646946fb",
+      "id": "cb17901f-36ae-4b11-958b-576557d23e88",
       "name": "output to plugin"
     }
   ],
@@ -857,17 +857,6 @@
         [
           {
             "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "PII_Redactor": {
-      "main": [
-        [
-          {
-            "node": "Normalize_Node",
             "type": "main",
             "index": 0
           }
@@ -1121,7 +1110,7 @@
       "main": [
         [
           {
-            "node": "PII_Redactor",
+            "node": "PII_Redactor_v2",
             "type": "main",
             "index": 0
           }
@@ -1145,16 +1134,27 @@
           }
         ]
       ]
+    },
+    "PII_Redactor_v2": {
+      "main": [
+        [
+          {
+            "node": "Normalize_Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b87b2c35-2d2a-4bbf-9b7d-c70f8411fb57",
+  "versionId": "97594a85-db80-4540-93d5-70161a31b5d7",
   "meta": {
     "instanceId": "004e3bbc45b3f040b9767a4451ef465967114bc5e89c4ddc8cd6c892432d1ed8"
   },
-  "id": "9nA52M3jJ8S2UgAw",
+  "id": "Gft83R4H1FQRNQXy",
   "tags": []
 }

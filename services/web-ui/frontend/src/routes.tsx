@@ -11,6 +11,7 @@ import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
 import { PluginConfiguration } from "./components/PluginConfiguration";
 import { RetentionPolicy } from "./components/RetentionPolicy";
+import { PIISettings } from "./components/PIISettings";
 import Documentation from "./components/Documentation";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import { MobileProvider } from "./context/MobileContext";
@@ -379,6 +380,7 @@ export const router = createBrowserRouter(
           children: [
             { path: "/config", element: <Navigate to="/config/overview" replace /> },
             { path: "/config/plugin", element: <PluginConfiguration /> },
+            { path: "/config/pii", element: <PIISettings /> },
             { path: "/config/retention", element: <RetentionPolicy /> },
             { path: "/config/:sectionId", element: <ConfigSection /> }
           ]

@@ -34,7 +34,7 @@ describe('OWASP AITG-APP-01: Direct Prompt Injection', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(30);
 
         // Should detect PROMPT_LEAK_ATTEMPT category
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasPromptLeak = detectedCategories.some(cat =>
@@ -65,7 +65,7 @@ describe('OWASP AITG-APP-01: Direct Prompt Injection', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(30);
 
         // Should detect JAILBREAK or GODMODE categories
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasJailbreak = detectedCategories.some(cat =>
@@ -97,7 +97,7 @@ describe('OWASP AITG-APP-01: Direct Prompt Injection', () => {
         expect(result.threat_score).toBeGreaterThanOrEqual(30);
 
         // Should detect DANGEROUS_CONTENT category
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
 
         const hasDangerousContent = detectedCategories.some(cat =>

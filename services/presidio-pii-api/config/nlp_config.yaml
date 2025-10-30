@@ -1,0 +1,31 @@
+# Presidio NLP Configuration
+# Defines spaCy models for multilingual PII detection
+# Version: 1.6.0
+
+nlp_engine_name: spacy
+models:
+  # English model (en_core_web_sm-3.7.1)
+  - lang_code: en
+    model_name: en_core_web_sm
+
+  # Polish model (pl_core_news_sm-3.7.0)
+  - lang_code: pl
+    model_name: pl_core_news_sm
+
+# NLP Configuration
+ner_model_configuration:
+  # Labels to use for entity recognition
+  labels_to_ignore:
+    - DATE
+    - TIME
+    - CARDINAL
+    - ORDINAL
+    - QUANTITY
+    - MONEY
+    - PERCENT
+
+  # Confidence threshold for NER predictions
+  low_confidence_score_multiplier: 0.5
+  low_score_entity_names:
+    - ORG
+    - LOC

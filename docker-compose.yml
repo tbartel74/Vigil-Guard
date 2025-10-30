@@ -189,6 +189,27 @@ services:
       retries: 3
 
   # ============================================
+  # PRESIDIO PII DETECTION API
+  # ============================================
+  presidio-pii-api:
+    build: ./services/presidio-pii-api
+    container_name: vigil-presidio-pii
+    image: vigil-presidio-pii:1.6.10
+    ports:
+      - "${PRESIDIO_PORT:-5001}:5001"
+    networks:
+      vigil-net:
+        aliases:
+          - presidio-pii-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ============================================
   # REVERSE PROXY (Main entry point)
   # ============================================
   caddy:
