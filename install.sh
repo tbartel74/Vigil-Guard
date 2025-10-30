@@ -619,7 +619,12 @@ initialize_clickhouse() {
     fi
     CLICKHOUSE_CONTAINER_NAME=${CLICKHOUSE_CONTAINER_NAME:-vigil-clickhouse}
     CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
-    CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+    # Password must be set in .env - no fallback for security
+    if [ -z "$CLICKHOUSE_PASSWORD" ]; then
+        log_error "CLICKHOUSE_PASSWORD not set in .env - installation cannot proceed"
+        log_error "Run ./install.sh to generate secure credentials"
+        exit 1
+    fi
     CLICKHOUSE_DB=${CLICKHOUSE_DB:-n8n_logs}
     CLICKHOUSE_HTTP_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
 
@@ -1013,9 +1018,17 @@ show_summary() {
     GRAFANA_PORT=${GRAFANA_PORT:-3001}
     CLICKHOUSE_HTTP_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
     CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
-    CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+    # Password must be set in .env - no fallback for security
+    if [ -z "$CLICKHOUSE_PASSWORD" ]; then
+        log_error "CLICKHOUSE_PASSWORD not set in .env - installation cannot proceed"
+        exit 1
+    fi
     CLICKHOUSE_DB=${CLICKHOUSE_DB:-n8n_logs}
-    GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+    # Grafana password must be set - no fallback for security
+    if [ -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
+        log_error "GF_SECURITY_ADMIN_PASSWORD not set in .env - installation cannot proceed"
+        exit 1
+    fi
 
     echo -e "${GREEN}All components have been installed and started!${NC}"
     echo ""

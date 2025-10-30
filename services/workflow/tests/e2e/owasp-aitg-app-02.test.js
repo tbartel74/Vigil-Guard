@@ -251,7 +251,7 @@ describe('OWASP AITG-APP-02: Indirect Prompt Injection', () => {
         const wasDetected = result.final_status !== 'ALLOWED';
 
         // Check for ENCODING_DETECTED bonus points
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const hasEncodingBonus = rawEvent.sanitizer?.breakdown?.ENCODING_DETECTED !== undefined;
 
         if (hasTriggerPhrase) {

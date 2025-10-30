@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { sendToWorkflow, waitForClickHouseEvent } from '../helpers/webhook.js';
+import { sendToWorkflow, waitForClickHouseEvent, parseJSONSafely } from '../helpers/webhook.js';
 
 /**
  * PII Detection - Presidio Integration Tests
@@ -51,7 +51,7 @@ describe('PII Detection - Presidio (Happy Path)', () => {
     expect(event.final_status).toMatch(/ALLOWED|SANITIZED/);
 
     // Verify PII redaction
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     expect(sanitized.pii).toBeDefined();
     expect(sanitized.pii.detection_method).toMatch(/presidio|regex_fallback/);
     expect(sanitized.pii.entities_detected).toBeGreaterThan(0);
@@ -124,7 +124,7 @@ describe('PII Detection - Presidio (Happy Path)', () => {
 
     expect(event).toBeDefined();
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     expect(sanitized.pii.entities_detected).toBeGreaterThanOrEqual(3); // PESEL, EMAIL, PHONE minimum
 
     // All PII should be redacted
@@ -158,7 +158,7 @@ describe('PII Detection - Presidio (Happy Path)', () => {
 
     expect(event).toBeDefined();
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     expect(sanitized.pii).toBeDefined();
     expect(sanitized.pii.detection_method).toMatch(/presidio|regex_fallback/);
 
@@ -176,7 +176,7 @@ describe('PII Detection - Presidio (Happy Path)', () => {
     expect(event).toBeDefined();
 
     // Should not over-detect (confidence threshold prevents false positives)
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     const piiCount = sanitized.pii?.entities_detected || 0;
 
     // May detect order number as PESEL if it matches pattern, but should be low confidence

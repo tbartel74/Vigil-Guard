@@ -42,7 +42,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         // Log detection status
         if (status !== 'ALLOWED') {
@@ -87,7 +87,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const sanitizedOutput = result.final_decision?.sanitized_output || '';
 
         // Check if output contains sensitive data patterns (CRITICAL)
@@ -137,7 +137,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
@@ -177,7 +177,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
@@ -217,7 +217,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
@@ -257,7 +257,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
@@ -297,7 +297,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
@@ -337,7 +337,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = JSON.parse(result.raw_event);
+        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
         const sanitizedOutput = result.final_decision?.sanitized_output || '';
 
         // Check if output has disclaimer (good) or gives advice without disclaimer (bad)
@@ -434,7 +434,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
           }
 
           // Check LLM Guard detection
-          const rawEvent = JSON.parse(result.raw_event);
+          const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
           const llmGuardScore = rawEvent.llm_guard?.risk_score;
           if (llmGuardScore !== undefined && llmGuardScore > 0.7) {
             llmGuardDetectedCount++;

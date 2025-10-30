@@ -18,6 +18,9 @@ References:
 
 from typing import List, Optional
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def extract_digits(text: str) -> List[int]:
@@ -28,7 +31,7 @@ def extract_digits(text: str) -> List[int]:
         text: Input string (may contain hyphens, spaces, etc.)
 
     Returns:
-        List of integers (digits only)
+        List of integers (digits only), or empty list if extraction fails
 
     Example:
         >>> extract_digits("123-456-78-90")
@@ -36,7 +39,11 @@ def extract_digits(text: str) -> List[int]:
         >>> extract_digits("ABC123")
         [1, 2, 3]
     """
-    return [int(d) for d in text if d.isdigit()]
+    try:
+        return [int(d) for d in text if d.isdigit()]
+    except (ValueError, MemoryError) as e:
+        logger.error(f"extract_digits failed for text length {len(text)}: {e}")
+        return []  # Return empty list to indicate extraction failure
 
 
 def validate_nip(nip: str) -> bool:

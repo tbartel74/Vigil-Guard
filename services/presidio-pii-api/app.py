@@ -319,7 +319,7 @@ def health():
     """Health check endpoint with service info"""
     return jsonify({
         'status': 'healthy',
-        'version': '1.6.8',
+        'version': '1.6.10',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
         'mode_description': DETECTION_MODES[current_mode]['description'],

@@ -23,7 +23,7 @@
  */
 
 import { describe, test, expect, beforeAll } from 'vitest';
-import { sendToWorkflow, waitForClickHouseEvent } from '../helpers/webhook.js';
+import { sendToWorkflow, waitForClickHouseEvent, parseJSONSafely } from '../helpers/webhook.js';
 import piiPayloads from '../fixtures/pii-test-payloads.json';
 
 const { valid_pii, invalid_pii, edge_cases, performance_tests, metadata } = piiPayloads;
@@ -74,7 +74,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
         expect(event).toBeDefined();
 
         // Parse sanitizer data
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         expect(sanitized.pii).toBeDefined();
 
         // Verify detection method
@@ -125,7 +125,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
         expect(event).toBeDefined();
 
         // Parse sanitizer data
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         expect(sanitized.pii).toBeDefined();
 
         // Verify PII was detected
@@ -179,7 +179,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
         expect(event).toBeDefined();
 
         // Parse sanitizer data
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         const entitiesDetected = sanitized.pii?.entities_detected || 0;
 
         // CRITICAL: Should NOT detect invalid formats (checksum validation)
@@ -211,7 +211,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
         const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
         expect(event).toBeDefined();
 
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         const entitiesDetected = sanitized.pii?.entities_detected || 0;
 
         // Should NOT detect benign numbers as PII
@@ -247,7 +247,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
         expect(event).toBeDefined();
 
         // Edge cases should not crash or timeout
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         const entitiesDetected = sanitized.pii?.entities_detected || 0;
 
         console.log(`   ✅ Processed without error (detected: ${entitiesDetected} entities)`);
@@ -284,7 +284,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
 
         expect(event).toBeDefined();
 
-        const sanitized = JSON.parse(event.sanitizer_json || '{}');
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         const entitiesDetected = sanitized.pii?.entities_detected || 0;
         const detectionMethod = sanitized.pii?.detection_method || 'unknown';
 
@@ -323,7 +323,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
           const response = await sendToWorkflow(payload.text);
           const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
 
-          const sanitized = JSON.parse(event.sanitizer_json || '{}');
+          const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
           const entitiesDetected = sanitized.pii?.entities_detected || 0;
 
           if (entitiesDetected > 0) {
@@ -363,7 +363,7 @@ describe('PII Detection - Comprehensive Test Suite', () => {
           const response = await sendToWorkflow(payload.text);
           const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
 
-          const sanitized = JSON.parse(event.sanitizer_json || '{}');
+          const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
           const entitiesDetected = sanitized.pii?.entities_detected || 0;
 
           if (entitiesDetected > 0) {
@@ -399,10 +399,95 @@ describe('PII Detection - Comprehensive Test Suite', () => {
 
       expect(event).toBeDefined();
 
-      const sanitized = JSON.parse(event.sanitizer_json || '{}');
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
       expect(sanitized.pii.detection_method).toBe('presidio');
 
       console.log('✅ Presidio is being used as primary detection method');
     }, 10000);
+  });
+
+  // =================================================================
+  // BUG #6 REGRESSION TESTS
+  // =================================================================
+  // Bug #6: Normalization was destroying PII detection by over-aggressive
+  // NFKC normalization that replaced digits with incompatible characters.
+  // These tests ensure PII is still detected after normalization.
+  // =================================================================
+  describe('Bug #6 Regression Tests - Normalization Must Not Destroy PII', () => {
+    test('should detect PESEL after normalization (Bug #6)', async () => {
+      console.log('\n🐛 Bug #6 Regression Test: PESEL after normalization');
+
+      // Valid PESEL with Unicode spaces (U+00A0 non-breaking space)
+      const testText = 'PESEL:\u00A044051401359';
+      console.log(`   Input: "${testText}" (contains U+00A0 non-breaking space)`);
+
+      const response = await sendToWorkflow(testText);
+      expect(response).toBeDefined();
+
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
+      expect(event).toBeDefined();
+
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+      expect(sanitized.pii).toBeDefined();
+
+      // CRITICAL: PII must be detected even after normalization
+      const entitiesDetected = sanitized.pii.entities_detected || 0;
+      expect(entitiesDetected).toBeGreaterThan(0);
+
+      console.log(`   ✅ Detected ${entitiesDetected} entities after normalization`);
+      console.log(`   Detection method: ${sanitized.pii.detection_method}`);
+    }, 15000);
+
+    test('should detect credit card after normalization (Bug #6)', async () => {
+      console.log('\n🐛 Bug #6 Regression Test: Credit card after normalization');
+
+      // Valid credit card with Unicode dashes (U+2013 en-dash)
+      const testText = 'Card: 4111\u20131111\u20131111\u20131111';
+      console.log(`   Input: "${testText}" (contains U+2013 en-dash)`);
+
+      const response = await sendToWorkflow(testText);
+      expect(response).toBeDefined();
+
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
+      expect(event).toBeDefined();
+
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+      expect(sanitized.pii).toBeDefined();
+
+      // CRITICAL: Credit card must be detected even after normalization
+      const entitiesDetected = sanitized.pii.entities_detected || 0;
+      expect(entitiesDetected).toBeGreaterThan(0);
+
+      console.log(`   ✅ Detected ${entitiesDetected} entities after normalization`);
+      console.log(`   Detection method: ${sanitized.pii.detection_method}`);
+    }, 15000);
+
+    test('should detect email after aggressive normalization (Bug #6)', async () => {
+      console.log('\n🐛 Bug #6 Regression Test: Email after aggressive normalization');
+
+      // Email with fullwidth characters (U+FF21 = Ａ fullwidth latin A)
+      const testText = 'Contact: \uFF41dmin@example.com';
+      console.log(`   Input: "${testText}" (contains fullwidth 'ａ' U+FF41)`);
+
+      const response = await sendToWorkflow(testText);
+      expect(response).toBeDefined();
+
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
+      expect(event).toBeDefined();
+
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+      expect(sanitized.pii).toBeDefined();
+
+      // CRITICAL: Email must be detected after NFKC normalization
+      const entitiesDetected = sanitized.pii.entities_detected || 0;
+      expect(entitiesDetected).toBeGreaterThan(0);
+
+      console.log(`   ✅ Detected ${entitiesDetected} entities after normalization`);
+      console.log(`   Detection method: ${sanitized.pii.detection_method}`);
+
+      // Verify the normalized form is still valid
+      expect(event.normalized_input).toContain('admin@example.com');
+      console.log(`   ✅ Normalized form preserved: "${event.normalized_input}"`);
+    }, 15000);
   });
 });

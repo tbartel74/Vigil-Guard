@@ -25,7 +25,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.threat_score).toBe(100);
 
       // Check validation failure reason
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_LENGTH');
 
@@ -43,7 +43,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.final_status).not.toBe('BLOCKED'); // May be ALLOWED or SANITIZED, but not BLOCKED by validator
 
       // Check validation passed
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.checks?.max_length).toBe(true);
       expect(rawEvent.validation?.checks?.min_length).toBe(true);
@@ -64,7 +64,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.threat_score).toBe(100);
 
       // Check validation failure reason
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EMPTY_INPUT');
 
@@ -80,7 +80,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Check validation passed (even if content is sanitized later)
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.checks?.min_length).toBe(true);
 
@@ -100,7 +100,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.threat_score).toBe(100);
 
       // Check validation failure reason
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_REPETITION');
       expect(rawEvent.validation?.checks?.unique_chars).toBeLessThan(5);
@@ -118,7 +118,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.final_status).toBe('BLOCKED');
 
       // Check validation failure reason
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_REPETITION');
       expect(rawEvent.validation?.checks?.unique_chars).toBeLessThan(5);
@@ -135,7 +135,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Check validation passed (5 unique chars is the threshold)
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.checks?.unique_chars).toBeGreaterThanOrEqual(5);
 
@@ -158,7 +158,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.threat_score).toBe(100);
 
       // Check validation failure reason
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_CONTROL_CHARS');
       expect(rawEvent.validation?.checks?.control_ratio).toBeGreaterThan(0.30);
@@ -178,7 +178,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Check validation passed
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.checks?.control_chars).toBe(true);
 
@@ -196,7 +196,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Check validation passed
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.checks?.min_length).toBe(true);
       expect(rawEvent.validation?.checks?.max_length).toBe(true);
@@ -228,7 +228,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Check validation passed
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
       expect(rawEvent.validation?.input_length).toBeLessThanOrEqual(10000);
 
@@ -246,7 +246,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // At exactly 10000, should PASS validation but FAIL repetition check
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
       // Validation may pass or fail depending on implementation (10000 is the boundary)
       // The test just verifies the system handles the boundary correctly
@@ -263,7 +263,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result.final_status).toBe('BLOCKED');
 
       // Check validation failure
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_LENGTH');
 
@@ -279,7 +279,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(result).toBeDefined();
 
       // Should pass validation (newlines and special chars are normal)
-      const rawEvent = JSON.parse(result.raw_event);
+      const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
 
       console.log(`✅ Test passed: Newlines and special chars handled correctly`);

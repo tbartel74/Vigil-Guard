@@ -5,6 +5,28 @@
 export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
 
 /**
+ * Safely parse JSON with detailed error reporting
+ * @param {string} jsonString - JSON string to parse
+ * @param {string} fieldName - Name of the field (for error messages)
+ * @param {string} context - Additional context (e.g., sessionId)
+ * @returns {Object} Parsed JSON object
+ * @throws {Error} With detailed error message if parsing fails
+ */
+export function parseJSONSafely(jsonString, fieldName, context = '') {
+    try {
+        return JSON.parse(jsonString || '{}');
+    } catch (error) {
+        console.error(`❌ JSON parse failed for field: ${fieldName}`);
+        if (context) console.error(`   Context: ${context}`);
+        console.error(`   Raw value (first 500 chars): ${jsonString?.substring(0, 500)}`);
+        throw new Error(
+            `Failed to parse ${fieldName}: ${error.message}. ` +
+            `Raw value starts with: ${jsonString?.substring(0, 100)}`
+        );
+    }
+}
+
+/**
  * Send a prompt to the Vigil Guard workflow via webhook
  * @param {string} chatInput - The prompt text to test
  * @param {Object} options - Additional options
@@ -44,6 +66,8 @@ export async function sendToWorkflow(chatInput, options = {}) {
 export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
   const startTime = Date.now();
   const pollInterval = 500; // Poll every 500ms
+  let lastError = null;
+  let errorCount = 0;
 
   while (Date.now() - startTime < maxWaitMs) {
     try {
@@ -100,26 +124,38 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
       if (result.data && result.data.length > 0) {
         const event = result.data[0];
 
-        // Parse JSON fields
+        // Parse JSON fields (using safe parser for better error messages)
         if (event.sanitizer_json) {
-          event.sanitizer = JSON.parse(event.sanitizer_json);
+          event.sanitizer = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
         }
         if (event.final_decision_json) {
-          event.final_decision = JSON.parse(event.final_decision_json);
+          event.final_decision = parseJSONSafely(event.final_decision_json, 'final_decision_json', event.sessionId);
         }
 
         return event;
       }
     } catch (error) {
-      // Ignore errors and continue polling
-      console.warn('ClickHouse query error:', error.message);
+      errorCount++;
+      lastError = error;
+
+      // Log warning but continue polling (may be transient error)
+      console.warn(`ClickHouse query error (attempt ${errorCount}):`, error.message);
     }
 
     // Wait before next poll
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
-  return null; // Timeout - event not found
+  // Timeout reached - if we have persistent errors, throw them
+  if (lastError && errorCount > 3) {
+    throw new Error(
+      `ClickHouse polling failed after ${errorCount} attempts over ${maxWaitMs}ms. ` +
+      `Last error: ${lastError.message}. ` +
+      `Criteria: ${JSON.stringify(criteria)}`
+    );
+  }
+
+  return null; // Timeout - event not found (no persistent errors)
 }
 
 /**

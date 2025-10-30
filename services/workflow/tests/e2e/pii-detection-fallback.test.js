@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { sendToWorkflow, waitForClickHouseEvent } from '../helpers/webhook.js';
+import { sendToWorkflow, waitForClickHouseEvent, parseJSONSafely } from '../helpers/webhook.js';
 
 /**
  * PII Detection - Fallback to Regex Rules
@@ -53,7 +53,7 @@ describe('PII Detection - Fallback to Regex Rules', () => {
 
     expect(event).toBeDefined();
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     expect(sanitized.pii).toBeDefined();
 
     if (!presidioOnline) {
@@ -140,7 +140,7 @@ describe('PII Detection - Fallback to Regex Rules', () => {
 
     expect(event).toBeDefined();
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
 
     if (!presidioOnline) {
       expect(sanitized.pii.detection_method).toBe('regex_fallback');
@@ -161,7 +161,7 @@ describe('PII Detection - Fallback to Regex Rules', () => {
 
     expect(event).toBeDefined();
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
     expect(sanitized.pii).toBeDefined();
 
     if (!presidioOnline) {
@@ -194,7 +194,7 @@ describe('PII Detection - Fallback to Regex Rules', () => {
 
     const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
 
     // Regex fallback does NOT have NLP-based PERSON detection
     // This is expected limitation of regex mode
@@ -213,7 +213,7 @@ describe('PII Detection - Fallback to Regex Rules', () => {
 
     const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 10000);
 
-    const sanitized = JSON.parse(event.sanitizer_json || '{}');
+    const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
 
     if (presidioOnline) {
       // If Presidio is back online, should use it
