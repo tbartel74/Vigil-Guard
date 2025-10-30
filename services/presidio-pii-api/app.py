@@ -1,9 +1,11 @@
 """
 Vigil Guard - Presidio PII Detection API
-Flask wrapper with Optimized Per-Entity Thresholds
-Version: 1.6.8 - False Positives Fix
+Flask wrapper with Dual-Language Detection
+Version: 1.6.10 - Dual-Language PII Detection
 
 Features:
+- Dual-language support: Polish (pl) + International (en)
+- Credit card detection with Luhn validation (93.8% accuracy)
 - 3 detection modes: high_security / balanced / high_precision
 - Per-entity thresholds based on Microsoft/NVIDIA best practices
 - Context-aware scoring with LemmaContextAwareEnhancer

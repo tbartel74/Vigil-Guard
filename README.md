@@ -18,7 +18,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 - 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 34 detection categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
-- 🔒 **PII Detection** - Microsoft Presidio integration with 50+ entity types and custom Polish recognizers (NEW v1.6)
+- 🔒 **PII Detection** - Dual-language Microsoft Presidio integration with 50+ entity types (v1.6.10)
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching
@@ -88,7 +88,18 @@ vigil-guard/
 │   ├── docker-compose.yml   # Service orchestration
 │   ├── requirements.txt     # Python dependencies
 │   └── README.md            # Setup instructions
-├── plugin/                    # Browser Extension (NEW)
+├── presidio-pii-api/         # Microsoft Presidio PII Detection (NEW v1.6)
+│   ├── app.py               # Flask application
+│   ├── config/              # Recognizer configurations
+│   │   └── recognizers.yaml # Custom Polish + International recognizers
+│   ├── validators/          # Entity validators
+│   │   ├── credit_card.py  # Luhn algorithm validator
+│   │   └── polish_validators.py # PESEL/NIP/REGON checksums
+│   ├── Dockerfile           # Container definition
+│   ├── docker-compose.yml   # Service orchestration
+│   ├── requirements.txt     # Python dependencies (presidio, spaCy)
+│   └── README.md            # Setup instructions
+├── plugin/                    # Browser Extension
 │   ├── Chrome/               # Chrome extension files
 │   │   ├── manifest.json    # Extension manifest (v3)
 │   │   ├── background.js    # Service worker

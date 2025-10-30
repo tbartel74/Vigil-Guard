@@ -194,7 +194,7 @@ services:
   presidio-pii-api:
     build: ./services/presidio-pii-api
     container_name: vigil-presidio-pii
-    image: vigil-presidio-pii:1.6.0
+    image: vigil-presidio-pii:1.6.10
     ports:
       - "${PRESIDIO_PORT:-5001}:5001"
     networks:
