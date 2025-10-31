@@ -42,7 +42,7 @@ services:
       retries: 3
 
   grafana:
-    image: grafana/grafana:latest@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
+    image: grafana/grafana:11.4.0@sha256:d8ea37798ccc41061a62ab080f2676dda6bf7815558499f901bdb0f533a456fb
     container_name: vigil-grafana
     user: "501:20"  # Run as local user to fix database permissions
     environment:
@@ -81,7 +81,7 @@ services:
   # WORKFLOW ENGINE
   # ============================================
   n8n:
-    image: n8nio/n8n:latest@sha256:fa410b71ccb5ddee9f9e4b25a964fbc8fcf56744d5f24dc4d2b8b414ae76ee26
+    image: n8nio/n8n:1.72.0@sha256:f0182719d8b29884a7705b67435c555d63ae88af35ad876ff4ed5710204797f6
     container_name: vigil-n8n
     user: "node"
     working_dir: /home/node
