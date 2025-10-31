@@ -32,6 +32,40 @@ For manual download instructions, see: [prompt-guard-api/README.md](../prompt-gu
 
 ---
 
+## 📁 Repository Structure
+
+Vigil Guard uses a **monorepo structure**. All paths in this guide are relative to the repository root:
+
+```
+vigil-guard/                           # ← Repository root (start here)
+├── services/
+│   ├── web-ui/
+│   │   ├── backend/                   # ← Express API (port 8787)
+│   │   │   ├── src/
+│   │   │   ├── package.json
+│   │   │   └── ...
+│   │   └── frontend/                  # ← React SPA (port 5173)
+│   │       ├── src/
+│   │       ├── package.json
+│   │       └── ...
+│   ├── workflow/                      # ← n8n workflow configs
+│   ├── monitoring/                    # ← Grafana + ClickHouse
+│   └── presidio-pii-api/              # ← PII detection service
+├── prompt-guard-api/                  # ← Llama Prompt Guard API
+├── install.sh                         # ← Main installation script
+├── docker-compose.yml                 # ← Container orchestration
+└── docs/                              # ← Documentation
+```
+
+**Key Locations**:
+- **Backend**: `cd services/web-ui/backend`
+- **Frontend**: `cd services/web-ui/frontend`
+- **Workflow configs**: `services/workflow/config/*.json`
+
+**⚠️ Important**: Older documentation may reference `cd backend` or `cd frontend`. These paths are **incorrect**. Always use the full monorepo paths shown above.
+
+---
+
 ## 📋 Prerequisites
 
 ### System Requirements
@@ -99,7 +133,7 @@ ls -la
 
 ```bash
 # Navigate to backend directory
-cd backend
+cd services/web-ui/backend
 
 # Install dependencies
 npm install
@@ -147,7 +181,7 @@ npm run start
 
 ```bash
 # Navigate to frontend directory (from project root)
-cd frontend
+cd services/web-ui/frontend
 
 # Install dependencies
 npm install
@@ -252,13 +286,13 @@ For detailed Grafana configuration, see [GRAFANA_SETUP.md](./GRAFANA_SETUP.md).
 
 #### Terminal 1: Backend
 ```bash
-cd backend
+cd services/web-ui/backend
 npm run dev  # Uses nodemon for auto-restart
 ```
 
 #### Terminal 2: Frontend
 ```bash
-cd frontend
+cd services/web-ui/frontend
 npm run dev  # Vite development server
 ```
 
@@ -279,10 +313,10 @@ curl -I http://localhost:3001
 #### Build Applications
 ```bash
 # Build backend
-cd backend
+cd services/web-ui/backend
 npm run build
 
-# Build frontend
+# Build frontend (relative from backend)
 cd ../frontend
 npm run build
 ```
@@ -290,10 +324,10 @@ npm run build
 #### Start Services
 ```bash
 # Start backend
-cd backend
+cd services/web-ui/backend
 npm run start &
 
-# Serve frontend (using serve package)
+# Serve frontend (using serve package, relative from backend)
 cd ../frontend
 npm install -g serve
 serve -s dist -l 5173 &
