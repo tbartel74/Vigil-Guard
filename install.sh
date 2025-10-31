@@ -81,9 +81,11 @@ check_existing_installation() {
             log_info "Installation cancelled by user"
             exit 0
         fi
-        return 0  # Existing installation
+        # Return 0 = existing installation detected (success, but needs update mode)
+        return 0
     else
-        return 1  # Fresh installation
+        # Return 1 = fresh installation (no existing state, normal install proceeds)
+        return 1
     fi
 }
 
