@@ -578,15 +578,32 @@ environment:
   - `Editor`: Can modify dashboards but not admin settings
   - `Viewer`: Read-only access to dashboards (recommended)
 
-**Note**: This setting only applies if `GF_AUTH_ANONYMOUS_ENABLED=true`. By default, anonymous access is disabled and requires authentication.
+**Note**: This setting only applies if `GF_AUTH_ANONYMOUS_ENABLED=true`. **By default, anonymous access is ENABLED** to allow Web UI iframe embeds. The Web UI itself is protected by JWT authentication, so Grafana anonymous access is effectively secured at the application layer.
+
+**Security Architecture**:
+```
+User → Web UI (JWT Auth) → Grafana iframe (anonymous read-only)
+```
+
+The anonymous access is:
+- **Enabled by default**: Required for Web UI dashboard embeds
+- **Read-only**: `Viewer` role prevents modifications
+- **Iframe-only**: Accessed via authenticated Web UI
+- **Caddy-proxied**: All traffic goes through reverse proxy
 
 **Example**:
 ```yaml
 # docker-compose.yml
 environment:
-  GF_AUTH_ANONYMOUS_ORG_ROLE: ${GF_AUTH_ANONYMOUS_ORG_ROLE:-Viewer}
-  # GF_AUTH_ANONYMOUS_ENABLED: false  # Disabled by default
+  GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-true}  # Enabled by default for Web UI
+  GF_AUTH_ANONYMOUS_ORG_ROLE: ${GF_AUTH_ANONYMOUS_ORG_ROLE:-Viewer}  # Read-only
 ```
+
+**Production Hardening** (optional):
+If you want to disable anonymous access and use direct Grafana authentication:
+1. Set `GF_AUTH_ANONYMOUS_ENABLED=false` in `.env`
+2. Update Web UI to use Grafana API with credentials (not iframe)
+3. Users will need separate Grafana login
 
 ### ClickHouse Configuration
 

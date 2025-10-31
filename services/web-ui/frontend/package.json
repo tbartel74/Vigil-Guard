@@ -10,7 +10,7 @@
     "sync-docs": "node scripts/sync-docs.js",
     "generate-manifest": "node scripts/generate-docs-manifest.js",
     "prepare-docs": "npm run sync-docs && npm run generate-manifest",
-    "prebuild": "npm run generate-manifest",
+    "prebuild": "npm run prepare-docs",
     "build": "vite build",
     "preview": "vite preview --port 5173"
   },

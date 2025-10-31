@@ -25,17 +25,37 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 Complete documentation for Vigil Guard:
 
+### Getting Started
 | Document | Description |
 |----------|-------------|
+| **[Quick Start Guide](QUICKSTART.md)** ⚡ | Get running in 5 minutes |
 | **[Installation Guide](INSTALLATION.md)** | Setup and deployment instructions |
 | **[User Guide](USER_GUIDE.md)** | Complete UI walkthrough (monitoring, analyzer, file manager) |
-| **[Configuration Reference](CONFIGURATION.md)** | Security policy configuration details |
-| **[Detection Categories](DETECTION_CATEGORIES.md)** | Attack detection patterns and scoring reference |
-| **[Authentication](AUTHENTICATION.md)** | User management and RBAC |
-| **[API Documentation](API.md)** | REST API reference |
 | **[Troubleshooting Guide](TROUBLESHOOTING.md)** | Common issues and solutions |
-| **[Grafana Setup](GRAFANA_SETUP.md)** | Dashboard configuration |
+
+### Configuration & Operations
+| Document | Description |
+|----------|-------------|
+| **[Configuration Reference](CONFIGURATION.md)** | Security policy configuration details |
 | **[Config Variables](CONFIG_VARIABLES.md)** | Variable reference |
+| **[Detection Categories](DETECTION_CATEGORIES.md)** | Attack detection patterns and scoring reference |
+| **[Docker Guide](DOCKER.md)** | Container architecture and management |
+| **[Maintenance Guide](MAINTENANCE.md)** | Updates, backups, and security scanning |
+
+### Security & Authentication
+| Document | Description |
+|----------|-------------|
+| **[Security Guide](SECURITY.md)** | Security policies and best practices |
+| **[Authentication](AUTHENTICATION.md)** | User management and RBAC |
+| **[CI/CD Secrets](CI_SECRETS.md)** | GitHub Actions configuration |
+
+### Integration & APIs
+| Document | Description |
+|----------|-------------|
+| **[API Documentation](API.md)** | REST API reference |
+| **[Grafana Setup](GRAFANA_SETUP.md)** | Dashboard configuration |
+| **[ClickHouse Retention](CLICKHOUSE_RETENTION.md)** | Data lifecycle management |
+| **[PII Detection](PII_DETECTION.md)** | Dual-language PII detection system |
 
 ## 📁 Project Structure
 

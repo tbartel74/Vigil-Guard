@@ -76,10 +76,22 @@ The container starts with these critical security settings:
 
 | Setting | Value | Purpose |
 |---------|-------|---------|
-| `GF_SECURITY_ALLOW_EMBEDDING` | `true` | Enables iframe embedding |
+| `GF_SECURITY_ALLOW_EMBEDDING` | `true` | Enables iframe embedding in Web UI |
 | `GF_SECURITY_COOKIE_SAMESITE` | `lax` | Prevents CORS issues |
-| `GF_AUTH_ANONYMOUS_ENABLED` | `true` | Allows anonymous dashboard viewing |
-| `GF_AUTH_ANONYMOUS_ORG_ROLE` | `Viewer` | Sets anonymous user permissions |
+| `GF_AUTH_ANONYMOUS_ENABLED` | `true` | **Enabled by default** - Required for Web UI iframe embeds |
+| `GF_AUTH_ANONYMOUS_ORG_ROLE` | `Viewer` | Read-only access (cannot modify dashboards) |
+
+**Security Architecture**: Anonymous access is **enabled by default** but secured through:
+1. **JWT Authentication at Web UI layer** - Users must login to Web UI first
+2. **Read-only Viewer role** - Anonymous users cannot modify Grafana configuration
+3. **Reverse proxy (Caddy)** - All traffic routed through authenticated frontend
+4. **Iframe embedding only** - Grafana accessed via authenticated Web UI dashboard page
+
+```
+User Login → Web UI (JWT Auth) → Grafana iframe (anonymous Viewer) → ClickHouse
+```
+
+This design allows seamless dashboard embedding while maintaining security at the application layer. For direct Grafana access hardening, see **Production Configuration** section below.
 
 ### Custom Configuration File
 
