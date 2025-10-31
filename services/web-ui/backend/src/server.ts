@@ -15,6 +15,9 @@ import retentionRoutes from "./retentionRoutes.js";
 const app = express();
 const PORT = 8787;
 
+// Trust first proxy (Caddy) for correct client IP detection
+app.set('trust proxy', 1);
+
 // Validate SESSION_SECRET is set (CRITICAL SECURITY REQUIREMENT)
 if (!process.env.SESSION_SECRET) {
   console.error("❌ FATAL: SESSION_SECRET environment variable is not set!");
