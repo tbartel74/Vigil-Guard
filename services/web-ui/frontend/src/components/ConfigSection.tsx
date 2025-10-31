@@ -55,6 +55,22 @@ export default function ConfigSection() {
     });
   }
 
+  // Get the current value for a field, taking into account pending changes
+  function getCurrentValue(file: string, mapping: any, originalValue: any): any {
+    const fileChanges = changes.find(c => c.file === file);
+    if (!fileChanges) return originalValue;
+
+    const change = fileChanges.updates.find((u: any) => {
+      if (mapping.path) {
+        return u.path === mapping.path;
+      } else {
+        return u.key === mapping.key && (u.section ?? null) === (mapping.section ?? null);
+      }
+    });
+
+    return change ? change.value : originalValue;
+  }
+
   async function onSave() {
     if (!user) {
       toast.error("Error: User not authenticated");
@@ -350,7 +366,7 @@ export default function ConfigSection() {
                               <div className="flex-1">
                                 {v.type === "boolean" ? (
                                   <Select
-                                    value={String(res?.mappings?.[i]?.value ?? "")}
+                                    value={String(getCurrentValue(m.file, m, res?.mappings?.[i]?.value) ?? "")}
                                     onChange={(value) => {
                                       const convertedValue = value === "true";
                                       if (m.path) {
@@ -367,7 +383,7 @@ export default function ConfigSection() {
                                   />
                                 ) : v.type === "select" && v.options ? (
                                   <Select
-                                    value={String(res?.mappings?.[i]?.value ?? "")}
+                                    value={String(getCurrentValue(m.file, m, res?.mappings?.[i]?.value) ?? "")}
                                     onChange={(value) => {
                                       if (m.path) {
                                         onFieldChange(v.name, i, m.file, "json", { path: m.path, value: value });
