@@ -8,8 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalacja zależności Pythona
+# Use requirements.lock for reproducible builds (pinned versions)
+COPY requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
+
+# Keep requirements.txt for reference (development dependencies)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Skopiuj kod
 COPY app.py .
