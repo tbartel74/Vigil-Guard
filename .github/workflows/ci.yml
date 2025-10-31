@@ -210,6 +210,8 @@ jobs:
         env:
           CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD }}
+          GRAFANA_UID: 472
+          GRAFANA_GID: 472
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
           SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
           WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD }}
@@ -224,6 +226,8 @@ jobs:
         env:
           CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
           GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD }}
+          GRAFANA_UID: 472
+          GRAFANA_GID: 472
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
           SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
           WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD }}

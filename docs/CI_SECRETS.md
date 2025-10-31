@@ -2,6 +2,12 @@
 
 > **Required GitHub Actions secrets for automated testing and builds**
 
+## ⚠️ IMPORTANT: Configure Before Merging
+
+**The CI workflows in this repository depend on 5 GitHub Actions secrets being configured BEFORE any code changes are merged.** Failing to configure these secrets will cause all CI workflow runs to fail.
+
+If you see errors like `secrets.CI_CLICKHOUSE_PASSWORD is not set`, follow the "Quick Setup" section below **immediately**.
+
 ## Overview
 
 The Vigil Guard CI/CD pipeline requires 5 GitHub repository secrets to run automated tests and validation. These secrets are used **only** in the CI/CD environment and are separate from production credentials.
