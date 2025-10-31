@@ -669,14 +669,16 @@ create_data_directories() {
             log_success "ClickHouse: 750 (owner: 101:101)"
         fi
 
-        # Grafana data (UID 472:472)
+        # Grafana data (read UID/GID from .env or use defaults)
+        GRAFANA_UID=${GRAFANA_UID:-472}
+        GRAFANA_GID=${GRAFANA_GID:-472}
         if [ -d "vigil_data/grafana" ]; then
-            chown -R 472:472 vigil_data/grafana 2>/dev/null || {
+            chown -R ${GRAFANA_UID}:${GRAFANA_GID} vigil_data/grafana 2>/dev/null || {
                 log_warning "Cannot set ownership (need sudo), using fallback permissions"
                 chmod 755 vigil_data/grafana
             }
             chmod -R 750 vigil_data/grafana 2>/dev/null || true
-            log_success "Grafana: 750 (owner: 472:472)"
+            log_success "Grafana: 750 (owner: ${GRAFANA_UID}:${GRAFANA_GID})"
         fi
 
     elif [ "$PLATFORM" = "macos" ]; then

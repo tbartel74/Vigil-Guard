@@ -44,7 +44,7 @@ services:
   grafana:
     image: grafana/grafana:11.4.0@sha256:d8ea37798ccc41061a62ab080f2676dda6bf7815558499f901bdb0f533a456fb
     container_name: vigil-grafana
-    user: "501:20"  # Run as local user to fix database permissions
+    user: "${GRAFANA_UID:-472}:${GRAFANA_GID:-472}"  # Default Grafana user, override in .env for macOS
     environment:
       GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-vertamedia-clickhouse-datasource}
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
