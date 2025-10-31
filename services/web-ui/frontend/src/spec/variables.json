@@ -406,30 +406,41 @@
       ]
     },
     {
-      "name": "PII_CONFIDENCE_THRESHOLD",
+      "name": "PII_DETECTION_MODE",
       "groupId": "pii",
-      "label": "Confidence Threshold",
-      "type": "number",
+      "label": "Detection Mode",
+      "type": "select",
       "required": true,
-      "help": "Minimum confidence score for PII detection (0.5 = low, 1.0 = very high)",
-      "default": 0.7,
-      "min": 0.5,
-      "max": 1.0,
-      "step": 0.05,
+      "help": "Choose detection sensitivity profile based on your use case",
+      "options": [
+        {
+          "value": "high_security",
+          "label": "High Security (Banking, Healthcare)"
+        },
+        {
+          "value": "balanced",
+          "label": "Balanced (Recommended)"
+        },
+        {
+          "value": "high_precision",
+          "label": "High Precision (Low false positives)"
+        }
+      ],
+      "default": "balanced",
       "map": [
         {
           "file": "unified_config.json",
-          "path": "pii_detection.confidence_threshold"
+          "path": "pii_detection.detection_mode"
         }
       ]
     },
     {
       "name": "PII_FALLBACK_TO_REGEX",
       "groupId": "pii",
-      "label": "Fallback to Regex Rules",
+      "label": "Fallback to Regex",
       "type": "boolean",
       "required": true,
-      "help": "Use regex patterns from pii.conf when Presidio API is unavailable",
+      "help": "Use legacy regex patterns if Presidio API is offline or fails",
       "default": true,
       "map": [
         {
@@ -444,7 +455,7 @@
       "label": "Context Enhancement",
       "type": "boolean",
       "required": true,
-      "help": "Use NLP context to improve detection accuracy (e.g., 'PESEL: 44051401359' vs bare number)",
+      "help": "Analyze surrounding text for better accuracy (e.g., 'PESEL:' keyword before number)",
       "default": true,
       "map": [
         {
@@ -459,11 +470,8 @@
       "label": "API Timeout (ms)",
       "type": "number",
       "required": true,
-      "help": "Maximum time to wait for Presidio API response before fallback",
+      "help": "Request timeout for Presidio API in milliseconds (1000-10000)",
       "default": 3000,
-      "min": 1000,
-      "max": 10000,
-      "step": 500,
       "map": [
         {
           "file": "unified_config.json",
@@ -477,12 +485,11 @@
       "label": "Redaction Mode",
       "type": "select",
       "required": true,
-      "help": "How to redact detected PII: replace with token, hash, or mask with asterisks",
-      "default": "replace",
+      "help": "How to redact detected PII: replace with token, hash, or mask",
       "options": [
         {
           "value": "replace",
-          "label": "Replace with token ([EMAIL], [PESEL])"
+          "label": "Replace ([EMAIL], [PESEL])"
         },
         {
           "value": "hash",
@@ -490,9 +497,10 @@
         },
         {
           "value": "mask",
-          "label": "Mask with asterisks (*****)"
+          "label": "Mask (****59)"
         }
       ],
+      "default": "replace",
       "map": [
         {
           "file": "unified_config.json",

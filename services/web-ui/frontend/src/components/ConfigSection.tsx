@@ -19,6 +19,7 @@ export default function ConfigSection() {
   const [resolveOut, setResolveOut] = useState<any[]>([]);
   const [defaultValues, setDefaultValues] = useState<any[]>([]);
   const [resetKey, setResetKey] = useState<number>(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Find the current section
   const currentSection = sections.sections.find(s => s.id === sectionId);
@@ -33,9 +34,16 @@ export default function ConfigSection() {
   }, [currentSection]);
 
   async function doResolve() {
-    const r = await resolveSpec(spec);
-    setResolveOut(r.results);
-    setDefaultValues(JSON.parse(JSON.stringify(r.results))); // Deep copy for defaults
+    try {
+      const r = await resolveSpec(spec);
+      setResolveOut(r.results);
+      setDefaultValues(JSON.parse(JSON.stringify(r.results))); // Deep copy for defaults
+      setLoadError(null);
+    } catch (error: any) {
+      console.error("Failed to resolve config:", error);
+      setLoadError(`Configuration load failed: ${error.message}`);
+      toast.error("Failed to load configuration. Please refresh the page.");
+    }
   }
 
   function mergeUpdates(existing: any[], u: any) {
@@ -83,8 +91,19 @@ export default function ConfigSection() {
       const changeTag = user.username; // Use username as changeTag
       const out = await saveChanges({ changes, spec, changeTag });
       toast.success(`Configuration saved successfully. ${out.results.length} file(s) updated.`, { id: toastId });
+
+      // Clear changes ONLY after successful save
+      const savedChanges = [...changes]; // Backup for rollback
       setChanges([]);
-      await doResolve();
+
+      try {
+        await doResolve();
+      } catch (reloadError: any) {
+        console.error("Failed to reload config after save:", reloadError);
+        toast.error("Config saved but reload failed. Please refresh the page.", { id: toastId });
+        // Restore changes to prevent data loss
+        setChanges(savedChanges);
+      }
     } catch (e: any) {
       const errorMsg = e.conflict ? "File changed on disk — reload or force save." : `Error: ${e.message}`;
       toast.error(errorMsg, { id: toastId });
@@ -106,7 +125,11 @@ export default function ConfigSection() {
     toast.success('All changes discarded. Values restored from server.');
   }
 
-  useEffect(() => { doResolve().catch(console.error); }, []);
+  useEffect(() => {
+    doResolve().catch((error) => {
+      console.error("Initial config load failed:", error);
+    });
+  }, []);
 
   // Special handling for file-manager section (after all hooks)
   if (sectionId === 'file-manager') {
@@ -118,6 +141,23 @@ export default function ConfigSection() {
       <div className="p-6">
         <div className="text-center py-12">
           <div className="text-text-secondary text-lg">Section not found</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-900/20 border border-red-500 rounded p-4">
+          <h3 className="font-bold text-red-400 mb-2">Configuration Load Error</h3>
+          <p className="text-red-300 mb-4">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white transition-colors"
+          >
+            Reload Page
+          </button>
         </div>
       </div>
     );

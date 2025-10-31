@@ -79,26 +79,26 @@ vigil-guard/
 │   │   ├── sql/              # ClickHouse schema
 │   │   ├── grafana/          # Dashboard provisioning
 │   │   └── docker-compose.yml
-│   └── proxy/                # Caddy reverse proxy
-│       ├── Caddyfile
-│       └── docker-compose.yml
-├── prompt-guard-api/         # Llama Prompt Guard service
-│   ├── app.py               # FastAPI application
-│   ├── Dockerfile           # Container definition
-│   ├── docker-compose.yml   # Service orchestration
-│   ├── requirements.txt     # Python dependencies
-│   └── README.md            # Setup instructions
-├── presidio-pii-api/         # Microsoft Presidio PII Detection (NEW v1.6)
-│   ├── app.py               # Flask application
-│   ├── config/              # Recognizer configurations
-│   │   └── recognizers.yaml # Custom Polish + International recognizers
-│   ├── validators/          # Entity validators
-│   │   ├── credit_card.py  # Luhn algorithm validator
-│   │   └── polish_validators.py # PESEL/NIP/REGON checksums
-│   ├── Dockerfile           # Container definition
-│   ├── docker-compose.yml   # Service orchestration
-│   ├── requirements.txt     # Python dependencies (presidio, spaCy)
-│   └── README.md            # Setup instructions
+│   ├── proxy/                # Caddy reverse proxy
+│   │   ├── Caddyfile
+│   │   └── docker-compose.yml
+│   └── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│       ├── app.py            # Flask application
+│       ├── config/           # Recognizer configurations
+│       │   └── recognizers.yaml # Custom Polish + International recognizers
+│       ├── validators/       # Entity validators
+│       │   ├── credit_card.py  # Luhn algorithm validator
+│       │   └── polish_validators.py # PESEL/NIP/REGON checksums
+│       ├── Dockerfile        # Container definition
+│       ├── docker-compose.yml # Service orchestration
+│       ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│       └── README.md         # Setup instructions
+├── prompt-guard-api/          # Llama Prompt Guard service
+│   ├── app.py                 # FastAPI application
+│   ├── Dockerfile             # Container definition
+│   ├── docker-compose.yml     # Service orchestration
+│   ├── requirements.txt       # Python dependencies
+│   └── README.md              # Setup instructions
 ├── plugin/                    # Browser Extension
 │   ├── Chrome/               # Chrome extension files
 │   │   ├── manifest.json    # Extension manifest (v3)
@@ -513,27 +513,37 @@ Current detection capabilities:
 
 Comprehensive documentation is available in the `docs/` directory:
 
-### Core Documentation
+### Getting Started
+- **[Quick Start Guide](docs/QUICKSTART.md)** ⚡ - Get running in 5 minutes
 - [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
 - [User Guide](docs/USER_GUIDE.md) - Complete user manual
-- [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
-- [API Documentation](docs/API.md) - REST API endpoints and usage
-- [Security Guide](docs/SECURITY.md) - Security policies and best practices
 - [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
-- [Technical Architecture](docs/architecture/architecture.md) - System design details
 
-### Component Documentation
+### Configuration & Operations
+- [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
+- [Configuration Variables](docs/CONFIG_VARIABLES.md) - Variable mapping reference
+- [Security Guide](docs/SECURITY.md) - Security policies and best practices
+- [Docker Guide](docs/DOCKER.md) - Container architecture and management
+- [Maintenance Guide](docs/MAINTENANCE.md) - Updates, backups, and security scanning
+
+### API & Integration
+- [API Documentation](docs/API.md) - REST API endpoints and usage
 - [Browser Extension Guide](docs/plugin/BROWSER_EXTENSION.md) - Plugin installation and configuration
 - [Browser Extension Quick Start](docs/plugin/QUICK_START.md) - 5-minute plugin setup
 - [Browser Extension Architecture](docs/plugin/HYBRID_ARCHITECTURE.md) - Technical implementation details
-- [Test Suite Guide](services/workflow/tests/README.md) - E2E testing and validation
 - [Prompt Guard API](prompt-guard-api/README.md) - LLM Guard service documentation
+- [Presidio PII API](services/presidio-pii-api/README.md) - PII detection service documentation
+
+### Testing & Development
+- [Test Suite Guide](services/workflow/tests/README.md) - E2E testing and validation
+- [CI/CD Secrets](docs/CI_SECRETS.md) - GitHub Actions configuration
+- [Technical Architecture](docs/architecture/architecture.md) - System design details
 
 ### Reference Materials
 - [Detection Categories](docs/DETECTION_CATEGORIES.md) - All 33 threat patterns
-- [Configuration Variables](docs/CONFIG_VARIABLES.md) - Variable mapping reference
+- [ClickHouse Retention](docs/CLICKHOUSE_RETENTION.md) - Data lifecycle management
+- [PII Detection](docs/PII_DETECTION.md) - Dual-language PII detection system
 - [Model Setup](MODEL_SETUP.md) - Llama Prompt Guard download guide
-- [Quick Start](QUICKSTART.md) - 5-minute installation guide
 
 ## 🔧 Configuration
 

@@ -11,9 +11,9 @@
     <!-- CSP: 'unsafe-eval' required for Vite production builds with HMR/React Fast Refresh -->
     <!-- React DevTools and development tooling require Function() constructor -->
     <!-- TODO P4: Investigate CSP-compliant alternatives (hash-based nonces, build config) -->
-    <!-- frame-src: Allow Grafana embeds via Caddy reverse proxy (/grafana) and direct port (3001) -->
+    <!-- frame-src: Allow Grafana embeds from all localhost ports (localhost:* wildcard) -->
     <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; frame-src http://localhost/grafana http://localhost:3001;" />
+      content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; frame-src http://localhost:*;" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Local Config Panel</title>
   </head>

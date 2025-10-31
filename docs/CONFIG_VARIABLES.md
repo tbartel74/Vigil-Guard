@@ -200,6 +200,115 @@ Substring pattern analysis configuration.
 
 ---
 
+## PII Detection
+
+Configure Microsoft Presidio-based PII detection with Polish + International entity support.
+
+### Basic Settings
+
+| Variable | Type | Default | Options | Description |
+|----------|------|---------|---------|-------------|
+| **PII_ENABLED** | boolean | true | - | Enable/disable PII detection |
+| **PII_DETECTION_MODE** | select | balanced | high_security, balanced, high_precision | Detection sensitivity profile |
+| **PII_FALLBACK_TO_REGEX** | boolean | true | - | Use regex patterns if NLP detection fails |
+| **PII_CONTEXT_ENHANCEMENT** | boolean | true | - | Analyze surrounding text for better accuracy |
+| **PII_API_TIMEOUT_MS** | number | 3000 | 1000-10000 | API request timeout in milliseconds |
+| **PII_REDACTION_MODE** | select | replace | replace, hash, mask | How to redact detected PII |
+
+### Detection Modes
+
+Choose the sensitivity profile that matches your security requirements:
+
+| Mode | Use Case | Thresholds | False Positives | Entity Examples |
+|------|----------|-----------|-----------------|-----------------|
+| **high_security** | Banking, Healthcare, Legal | CREDIT_CARD: 0.75, PESEL: 0.35, EMAIL: 0.50 | Higher (more sensitive) | Catches ambiguous patterns |
+| **balanced** | Most B2B apps (recommended) | CREDIT_CARD: 0.85, PESEL: 0.50, EMAIL: 0.70 | Moderate | Good balance of accuracy |
+| **high_precision** | Chatbots, UX-critical apps | CREDIT_CARD: 0.95, PESEL: 0.70, EMAIL: 0.90 | Lower (may miss some PII) | Only high-confidence matches |
+
+**Detection Logic:**
+- Each entity type has a confidence threshold (0.0-1.0)
+- Presidio NLP models assign confidence scores to detected patterns
+- Only entities above the mode-specific threshold are flagged as PII
+- Per-entity thresholds are optimized for each mode
+
+**Example:**
+```
+Input:  "My PESEL is 44051401359 and email is user@example.com"
+
+Mode: balanced
+Output: "My PESEL is [PL_PESEL] and email is [EMAIL_ADDRESS]"
+
+Mode: high_precision (stricter threshold, might miss ambiguous patterns)
+Output: "My PESEL is [PL_PESEL] and email is user@example.com"  # Email threshold not met
+```
+
+### Redaction Modes
+
+| Mode | Example Output | Use Case | Characteristics |
+|------|---------------|----------|-----------------|
+| **replace** | `[CREDIT_CARD]`, `[PL_PESEL]`, `[EMAIL]` | Audit logs, debugging | Human-readable, shows entity type |
+| **hash** | `a8b3f2c1d4e5f6...` (SHA-256) | Data analytics, ML training | Preserves uniqueness for grouping |
+| **mask** | `************59` (last 2 digits) | User-facing displays | Shows partial info for validation |
+
+**Redaction Example:**
+```
+Original: "Card 4111111111111111 and PESEL 44051401359"
+
+replace:  "Card [CREDIT_CARD] and PESEL [PL_PESEL]"
+hash:     "Card a8b3f2c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0 and PESEL d9e8f7c6b5a4d3c2b1a0f9e8d7c6b5a4c3d2e1f0a9b8c7d6e5f4d3c2b1a0"
+mask:     "Card ************11 and PESEL *********59"
+```
+
+### Supported Entity Types
+
+**Polish Entities (11 types):**
+- `PL_PESEL` - 11-digit national ID number
+- `PL_NIP` - 10-digit tax ID
+- `PL_REGON` - 9 or 14-digit business registry number
+- `PL_ID_CARD` - Polish identity card number
+
+**International Entities:**
+- `CREDIT_CARD` - Luhn-valid credit card numbers (Visa, MC, Amex, etc.)
+- `EMAIL_ADDRESS` - Email addresses with TLD validation
+- `PHONE_NUMBER` - International phone formats
+- `PERSON` - Named entity recognition (NER) for person names
+- `IBAN_CODE` - International bank account numbers
+- `IP_ADDRESS` - IPv4 and IPv6 addresses
+- `URL` - Web addresses and URIs
+
+### Architecture
+
+```
+Input → Presidio API (NLP) → Detection Mode Filter → Redaction → Output
+         ↓ (on failure/timeout)
+      Regex Fallback (pii.conf) → Detection → Redaction → Output
+```
+
+**Flow:**
+1. **Primary:** Presidio NLP engine analyzes input with spaCy models
+2. **Mode Filter:** Apply per-entity confidence thresholds for selected mode
+3. **Context Enhancement:** Validate detections using surrounding keywords
+4. **Fallback:** If API fails/times out and fallback enabled, use regex patterns
+5. **Redaction:** Apply selected redaction format to all detected PII
+
+### Performance Metrics
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **Avg Latency** | 50-150ms | Local deployment, simple inputs |
+| **P95 Latency** | 200-400ms | Complex inputs with multiple entities |
+| **Timeout** | 3000ms | Configurable via PII_API_TIMEOUT_MS |
+| **Fallback Time** | ~10ms | Regex-based, very fast |
+| **Memory** | ~500MB | Per Presidio container (spaCy models) |
+
+**Optimization Tips:**
+- Lower `PII_API_TIMEOUT_MS` for faster fail-over to regex (tradeoff: may miss complex PII)
+- Use `high_precision` mode to reduce false positives in performance-critical flows
+- Monitor Presidio container health with `/health` endpoint
+- Scale horizontally (multiple Presidio containers) for high-throughput deployments
+
+---
+
 ## Configuration Tips
 
 1. **Start conservative** - Begin with default settings and adjust based on real traffic

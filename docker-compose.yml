@@ -42,14 +42,18 @@ services:
       retries: 3
 
   grafana:
-    image: grafana/grafana:latest@sha256:74144189b38447facf737dfd0f3906e42e0776212bf575dc3334c3609183adf7
+    image: grafana/grafana:11.4.0@sha256:d8ea37798ccc41061a62ab080f2676dda6bf7815558499f901bdb0f533a456fb
     container_name: vigil-grafana
+    user: "${GRAFANA_UID:-472}:${GRAFANA_GID:-472}"  # Default Grafana user, override in .env for macOS
     environment:
       GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-vertamedia-clickhouse-datasource}
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:?ERROR - GF_SECURITY_ADMIN_PASSWORD must be set in .env file}"
       GF_SECURITY_ALLOW_EMBEDDING: ${GF_SECURITY_ALLOW_EMBEDDING:-true}
-      GF_SECURITY_COOKIE_SAMESITE: ${GF_SECURITY_COOKIE_SAMESITE:-lax}
+      GF_SECURITY_COOKIE_SAMESITE: ${GF_SECURITY_COOKIE_SAMESITE:-none}
+      GF_SECURITY_COOKIE_SECURE: ${GF_SECURITY_COOKIE_SECURE:-false}
+      # Disable CSP for iframe embedding (localhost only, not production)
+      GF_SECURITY_CONTENT_SECURITY_POLICY: ${GF_SECURITY_CONTENT_SECURITY_POLICY:-false}
       # Anonymous access required for iframe embeds in Web UI (restricted to Viewer role, read-only)
       # Web UI itself is protected by JWT authentication - this only affects embedded dashboards
       GF_AUTH_ANONYMOUS_ENABLED: ${GF_AUTH_ANONYMOUS_ENABLED:-true}
@@ -77,7 +81,7 @@ services:
   # WORKFLOW ENGINE
   # ============================================
   n8n:
-    image: n8nio/n8n:latest@sha256:fa410b71ccb5ddee9f9e4b25a964fbc8fcf56744d5f24dc4d2b8b414ae76ee26
+    image: n8nio/n8n:1.72.0@sha256:f0182719d8b29884a7705b67435c555d63ae88af35ad876ff4ed5710204797f6
     container_name: vigil-n8n
     user: "node"
     working_dir: /home/node

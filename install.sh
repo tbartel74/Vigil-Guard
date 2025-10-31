@@ -54,6 +54,118 @@ detect_platform() {
     fi
 }
 
+# State file for tracking installation
+INSTALL_STATE_FILE=".install-state.lock"
+
+# Check if this is a re-run on existing installation
+check_existing_installation() {
+    if [ -f "$INSTALL_STATE_FILE" ]; then
+        log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_warning "  Existing Installation Detected"
+        log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "Previous installation: $(cat $INSTALL_STATE_FILE)"
+        echo ""
+        log_warning "IMPORTANT: Re-running install.sh on existing installation"
+        echo ""
+        log_info "This installation will:"
+        echo "  • ${GREEN}Preserve${NC} all data volumes (ClickHouse, Grafana, Web UI)"
+        echo "  • ${GREEN}Keep${NC} existing passwords (unless you choose to reset)"
+        echo "  • ${YELLOW}Update${NC} configuration files and services"
+        echo ""
+        log_warning "Data preservation is the default safe behavior."
+        echo ""
+        read -r -p "Continue with update? (y/N): " REPLY
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Installation cancelled by user"
+            exit 0
+        fi
+        # Return 0 = existing installation detected (success, but needs update mode)
+        return 0
+    else
+        # Return 1 = fresh installation (no existing state, normal install proceeds)
+        return 1
+    fi
+}
+
+# Detect existing Docker volumes
+detect_volumes() {
+    local volumes_found=0
+
+    if docker volume ls | grep -q "vigil"; then
+        volumes_found=1
+        echo ""
+        log_info "Found existing Docker volumes:"
+        docker volume ls | grep "vigil" | awk '{print "  • " $2}'
+        echo ""
+    fi
+
+    if [ -d "vigil_data/clickhouse" ]; then
+        volumes_found=1
+        local size
+        size=$(du -sh vigil_data/clickhouse 2>/dev/null | awk '{print $1}')
+        log_info "Found local ClickHouse data directory: vigil_data/clickhouse ($size)"
+    fi
+
+    return $volumes_found
+}
+
+# Confirm data destruction with user
+confirm_data_destruction() {
+    local reason="$1"
+
+    echo ""
+    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_error "  ⚠️  DATA DESTRUCTION WARNING ⚠️"
+    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    log_warning "Reason: ${reason}"
+    echo ""
+
+    # Show what will be deleted
+    detect_volumes
+
+    echo ""
+    log_error "⚠️  ALL DATA IN THESE VOLUMES WILL BE PERMANENTLY DELETED ⚠️"
+    echo ""
+    log_info "This includes:"
+    echo "  • All ClickHouse logs (events_raw, events_processed)"
+    echo "  • Security audit trails (30-365 days of data)"
+    echo "  • Grafana dashboards and settings"
+    echo "  • Web UI database (users, sessions)"
+    echo ""
+    log_warning "This action CANNOT be undone!"
+    echo ""
+    log_info "If you want to preserve data, cancel now and:"
+    echo "  1. Backup vigil_data/ directory"
+    echo "  2. Export ClickHouse tables manually"
+    echo "  3. Use existing passwords (edit .env manually)"
+    echo ""
+
+    read -r -p "Type 'DELETE' (all caps) to confirm data destruction: " CONFIRM
+    echo
+
+    if [ "$CONFIRM" != "DELETE" ]; then
+        log_info "Data destruction cancelled by user"
+        log_info "Installation cannot proceed with password rotation"
+        log_info "To continue, either:"
+        log_info "  1. Keep existing passwords (edit .env manually)"
+        log_info "  2. Backup data and re-run with DELETE confirmation"
+        exit 1
+    fi
+
+    log_warning "Confirmation received - proceeding with data destruction..."
+}
+
+# Save installation state
+save_install_state() {
+    local timestamp
+    timestamp=$(date +%Y-%m-%d_%H:%M:%S)
+    echo "$timestamp - Vigil Guard installation completed successfully" > "$INSTALL_STATE_FILE"
+    log_success "Installation state saved to $INSTALL_STATE_FILE"
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_header "1/8 Checking Prerequisites"
@@ -121,7 +233,7 @@ check_prerequisites() {
     log_info "Checking spaCy models for PII detection..."
     MODELS_DIR="services/presidio-pii-api/models"
     if [ -d "$MODELS_DIR" ] && [ -f "$MODELS_DIR/checksums.sha256" ]; then
-        MODEL_COUNT=$(ls "$MODELS_DIR"/*.whl 2>/dev/null | wc -l | tr -d ' ')
+        MODEL_COUNT=$(find "$MODELS_DIR" -maxdepth 1 -name "*.whl" 2>/dev/null | wc -l | tr -d ' ')
         if [ "$MODEL_COUNT" -ge 2 ]; then
             log_success "spaCy models found ($MODEL_COUNT .whl files)"
         else
@@ -212,7 +324,7 @@ generate_secure_passwords() {
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    read -p "Press Enter after you have SAVED these credentials..."
+    read -r -p "Press Enter after you have SAVED these credentials..."
     echo ""
 }
 
@@ -346,13 +458,11 @@ setup_environment() {
         log_success ".env file already exists"
 
         # Check for default/insecure values
-        local warnings_found=0
         local force_regenerate=0
 
         # Check JWT_SECRET
         if grep -q "JWT_SECRET=change-this" .env; then
             log_warning "⚠️  JWT_SECRET is using default value - generating new one"
-            warnings_found=1
             if command_exists openssl; then
                 JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
                 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -364,8 +474,9 @@ setup_environment() {
             fi
         fi
 
-        # Check for ANY instance of admin123 (critical security issue)
-        if grep -q "admin123" .env; then
+        # Check for default passwords in ACTUAL VALUES (not comments)
+        # Only check variables that are actually set, ignoring comments and empty lines
+        if grep -Eq '^(CLICKHOUSE_PASSWORD|GF_SECURITY_ADMIN_PASSWORD|WEB_UI_ADMIN_PASSWORD|N8N_BASIC_AUTH_PASSWORD)=admin123$' .env; then
             log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             log_error "  CRITICAL SECURITY ISSUE: Default passwords detected!"
             log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -383,75 +494,98 @@ setup_environment() {
         fi
 
         if [ "$force_regenerate" -eq 1 ]; then
-            echo ""
-            log_info "Auto-generating secure passwords to replace defaults..."
-            echo ""
-            generate_secure_passwords
-
-            # CRITICAL SECURITY: Remove old ClickHouse volume to prevent password mismatch
-            echo ""
-            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            log_warning "  Password Rotation: ClickHouse Volume Cleanup Required"
-            log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            log_info "Rotating from default passwords to secure auto-generated passwords"
-            log_info "Old ClickHouse volume must be removed to prevent authentication conflicts"
-            echo ""
-
-            if [ -d "vigil_data/clickhouse" ]; then
-                # Verify Docker is accessible
-                if ! docker info >/dev/null 2>&1; then
-                    log_error "Docker daemon not accessible - cannot perform cleanup"
-                    log_error "Start Docker and try again"
-                    exit 1
-                fi
-
-                # Stop and remove container
-                log_info "Stopping ClickHouse container if running..."
-                docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
-
-                log_info "Removing ClickHouse container if present..."
-                docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
-
-                # Wait for full shutdown
-                sleep 2
-
-                # Remove volume data with error handling
-                log_info "Removing old ClickHouse volume data..."
-                if ! rm -rf vigil_data/clickhouse 2>&1; then
-                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    log_error "  CRITICAL SECURITY FAILURE: Password Rotation Cannot Complete"
-                    log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                    echo ""
-                    log_error "Cannot remove old ClickHouse volume at vigil_data/clickhouse"
-                    log_error "System CANNOT rotate to secure passwords with old volume present"
-                    echo ""
-                    log_warning "SECURITY IMPACT:"
-                    log_warning "  • System will continue using default/insecure passwords"
-                    log_warning "  • This is a CRITICAL SECURITY VULNERABILITY"
-                    log_warning "  • You MUST resolve this before deploying to production"
-                    echo ""
-                    log_info "Manual intervention required:"
-                    log_info "  1. Stop all services: docker-compose down"
-                    log_info "  2. Remove volume: sudo rm -rf vigil_data/clickhouse"
-                    log_info "  3. Re-run installation: ./install.sh"
-                    echo ""
-                    log_error "ABORTING: Cannot proceed with insecure configuration"
-                    exit 1
-                fi
-
-                # Verify deletion succeeded
-                if [ -d "vigil_data/clickhouse" ]; then
-                    log_error "CRITICAL: Volume directory still exists after deletion!"
-                    log_error "Filesystem error detected - cannot complete password rotation"
-                    exit 1
-                fi
-
-                log_success "Old ClickHouse volume removed - will recreate with new password"
+            # Check if this is a re-run on existing installation
+            if [ -f "$INSTALL_STATE_FILE" ]; then
+                # Existing installation - user must explicitly choose password rotation
                 echo ""
-            else
-                log_info "No existing ClickHouse volume found - proceeding with password rotation"
+                log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                log_warning "  Password Rotation on Existing Installation"
+                log_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
+                log_info "Default passwords detected, but this is an EXISTING installation."
+                log_info "Password rotation will DESTROY all ClickHouse data to prevent auth conflicts."
+                echo ""
+                read -r -p "Do you want to rotate passwords? (y/N): " ROTATE_REPLY
+                echo
+
+                if [[ ! $ROTATE_REPLY =~ ^[Yy]$ ]]; then
+                    log_info "Password rotation skipped by user"
+                    log_warning "Installation will continue with existing passwords"
+                    log_warning "⚠️  SECURITY RISK: Default passwords remain in use!"
+                    log_info "To manually change passwords:"
+                    log_info "  1. Edit .env file with strong passwords (32+ chars)"
+                    log_info "  2. Run: docker-compose down"
+                    log_info "  3. Run: rm -rf vigil_data/clickhouse"
+                    log_info "  4. Run: docker-compose up -d"
+                    force_regenerate=0  # Skip password generation
+                fi
+            fi
+
+            # If still need to regenerate (either fresh install or user confirmed rotation)
+            if [ "$force_regenerate" -eq 1 ]; then
+                echo ""
+                log_info "Auto-generating secure passwords to replace defaults..."
+                echo ""
+                generate_secure_passwords
+
+                # CRITICAL: Confirm data destruction before removing volumes
+                if [ -d "vigil_data/clickhouse" ] || docker volume ls | grep -q "vigil"; then
+                    confirm_data_destruction "Password rotation requires ClickHouse re-initialization"
+
+                    # Verify Docker is accessible
+                    if ! docker info >/dev/null 2>&1; then
+                        log_error "Docker daemon not accessible - cannot perform cleanup"
+                        log_error "Start Docker and try again"
+                        exit 1
+                    fi
+
+                    # Stop and remove container
+                    log_info "Stopping ClickHouse container if running..."
+                    docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
+
+                    log_info "Removing ClickHouse container if present..."
+                    docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
+
+                    # Wait for full shutdown
+                    sleep 2
+
+                    # Remove volume data with error handling
+                    log_info "Removing old ClickHouse volume data..."
+                    if ! rm -rf vigil_data/clickhouse 2>&1; then
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        log_error "  CRITICAL SECURITY FAILURE: Password Rotation Cannot Complete"
+                        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                        echo ""
+                        log_error "Cannot remove old ClickHouse volume at vigil_data/clickhouse"
+                        log_error "System CANNOT rotate to secure passwords with old volume present"
+                        echo ""
+                        log_warning "SECURITY IMPACT:"
+                        log_warning "  • System will continue using default/insecure passwords"
+                        log_warning "  • This is a CRITICAL SECURITY VULNERABILITY"
+                        log_warning "  • You MUST resolve this before deploying to production"
+                        echo ""
+                        log_info "Manual intervention required:"
+                        log_info "  1. Stop all services: docker-compose down"
+                        log_info "  2. Remove volume: sudo rm -rf vigil_data/clickhouse"
+                        log_info "  3. Re-run installation: ./install.sh"
+                        echo ""
+                        log_error "ABORTING: Cannot proceed with insecure configuration"
+                        exit 1
+                    fi
+
+                    # Verify deletion succeeded
+                    if [ -d "vigil_data/clickhouse" ]; then
+                        log_error "CRITICAL: Volume directory still exists after deletion!"
+                        log_error "Filesystem error detected - cannot complete password rotation"
+                        exit 1
+                    fi
+
+                    log_success "Old ClickHouse volume removed - will recreate with new password"
+                    echo ""
+                else
+                    log_info "No existing ClickHouse volume found - proceeding with password rotation"
+                    echo ""
+                fi
             fi
         fi
     fi
@@ -476,6 +610,16 @@ setup_environment() {
         log_error "Grafana datasource template not found: $CLICKHOUSE_DATASOURCE_TEMPLATE"
         exit 1
     fi
+
+    # Validate environment variables before proceeding
+    echo ""
+    log_info "Validating environment variables..."
+    if ! bash scripts/validate-env.sh; then
+        log_error "Environment validation failed - cannot proceed with installation"
+        log_error "Fix the issues above and re-run ./install.sh"
+        exit 1
+    fi
+    log_success "Environment variables validated successfully"
 
     echo ""
 }
@@ -525,14 +669,16 @@ create_data_directories() {
             log_success "ClickHouse: 750 (owner: 101:101)"
         fi
 
-        # Grafana data (UID 472:472)
+        # Grafana data (read UID/GID from .env or use defaults)
+        GRAFANA_UID=${GRAFANA_UID:-472}
+        GRAFANA_GID=${GRAFANA_GID:-472}
         if [ -d "vigil_data/grafana" ]; then
-            chown -R 472:472 vigil_data/grafana 2>/dev/null || {
+            chown -R ${GRAFANA_UID}:${GRAFANA_GID} vigil_data/grafana 2>/dev/null || {
                 log_warning "Cannot set ownership (need sudo), using fallback permissions"
                 chmod 755 vigil_data/grafana
             }
             chmod -R 750 vigil_data/grafana 2>/dev/null || true
-            log_success "Grafana: 750 (owner: 472:472)"
+            log_success "Grafana: 750 (owner: ${GRAFANA_UID}:${GRAFANA_GID})"
         fi
 
     elif [ "$PLATFORM" = "macos" ]; then
@@ -667,12 +813,10 @@ initialize_clickhouse() {
 
     # Create database
     log_info "Creating ${CLICKHOUSE_DB} database..."
-    DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
+    if DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
 CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
 EOF
-)
-
-    if [ $? -eq 0 ]; then
+); then
         log_success "Database created"
     else
         log_error "Failed to create database"
@@ -1231,6 +1375,14 @@ main() {
     # CRITICAL: Check for Llama model FIRST, before anything else
     check_llama_model
 
+    # Check if this is a re-run on existing installation
+    if check_existing_installation; then
+        log_info "Re-running installation on existing system (update mode)"
+    else
+        log_info "Fresh installation detected"
+    fi
+    echo ""
+
     log_warning "This script will install and start all Vigil Guard components."
     log_warning "Estimated time: 5-10 minutes"
     echo ""
@@ -1248,6 +1400,9 @@ main() {
     initialize_grafana
     verify_services
     show_summary
+
+    # Save installation state for idempotency tracking
+    save_install_state
 }
 
 # Run main function

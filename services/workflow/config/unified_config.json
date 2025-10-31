@@ -193,7 +193,7 @@
     "provider": "presidio",
     "api_url": "http://vigil-presidio-pii:5001/analyze",
     "api_timeout_ms": 3000,
-    "confidence_threshold": 0.7,
+    "detection_mode": "balanced",
     "entities": [
       "EMAIL_ADDRESS",
       "PHONE_NUMBER",
