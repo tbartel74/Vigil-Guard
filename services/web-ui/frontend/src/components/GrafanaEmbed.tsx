@@ -114,7 +114,7 @@ export default function GrafanaEmbed({ src, title, width = "100%", height = "250
           console.log('Grafana iframe loaded successfully');
           setStatus('success');
         }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        allow="fullscreen"
       />
     </div>
   );
