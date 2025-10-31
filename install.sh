@@ -609,6 +609,16 @@ setup_environment() {
         exit 1
     fi
 
+    # Validate environment variables before proceeding
+    echo ""
+    log_info "Validating environment variables..."
+    if ! bash scripts/validate-env.sh; then
+        log_error "Environment validation failed - cannot proceed with installation"
+        log_error "Fix the issues above and re-run ./install.sh"
+        exit 1
+    fi
+    log_success "Environment variables validated successfully"
+
     echo ""
 }
 
