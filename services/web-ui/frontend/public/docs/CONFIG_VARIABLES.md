@@ -65,6 +65,97 @@ Control memory usage and accuracy tradeoffs for pattern detection.
 
 ---
 
+## PII Detection
+
+**Version:** 1.6.10+ | **Engine:** Microsoft Presidio
+
+Automatic detection and redaction of personally identifiable information (PII) using NLP-powered Microsoft Presidio with dual-language support (Polish + International entities).
+
+### Enable PII Detection
+```yaml
+Variable: PII_ENABLED
+Type: boolean
+Default: true
+```
+
+Master switch for PII detection. When enabled, all user input is analyzed for PII before processing.
+
+**Entities Detected:**
+- **Polish:** PESEL, REGON, NIP, Polish ID cards, driver's licenses
+- **International:** Credit cards (Visa, Mastercard, Amex), emails, phone numbers, IP addresses, SSN, passport numbers, IBAN, medical records
+
+### Detection Settings
+
+| Variable | Description | Default | Range |
+|----------|-------------|---------|-------|
+| **PII_CONFIDENCE_THRESHOLD** | Minimum confidence score for detection | 0.7 | 0.5-1.0 |
+| **PII_FALLBACK_TO_REGEX** | Use regex patterns when API unavailable | true | boolean |
+| **PII_CONTEXT_ENHANCEMENT** | Use NLP context for accuracy | true | boolean |
+| **PII_API_TIMEOUT_MS** | Presidio API timeout before fallback | 3000 | 1000-10000 |
+
+**Confidence Threshold Guide:**
+- **0.5-0.6** - Very sensitive (high false positives)
+- **0.7** - Balanced (recommended)
+- **0.8-0.9** - Conservative (may miss edge cases)
+- **1.0** - Only exact matches (not recommended)
+
+### Redaction Strategy
+```yaml
+Variable: PII_REDACTION_MODE
+Type: select
+Default: replace
+Options: replace | hash | mask
+```
+
+**Redaction Modes:**
+- **`replace`** - Replace with entity type tokens (e.g., `[EMAIL]`, `[PESEL]`, `[CREDIT_CARD]`)
+  - ✅ Recommended: Audit trails show what was redacted
+  - ✅ Reversible if you keep mapping in secure storage
+
+- **`hash`** - Replace with SHA-256 hash
+  - ✅ Cryptographically secure
+  - ❌ Irreversible (cannot recover original)
+  - ⚠️ Same PII always hashes to same value
+
+- **`mask`** - Replace with asterisks (`*****`)
+  - ❌ Not recommended: Loses information about entity type
+  - ⚠️ Cannot distinguish between email, phone, PESEL, etc.
+
+**Example:**
+```
+Input:  "My PESEL is 44051401359 and email is user@example.com"
+
+replace: "My PESEL is [PESEL] and email is [EMAIL]"
+hash:    "My PESEL is a8b3f2... and email is d9e4c1..."
+mask:    "My PESEL is *********** and email is *****************"
+```
+
+### Architecture
+
+```
+User Input → Presidio API (vigil-presidio-pii:5001)
+              ↓ (success)
+           Entity Detection (confidence filtering)
+              ↓
+           Redaction (per mode)
+
+              ↓ (timeout/error)
+           Regex Fallback (pii.conf patterns)
+              ↓
+           Basic Pattern Matching
+```
+
+**Fallback Behavior:**
+- If `PII_FALLBACK_TO_REGEX = true` and Presidio fails → Use regex patterns
+- If `PII_FALLBACK_TO_REGEX = false` and Presidio fails → No PII detection (risk!)
+
+**Performance:**
+- Presidio API: ~100-300ms latency (local Docker)
+- Regex fallback: ~5-10ms latency
+- Timeout protection prevents blocking main workflow
+
+---
+
 ## Advanced Settings
 
 ### Text Normalization
