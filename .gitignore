@@ -58,6 +58,9 @@ final_production_install.log
 dry_run*.log
 install*.log
 
+# Installation state (idempotency tracking)
+.install-state.lock
+
 # Docker
 docker-compose.override.yml
 
