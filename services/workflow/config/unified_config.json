@@ -96,6 +96,15 @@
     "match_mod": 97,
     "min_matched_bits": 2
   },
+  "pii_detection": {
+    "enabled": true,
+    "confidence_threshold": 0.7,
+    "fallback_to_regex": true,
+    "context_enhancement": true,
+    "api_url": "http://vigil-presidio-pii:5001/analyze",
+    "api_timeout_ms": 3000,
+    "redaction_mode": "replace"
+  },
   "prefilter": {
     "ngram": {
       "min": 3,

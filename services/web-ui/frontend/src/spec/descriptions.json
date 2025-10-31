@@ -140,5 +140,41 @@
     "description": "Number of characters (100-10000) to analyze at the beginning of input for pattern matching.",
     "impact": "Low",
     "category": "Pattern Analysis"
+  },
+  "PII_ENABLED": {
+    "title": "Enable PII Detection",
+    "description": "Automatically detects and redacts personally identifiable information (PII) using Microsoft Presidio NLP engine with dual-language support (Polish + International entities).",
+    "impact": "High",
+    "category": "Privacy & Compliance"
+  },
+  "PII_CONFIDENCE_THRESHOLD": {
+    "title": "PII Detection Confidence Threshold",
+    "description": "Minimum confidence score (0.5-1.0) for Presidio to flag entity as PII. Lower values = more sensitive detection but higher false positives. Recommended: 0.7 for balanced accuracy.",
+    "impact": "Medium",
+    "category": "Privacy & Compliance"
+  },
+  "PII_FALLBACK_TO_REGEX": {
+    "title": "Regex Fallback for PII Detection",
+    "description": "When Presidio API is unavailable or times out, use regex patterns from pii.conf as backup. Ensures PII detection continues even during API outages.",
+    "impact": "High",
+    "category": "Privacy & Compliance"
+  },
+  "PII_CONTEXT_ENHANCEMENT": {
+    "title": "Context-Enhanced PII Detection",
+    "description": "Use NLP context analysis to improve accuracy. Example: '44051401359' alone might be ignored, but 'PESEL: 44051401359' is detected. Reduces false negatives.",
+    "impact": "Medium",
+    "category": "Privacy & Compliance"
+  },
+  "PII_API_TIMEOUT_MS": {
+    "title": "Presidio API Timeout",
+    "description": "Maximum wait time (1000-10000ms) for Presidio API response before falling back to regex. Lower values = faster failover but may skip API results on slow networks.",
+    "impact": "Low",
+    "category": "Privacy & Compliance"
+  },
+  "PII_REDACTION_MODE": {
+    "title": "PII Redaction Strategy",
+    "description": "How to redact detected PII: 'replace' = tokens like [EMAIL]/[PESEL], 'hash' = SHA-256 hashes (irreversible), 'mask' = asterisks (*****). Recommended: 'replace' for auditability.",
+    "impact": "Medium",
+    "category": "Privacy & Compliance"
   }
 }

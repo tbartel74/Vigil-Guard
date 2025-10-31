@@ -23,6 +23,12 @@
       "label": "Advanced",
       "description": "Normalization, sanitization, whitelists",
       "order": 4
+    },
+    {
+      "id": "pii",
+      "label": "PII Detection",
+      "description": "Personally identifiable information detection",
+      "order": 5
     }
   ],
   "variables": [
@@ -383,6 +389,116 @@
         }
       ],
       "default": 96
+    },
+    {
+      "name": "PII_ENABLED",
+      "groupId": "pii",
+      "label": "Enable PII Detection",
+      "type": "boolean",
+      "required": true,
+      "help": "Enable automatic redaction of personally identifiable information using Microsoft Presidio",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.enabled"
+        }
+      ]
+    },
+    {
+      "name": "PII_CONFIDENCE_THRESHOLD",
+      "groupId": "pii",
+      "label": "Confidence Threshold",
+      "type": "number",
+      "required": true,
+      "help": "Minimum confidence score for PII detection (0.5 = low, 1.0 = very high)",
+      "default": 0.7,
+      "min": 0.5,
+      "max": 1.0,
+      "step": 0.05,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.confidence_threshold"
+        }
+      ]
+    },
+    {
+      "name": "PII_FALLBACK_TO_REGEX",
+      "groupId": "pii",
+      "label": "Fallback to Regex Rules",
+      "type": "boolean",
+      "required": true,
+      "help": "Use regex patterns from pii.conf when Presidio API is unavailable",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.fallback_to_regex"
+        }
+      ]
+    },
+    {
+      "name": "PII_CONTEXT_ENHANCEMENT",
+      "groupId": "pii",
+      "label": "Context Enhancement",
+      "type": "boolean",
+      "required": true,
+      "help": "Use NLP context to improve detection accuracy (e.g., 'PESEL: 44051401359' vs bare number)",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.context_enhancement"
+        }
+      ]
+    },
+    {
+      "name": "PII_API_TIMEOUT_MS",
+      "groupId": "pii",
+      "label": "API Timeout (ms)",
+      "type": "number",
+      "required": true,
+      "help": "Maximum time to wait for Presidio API response before fallback",
+      "default": 3000,
+      "min": 1000,
+      "max": 10000,
+      "step": 500,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.api_timeout_ms"
+        }
+      ]
+    },
+    {
+      "name": "PII_REDACTION_MODE",
+      "groupId": "pii",
+      "label": "Redaction Mode",
+      "type": "select",
+      "required": true,
+      "help": "How to redact detected PII: replace with token, hash, or mask with asterisks",
+      "default": "replace",
+      "options": [
+        {
+          "value": "replace",
+          "label": "Replace with token ([EMAIL], [PESEL])"
+        },
+        {
+          "value": "hash",
+          "label": "Hash (SHA-256)"
+        },
+        {
+          "value": "mask",
+          "label": "Mask with asterisks (*****)"
+        }
+      ],
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "pii_detection.redaction_mode"
+        }
+      ]
     }
   ]
 }

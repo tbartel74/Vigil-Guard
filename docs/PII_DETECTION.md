@@ -1,9 +1,8 @@
 # PII Detection with Microsoft Presidio
 
 **Version:** 1.6.10
-**Last Updated:** 2025-01-30
+**Last Updated:** 2025-01-31
 **Status:** Production Ready
-**Latest Feature:** Dual-Language Detection (Polish + International)
 
 ---
 
