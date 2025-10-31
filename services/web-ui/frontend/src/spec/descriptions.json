@@ -143,38 +143,48 @@
   },
   "PII_ENABLED": {
     "title": "Enable PII Detection",
-    "description": "Automatically detects and redacts personally identifiable information (PII) using Microsoft Presidio NLP engine with dual-language support (Polish + International entities).",
+    "description": "Automatically detects and redacts personally identifiable information (PII) using Microsoft Presidio NLP engine with dual-language support (Polish + International entities). Detects 11+ entity types including PESEL, NIP, REGON, credit cards, emails, phone numbers, IP addresses, and more.",
     "impact": "High",
     "category": "Privacy & Compliance"
   },
-  "PII_CONFIDENCE_THRESHOLD": {
-    "title": "PII Detection Confidence Threshold",
-    "description": "Minimum confidence score (0.5-1.0) for Presidio to flag entity as PII. Lower values = more sensitive detection but higher false positives. Recommended: 0.7 for balanced accuracy.",
+  "PII_DETECTION_MODE": {
+    "title": "PII Detection Mode",
+    "description": "Selects detection sensitivity profile:\n• High Security: Banking/Healthcare (CREDIT_CARD ≥0.75, PESEL ≥0.35, EMAIL ≥0.50) - more false positives, catches ambiguous patterns\n• Balanced: Most B2B apps (CREDIT_CARD ≥0.85, PESEL ≥0.50, EMAIL ≥0.70) - recommended default\n• High Precision: UX-critical apps (CREDIT_CARD ≥0.95, PESEL ≥0.70, EMAIL ≥0.90) - fewer false positives, may miss some PII\n\nEach mode uses different per-entity confidence thresholds optimized for specific use cases.",
+    "impact": "High",
+    "category": "Privacy & Compliance",
+    "options": {
+      "high_security": "Banking, Healthcare (strict detection)",
+      "balanced": "Most B2B applications (recommended)",
+      "high_precision": "Chatbots, UX-critical (low false positives)"
+    }
+  },
+  "PII_FALLBACK_TO_REGEX": {
+    "title": "Fallback to Regex Patterns",
+    "description": "When enabled, uses legacy regex patterns from pii.conf if Presidio API is offline or fails. Provides fallback protection but regex-based detection is less accurate than NLP. Disable for API-only detection with strict validation.",
     "impact": "Medium",
     "category": "Privacy & Compliance"
   },
-  "PII_FALLBACK_TO_REGEX": {
-    "title": "Regex Fallback for PII Detection",
-    "description": "When Presidio API is unavailable or times out, use regex patterns from pii.conf as backup. Ensures PII detection continues even during API outages.",
-    "impact": "High",
-    "category": "Privacy & Compliance"
-  },
   "PII_CONTEXT_ENHANCEMENT": {
-    "title": "Context-Enhanced PII Detection",
-    "description": "Use NLP context analysis to improve accuracy. Example: '44051401359' alone might be ignored, but 'PESEL: 44051401359' is detected. Reduces false negatives.",
+    "title": "Context-Aware Detection",
+    "description": "Analyzes surrounding text for keywords like 'PESEL:', 'email:', 'card number:' to improve detection accuracy. Context clues reduce false positives by validating that numbers/patterns appear in PII-related contexts. Recommended for Polish language inputs.",
     "impact": "Medium",
     "category": "Privacy & Compliance"
   },
   "PII_API_TIMEOUT_MS": {
     "title": "Presidio API Timeout",
-    "description": "Maximum wait time (1000-10000ms) for Presidio API response before falling back to regex. Lower values = faster failover but may skip API results on slow networks.",
+    "description": "Request timeout (1000-10000ms) for Presidio API calls. Lower values fail faster but may timeout on complex inputs. Higher values allow thorough analysis but slow response. Default 3000ms handles most inputs. If timeout occurs, fallback to regex (if enabled) or block request.",
     "impact": "Low",
-    "category": "Privacy & Compliance"
+    "category": "Performance"
   },
   "PII_REDACTION_MODE": {
-    "title": "PII Redaction Strategy",
-    "description": "How to redact detected PII: 'replace' = tokens like [EMAIL]/[PESEL], 'hash' = SHA-256 hashes (irreversible), 'mask' = asterisks (*****). Recommended: 'replace' for auditability.",
+    "title": "PII Redaction Format",
+    "description": "How to redact detected PII in output:\n• Replace: [EMAIL], [PESEL], [CARD] - human-readable, best for audit logs/debugging\n• Hash: SHA-256 hash (a8b3f2c1d4...) - preserves uniqueness, good for analytics/ML training\n• Mask: ****59 (last 2 digits visible) - user-friendly, shows partial info for validation\n\nAll modes redact sensitive data but differ in output format and use case suitability.",
     "impact": "Medium",
-    "category": "Privacy & Compliance"
+    "category": "Privacy & Compliance",
+    "options": {
+      "replace": "Token replacement ([EMAIL], [PESEL])",
+      "hash": "SHA-256 cryptographic hash",
+      "mask": "Partial masking (****59)"
+    }
   }
 }
