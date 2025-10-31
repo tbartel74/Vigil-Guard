@@ -151,9 +151,9 @@ jobs:
             web-ui-backend)
               docker run -d --name test-container -p 8787:8787 \
                 -e NODE_ENV=test \
-                -e JWT_SECRET=${{ secrets.CI_JWT_SECRET }} \
-                -e SESSION_SECRET=${{ secrets.CI_SESSION_SECRET }} \
-                -e WEB_UI_ADMIN_PASSWORD=${{ secrets.CI_WEB_UI_ADMIN_PASSWORD }} \
+                -e JWT_SECRET="${{ secrets.CI_JWT_SECRET || 'test-jwt-secret-min-32-chars-long-for-ci-smoke-test' }}" \
+                -e SESSION_SECRET="${{ secrets.CI_SESSION_SECRET || 'test-session-secret-min-64-chars-long-for-ci-smoke-test-validation-x' }}" \
+                -e WEB_UI_ADMIN_PASSWORD="${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars' }}" \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
               sleep 5
@@ -208,13 +208,13 @@ jobs:
       - name: Validate docker-compose.yml
         run: docker compose config > /dev/null
         env:
-          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
-          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
+          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD || 'test-grafana-password-min-32-chars-x' }}
           GRAFANA_UID: 472
           GRAFANA_GID: 472
-          JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-          SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
-          WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'test-jwt-secret-min-32-chars-long-for-ci-validation' }}
+          SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET || 'test-session-secret-min-64-chars-long-for-ci-validation-tests-x' }}
+          WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars-x' }}
 
       - name: Check required services
         run: |
@@ -224,13 +224,13 @@ jobs:
             echo "$services" | grep -q "$svc" || (echo "Missing service: $svc" && exit 1)
           done
         env:
-          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
-          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
+          GF_SECURITY_ADMIN_PASSWORD: ${{ secrets.CI_GRAFANA_ADMIN_PASSWORD || 'test-grafana-password-min-32-chars-x' }}
           GRAFANA_UID: 472
           GRAFANA_GID: 472
-          JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-          SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET }}
-          WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'test-jwt-secret-min-32-chars-long-for-ci-validation' }}
+          SESSION_SECRET: ${{ secrets.CI_SESSION_SECRET || 'test-session-secret-min-64-chars-long-for-ci-validation-tests-x' }}
+          WEB_UI_ADMIN_PASSWORD: ${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars-x' }}
 
   # Documentation validation
   docs-check:

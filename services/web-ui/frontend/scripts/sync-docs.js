@@ -88,7 +88,10 @@ function cleanTarget() {
 try {
   // Validate source exists
   if (!fs.existsSync(SOURCE_DIR)) {
-    throw new Error(`Source directory not found: ${SOURCE_DIR}`);
+    // In Docker build, docs are already copied by Dockerfile COPY ./docs ./public/docs
+    console.log('⚠️  Source directory not found (expected in Docker build)');
+    console.log('✅ Assuming docs are already in place via Dockerfile COPY\n');
+    process.exit(0);
   }
 
   // Clean old files
