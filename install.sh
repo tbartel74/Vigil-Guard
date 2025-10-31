@@ -101,7 +101,8 @@ detect_volumes() {
 
     if [ -d "vigil_data/clickhouse" ]; then
         volumes_found=1
-        local size=$(du -sh vigil_data/clickhouse 2>/dev/null | awk '{print $1}')
+        local size
+        size=$(du -sh vigil_data/clickhouse 2>/dev/null | awk '{print $1}')
         log_info "Found local ClickHouse data directory: vigil_data/clickhouse ($size)"
     fi
 
@@ -157,7 +158,8 @@ confirm_data_destruction() {
 
 # Save installation state
 save_install_state() {
-    local timestamp=$(date +%Y-%m-%d_%H:%M:%S)
+    local timestamp
+    timestamp=$(date +%Y-%m-%d_%H:%M:%S)
     echo "$timestamp - Vigil Guard installation completed successfully" > "$INSTALL_STATE_FILE"
     log_success "Installation state saved to $INSTALL_STATE_FILE"
 }
@@ -229,7 +231,7 @@ check_prerequisites() {
     log_info "Checking spaCy models for PII detection..."
     MODELS_DIR="services/presidio-pii-api/models"
     if [ -d "$MODELS_DIR" ] && [ -f "$MODELS_DIR/checksums.sha256" ]; then
-        MODEL_COUNT=$(ls "$MODELS_DIR"/*.whl 2>/dev/null | wc -l | tr -d ' ')
+        MODEL_COUNT=$(find "$MODELS_DIR" -maxdepth 1 -name "*.whl" 2>/dev/null | wc -l | tr -d ' ')
         if [ "$MODEL_COUNT" -ge 2 ]; then
             log_success "spaCy models found ($MODEL_COUNT .whl files)"
         else
@@ -320,7 +322,7 @@ generate_secure_passwords() {
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    read -p "Press Enter after you have SAVED these credentials..."
+    read -r -p "Press Enter after you have SAVED these credentials..."
     echo ""
 }
 
@@ -454,13 +456,11 @@ setup_environment() {
         log_success ".env file already exists"
 
         # Check for default/insecure values
-        local warnings_found=0
         local force_regenerate=0
 
         # Check JWT_SECRET
         if grep -q "JWT_SECRET=change-this" .env; then
             log_warning "⚠️  JWT_SECRET is using default value - generating new one"
-            warnings_found=1
             if command_exists openssl; then
                 JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
                 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -809,12 +809,10 @@ initialize_clickhouse() {
 
     # Create database
     log_info "Creating ${CLICKHOUSE_DB} database..."
-    DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
+    if DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
 CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
 EOF
-)
-
-    if [ $? -eq 0 ]; then
+); then
         log_success "Database created"
     else
         log_error "Failed to create database"
