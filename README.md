@@ -79,26 +79,26 @@ vigil-guard/
 │   │   ├── sql/              # ClickHouse schema
 │   │   ├── grafana/          # Dashboard provisioning
 │   │   └── docker-compose.yml
-│   └── proxy/                # Caddy reverse proxy
-│       ├── Caddyfile
-│       └── docker-compose.yml
-├── prompt-guard-api/         # Llama Prompt Guard service
-│   ├── app.py               # FastAPI application
-│   ├── Dockerfile           # Container definition
-│   ├── docker-compose.yml   # Service orchestration
-│   ├── requirements.txt     # Python dependencies
-│   └── README.md            # Setup instructions
-├── presidio-pii-api/         # Microsoft Presidio PII Detection (NEW v1.6)
-│   ├── app.py               # Flask application
-│   ├── config/              # Recognizer configurations
-│   │   └── recognizers.yaml # Custom Polish + International recognizers
-│   ├── validators/          # Entity validators
-│   │   ├── credit_card.py  # Luhn algorithm validator
-│   │   └── polish_validators.py # PESEL/NIP/REGON checksums
-│   ├── Dockerfile           # Container definition
-│   ├── docker-compose.yml   # Service orchestration
-│   ├── requirements.txt     # Python dependencies (presidio, spaCy)
-│   └── README.md            # Setup instructions
+│   ├── proxy/                # Caddy reverse proxy
+│   │   ├── Caddyfile
+│   │   └── docker-compose.yml
+│   └── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│       ├── app.py            # Flask application
+│       ├── config/           # Recognizer configurations
+│       │   └── recognizers.yaml # Custom Polish + International recognizers
+│       ├── validators/       # Entity validators
+│       │   ├── credit_card.py  # Luhn algorithm validator
+│       │   └── polish_validators.py # PESEL/NIP/REGON checksums
+│       ├── Dockerfile        # Container definition
+│       ├── docker-compose.yml # Service orchestration
+│       ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│       └── README.md         # Setup instructions
+├── prompt-guard-api/          # Llama Prompt Guard service
+│   ├── app.py                 # FastAPI application
+│   ├── Dockerfile             # Container definition
+│   ├── docker-compose.yml     # Service orchestration
+│   ├── requirements.txt       # Python dependencies
+│   └── README.md              # Setup instructions
 ├── plugin/                    # Browser Extension
 │   ├── Chrome/               # Chrome extension files
 │   │   ├── manifest.json    # Extension manifest (v3)

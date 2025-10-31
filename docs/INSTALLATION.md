@@ -23,10 +23,12 @@ Due to Meta's Llama 4 Community License, the model files:
 The automated script will:
 1. Check for Hugging Face CLI
 2. Verify your authentication
-3. Download model to `../vigil-llm-models/Llama-Prompt-Guard-2-86M` (~1.1 GB)
+3. Download model to `../vigil-llm-models/Llama-Prompt-Guard-2-86M` (~1.1 GB) - **external directory (recommended)**
 4. Validate the download
 
-**OR** the installation script (`./install.sh`) will prompt you to download the model if it's not found.
+**Alternative download location**: To download directly into repository directory `./Llama-Prompt-Guard-2-86M`, see manual instructions below.
+
+**OR** the installation script (`./install.sh`) will prompt you to download the model if it's not found in either location.
 
 For manual download instructions, see: [prompt-guard-api/README.md](../prompt-guard-api/README.md)
 
