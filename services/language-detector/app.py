@@ -8,6 +8,8 @@ Handles Polish text without diacritics (e.g. "jeszcze" vs "jeszcze")
 """
 
 from flask import Flask, request, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from langdetect import detect, detect_langs, LangDetectException
 import logging
 import time
@@ -20,6 +22,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Rate limiting configuration
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per minute"],
+    storage_uri="memory://",
+)
 
 # Maximum text length to prevent memory exhaustion attacks
 MAX_TEXT_LENGTH = 10000  # 10KB limit
@@ -154,6 +164,7 @@ def health():
 
 
 @app.route('/detect', methods=['POST'])
+@limiter.limit("30 per minute")
 def detect_language():
     """
     Detect language from text
@@ -234,6 +245,7 @@ def detect_language():
 
 
 @app.route('/batch', methods=['POST'])
+@limiter.limit("10 per minute")
 def batch_detect():
     """
     Detect languages for multiple texts

@@ -200,9 +200,29 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             # Build patterns list
             patterns = []
             for pattern_config in rec_config.get('patterns', []):
+                regex_str = pattern_config['regex']
+
+                # Validate regex complexity to prevent ReDoS
+                if len(regex_str) > 500:
+                    logger.warning(f"Regex pattern too long ({len(regex_str)} chars) in {name}: {regex_str[:50]}...")
+                    raise ValueError(f"Regex pattern exceeds maximum length of 500 characters")
+
+                # Check for dangerous nested quantifiers (ReDoS risk)
+                import re as regex_module
+                if regex_module.search(r'\([^)]*[*+]\)[*+]', regex_str):
+                    logger.warning(f"Potentially dangerous nested quantifiers in {name}: {regex_str}")
+                    raise ValueError(f"Regex contains nested quantifiers which may cause ReDoS")
+
+                # Test regex compilation with timeout
+                try:
+                    regex_module.compile(regex_str)
+                except regex_module.error as e:
+                    logger.error(f"Invalid regex in {name}: {e}")
+                    raise ValueError(f"Invalid regex pattern: {e}")
+
                 pattern = Pattern(
                     name=pattern_config['name'],
-                    regex=pattern_config['regex'],
+                    regex=regex_str,
                     score=pattern_config['score']
                 )
                 patterns.append(pattern)
