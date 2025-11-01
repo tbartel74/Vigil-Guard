@@ -40,6 +40,7 @@ loaded_recognizers = []
 # Global analyzer instance (will be reinitialized on mode change)
 analyzer_engine = None
 current_mode = "balanced"  # Default mode
+current_context_enabled = True  # Track context enhancement state
 
 # ============================================================================
 # DETECTION MODES - Based on Microsoft/NVIDIA Best Practices
@@ -245,7 +246,12 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
 
 def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"], enable_context: bool = True):
     """Initialize Presidio analyzer with specified mode and context enhancement setting"""
-    global analyzer_engine, current_mode
+    global analyzer_engine, current_mode, current_context_enabled
+
+    # FIX: Validate mode BEFORE indexing DETECTION_MODES
+    if mode not in DETECTION_MODES:
+        logger.error(f"Invalid detection mode '{mode}'. Falling back to 'balanced'")
+        mode = "balanced"
 
     logger.info(f"Initializing Presidio in '{DETECTION_MODES[mode]['name']}' mode")
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
@@ -309,6 +315,7 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
         logger.warning(f"Recognizers YAML not found: {recognizers_yaml_path}")
 
     current_mode = mode
+    current_context_enabled = enable_context  # FIX: Track context state
     logger.info(f"✅ Presidio Analyzer initialized in '{mode}' mode")
 
 
@@ -358,6 +365,7 @@ def config():
     if request.method == 'GET':
         return jsonify({
             'current_mode': current_mode,
+            'context_enhancement': current_context_enabled,  # FIX: Expose context state
             'available_modes': list(DETECTION_MODES.keys()),
             'mode_config': DETECTION_MODES[current_mode],
             'thresholds': DETECTION_MODES[current_mode]['thresholds']
@@ -381,13 +389,18 @@ def config():
                 'message': f'Mode must be one of: {list(DETECTION_MODES.keys())}'
             }), 400
 
+        # FIX: Capture previous values BEFORE reinitializing
+        previous_mode = current_mode
+        previous_context = current_context_enabled
+
         # Reinitialize analyzer with new mode AND context setting
         try:
             initialize_analyzer(mode=new_mode, enable_context=enable_context)
 
             return jsonify({
                 'success': True,
-                'previous_mode': current_mode,
+                'previous_mode': previous_mode,  # FIX: Return actual previous value
+                'previous_context': previous_context,  # FIX: Include previous context state
                 'new_mode': new_mode,
                 'context_enhancement': enable_context,
                 'mode_config': DETECTION_MODES[new_mode]
