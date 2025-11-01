@@ -14,7 +14,7 @@
 
 ## Container Architecture
 
-Vigil Guard runs 8 Docker containers orchestrated by Docker Compose:
+Vigil Guard runs 9 Docker containers orchestrated by Docker Compose:
 
 | Container | Image | Purpose | Ports | Dependencies |
 |-----------|-------|---------|-------|--------------|
@@ -26,6 +26,7 @@ Vigil Guard runs 8 Docker containers orchestrated by Docker Compose:
 | **vigil-clickhouse** | clickhouse/clickhouse-server:24.1 | Event logging, analytics | 8123, 9000 | - |
 | **vigil-prompt-guard-api** | (local build) | Llama Prompt Guard 2 | 8000 | - |
 | **vigil-presidio-pii** | (local build) | PII detection (Presidio) | 5001 | - |
+| **vigil-language-detector** | (local build) | Language detection | 5002 | - |
 
 ### Image Pinning Strategy
 

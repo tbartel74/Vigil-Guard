@@ -1,6 +1,6 @@
 # PII Detection with Microsoft Presidio
 
-**Version:** 1.6.10
+**Version:** 1.6.11
 **Last Updated:** 2025-01-31
 **Status:** Production Ready
 

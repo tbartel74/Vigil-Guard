@@ -248,10 +248,16 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     """Initialize Presidio analyzer with specified mode and context enhancement setting"""
     global analyzer_engine, current_mode, current_context_enabled
 
-    # FIX: Validate mode BEFORE indexing DETECTION_MODES
+    # Validate mode BEFORE proceeding - raise error instead of silent fallback
     if mode not in DETECTION_MODES:
-        logger.error(f"Invalid detection mode '{mode}'. Falling back to 'balanced'")
-        mode = "balanced"
+        logger.error(
+            f"INVALID DETECTION MODE: '{mode}' not in {list(DETECTION_MODES.keys())}",
+            extra={'error_id': 'PRESIDIO_INVALID_MODE', 'requested_mode': mode}
+        )
+        raise ValueError(
+            f"Invalid detection mode '{mode}'. "
+            f"Must be one of: {list(DETECTION_MODES.keys())}"
+        )
 
     logger.info(f"Initializing Presidio in '{DETECTION_MODES[mode]['name']}' mode")
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
@@ -406,11 +412,21 @@ def config():
                 'mode_config': DETECTION_MODES[new_mode]
             }), 200
 
+        except ValueError as e:
+            # Invalid mode passed validation but failed in initialize_analyzer
+            logger.error(f"Mode validation error: {e}")
+            return jsonify({
+                'error': 'Invalid mode',
+                'message': str(e),
+                'requested_mode': new_mode
+            }), 400
+
         except Exception as e:
-            logger.error(f"Failed to switch mode: {e}")
+            logger.error(f"Failed to switch mode: {e}", exc_info=True)
             return jsonify({
                 'error': 'Failed to switch mode',
-                'message': str(e)
+                'message': str(e),
+                'error_type': type(e).__name__
             }), 500
 
 

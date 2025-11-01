@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Maximum text length to prevent memory exhaustion attacks
+MAX_TEXT_LENGTH = 10000  # 10KB limit
+
 # Supported languages (can expand)
 SUPPORTED_LANGUAGES = {
     'pl': 'Polish',
@@ -180,10 +183,17 @@ def detect_language():
     text = data['text'].strip()
     detailed = data.get('detailed', False)
 
-    # Minimum text length for reliable detection
+    # Input validation: text length
     if len(text) < 3:
         return jsonify({
             'error': 'Text too short for reliable detection (minimum 3 characters)'
+        }), 400
+
+    if len(text) > MAX_TEXT_LENGTH:
+        return jsonify({
+            'error': 'Text too long',
+            'message': f'Maximum text length is {MAX_TEXT_LENGTH} characters',
+            'received_length': len(text)
         }), 400
 
     try:
@@ -195,17 +205,25 @@ def detect_language():
         result['processing_time_ms'] = processing_time_ms
         result['language_name'] = SUPPORTED_LANGUAGES.get(result['language'], result['language'].upper())
 
-        logger.info(f"Detected: {result['language']} via {result['method']} ({result['confidence']:.2%}) in {processing_time_ms}ms - text: '{text[:50]}...'")
+        text_preview = text[:50] + '...' if len(text) > 50 else text
+        logger.info(
+            f"Detected: {result['language']} via {result['method']} "
+            f"({result['confidence']:.2%}) in {processing_time_ms}ms - "
+            f"text_length: {len(text)} chars, preview: '{text_preview}'"
+        )
 
         return jsonify(result), 200
 
     except LangDetectException as e:
-        logger.warning(f"Language detection failed: {e}")
+        logger.error(f"Language detection failed: {e}", exc_info=True)
         return jsonify({
-            'error': 'Language detection failed',
-            'message': str(e),
-            'fallback': 'en'  # Default to English
-        }), 200  # Still return 200 to allow workflow to continue
+            'error': 'LANG_DETECTION_FAILED',
+            'error_id': 'LANG_001',
+            'message': f'Language detection library error: {str(e)}',
+            'fallback_applied': True,
+            'fallback_language': 'en',
+            'warning': 'Results may be inaccurate - manual review recommended'
+        }), 500  # Return error status to alert workflow
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
@@ -246,8 +264,16 @@ def batch_detect():
         }), 400
 
     results = []
-    for text in texts:
+    for idx, text in enumerate(texts):
         try:
+            # Validate input type
+            if not isinstance(text, str):
+                raise ValueError(f"Item {idx}: Expected string, got {type(text).__name__}")
+
+            # Validate text length
+            if len(text) > MAX_TEXT_LENGTH:
+                raise ValueError(f"Item {idx}: Text exceeds maximum length of {MAX_TEXT_LENGTH} characters")
+
             lang = detect(text.strip())
             lang_probs = detect_langs(text.strip())
             confidence = next((lp.prob for lp in lang_probs if lp.lang == lang), 1.0)
@@ -258,14 +284,38 @@ def batch_detect():
                 'language_name': SUPPORTED_LANGUAGES.get(lang, lang.upper()),
                 'confidence': round(confidence, 4)
             })
-        except Exception as e:
+
+        except LangDetectException as e:
+            logger.warning(f"Batch item {idx} detection failed: {e}")
             results.append({
                 'text': text[:50] + '...' if len(text) > 50 else text,
-                'error': str(e),
+                'error': 'DETECTION_FAILED',
+                'error_details': str(e),
                 'fallback': 'en'
             })
 
-    return jsonify({'results': results}), 200
+        except ValueError as e:
+            logger.error(f"Batch item {idx} validation error: {e}")
+            results.append({
+                'text': str(text)[:50] + '...' if len(str(text)) > 50 else str(text),
+                'error': 'VALIDATION_ERROR',
+                'error_details': str(e)
+            })
+
+        except Exception as e:
+            logger.error(f"Batch item {idx} unexpected error: {e}", exc_info=True)
+            results.append({
+                'text': str(text)[:50] + '...' if len(str(text)) > 50 else str(text),
+                'error': 'INTERNAL_ERROR',
+                'error_details': str(e)
+            })
+
+    # Log batch summary
+    failed_count = sum(1 for r in results if 'error' in r)
+    if failed_count > 0:
+        logger.warning(f"Batch detection: {failed_count}/{len(results)} items failed")
+
+    return jsonify({'results': results, 'total': len(results), 'failed': failed_count}), 200
 
 
 if __name__ == '__main__':
