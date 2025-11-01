@@ -82,16 +82,21 @@ vigil-guard/
 │   ├── proxy/                # Caddy reverse proxy
 │   │   ├── Caddyfile
 │   │   └── docker-compose.yml
-│   └── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│   ├── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│   │   ├── app.py            # Flask application
+│   │   ├── config/           # Recognizer configurations
+│   │   │   └── recognizers.yaml # Custom Polish + International recognizers
+│   │   ├── validators/       # Entity validators
+│   │   │   ├── credit_card.py  # Luhn algorithm validator
+│   │   │   └── polish_validators.py # PESEL/NIP/REGON checksums
+│   │   ├── Dockerfile        # Container definition
+│   │   ├── docker-compose.yml # Service orchestration
+│   │   ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│   │   └── README.md         # Setup instructions
+│   └── language-detector/    # Language Detection Service (NEW v1.6.11)
 │       ├── app.py            # Flask application
-│       ├── config/           # Recognizer configurations
-│       │   └── recognizers.yaml # Custom Polish + International recognizers
-│       ├── validators/       # Entity validators
-│       │   ├── credit_card.py  # Luhn algorithm validator
-│       │   └── polish_validators.py # PESEL/NIP/REGON checksums
 │       ├── Dockerfile        # Container definition
-│       ├── docker-compose.yml # Service orchestration
-│       ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│       ├── requirements.txt  # Python dependencies (langdetect)
 │       └── README.md         # Setup instructions
 ├── prompt-guard-api/          # Llama Prompt Guard service
 │   ├── app.py                 # FastAPI application
@@ -598,6 +603,9 @@ docker network create vigil-net
 - `3001` - Grafana
 - `8123` - ClickHouse HTTP API
 - `9000` - ClickHouse Native TCP
+- `5001` - Presidio PII API
+- `5002` - Language Detection Service
+- `8000` - Prompt Guard API
 
 ## 🤝 Contributing
 
