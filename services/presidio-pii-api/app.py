@@ -591,11 +591,40 @@ def analyze():
 
         return jsonify(response), 200
 
+    except ValueError as e:
+        # Input validation errors
+        logger.warning(f"Invalid input for /analyze: {e}")
+        return jsonify({
+            'error': 'Invalid input',
+            'message': str(e)
+        }), 400
+
+    except MemoryError as e:
+        # Infrastructure issue - needs alerting
+        logger.critical(f"Out of memory during PII analysis: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Resource exhaustion',
+            'message': 'Server out of memory - contact administrator',
+            'error_id': 'PRESIDIO_OOM'
+        }), 503
+
+    except AttributeError as e:
+        # Likely missing spaCy model or config issue
+        logger.error(f"Configuration error in PII analyzer: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Service misconfigured',
+            'message': 'PII detection service configuration error',
+            'error_id': 'PRESIDIO_CONFIG_ERROR'
+        }), 500
+
     except Exception as e:
-        logger.error(f"Error analyzing text: {e}", exc_info=True)
+        # Truly unexpected errors
+        logger.error(f"Unexpected error analyzing text: {e}", exc_info=True)
         return jsonify({
             'error': 'Internal server error',
-            'message': str(e)
+            'message': 'An unexpected error occurred',
+            'error_id': 'PRESIDIO_UNKNOWN_ERROR',
+            'error_type': type(e).__name__
         }), 500
 
 

@@ -90,22 +90,43 @@ app.get("/api/stats/24h", authenticate, async (req, res) => {
 
 // Prompt Guard health check endpoint - requires authentication
 app.get("/api/prompt-guard/health", authenticate, async (req, res) => {
+  const promptGuardUrl = process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000';
+
   try {
-    const promptGuardUrl = process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000';
     const response = await fetch(`${promptGuardUrl}/health`, {
       method: 'GET',
       signal: AbortSignal.timeout(3000)
     });
 
     if (!response.ok) {
-      return res.json({ status: 'unhealthy', model_loaded: false });
+      console.error(`Prompt Guard health check failed: HTTP ${response.status}`);
+      return res.status(503).json({
+        status: 'unhealthy',
+        model_loaded: false,
+        http_status: response.status,
+        error: `Service returned HTTP ${response.status}`
+      });
     }
 
     const data = await response.json();
-    res.json(data);
+    res.json({ ...data, status: 'healthy' });
+
   } catch (e: any) {
-    console.error("Error checking Prompt Guard health:", e);
-    res.json({ status: 'unhealthy', model_loaded: false, error: e.message });
+    const errorType = e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
+
+    console.error(`Prompt Guard health check ${errorType}:`, e.message, {
+      error_id: 'PROMPT_GUARD_HEALTH_FAILED',
+      url: promptGuardUrl,
+      error_type: errorType
+    });
+
+    // Return 503 Service Unavailable for monitoring systems
+    res.status(503).json({
+      status: 'unhealthy',
+      model_loaded: false,
+      error: e.message,
+      error_type: errorType
+    });
   }
 });
 
@@ -115,17 +136,20 @@ app.get("/api/prompt-guard/health", authenticate, async (req, res) => {
 
 // PII Detection service health check endpoint - requires authentication
 app.get("/api/pii-detection/status", authenticate, async (req, res) => {
+  const presidioUrl = process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001';
+
   try {
-    const presidioUrl = process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001';
     const response = await fetch(`${presidioUrl}/health`, {
       method: 'GET',
       signal: AbortSignal.timeout(3000)
     });
 
     if (!response.ok) {
-      return res.json({
+      console.error(`Presidio health check failed: HTTP ${response.status}`);
+      return res.status(503).json({
         status: 'offline',
         fallback: 'regex',
+        http_status: response.status,
         error: `HTTP ${response.status}`
       });
     }
@@ -137,12 +161,21 @@ app.get("/api/pii-detection/status", authenticate, async (req, res) => {
       recognizers_loaded: data.recognizers_loaded || 0,
       spacy_models: data.spacy_models || []
     });
+
   } catch (e: any) {
-    console.error("Error checking Presidio PII health:", e);
-    res.json({
+    const errorType = e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
+
+    console.error(`Presidio PII health check ${errorType}:`, e.message, {
+      error_id: 'PRESIDIO_HEALTH_FAILED',
+      url: presidioUrl,
+      error_type: errorType
+    });
+
+    res.status(503).json({
       status: 'offline',
       fallback: 'regex',
-      error: e.message
+      error: e.message,
+      error_type: errorType
     });
   }
 });
