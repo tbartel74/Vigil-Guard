@@ -1,7 +1,7 @@
-# Vigil Guard Workflow - CHANGELOG v1.6.9 → v1.6.10
+# Vigil Guard Workflow - CHANGELOG v1.6.10 → v1.6.11
 
-**Release Date:** 2025-01-30
-**Type:** Major Feature (Dual-Language PII Detection)
+**Release Date:** 2025-01-31
+**Type:** Major Feature (Hybrid Language Detection + CREDIT_CARD Polish Support)
 **Affected Components:** n8n Workflow, Presidio PII API
 
 ---

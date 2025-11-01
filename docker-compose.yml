@@ -198,7 +198,7 @@ services:
   presidio-pii-api:
     build: ./services/presidio-pii-api
     container_name: vigil-presidio-pii
-    image: vigil-presidio-pii:1.6.10
+    image: vigil-presidio-pii:1.6.11
     environment:
       - PII_DETECTION_MODE=${PII_DETECTION_MODE:-balanced}
       - PII_CONTEXT_ENHANCEMENT=${PII_CONTEXT_ENHANCEMENT:-true}
@@ -222,7 +222,7 @@ services:
   language-detector:
     build: ./services/language-detector
     container_name: vigil-language-detector
-    image: vigil-language-detector:1.0.0
+    image: vigil-language-detector:1.0.1
     ports:
       - "5002:5002"
     networks:

@@ -264,6 +264,49 @@ app.get("/api/pii-detection/entity-types", authenticate, async (req, res) => {
   }
 });
 
+// PII Detection analyze endpoint - proxy to Presidio API
+app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
+  const presidioUrl = process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001';
+
+  try {
+    const response = await fetch(`${presidioUrl}/analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (!response.ok) {
+      console.error(`Presidio analyze failed: HTTP ${response.status}`);
+      return res.status(response.status).json({
+        error: 'PII analysis failed',
+        http_status: response.status,
+        message: await response.text()
+      });
+    }
+
+    const data = await response.json();
+    res.json(data);
+
+  } catch (e: any) {
+    const errorType = e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
+
+    console.error(`Presidio analyze ${errorType}:`, e.message, {
+      error_id: 'PRESIDIO_ANALYZE_FAILED',
+      url: `${presidioUrl}/analyze`,
+      error_type: errorType
+    });
+
+    res.status(503).json({
+      error: 'PII analysis service unavailable',
+      error_type: errorType,
+      message: e.message
+    });
+  }
+});
+
 // Helper function to convert frontend timeRange to ClickHouse INTERVAL format
 function convertTimeRangeToInterval(timeRange: string): string {
   const mapping: Record<string, string> = {

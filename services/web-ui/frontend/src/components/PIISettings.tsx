@@ -193,7 +193,8 @@ export function PIISettings() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/analyze', {
+      // Use backend proxy endpoint to avoid CORS issues
+      const response = await fetch('/ui/api/pii-detection/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
