@@ -39,6 +39,7 @@ loaded_recognizers = []
 
 # Global analyzer instance (will be reinitialized on mode change)
 analyzer_engine = None
+analyzer = None  # Backward compatibility alias for tests
 current_mode = "balanced"  # Default mode
 current_context_enabled = True  # Track context enhancement state
 
@@ -315,6 +316,10 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
         context_aware_enhancer=context_enhancer  # Can be None
     )
 
+    # Update backward compatibility alias for tests
+    global analyzer
+    analyzer = analyzer_engine
+
     # Load custom recognizers
     recognizers_yaml_path = os.path.join(
         os.path.dirname(__file__),
@@ -364,13 +369,13 @@ def health():
     """Health check endpoint with service info"""
     return jsonify({
         'status': 'healthy',
-        'version': '1.6.10',
+        'version': '1.6.11',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
         'mode_description': DETECTION_MODES[current_mode]['description'],
-        'models_loaded': ['en_core_web_sm', 'pl_core_news_sm'],
+        'spacy_models': ['en_core_web_sm', 'pl_core_news_sm'],
         'custom_recognizers': loaded_recognizers,
-        'recognizers_count': len(loaded_recognizers),
+        'recognizers_loaded': len(loaded_recognizers),
         'offline_capable': True
     }), 200
 
