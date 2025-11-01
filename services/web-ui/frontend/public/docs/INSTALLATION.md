@@ -531,6 +531,36 @@ Grafana: 200
 === Health Check Complete ===
 ```
 
+### Language Detection Service Verification (v1.6.11+)
+
+**Health Check**:
+```bash
+curl http://localhost:5002/health
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "service": "language-detector",
+  "version": "1.0.1"
+}
+```
+
+**Test Hybrid Detection**:
+```bash
+curl -X POST http://localhost:5002/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Karta kredytowa i PESEL 44051401359","detailed":true}'
+```
+
+Expected: `"language": "pl"`, `"method": "entity_based"`
+
+**Troubleshooting**:
+- If service is offline, PII detection will use default language detection
+- Check logs: `docker logs vigil-language-detector`
+- Restart: `docker-compose restart language-detector`
+
 ---
 
 ## 🔐 Security Best Practices

@@ -198,7 +198,10 @@ services:
   presidio-pii-api:
     build: ./services/presidio-pii-api
     container_name: vigil-presidio-pii
-    image: vigil-presidio-pii:1.6.10
+    image: vigil-presidio-pii:1.6.11
+    environment:
+      - PII_DETECTION_MODE=${PII_DETECTION_MODE:-balanced}
+      - PII_CONTEXT_ENHANCEMENT=${PII_CONTEXT_ENHANCEMENT:-true}
     ports:
       - "${PRESIDIO_PORT:-5001}:5001"
     networks:
@@ -212,6 +215,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  # ============================================
+  # LANGUAGE DETECTION SERVICE
+  # ============================================
+  language-detector:
+    build: ./services/language-detector
+    container_name: vigil-language-detector
+    image: vigil-language-detector:1.0.1
+    ports:
+      - "5002:5002"
+    networks:
+      vigil-net:
+        aliases:
+          - language-detector
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   # ============================================
   # REVERSE PROXY (Main entry point)

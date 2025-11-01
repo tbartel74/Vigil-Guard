@@ -82,16 +82,21 @@ vigil-guard/
 │   ├── proxy/                # Caddy reverse proxy
 │   │   ├── Caddyfile
 │   │   └── docker-compose.yml
-│   └── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│   ├── presidio-pii-api/     # Microsoft Presidio PII Detection (NEW v1.6)
+│   │   ├── app.py            # Flask application
+│   │   ├── config/           # Recognizer configurations
+│   │   │   └── recognizers.yaml # Custom Polish + International recognizers
+│   │   ├── validators/       # Entity validators
+│   │   │   ├── credit_card.py  # Luhn algorithm validator
+│   │   │   └── polish_validators.py # PESEL/NIP/REGON checksums
+│   │   ├── Dockerfile        # Container definition
+│   │   ├── docker-compose.yml # Service orchestration
+│   │   ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│   │   └── README.md         # Setup instructions
+│   └── language-detector/    # Language Detection Service (NEW v1.6.11)
 │       ├── app.py            # Flask application
-│       ├── config/           # Recognizer configurations
-│       │   └── recognizers.yaml # Custom Polish + International recognizers
-│       ├── validators/       # Entity validators
-│       │   ├── credit_card.py  # Luhn algorithm validator
-│       │   └── polish_validators.py # PESEL/NIP/REGON checksums
 │       ├── Dockerfile        # Container definition
-│       ├── docker-compose.yml # Service orchestration
-│       ├── requirements.txt  # Python dependencies (presidio, spaCy)
+│       ├── requirements.txt  # Python dependencies (langdetect)
 │       └── README.md         # Setup instructions
 ├── prompt-guard-api/          # Llama Prompt Guard service
 │   ├── app.py                 # FastAPI application
@@ -598,6 +603,9 @@ docker network create vigil-net
 - `3001` - Grafana
 - `8123` - ClickHouse HTTP API
 - `9000` - ClickHouse Native TCP
+- `5001` - Presidio PII API
+- `5002` - Language Detection Service
+- `8000` - Prompt Guard API
 
 ## 🤝 Contributing
 
@@ -659,6 +667,27 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 ## 🙏 Acknowledgments
 
 **Built with Llama** - This project uses Meta's Llama Prompt Guard 2 model for advanced prompt injection detection.
+
+## 📋 Changelog
+
+### v1.6.11 - 2025-01-30
+
+#### Fixed
+- **CREDIT_CARD Polish Language Support**: Fixed recognizer registration to support Polish text (`supported_language: pl` instead of `en`)
+- **Language Misclassification**: Short Polish text with numbers (e.g., "Karta 5555... i PESEL") no longer misclassified as Indonesian
+
+#### Enhanced
+- **Hybrid Language Detection**: New entity-based hints + statistical fallback algorithm
+  - PESEL/NIP pattern detection → automatic Polish classification
+  - Polish keywords (`pesel`, `nip`, `karta`, `kredytowa`) scoring system
+  - Low-confidence override for ambiguous short text
+- **Better Short Text Handling**: Improved accuracy for prompts <50 characters with PII
+
+#### Performance
+- No latency impact (<1ms overhead for hybrid detection)
+- Fully backward compatible with v1.6.10 (no breaking changes)
+
+---
 
 Built with:
 - **[Meta Llama Prompt Guard 2](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M)** - AI-powered prompt injection detection

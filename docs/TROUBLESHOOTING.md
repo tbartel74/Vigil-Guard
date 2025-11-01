@@ -426,6 +426,76 @@ docs/CONFIG_VARIABLES.md     # Variable reference
 
 ---
 
+## Language Detection Issues (v1.6.11+)
+
+### Issue: Polish text detected as wrong language
+
+**Symptoms:**
+- Logs show `language: id` (Indonesian) instead of `pl` (Polish)
+- Short text like "Karta i PESEL" misclassified
+
+**Diagnosis:**
+```bash
+curl -X POST http://localhost:5002/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Karta 5555555555554444 i PESEL 44051401359","detailed":true}'
+```
+
+**Solution:**
+Verify hybrid detection is active:
+- Expected: `"method": "entity_based"` (not "statistical")
+- Expected: `"language": "pl"`
+
+If showing wrong method, rebuild language-detector:
+```bash
+cd services/language-detector
+docker build --no-cache -t vigil-language-detector:1.0.1 .
+docker-compose restart language-detector
+```
+
+### Issue: CREDIT_CARD not detected in Polish text
+
+**Symptoms:**
+- Credit cards detected in English but not Polish
+- Logs show correct language (`pl`)
+- Example: "Karta 4111111111111111" → no CREDIT_CARD entity
+
+**Root Cause:** Outdated recognizers.yaml (v1.6.10 had `supported_language: en`)
+
+**Solution:**
+```bash
+# 1. Verify recognizer configuration
+docker exec vigil-presidio-pii python3 -c "
+from presidio_analyzer import AnalyzerEngine
+analyzer = AnalyzerEngine()
+print('CREDIT_CARD in PL:', 'CREDIT_CARD' in analyzer.get_supported_entities(language='pl'))
+"
+# Expected: CREDIT_CARD in PL: True
+
+# 2. If False, rebuild Presidio
+cd services/presidio-pii-api
+docker build --no-cache -t vigil-presidio-pii:1.6.11 .
+docker-compose restart presidio-pii-api
+```
+
+### Issue: Valid credit card number marked as [PHONE]
+
+**Symptoms:**
+- Number like "666666666666" detected as PHONE_NUMBER
+- Expected: CREDIT_CARD detection
+
+**Root Cause:** Number fails Luhn checksum validation
+
+**Solution:**
+Use valid test credit card numbers:
+- `4111111111111111` (Visa test card)
+- `5555555555554444` (Mastercard test card)
+- `4532015112830366` (Visa test card)
+
+Invalid numbers (like "666666666666") are correctly rejected by CREDIT_CARD recognizer.
+
+---
+
 ## Getting Help
 
 If you cannot resolve the issue:

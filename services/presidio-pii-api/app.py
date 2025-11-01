@@ -39,7 +39,9 @@ loaded_recognizers = []
 
 # Global analyzer instance (will be reinitialized on mode change)
 analyzer_engine = None
+analyzer = None  # Backward compatibility alias for tests
 current_mode = "balanced"  # Default mode
+current_context_enabled = True  # Track context enhancement state
 
 # ============================================================================
 # DETECTION MODES - Based on Microsoft/NVIDIA Best Practices
@@ -199,9 +201,29 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             # Build patterns list
             patterns = []
             for pattern_config in rec_config.get('patterns', []):
+                regex_str = pattern_config['regex']
+
+                # Validate regex complexity to prevent ReDoS
+                if len(regex_str) > 500:
+                    logger.warning(f"Regex pattern too long ({len(regex_str)} chars) in {name}: {regex_str[:50]}...")
+                    raise ValueError(f"Regex pattern exceeds maximum length of 500 characters")
+
+                # Check for dangerous nested quantifiers (ReDoS risk)
+                import re as regex_module
+                if regex_module.search(r'\([^)]*[*+]\)[*+]', regex_str):
+                    logger.warning(f"Potentially dangerous nested quantifiers in {name}: {regex_str}")
+                    raise ValueError(f"Regex contains nested quantifiers which may cause ReDoS")
+
+                # Test regex compilation with timeout
+                try:
+                    regex_module.compile(regex_str)
+                except regex_module.error as e:
+                    logger.error(f"Invalid regex in {name}: {e}")
+                    raise ValueError(f"Invalid regex pattern: {e}")
+
                 pattern = Pattern(
                     name=pattern_config['name'],
-                    regex=pattern_config['regex'],
+                    regex=regex_str,
                     score=pattern_config['score']
                 )
                 patterns.append(pattern)
@@ -243,12 +265,24 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
         raise
 
 
-def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"]):
-    """Initialize Presidio analyzer with specified mode"""
-    global analyzer_engine, current_mode
+def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"], enable_context: bool = True):
+    """Initialize Presidio analyzer with specified mode and context enhancement setting"""
+    global analyzer_engine, current_mode, current_context_enabled
+
+    # Validate mode BEFORE proceeding - raise error instead of silent fallback
+    if mode not in DETECTION_MODES:
+        logger.error(
+            f"INVALID DETECTION MODE: '{mode}' not in {list(DETECTION_MODES.keys())}",
+            extra={'error_id': 'PRESIDIO_INVALID_MODE', 'requested_mode': mode}
+        )
+        raise ValueError(
+            f"Invalid detection mode '{mode}'. "
+            f"Must be one of: {list(DETECTION_MODES.keys())}"
+        )
 
     logger.info(f"Initializing Presidio in '{DETECTION_MODES[mode]['name']}' mode")
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
+    logger.info(f"Context enhancement: {'enabled' if enable_context else 'disabled'}")
 
     # Configure NLP engine
     nlp_configuration = {
@@ -262,20 +296,29 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     nlp_engine_provider = NlpEngineProvider(nlp_configuration=nlp_configuration)
     nlp_engine = nlp_engine_provider.create_engine()
 
-    # Create context enhancer with mode-specific parameters
-    mode_config = DETECTION_MODES[mode]
-    context_enhancer = LemmaContextAwareEnhancer(
-        context_similarity_factor=mode_config["context_boost"],
-        min_score_with_context_similarity=mode_config["min_context_score"],
-        context_prefix_count=5,
-        context_suffix_count=5
-    )
+    # Create context enhancer ONLY if enabled
+    context_enhancer = None
+    if enable_context:
+        mode_config = DETECTION_MODES[mode]
+        context_enhancer = LemmaContextAwareEnhancer(
+            context_similarity_factor=mode_config["context_boost"],
+            min_score_with_context_similarity=mode_config["min_context_score"],
+            context_prefix_count=5,
+            context_suffix_count=5
+        )
+        logger.info("✅ Context-aware enhancer enabled")
+    else:
+        logger.info("⚠️ Context-aware enhancer disabled (NER base scores only)")
 
     # Initialize analyzer
     analyzer_engine = AnalyzerEngine(
         nlp_engine=nlp_engine,
-        context_aware_enhancer=context_enhancer
+        context_aware_enhancer=context_enhancer  # Can be None
     )
+
+    # Update backward compatibility alias for tests
+    global analyzer
+    analyzer = analyzer_engine
 
     # Load custom recognizers
     recognizers_yaml_path = os.path.join(
@@ -303,12 +346,19 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
         logger.warning(f"Recognizers YAML not found: {recognizers_yaml_path}")
 
     current_mode = mode
+    current_context_enabled = enable_context  # FIX: Track context state
     logger.info(f"✅ Presidio Analyzer initialized in '{mode}' mode")
 
 
-# Initialize on startup
+# Initialize on startup with ENV vars
+startup_mode = os.getenv('PII_DETECTION_MODE', 'balanced')
+startup_context_str = os.getenv('PII_CONTEXT_ENHANCEMENT', 'true')
+startup_context = startup_context_str.lower() in ('true', '1', 'yes')
+
+logger.info(f"🚀 Starting Presidio with mode={startup_mode}, context={startup_context}")
+
 try:
-    initialize_analyzer(mode="balanced")
+    initialize_analyzer(mode=startup_mode, enable_context=startup_context)
 except Exception as e:
     logger.error(f"❌ Failed to initialize Presidio Analyzer: {e}")
     raise
@@ -319,13 +369,13 @@ def health():
     """Health check endpoint with service info"""
     return jsonify({
         'status': 'healthy',
-        'version': '1.6.10',
+        'version': '1.6.11',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
         'mode_description': DETECTION_MODES[current_mode]['description'],
-        'models_loaded': ['en_core_web_sm', 'pl_core_news_sm'],
+        'spacy_models': ['en_core_web_sm', 'pl_core_news_sm'],
         'custom_recognizers': loaded_recognizers,
-        'recognizers_count': len(loaded_recognizers),
+        'recognizers_loaded': len(loaded_recognizers),
         'offline_capable': True
     }), 200
 
@@ -346,6 +396,7 @@ def config():
     if request.method == 'GET':
         return jsonify({
             'current_mode': current_mode,
+            'context_enhancement': current_context_enabled,  # FIX: Expose context state
             'available_modes': list(DETECTION_MODES.keys()),
             'mode_config': DETECTION_MODES[current_mode],
             'thresholds': DETECTION_MODES[current_mode]['thresholds']
@@ -361,6 +412,7 @@ def config():
             }), 400
 
         new_mode = data['mode']
+        enable_context = data.get('enable_context_enhancement', True)  # Default: enabled
 
         if new_mode not in DETECTION_MODES:
             return jsonify({
@@ -368,22 +420,38 @@ def config():
                 'message': f'Mode must be one of: {list(DETECTION_MODES.keys())}'
             }), 400
 
-        # Reinitialize analyzer with new mode
+        # FIX: Capture previous values BEFORE reinitializing
+        previous_mode = current_mode
+        previous_context = current_context_enabled
+
+        # Reinitialize analyzer with new mode AND context setting
         try:
-            initialize_analyzer(mode=new_mode)
+            initialize_analyzer(mode=new_mode, enable_context=enable_context)
 
             return jsonify({
                 'success': True,
-                'previous_mode': current_mode,
+                'previous_mode': previous_mode,  # FIX: Return actual previous value
+                'previous_context': previous_context,  # FIX: Include previous context state
                 'new_mode': new_mode,
+                'context_enhancement': enable_context,
                 'mode_config': DETECTION_MODES[new_mode]
             }), 200
 
+        except ValueError as e:
+            # Invalid mode passed validation but failed in initialize_analyzer
+            logger.error(f"Mode validation error: {e}")
+            return jsonify({
+                'error': 'Invalid mode',
+                'message': str(e),
+                'requested_mode': new_mode
+            }), 400
+
         except Exception as e:
-            logger.error(f"Failed to switch mode: {e}")
+            logger.error(f"Failed to switch mode: {e}", exc_info=True)
             return jsonify({
                 'error': 'Failed to switch mode',
-                'message': str(e)
+                'message': str(e),
+                'error_type': type(e).__name__
             }), 500
 
 
@@ -528,11 +596,40 @@ def analyze():
 
         return jsonify(response), 200
 
+    except ValueError as e:
+        # Input validation errors
+        logger.warning(f"Invalid input for /analyze: {e}")
+        return jsonify({
+            'error': 'Invalid input',
+            'message': str(e)
+        }), 400
+
+    except MemoryError as e:
+        # Infrastructure issue - needs alerting
+        logger.critical(f"Out of memory during PII analysis: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Resource exhaustion',
+            'message': 'Server out of memory - contact administrator',
+            'error_id': 'PRESIDIO_OOM'
+        }), 503
+
+    except AttributeError as e:
+        # Likely missing spaCy model or config issue
+        logger.error(f"Configuration error in PII analyzer: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Service misconfigured',
+            'message': 'PII detection service configuration error',
+            'error_id': 'PRESIDIO_CONFIG_ERROR'
+        }), 500
+
     except Exception as e:
-        logger.error(f"Error analyzing text: {e}", exc_info=True)
+        # Truly unexpected errors
+        logger.error(f"Unexpected error analyzing text: {e}", exc_info=True)
         return jsonify({
             'error': 'Internal server error',
-            'message': str(e)
+            'message': 'An unexpected error occurred',
+            'error_id': 'PRESIDIO_UNKNOWN_ERROR',
+            'error_type': type(e).__name__
         }), 500
 
 

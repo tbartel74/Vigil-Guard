@@ -1044,6 +1044,43 @@ initialize_presidio() {
     echo ""
 }
 
+# Initialize Language Detection Service
+initialize_language_detector() {
+    print_header "6.6/8 Initializing Language Detection Service"
+
+    log_info "Waiting for Language Detector to be ready..."
+
+    # Wait for Language Detector health endpoint
+    RETRY_COUNT=0
+    MAX_RETRIES=10
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if curl -s http://localhost:5002/health >/dev/null 2>&1; then
+            log_success "Language Detector is ready"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            sleep 2
+        else
+            log_warning "Language Detector health check timed out"
+            log_info "Check logs: docker logs vigil-language-detector"
+            return 1
+        fi
+    done
+
+    # Verify supported languages
+    log_info "Verifying language detection..."
+    HEALTH_RESPONSE=$(curl -s http://localhost:5002/health 2>/dev/null || echo "{}")
+
+    if echo "$HEALTH_RESPONSE" | grep -q "language-detector"; then
+        log_success "Language detection service operational"
+    else
+        log_warning "Could not verify language detection service"
+    fi
+
+    echo ""
+}
+
 # Verify services
 verify_services() {
     print_header "8/8 Verifying Services"
@@ -1103,6 +1140,20 @@ verify_services() {
         fi
     else
         log_error "Presidio PII API is not running"
+        all_healthy=0
+    fi
+
+    # Check Language Detector
+    log_info "Checking Language Detection Service..."
+    if docker-compose ps language-detector | grep -q "Up"; then
+        if curl -s http://localhost:5002/health >/dev/null 2>&1; then
+            log_success "Language Detector is running on port 5002"
+        else
+            log_warning "Language Detector container is up but not responding yet"
+            all_healthy=0
+        fi
+    else
+        log_error "Language Detector is not running"
         all_healthy=0
     fi
 
@@ -1397,6 +1448,7 @@ main() {
     start_all_services
     initialize_clickhouse
     initialize_presidio
+    initialize_language_detector
     initialize_grafana
     verify_services
     show_summary
