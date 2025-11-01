@@ -243,12 +243,13 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
         raise
 
 
-def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"]):
-    """Initialize Presidio analyzer with specified mode"""
+def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"], enable_context: bool = True):
+    """Initialize Presidio analyzer with specified mode and context enhancement setting"""
     global analyzer_engine, current_mode
 
     logger.info(f"Initializing Presidio in '{DETECTION_MODES[mode]['name']}' mode")
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
+    logger.info(f"Context enhancement: {'enabled' if enable_context else 'disabled'}")
 
     # Configure NLP engine
     nlp_configuration = {
@@ -262,19 +263,24 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     nlp_engine_provider = NlpEngineProvider(nlp_configuration=nlp_configuration)
     nlp_engine = nlp_engine_provider.create_engine()
 
-    # Create context enhancer with mode-specific parameters
-    mode_config = DETECTION_MODES[mode]
-    context_enhancer = LemmaContextAwareEnhancer(
-        context_similarity_factor=mode_config["context_boost"],
-        min_score_with_context_similarity=mode_config["min_context_score"],
-        context_prefix_count=5,
-        context_suffix_count=5
-    )
+    # Create context enhancer ONLY if enabled
+    context_enhancer = None
+    if enable_context:
+        mode_config = DETECTION_MODES[mode]
+        context_enhancer = LemmaContextAwareEnhancer(
+            context_similarity_factor=mode_config["context_boost"],
+            min_score_with_context_similarity=mode_config["min_context_score"],
+            context_prefix_count=5,
+            context_suffix_count=5
+        )
+        logger.info("✅ Context-aware enhancer enabled")
+    else:
+        logger.info("⚠️ Context-aware enhancer disabled (NER base scores only)")
 
     # Initialize analyzer
     analyzer_engine = AnalyzerEngine(
         nlp_engine=nlp_engine,
-        context_aware_enhancer=context_enhancer
+        context_aware_enhancer=context_enhancer  # Can be None
     )
 
     # Load custom recognizers
@@ -306,9 +312,15 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     logger.info(f"✅ Presidio Analyzer initialized in '{mode}' mode")
 
 
-# Initialize on startup
+# Initialize on startup with ENV vars
+startup_mode = os.getenv('PII_DETECTION_MODE', 'balanced')
+startup_context_str = os.getenv('PII_CONTEXT_ENHANCEMENT', 'true')
+startup_context = startup_context_str.lower() in ('true', '1', 'yes')
+
+logger.info(f"🚀 Starting Presidio with mode={startup_mode}, context={startup_context}")
+
 try:
-    initialize_analyzer(mode="balanced")
+    initialize_analyzer(mode=startup_mode, enable_context=startup_context)
 except Exception as e:
     logger.error(f"❌ Failed to initialize Presidio Analyzer: {e}")
     raise
@@ -361,6 +373,7 @@ def config():
             }), 400
 
         new_mode = data['mode']
+        enable_context = data.get('enable_context_enhancement', True)  # Default: enabled
 
         if new_mode not in DETECTION_MODES:
             return jsonify({
@@ -368,14 +381,15 @@ def config():
                 'message': f'Mode must be one of: {list(DETECTION_MODES.keys())}'
             }), 400
 
-        # Reinitialize analyzer with new mode
+        # Reinitialize analyzer with new mode AND context setting
         try:
-            initialize_analyzer(mode=new_mode)
+            initialize_analyzer(mode=new_mode, enable_context=enable_context)
 
             return jsonify({
                 'success': True,
                 'previous_mode': current_mode,
                 'new_mode': new_mode,
+                'context_enhancement': enable_context,
                 'mode_config': DETECTION_MODES[new_mode]
             }), 200
 

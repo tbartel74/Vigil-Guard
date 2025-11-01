@@ -199,6 +199,9 @@ services:
     build: ./services/presidio-pii-api
     container_name: vigil-presidio-pii
     image: vigil-presidio-pii:1.6.10
+    environment:
+      - PII_DETECTION_MODE=${PII_DETECTION_MODE:-balanced}
+      - PII_CONTEXT_ENHANCEMENT=${PII_CONTEXT_ENHANCEMENT:-true}
     ports:
       - "${PRESIDIO_PORT:-5001}:5001"
     networks:
