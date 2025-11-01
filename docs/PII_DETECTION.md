@@ -738,6 +738,70 @@ docker-compose up -d
 
 ---
 
+## Migration from v1.6.10 to v1.6.11
+
+### Changes
+
+**v1.6.11** includes two critical bug fixes:
+
+1. **CREDIT_CARD Polish Language Support**:
+   - **Before**: CREDIT_CARD recognizer only worked for English text (`supported_language: en`)
+   - **After**: CREDIT_CARD recognizer now supports Polish text (`supported_language: pl`)
+   - **Impact**: Credit cards in Polish prompts (e.g., "Karta 5555555555554444") are now correctly detected
+
+2. **Hybrid Language Detection**:
+   - **Before**: Short Polish text with numbers misclassified (e.g., "Karta i PESEL" → Indonesian)
+   - **After**: Entity-based hints + statistical fallback (PESEL/NIP patterns → Polish)
+   - **Impact**: Better accuracy for short text containing Polish PII
+
+### Breaking Changes
+
+**None** - fully backward compatible with v1.6.10.
+
+### Migration Steps
+
+1. **Rebuild Docker Images** (automatic on fresh install):
+   ```bash
+   cd services/presidio-pii-api
+   docker build --no-cache -t vigil-presidio-pii:1.6.11 .
+
+   cd ../language-detector
+   docker build --no-cache -t vigil-language-detector:1.0.1 .
+   ```
+
+2. **Restart Services**:
+   ```bash
+   docker-compose restart presidio-pii-api language-detector
+   ```
+
+3. **Verify Fix**:
+   ```bash
+   # Test hybrid language detection
+   curl -X POST http://localhost:5002/detect \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Karta 5555555555554444 i PESEL 44051401359","detailed":true}'
+
+   # Expected: "language": "pl", "method": "entity_based"
+
+   # Test CREDIT_CARD in Polish
+   curl -X POST http://localhost:5001/analyze \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Moja karta: 4532015112830366","language":"pl","entities":["CREDIT_CARD"]}'
+
+   # Expected: Entities detected
+   ```
+
+### Compatibility
+
+| Component | v1.6.10 | v1.6.11 | Compatible? |
+|-----------|---------|---------|-------------|
+| Presidio API | CREDIT_CARD (EN only) | CREDIT_CARD (PL) | ✅ Backward compatible |
+| Language Detector | Statistical only | Hybrid (entity+stats) | ✅ Same API contract |
+| n8n Workflow | v1.6.10.json | v1.6.10.json | ✅ No changes needed |
+| unified_config.json | Same | Same | ✅ No changes needed |
+
+---
+
 ## Additional Resources
 
 - **API Reference**: `docs/API.md` (endpoints: `/api/pii-detection/*`)

@@ -593,4 +593,44 @@ describe('Language Detection - Service Health', () => {
     // Should use presidio with language awareness
     expect(event.sanitizer.pii?.detection_method).toContain('presidio');
   });
+
+  test('should detect CREDIT_CARD in Polish text using hybrid detection (v1.6.11)', async () => {
+    const sessionId = `test_pl_creditcard_hybrid_${Date.now()}`;
+    const response = await sendToWorkflow(
+      'Karta kredytowa 4111111111111111 i PESEL 44051401359',
+      { sessionId }
+    );
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    const event = await waitForClickHouseEvent({ sessionId }, 10000);
+
+    expect(event).toBeTruthy();
+
+    // Language should be Polish (entity-based detection)
+    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.sanitizer.pii?.language_stats?.detection_method).toMatch(/entity_based|hybrid/);
+
+    // Both CREDIT_CARD and PESEL should be detected
+    const result = event.result || event.chat_input;
+    expect(result).toContain('[CARD]');
+    expect(result).toContain('[PESEL]');
+
+    // Should NOT be blocked (proper sanitization)
+    expect(event.decision?.action).not.toBe('BLOCK');
+  });
+
+  test('should use entity-based detection when PESEL pattern present (v1.6.11)', async () => {
+    const sessionId = `test_entity_based_pesel_${Date.now()}`;
+    const response = await sendToWorkflow('PESEL: 92032100157', { sessionId });
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const event = await waitForClickHouseEvent({ sessionId }, 10000);
+
+    expect(event).toBeTruthy();
+    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.sanitizer.pii?.language_stats?.detection_method).toMatch(/entity_based|hybrid/);
+
+    const result = event.result || event.chat_input;
+    expect(result).toContain('[PESEL]');
+  });
 });

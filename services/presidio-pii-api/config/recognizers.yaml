@@ -325,7 +325,7 @@ recognizers:
   # Format: 13-19 digits, with or without hyphens/spaces
   # ============================================================================
   - name: CREDIT_CARD_ENHANCED
-    supported_language: en
+    supported_language: pl
     supported_entity: CREDIT_CARD
     patterns:
       # Visa: starts with 4, length 13 or 16
