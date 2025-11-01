@@ -132,3 +132,4 @@ services/monitoring/grafana/provisioning/datasources/clickhouse.yml
 # Browser extension build artifacts
 plugin/Chrome.crx
 plugin/Chrome.pem
+audit-logs/
