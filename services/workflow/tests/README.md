@@ -29,10 +29,51 @@ npm test
 ## Test Structure
 
 - **API Tests**: 12 tests for Web UI backend endpoints
-- **E2E Tests**: 100 tests for complete workflow execution
-- **Expected Results**: 111/112 tests passing (1 known false positive)
+- **E2E Tests**: 150+ tests for complete workflow execution
+  - Bypass scenarios (25 tests)
+  - PII detection (30+ tests)
+  - Language detection (50 tests) **NEW v1.6.11**
+  - False positives (15 tests)
+  - Input validation (10 tests)
+  - OWASP AITG (50+ tests)
+- **Expected Results**: 160+/165 tests passing
+
+## Test Suites
+
+### Language Detection Tests (NEW v1.6.11)
+**File:** `e2e/language-detection.test.js`
+**Count:** 50 tests
+**Purpose:** Validates language-aware PII detection to prevent cross-language false positives
+
+**Key Coverage:**
+- Polish text detection (8 tests)
+- English text detection (6 tests)
+- Edge cases (10 tests)
+- Mixed language (3 tests)
+- PII cross-language handling (9 tests)
+- Performance (2 tests)
+- Regression tests (3 tests)
+- Statistics logging (2 tests)
+- Service health (2 tests)
+
+**Documentation:** See `tests/LANGUAGE_DETECTION_TESTS.md`
+
+**Run:** `npm test -- language-detection.test.js`
+
+### Other Test Suites
+- **PII Detection:** `pii-detection-*.test.js` (30+ tests)
+- **Bypass Scenarios:** `bypass-scenarios.test.js` (25 tests)
+- **False Positives:** `false-positives.test.js` (15 tests)
+- **OWASP AITG:** `owasp-aitg-*.test.js` (50+ tests)
+- **Input Validation:** `input-validation.test.js` (10 tests)
 
 ## Recent Changes
+
+### 2025-02-01: Language Detection Integration (v1.6.11)
+**New Feature**: Language detection microservice prevents cross-language false positives
+- Added 50 E2E tests for language detection
+- Validates "jest" → NOT [PERSON] in Polish text
+- Tests edge cases, mixed language, and performance
 
 ### 2025-10-18: SQL/XSS Configuration Update
 **Configuration Change**: SQL_XSS_ATTACKS category `base_weight` increased from 30 → 50 in `rules.config.json`.
