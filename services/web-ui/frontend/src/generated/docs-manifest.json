@@ -1,6 +1,6 @@
 {
-  "generated": "2025-10-26T19:34:53.367Z",
-  "count": 17,
+  "generated": "2025-11-02T09:46:10.802Z",
+  "count": 29,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -10,7 +10,7 @@
       "title": "Accessibility Implementation - Phase 1",
       "category": "root",
       "size": 11988,
-      "modified": "2025-10-20T16:14:28.565Z"
+      "modified": "2025-10-15T19:11:34.815Z"
     },
     {
       "path": "API.md",
@@ -19,8 +19,18 @@
       "url": "/ui/docs/API.md",
       "title": "Vigil Guard API Reference",
       "category": "root",
-      "size": 14101,
-      "modified": "2025-10-26T18:25:56.759Z"
+      "size": 15791,
+      "modified": "2025-11-01T17:12:31.029Z"
+    },
+    {
+      "path": "ARCHITECTURE_v1.6.11.md",
+      "file": "ARCHITECTURE_v1.6.11",
+      "directory": ".",
+      "url": "/ui/docs/ARCHITECTURE_v1.6.11.md",
+      "title": "Vigil Guard Architecture v1.6.11 - Data Flow Documentation",
+      "category": "root",
+      "size": 49145,
+      "modified": "2025-11-01T16:28:28.576Z"
     },
     {
       "path": "architecture/architecture.md",
@@ -29,8 +39,8 @@
       "url": "/ui/docs/architecture/architecture.md",
       "title": "Technical Architecture",
       "category": "architecture",
-      "size": 15016,
-      "modified": "2025-10-20T16:14:28.571Z"
+      "size": 15022,
+      "modified": "2025-10-26T18:25:56.759Z"
     },
     {
       "path": "AUTHENTICATION.md",
@@ -40,7 +50,27 @@
       "title": "Authentication & User Management",
       "category": "root",
       "size": 10324,
-      "modified": "2025-10-26T18:45:46.306Z"
+      "modified": "2025-10-26T18:45:46.304Z"
+    },
+    {
+      "path": "CI_SECRETS 2.md",
+      "file": "CI_SECRETS 2",
+      "directory": ".",
+      "url": "/ui/docs/CI_SECRETS 2.md",
+      "title": "CI/CD Secrets Configuration",
+      "category": "root",
+      "size": 4818,
+      "modified": "2025-10-31T22:06:00.000Z"
+    },
+    {
+      "path": "CI_SECRETS.md",
+      "file": "CI_SECRETS",
+      "directory": ".",
+      "url": "/ui/docs/CI_SECRETS.md",
+      "title": "CI/CD Secrets Configuration",
+      "category": "root",
+      "size": 4818,
+      "modified": "2025-11-01T14:59:17.883Z"
     },
     {
       "path": "CLICKHOUSE_RETENTION.md",
@@ -50,7 +80,7 @@
       "title": "ClickHouse Data Retention Policy",
       "category": "root",
       "size": 12396,
-      "modified": "2025-10-26T14:46:06.683Z"
+      "modified": "2025-10-26T15:08:51.139Z"
     },
     {
       "path": "CONFIG_VARIABLES.md",
@@ -59,8 +89,8 @@
       "url": "/ui/docs/CONFIG_VARIABLES.md",
       "title": "Configuration Variables Reference",
       "category": "root",
-      "size": 4373,
-      "modified": "2025-10-20T16:14:28.567Z"
+      "size": 12250,
+      "modified": "2025-10-31T22:42:11.479Z"
     },
     {
       "path": "CONFIGURATION.md",
@@ -69,8 +99,8 @@
       "url": "/ui/docs/CONFIGURATION.md",
       "title": "Configuration Reference",
       "category": "root",
-      "size": 29939,
-      "modified": "2025-10-25T12:07:41.147Z"
+      "size": 32685,
+      "modified": "2025-11-01T15:01:02.204Z"
     },
     {
       "path": "DETECTION_CATEGORIES.md",
@@ -79,8 +109,28 @@
       "url": "/ui/docs/DETECTION_CATEGORIES.md",
       "title": "Detection Categories Reference",
       "category": "root",
-      "size": 13984,
-      "modified": "2025-10-20T16:14:28.567Z"
+      "size": 17078,
+      "modified": "2025-10-27T20:29:20.951Z"
+    },
+    {
+      "path": "DOCKER 2.md",
+      "file": "DOCKER 2",
+      "directory": ".",
+      "url": "/ui/docs/DOCKER 2.md",
+      "title": "Docker Guide",
+      "category": "root",
+      "size": 14272,
+      "modified": "2025-10-31T20:24:26.000Z"
+    },
+    {
+      "path": "DOCKER.md",
+      "file": "DOCKER",
+      "directory": ".",
+      "url": "/ui/docs/DOCKER.md",
+      "title": "Docker Guide",
+      "category": "root",
+      "size": 14352,
+      "modified": "2025-11-01T15:02:08.679Z"
     },
     {
       "path": "GRAFANA_SETUP.md",
@@ -89,8 +139,8 @@
       "url": "/ui/docs/GRAFANA_SETUP.md",
       "title": "Grafana Setup Guide",
       "category": "root",
-      "size": 20645,
-      "modified": "2025-10-20T16:14:28.567Z"
+      "size": 21394,
+      "modified": "2025-10-31T22:43:02.952Z"
     },
     {
       "path": "INSTALLATION.md",
@@ -99,8 +149,48 @@
       "url": "/ui/docs/INSTALLATION.md",
       "title": "Installation Guide",
       "category": "root",
-      "size": 13277,
-      "modified": "2025-10-26T18:45:46.306Z"
+      "size": 15952,
+      "modified": "2025-11-01T15:01:02.205Z"
+    },
+    {
+      "path": "MAINTENANCE 2.md",
+      "file": "MAINTENANCE 2",
+      "directory": ".",
+      "url": "/ui/docs/MAINTENANCE 2.md",
+      "title": "Maintenance Guide",
+      "category": "root",
+      "size": 7405,
+      "modified": "2025-10-31T20:18:45.000Z"
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "file": "MAINTENANCE",
+      "directory": ".",
+      "url": "/ui/docs/MAINTENANCE.md",
+      "title": "Maintenance Guide",
+      "category": "root",
+      "size": 7405,
+      "modified": "2025-10-31T22:43:17.609Z"
+    },
+    {
+      "path": "MIGRATION_v1.7.0.md",
+      "file": "MIGRATION_v1.7.0",
+      "directory": ".",
+      "url": "/ui/docs/MIGRATION_v1.7.0.md",
+      "title": "Migration Guide: v1.6.11 → v1.7.0",
+      "category": "root",
+      "size": 9581,
+      "modified": "2025-11-01T17:14:00.208Z"
+    },
+    {
+      "path": "PII_DETECTION.md",
+      "file": "PII_DETECTION",
+      "directory": ".",
+      "url": "/ui/docs/PII_DETECTION.md",
+      "title": "PII Detection with Microsoft Presidio",
+      "category": "root",
+      "size": 21339,
+      "modified": "2025-11-01T15:01:02.206Z"
     },
     {
       "path": "plugin/BROWSER_EXTENSION.md",
@@ -110,7 +200,7 @@
       "title": "Vigil Guard Browser Extension",
       "category": "plugin",
       "size": 24366,
-      "modified": "2025-10-25T12:20:05.963Z"
+      "modified": "2025-10-27T20:27:58.503Z"
     },
     {
       "path": "plugin/HYBRID_ARCHITECTURE.md",
@@ -120,7 +210,7 @@
       "title": "Vigil Guard Plugin - HYBRID Architecture (3-Layer Defense)",
       "category": "plugin",
       "size": 12177,
-      "modified": "2025-10-25T12:20:05.963Z"
+      "modified": "2025-10-25T11:06:09.333Z"
     },
     {
       "path": "plugin/QUICK_START.md",
@@ -130,7 +220,27 @@
       "title": "Vigil Guard Browser Extension - Quick Start Guide",
       "category": "plugin",
       "size": 3472,
-      "modified": "2025-10-25T12:20:05.963Z"
+      "modified": "2025-10-25T10:56:46.913Z"
+    },
+    {
+      "path": "QUICKSTART 2.md",
+      "file": "QUICKSTART 2",
+      "directory": ".",
+      "url": "/ui/docs/QUICKSTART 2.md",
+      "title": "Quick Start Guide",
+      "category": "root",
+      "size": 8232,
+      "modified": "2025-10-31T21:25:58.000Z"
+    },
+    {
+      "path": "QUICKSTART.md",
+      "file": "QUICKSTART",
+      "directory": ".",
+      "url": "/ui/docs/QUICKSTART.md",
+      "title": "Quick Start Guide",
+      "category": "root",
+      "size": 8232,
+      "modified": "2025-11-01T15:02:08.679Z"
     },
     {
       "path": "README.md",
@@ -139,8 +249,8 @@
       "url": "/ui/docs/README.md",
       "title": "Vigil Guard - Local Configuration Panel",
       "category": "root",
-      "size": 9891,
-      "modified": "2025-10-20T16:14:28.569Z"
+      "size": 10827,
+      "modified": "2025-10-31T22:43:17.646Z"
     },
     {
       "path": "SANITIZATION_FIX_2025-10-20.md",
@@ -150,7 +260,7 @@
       "title": "Sanitization Fix - October 20, 2025",
       "category": "root",
       "size": 7597,
-      "modified": "2025-10-20T16:14:28.569Z"
+      "modified": "2025-10-20T11:05:06.889Z"
     },
     {
       "path": "SECURITY.md",
@@ -159,8 +269,18 @@
       "url": "/ui/docs/SECURITY.md",
       "title": "Security Guide",
       "category": "root",
-      "size": 17858,
-      "modified": "2025-10-26T18:45:46.306Z"
+      "size": 19663,
+      "modified": "2025-10-27T08:19:51.233Z"
+    },
+    {
+      "path": "TROUBLESHOOTING.md",
+      "file": "TROUBLESHOOTING",
+      "directory": ".",
+      "url": "/ui/docs/TROUBLESHOOTING.md",
+      "title": "Troubleshooting Guide",
+      "category": "root",
+      "size": 12024,
+      "modified": "2025-11-01T15:01:02.206Z"
     },
     {
       "path": "USER_GUIDE.md",
@@ -170,7 +290,7 @@
       "title": "Vigil Guard - User Guide",
       "category": "root",
       "size": 47967,
-      "modified": "2025-10-26T18:25:56.760Z"
+      "modified": "2025-10-26T18:25:56.758Z"
     }
   ]
 }

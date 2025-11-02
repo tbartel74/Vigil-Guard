@@ -174,6 +174,27 @@ else
     exit 1
 fi
 
+# Execute v1.7.0 audit columns migration
+log_info "Adding v1.7.0 audit columns (PII classification + client identification)..."
+AUDIT_OUTPUT=$(cat services/monitoring/sql/06-add-audit-columns-v1.7.0.sql | \
+   docker exec -i vigil-clickhouse clickhouse-client \
+    --user "$CLICKHOUSE_USER" \
+    --password "$CLICKHOUSE_PASSWORD" \
+    --database n8n_logs \
+    --multiquery 2>&1)
+AUDIT_STATUS=$?
+
+if [ $AUDIT_STATUS -eq 0 ]; then
+    log_success "Audit columns added successfully"
+else
+    log_error "Failed to add audit columns"
+    log_error "SQL execution output:"
+    echo "$AUDIT_OUTPUT" | sed 's/^/    /'
+    log_info "Script path: services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
+    log_info "Check for syntax errors in the SQL file"
+    exit 1
+fi
+
 # Verify installation
 log_info "Verifying database structure..."
 TABLE_COUNT=$(docker exec vigil-clickhouse clickhouse-client \
