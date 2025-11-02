@@ -8,7 +8,7 @@
  * 1. Be present in the response
  * 2. NOT contain original PII (PESEL, SSN, credit cards, emails, etc.)
  * 3. NOT contain original threat patterns (SQL injection, prompt injection, etc.)
- * 4. Contain redaction tokens ([PL_PESEL], [EMAIL_ADDRESS], [content removed], etc.)
+ * 4. Contain redaction tokens ([PESEL], [EMAIL_ADDRESS], [content removed], etc.)
  *
  * Test Strategy:
  * - Send prompts with known PII/threats
@@ -52,7 +52,7 @@ describe('Sanitization Integrity E2E', () => {
       expect(bodyStr).not.toContain(originalPESEL);
 
       // Verify redaction token present
-      expect(bodyStr).toContain('[PL_PESEL]');
+      expect(bodyStr).toContain('[PESEL]');
 
       console.log('✅ PESEL redacted successfully');
     }, 30000);
@@ -124,7 +124,7 @@ describe('Sanitization Integrity E2E', () => {
       expect(bodyStr).not.toContain('5555555555554444');
 
       // Verify ALL redaction tokens present
-      expect(bodyStr).toContain('[PL_PESEL]');
+      expect(bodyStr).toContain('[PESEL]');
       expect(bodyStr).toMatch(/\[EMAIL_ADDRESS\]|\[EMAIL\]/);
       expect(bodyStr).toMatch(/\[CREDIT_CARD\]|\[CARD\]/);
 
@@ -304,7 +304,7 @@ describe('Sanitization Integrity E2E', () => {
 
       // Should contain redaction tokens
       expect(sanitizedText).toMatch(/\[CREDIT_CARD\]|\[CARD\]/);
-      expect(sanitizedText).toContain('[PL_PESEL]');
+      expect(sanitizedText).toContain('[PESEL]');
 
       console.log('✅ sanitizedBody contains sanitized text');
     }, 30000);

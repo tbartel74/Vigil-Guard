@@ -148,12 +148,13 @@ function collectBrowserMetadata() {
   }
 
   // Parse OS information
+  // IMPORTANT: Check iOS/iPhone/iPad BEFORE Mac, because iOS UA contains "like Mac OS X"
   let osName = 'unknown';
   if (ua.indexOf('Win') > -1) osName = 'Windows';
+  else if (ua.indexOf('iOS') > -1 || ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) osName = 'iOS';
+  else if (ua.indexOf('Android') > -1) osName = 'Android';
   else if (ua.indexOf('Mac') > -1) osName = 'macOS';
   else if (ua.indexOf('Linux') > -1) osName = 'Linux';
-  else if (ua.indexOf('Android') > -1) osName = 'Android';
-  else if (ua.indexOf('iOS') > -1 || ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) osName = 'iOS';
 
   return {
     browser: browserName,
