@@ -113,7 +113,7 @@ vigil-guard/
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:5173
+   - Frontend: http://localhost/ui (via Caddy) or :5173 (dev)
    - Backend API: http://localhost:8787
 
 For detailed setup instructions, see [INSTALLATION.md](./INSTALLATION.md).

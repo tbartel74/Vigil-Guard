@@ -209,11 +209,11 @@ Test scenarios:
 **Tools**: Axe DevTools, WAVE, Lighthouse
 
 Run on all pages:
-- [ ] http://localhost:5173/ui/login
-- [ ] http://localhost:5173/ui/
-- [ ] http://localhost:5173/ui/config/quick-settings
-- [ ] http://localhost:5173/ui/administration
-- [ ] http://localhost:5173/ui/settings
+- [ ] http://localhost/ui (or :5173 in dev mode)/login
+- [ ] http://localhost/ui (or :5173 in dev mode)/
+- [ ] http://localhost/ui (or :5173 in dev mode)/config/quick-settings
+- [ ] http://localhost/ui (or :5173 in dev mode)/administration
+- [ ] http://localhost/ui (or :5173 in dev mode)/settings
 
 **Target Metrics**:
 - Axe DevTools: 0 critical issues ✅

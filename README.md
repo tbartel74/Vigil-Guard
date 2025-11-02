@@ -289,7 +289,7 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil-Guard-v1.5.json`
+   - Import: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
 
 3. **Configure ClickHouse Credentials**
    - Locate "Logging to ClickHouse" node in workflow
@@ -562,7 +562,7 @@ The system uses a unified configuration management approach:
   - `normalize.conf` - Text normalization rules
   - `pii.conf` - PII redaction patterns
 
-- **GUI Configuration**: Web interface at http://localhost:5173
+- **GUI Configuration**: Web interface at http://localhost/ui (production) or http://localhost:5173 (dev mode)
   - Variable mapping to configuration files
   - Real-time updates with ETag validation
   - Backup rotation (max 2 backups per file)

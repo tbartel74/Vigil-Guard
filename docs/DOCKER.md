@@ -264,7 +264,7 @@ networks:
 | Grafana | grafana:3000 | localhost:3001 |
 | n8n | n8n:5678 | localhost:5678 |
 | Backend API | web-ui-backend:8787 | localhost:8787 |
-| Frontend | web-ui-frontend:80 | localhost:5173 |
+| Frontend | web-ui-frontend:80 | localhost/ui (via Caddy) |
 | **Caddy** | - | **localhost:80** (main) |
 
 **Production**: Only expose port 443 (HTTPS), block all other ports with firewall.
