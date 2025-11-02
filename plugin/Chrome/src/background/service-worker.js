@@ -91,9 +91,86 @@ async function fetchConfigFromGUI() {
   }
 }
 
+/**
+ * Generate or retrieve persistent clientId (v1.7.0)
+ * Used for tracking browser instances across sessions
+ * Format: vigil_<timestamp>_<random>
+ * Stored in chrome.storage.local for persistence
+ */
+async function getOrCreateClientId() {
+  try {
+    const stored = await chrome.storage.local.get('clientId');
+
+    if (stored.clientId) {
+      return stored.clientId;
+    }
+
+    // Generate new clientId
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    const clientId = `vigil_${timestamp}_${random}`;
+
+    // Store for future use
+    await chrome.storage.local.set({ clientId });
+
+    console.log('[Vigil Guard] Generated new clientId:', clientId);
+    return clientId;
+  } catch (error) {
+    console.error('[Vigil Guard] Failed to get/create clientId:', error);
+    // Fallback to session-specific ID
+    return `vigil_session_${Date.now()}`;
+  }
+}
+
+/**
+ * Collect browser metadata for audit trail (v1.7.0)
+ * Returns anonymized browser/OS information for security analysis
+ */
+function collectBrowserMetadata() {
+  const ua = navigator.userAgent;
+
+  // Parse browser information
+  let browserName = 'unknown';
+  let browserVersion = 'unknown';
+
+  if (ua.indexOf('Chrome') > -1) {
+    browserName = 'Chrome';
+    const match = ua.match(/Chrome\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : 'unknown';
+  } else if (ua.indexOf('Firefox') > -1) {
+    browserName = 'Firefox';
+    const match = ua.match(/Firefox\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : 'unknown';
+  } else if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) {
+    browserName = 'Safari';
+    const match = ua.match(/Version\/(\d+\.\d+)/);
+    browserVersion = match ? match[1] : 'unknown';
+  }
+
+  // Parse OS information
+  // IMPORTANT: Check iOS/iPhone/iPad BEFORE Mac, because iOS UA contains "like Mac OS X"
+  let osName = 'unknown';
+  if (ua.indexOf('Win') > -1) osName = 'Windows';
+  else if (ua.indexOf('iOS') > -1 || ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1) osName = 'iOS';
+  else if (ua.indexOf('Android') > -1) osName = 'Android';
+  else if (ua.indexOf('Mac') > -1) osName = 'macOS';
+  else if (ua.indexOf('Linux') > -1) osName = 'Linux';
+
+  return {
+    browser: browserName,
+    browser_version: browserVersion,
+    os: osName,
+    language: navigator.language || 'unknown',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'
+  };
+}
+
 // Initialize extension
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('[Vigil Guard] Extension installed');
+
+  // Generate or retrieve clientId (v1.7.0)
+  await getOrCreateClientId();
 
   // Fetch configuration from GUI
   await fetchConfigFromGUI();
@@ -243,10 +320,19 @@ async function sendToVigilGuard(data, config) {
 
   console.log('[Vigil Guard] 📝 Extracted message:', chatInput || '(empty)');
 
+  // Get persistent clientId (v1.7.0)
+  const clientId = await getOrCreateClientId();
+
+  // Collect browser metadata (v1.7.0)
+  const browserMetadata = collectBrowserMetadata();
+
   // Prepare n8n payload format with full context for debugging
   const n8nPayload = {
     sessionId: Date.now().toString(),
+    clientId: clientId,  // NEW v1.7.0: Persistent browser instance identifier
     chatInput: chatInput,
+    // NEW v1.7.0: Browser metadata for audit trail
+    browser_metadata: browserMetadata,
     // DEBUG: Include full body for analysis and requestId tracking
     _debug: {
       requestId: data.requestId || 'unknown',  // Track request through entire pipeline
@@ -485,6 +571,36 @@ async function callWebhook(webhookUrl, payload) {
       return { action: 'allow', reason: 'no_action_specified' };
     }
 
+    // NEW v1.7.0: Validate sanitizedBody presence for SANITIZE actions
+    if (responseData.action === 'sanitize' && !responseData.sanitizedBody) {
+      console.error('[Vigil Guard] ❌ CRITICAL: sanitizedBody missing for SANITIZE action!');
+      console.error('[Vigil Guard] Response:', JSON.stringify(responseData, null, 2));
+
+      // Emergency fallback: Construct minimal sanitizedBody from chatInput
+      const fallbackText = responseData.chatInput || '[Content sanitized by Vigil Guard]';
+
+      responseData.sanitizedBody = {
+        messages: [{
+          id: Date.now().toString(),
+          author: { role: "user" },
+          content: {
+            content_type: "text",
+            parts: [fallbackText]
+          }
+        }]
+      };
+
+      console.warn('[Vigil Guard] 🔧 Emergency fallback: Constructed sanitizedBody from chatInput');
+      console.warn('[Vigil Guard] This indicates a workflow issue - check "output to plugin" node');
+
+      // Add error flag for monitoring
+      responseData._warning = {
+        type: 'sanitizedBody_missing',
+        message: 'sanitizedBody was missing, constructed from chatInput',
+        timestamp: new Date().toISOString()
+      };
+    }
+
     return responseData;
   } catch (error) {
     console.error('[Vigil Guard] Webhook call failed:', error);
@@ -600,10 +716,26 @@ function updateExtensionStatus(status) {
 async function checkWithGuardOverlay(payload) {
   console.log('[Vigil Guard] 🚀 Overlay proxy check:', payload.chatInput?.substring(0, 50) + '...');
 
+  // NEW v1.7.0: Get persistent clientId for browser fingerprinting
+  const clientId = await getOrCreateClientId();
+
+  // NEW v1.7.0: Collect browser metadata for audit trail
+  const browserMetadata = collectBrowserMetadata();
+
+  // NEW v1.7.0: Enrich payload with browser fingerprinting data
+  const enrichedPayload = {
+    ...payload,
+    clientId: clientId,
+    browser_metadata: browserMetadata
+  };
+
+  console.log('[Vigil Guard] 📋 Enriched with clientId:', clientId);
+  console.log('[Vigil Guard] 📋 Browser metadata:', browserMetadata);
+
   const config = await getConfig();
   const webhookUrl = config.customWebhook || config.n8nEndpoint;
 
-  const webhookResponse = await callWebhook(webhookUrl, payload);
+  const webhookResponse = await callWebhook(webhookUrl, enrichedPayload);
 
   // If webhook call failed or returned null, fail open
   if (!webhookResponse) {

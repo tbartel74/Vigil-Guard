@@ -34,22 +34,6 @@ export default function ConfigNav() {
       </div>
 
       <NavLink
-        to="/config/pii"
-        className={({ isActive }) =>
-          `block px-3 py-3 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-darker ${
-            isActive
-              ? "bg-slate-800 text-white"
-              : "text-text-secondary hover:text-white hover:bg-slate-800/50"
-          }`
-        }
-      >
-        <div className="font-medium mb-1">PII Detection</div>
-        <div className="text-xs text-text-secondary leading-relaxed">
-          Configure Microsoft Presidio for advanced PII detection (50+ entity types)
-        </div>
-      </NavLink>
-
-      <NavLink
         to="/config/retention"
         className={({ isActive }) =>
           `block px-3 py-3 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-darker ${

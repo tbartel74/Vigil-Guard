@@ -327,6 +327,62 @@ Vigil Guard stores configuration in the `services/workflow/config/` directory:
 | `normalize.conf` | Homoglyph and leet speak mappings | KEY=VALUE |
 | `pii.conf` | PII redaction patterns | SECTION/KEY |
 
+## 🔍 Language Detection (v1.6.11+)
+
+### Hybrid Detection Algorithm
+
+**Method**: Entity-based hints + statistical analysis
+
+The language detector uses a two-phase approach:
+
+1. **Entity-Based Detection** (Priority 1):
+   - **Polish Signals**: PESEL pattern (11 digits), NIP/REGON (10 digits), keywords (`pesel`, `nip`, `karta`, `kredytowa`)
+   - **Scoring**: Each keyword = +1 point, PESEL pattern = +3 points, NIP/REGON = +2 points
+   - **Threshold**: Polish score ≥2 → classify as Polish
+
+2. **Statistical Fallback** (Priority 2):
+   - Uses `langdetect` library (Google language-detection port)
+   - Character n-gram analysis for 55+ languages
+   - Returns detected language + confidence score
+
+3. **Override Logic**:
+   - If langdetect confidence <70% AND Polish hints present → override to Polish
+   - Prevents misclassification of short text with mixed content
+
+### Detection Methods
+
+| Method | Trigger | Use Case |
+|--------|---------|----------|
+| `entity_based` | Polish score ≥2 | Short text with PESEL, NIP, or Polish keywords |
+| `statistical` | No Polish signals | Standard text (>50 chars, clear language) |
+| `hybrid_override` | Low confidence + hints | Ambiguous short text ("Karta 5555...") |
+| `fallback` | Detection error | Error recovery (defaults to pl/en) |
+
+### Benefits
+
+- **Short Text Accuracy**: Correctly classifies "Karta 5555... i PESEL 44051..." as Polish (previously Indonesian)
+- **CREDIT_CARD Fix**: Enables proper routing to Polish-language recognizers
+- **Scalable**: Easily extensible to other languages (add keywords/patterns)
+- **Fast**: <1ms overhead for entity checking
+
+### Example Response
+
+```json
+{
+  "language": "pl",
+  "language_name": "Polish",
+  "confidence": 1.0,
+  "method": "entity_based",
+  "processing_time_ms": 0.34,
+  "signals": {
+    "polish_score": 5,
+    "keywords_found": ["pesel", "karta"],
+    "pesel_pattern": true,
+    "nip_pattern": false
+  }
+}
+```
+
 ## 🔄 Configuration Management
 
 ### ETag-Based Concurrency Control

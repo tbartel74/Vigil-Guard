@@ -7,6 +7,7 @@ export default function Investigation() {
     startDate: undefined,
     endDate: undefined,
     textQuery: '',
+    clientId: '',  // NEW v1.7.0
     status: null,
     minScore: 0,
     maxScore: 100,
@@ -88,6 +89,7 @@ export default function Investigation() {
       startDate: undefined,
       endDate: undefined,
       textQuery: '',
+      clientId: '',  // NEW v1.7.0
       status: null,
       minScore: 0,
       maxScore: 100,
@@ -161,6 +163,20 @@ export default function Investigation() {
             />
           </div>
 
+          {/* Client ID Filter - NEW v1.7.0 */}
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">Client ID (Browser Fingerprint)</label>
+            <input
+              type="text"
+              placeholder="e.g. vigil_1730470496_abc123xyz"
+              value={searchParams.clientId || ''}
+              onChange={(e) => setSearchParams({ ...searchParams, clientId: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 mb-4">
           {/* Threat Score Range */}
           <div>
             <label className="block text-sm text-text-secondary mb-2">
@@ -261,6 +277,7 @@ export default function Investigation() {
                 <thead className="border-b border-slate-700">
                   <tr>
                     <th className="text-left py-3 px-3 text-sm font-medium text-text-secondary">Timestamp</th>
+                    <th className="text-left py-3 px-3 text-sm font-medium text-text-secondary">Client ID</th>
                     <th className="text-left py-3 px-3 text-sm font-medium text-text-secondary">Prompt (preview)</th>
                     <th className="text-left py-3 px-3 text-sm font-medium text-text-secondary">Status</th>
                     <th className="text-left py-3 px-3 text-sm font-medium text-text-secondary">Score</th>
@@ -276,6 +293,9 @@ export default function Investigation() {
                     >
                       <td className="py-3 px-3 text-sm text-white">
                         {new Date(row.timestamp).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 text-xs text-blue-400 font-mono max-w-[200px] truncate" title={row.client_id}>
+                        {row.client_id || '—'}
                       </td>
                       <td className="py-3 px-3 text-sm text-white max-w-md truncate">
                         {row.prompt_input.substring(0, 100)}

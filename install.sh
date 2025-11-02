@@ -917,6 +917,29 @@ EOF
         return 1
     fi
 
+    # Execute v1.7.0 audit columns migration
+    log_info "Adding v1.7.0 audit columns (PII classification + browser fingerprinting)..."
+    AUDIT_OUTPUT=$(cat services/monitoring/sql/06-add-audit-columns-v1.7.0.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    AUDIT_STATUS=$?
+
+    if [ $AUDIT_STATUS -eq 0 ]; then
+        log_success "Audit columns added successfully"
+    else
+        log_error "Failed to add audit columns"
+        log_error "ClickHouse error output:"
+        echo "$AUDIT_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Columns already exist (migration idempotent with IF NOT EXISTS)"
+        log_info "     - Syntax errors in ALTER TABLE statements"
+        log_info "     - Target table does not exist"
+        log_info "  3. Verify columns: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'DESCRIBE TABLE ${CLICKHOUSE_DB}.events_processed'"
+        echo ""
+        return 1
+    fi
+
     # Verify installation
     log_info "Verifying database structure..."
     TABLE_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')

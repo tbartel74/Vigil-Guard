@@ -30,6 +30,8 @@ services:
       - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
       - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/02-create-views.sql:ro
       - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/03-false-positives.sql:ro
+      - ./services/monitoring/sql/05-retention-config.sql:/docker-entrypoint-initdb.d/05-retention-config.sql:ro
+      - ./services/monitoring/sql/06-add-audit-columns-v1.7.0.sql:/docker-entrypoint-initdb.d/06-add-audit-columns-v1.7.0.sql:ro
     networks:
       vigil-net:
         aliases:

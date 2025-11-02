@@ -272,6 +272,7 @@ export interface SearchParams {
   startDate?: string;
   endDate?: string;
   textQuery?: string;
+  clientId?: string;  // NEW v1.7.0: Filter by browser client ID
   status?: 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | null;
   minScore?: number;
   maxScore?: number;
@@ -285,6 +286,7 @@ export interface SearchParams {
 export interface SearchResultRow {
   event_id: string;
   timestamp: string;
+  client_id: string;        // NEW v1.7.0: Persistent browser instance identifier
   prompt_input: string;
   final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
   threat_score: number;
@@ -294,6 +296,12 @@ export interface SearchResultRow {
   prompt_guard: string;     // JSON: PG score, risk_level, confidence
   final_decision: string;   // JSON: action_taken, internal_note, source
   sanitizer: string;        // JSON: decision, breakdown, removal_pct
+  // NEW v1.7.0: Browser metadata (available in detail view)
+  browser_name?: string;
+  browser_version?: string;
+  browser_language?: string;
+  browser_timezone?: string;
+  os_name?: string;
 }
 
 export interface SearchResponse {
@@ -311,6 +319,7 @@ export async function searchPrompts(params: SearchParams): Promise<SearchRespons
   if (params.startDate) queryParams.set('startDate', params.startDate);
   if (params.endDate) queryParams.set('endDate', params.endDate);
   if (params.textQuery) queryParams.set('textQuery', params.textQuery);
+  if (params.clientId) queryParams.set('clientId', params.clientId);  // NEW v1.7.0
   if (params.status) queryParams.set('status', params.status);
   if (params.minScore !== undefined && params.minScore !== null) queryParams.set('minScore', String(params.minScore));
   if (params.maxScore !== undefined && params.maxScore !== null) queryParams.set('maxScore', String(params.maxScore));

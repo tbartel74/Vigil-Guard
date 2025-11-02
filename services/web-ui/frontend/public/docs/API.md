@@ -250,6 +250,78 @@ Returns aggregated ClickHouse data from the last 24 hours.
 
 By default, the backend connects to host `vigil-clickhouse` and database `n8n_logs`. You can override this using environment variables (`CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, etc.).
 
+### `GET /api/stats/pii/types` (v1.7.0)
+
+Returns top 10 PII entity types detected within the specified time range.
+
+**Authorization**: Required (JWT)
+
+**Query Parameters:**
+- `timeRange` (optional): `1h`, `6h`, `12h`, `24h`, or `7d` (default: `24h`)
+
+**Response:**
+```json
+[
+  {
+    "type": "EMAIL_ADDRESS",
+    "count": 245,
+    "percentage": 35.2
+  },
+  {
+    "type": "CREDIT_CARD",
+    "count": 187,
+    "percentage": 26.9
+  },
+  {
+    "type": "PL_PESEL",
+    "count": 156,
+    "percentage": 22.4
+  }
+]
+```
+
+**Note**: Requires ClickHouse schema v1.7.0 with `pii_types_detected` column. Returns empty array if no PII detected in time range.
+
+### `GET /api/stats/pii/overview` (v1.7.0)
+
+Returns comprehensive PII detection statistics including detection rate and top entity types.
+
+**Authorization**: Required (JWT)
+
+**Query Parameters:**
+- `timeRange` (optional): `1h`, `6h`, `12h`, `24h`, or `7d` (default: `24h`)
+
+**Response:**
+```json
+{
+  "total_requests": 5420,
+  "requests_with_pii": 1087,
+  "pii_detection_rate": 20.06,
+  "total_pii_entities": 1543,
+  "top_pii_types": [
+    {
+      "type": "EMAIL_ADDRESS",
+      "count": 245,
+      "percentage": 35.2
+    },
+    {
+      "type": "CREDIT_CARD",
+      "count": 187,
+      "percentage": 26.9
+    }
+  ]
+}
+```
+
+**Fields:**
+- `total_requests`: Total number of requests processed
+- `requests_with_pii`: Number of requests containing PII
+- `pii_detection_rate`: Percentage of requests with PII (0-100)
+- `total_pii_entities`: Sum of all PII entities detected
+- `top_pii_types`: Top 10 entity types (same format as `/api/stats/pii/types`)
+
+**Note**: Requires ClickHouse schema v1.7.0 with `pii_sanitized` and `pii_entities_count` columns.
+
 ### `GET /api/prompt-guard/health`
 
 Checks the health of the Prompt Guard API.

@@ -111,10 +111,8 @@ recognizers:
       - "pani"
       - "osoba"
       - "person"
-      - "pesel"
-      - "PESEL"
-      - "nip"
-      - "NIP"
+      # REMOVED: "pesel", "PESEL", "nip", "NIP" - these are PII identifiers, not person name context
+      # These keywords were causing false positives (e.g., "moim pesel" detected as [PERSON])
       - "email"
       - "e-mail"
       - "telefon"

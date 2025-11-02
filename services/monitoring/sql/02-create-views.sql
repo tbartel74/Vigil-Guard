@@ -29,10 +29,24 @@ ORDER BY minute, r.workflow_id;
 -- ==========================================
 -- View for the main Grafana prompts table
 -- (local time rendering for Warsaw)
+-- Updated v1.7.0: Added browser fingerprinting and PII classification columns
 -- ==========================================
 CREATE OR REPLACE VIEW n8n_logs.v_grafana_prompts_table AS
 SELECT
+  -- Browser Fingerprinting (v1.7.0)
+  client_id,
+  browser_name,
+  browser_version,
+  os_name,
+  browser_language,
+  browser_timezone,
+  -- PII Classification (v1.7.0)
+  pii_sanitized,
+  pii_types_detected,
+  pii_entities_count,
+  -- Timestamp
   toTimeZone(timestamp, 'Europe/Warsaw')                                AS time,
+  -- Prompt and Decision
   JSONExtractString(pipeline_flow_json, 'input_raw')                    AS original_prompt,
   JSONExtractString(pipeline_flow_json, 'output_final')                 AS output_after_decision,
   final_status,

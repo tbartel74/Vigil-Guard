@@ -242,3 +242,65 @@ export function assertDetection(event, expected) {
     throw new Error(`Detection assertion failed:\n${errors.join('\n')}`);
   }
 }
+
+/**
+ * Test webhook for sanitization-integrity tests
+ * Sends prompt to workflow and returns webhook response
+ * @param {Object} payload - Request payload with chatInput
+ * @returns {Promise<Object>} Webhook response with action and sanitizedBody
+ */
+export async function testWebhook(payload) {
+  const response = await fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Webhook request failed: HTTP ${response.status}\n${text}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Verify that an event with given original_input exists in ClickHouse
+ * Used for audit trail verification
+ * @param {string} originalInput - The original input text to search for
+ * @returns {Promise<boolean>} True if event found, false otherwise
+ */
+export async function verifyClickHouseLog(originalInput) {
+  try {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM n8n_logs.events_processed
+      WHERE original_input = '${originalInput.replace(/'/g, "\\'")}'
+      FORMAT JSON
+    `;
+
+    const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
+    const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
+
+    const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {
+      headers: {
+        'Authorization': `Basic ${auth}`
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`ClickHouse query failed: HTTP ${response.status}`);
+      return false;
+    }
+
+    const result = await response.json();
+    return result.data && result.data[0] && result.data[0].count > 0;
+  } catch (error) {
+    console.warn(`ClickHouse verification error: ${error.message}`);
+    return false;
+  }
+}
