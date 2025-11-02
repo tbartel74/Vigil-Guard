@@ -264,8 +264,13 @@ networks:
 | Grafana | grafana:3000 | localhost:3001 |
 | n8n | n8n:5678 | localhost:5678 |
 | Backend API | web-ui-backend:8787 | localhost:8787 |
-| Frontend | web-ui-frontend:80 | localhost/ui (via Caddy) |
-| **Caddy** | - | **localhost:80** (main) |
+| Frontend | web-ui-frontend:80 | localhost:5173 (dev) |
+| **Caddy** | proxy:80 | **localhost:80** (main entry point) |
+
+**Note:** In production, Caddy proxies requests:
+- `http://localhost/ui/*` → Frontend container (:80 internal)
+- `http://localhost/n8n/*` → n8n container (:5678)
+- `http://localhost/grafana/*` → Grafana container (:3000)
 
 **Production**: Only expose port 443 (HTTPS), block all other ports with firewall.
 
