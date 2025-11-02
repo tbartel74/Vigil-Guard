@@ -1,0 +1,207 @@
+# Grafana Alert Rule: PII Leak Detection
+#
+# Purpose: Detect if original PII is leaking to AI providers (NOT being redacted)
+#
+# Critical Security Invariant:
+# When pii.has = true (PII detected), the after_pii_redaction field MUST differ
+# from original_input. If they match, PII was NOT redacted → CRITICAL LEAK!
+#
+# Alert Trigger: Any event where PII detected but NOT redacted
+# Alert Severity: CRITICAL
+# Alert Frequency: Check every 1 minute
+#
+# Installation:
+# 1. Place this file in: services/monitoring/grafana/provisioning/alerting/
+# 2. Restart Grafana: docker-compose restart grafana
+# 3. Verify in Grafana UI: Alerting → Alert rules
+
+apiVersion: 1
+
+groups:
+  - name: vigil_guard_security
+    folder: Vigil Guard Alerts  # Required for Grafana provisioning
+    interval: 1m  # Check every 1 minute
+    rules:
+      - uid: pii_leak_detection_001
+        title: PII Leak Detection - CRITICAL
+        condition: A
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 300  # Last 5 minutes
+              to: 0
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT
+                  count(*) AS leak_count
+                FROM n8n_logs.events_processed
+                WHERE JSONExtractBool(sanitizer_json, 'pii', 'has') = 1
+                  AND original_input = after_pii_redaction
+                  AND timestamp >= now() - INTERVAL 5 MINUTE
+              format: table
+        noDataState: OK  # OK if no data (means no leaks)
+        execErrState: Alerting  # Alert if query fails (better safe)
+        for: 0s  # Alert immediately (no grace period for security issues)
+        annotations:
+          description: |
+            CRITICAL SECURITY ALERT: PII leak detected!
+
+            Original PII was NOT redacted and may have been sent to AI provider.
+
+            Action Required:
+            1. Check ClickHouse logs immediately
+            2. Identify affected sessions
+            3. Review PII redaction pipeline (PII_Redactor_v2 node)
+            4. Verify Presidio services are running
+            5. Check for workflow configuration errors
+
+            Query to investigate:
+            ```sql
+            SELECT
+              sessionId,
+              original_input,
+              after_pii_redaction,
+              timestamp
+            FROM n8n_logs.events_processed
+            WHERE JSONExtractBool(sanitizer_json, 'pii', 'has') = 1
+              AND original_input = after_pii_redaction
+              AND timestamp >= now() - INTERVAL 1 HOUR
+            ORDER BY timestamp DESC;
+            ```
+          summary: PII NOT redacted - potential data leak to AI provider
+        labels:
+          severity: critical
+          team: security
+          service: vigil-guard
+          category: data-leakage
+        isPaused: false
+
+      - uid: sanitizedBody_missing_001
+        title: sanitizedBody Missing for SANITIZE Actions
+        condition: B
+        data:
+          - refId: B
+            queryType: ''
+            relativeTimeRange:
+              from: 300  # Last 5 minutes
+              to: 0
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT
+                  count(*) AS missing_count
+                FROM n8n_logs.events_processed
+                WHERE final_status = 'SANITIZED'
+                  AND JSONExtractString(raw_event, 'chat_payload', 'chatInput') = ''
+                  AND timestamp >= now() - INTERVAL 5 MINUTE
+              format: table
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m  # Allow 2 minute grace period (less critical than PII leak)
+        annotations:
+          description: |
+            WARNING: sanitizedBody may be missing from workflow response.
+
+            This could indicate:
+            1. "output to plugin" node not constructing sanitizedBody correctly
+            2. Webhook input missing _debug.fullBody field
+            3. Fallback logic not triggered
+
+            Impact: Browser extension may use chatInput fallback (less reliable)
+
+            Action Required:
+            1. Check n8n workflow logs for "output to plugin" node
+            2. Verify service worker is sending _debug.fullBody
+            3. Review extension logs for "sanitizedBody missing" warnings
+
+            Query to investigate:
+            ```sql
+            SELECT
+              sessionId,
+              final_status,
+              JSONExtractString(raw_event, 'chat_payload') as chat_payload,
+              timestamp
+            FROM n8n_logs.events_processed
+            WHERE final_status = 'SANITIZED'
+              AND timestamp >= now() - INTERVAL 1 HOUR
+            ORDER BY timestamp DESC
+            LIMIT 50;
+            ```
+          summary: sanitizedBody missing for SANITIZE actions
+        labels:
+          severity: warning
+          team: engineering
+          service: vigil-guard
+          category: reliability
+        isPaused: false
+
+      - uid: pii_redaction_rate_drop_001
+        title: PII Redaction Rate Sudden Drop
+        condition: C
+        data:
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 3600  # Last 1 hour
+              to: 0
+            datasourceUid: clickhouse
+            model:
+              rawSql: |
+                SELECT
+                  countIf(JSONExtractBool(sanitizer_json, 'pii', 'has') = 1) AS pii_detected_count,
+                  count(*) AS total_count,
+                  round(pii_detected_count / total_count * 100, 2) AS pii_rate_percent
+                FROM n8n_logs.events_processed
+                WHERE timestamp >= now() - INTERVAL 1 HOUR
+                HAVING pii_rate_percent < 5  -- Alert if PII rate drops below 5%
+              format: table
+        noDataState: OK
+        execErrState: OK
+        for: 5m  # Sustained drop for 5 minutes
+        annotations:
+          description: |
+            INFO: PII detection rate has dropped below expected threshold.
+
+            Normal PII rate: 10-20% of requests
+            Current rate: < 5%
+
+            Possible causes:
+            1. Presidio PII service down or slow
+            2. Language detector not routing to Polish analyzer
+            3. Change in user behavior (less PII in prompts)
+
+            Action:
+            1. Check Presidio health: curl http://localhost:5001/health
+            2. Check language detector: curl http://localhost:5002/health
+            3. Review recent PII detection logs in ClickHouse
+          summary: PII detection rate dropped below 5% (expected 10-20%)
+        labels:
+          severity: info
+          team: monitoring
+          service: vigil-guard
+          category: anomaly-detection
+        isPaused: false
+
+# Notification Channels (optional - configure in Grafana UI or add here)
+# contactPoints:
+#   - name: vigil-guard-slack
+#     type: slack
+#     settings:
+#       url: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+#   - name: vigil-guard-email
+#     type: email
+#     settings:
+#       addresses: security@yourcompany.com
+
+# Notification Policies (route alerts to channels)
+# policies:
+#   - receiver: vigil-guard-slack
+#     group_by: ['alertname', 'severity']
+#     matchers:
+#       - severity = critical
+#   - receiver: vigil-guard-email
+#     group_by: ['alertname']
+#     matchers:
+#       - severity = warning

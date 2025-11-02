@@ -7,7 +7,7 @@ import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getV
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams } from "./clickhouse.js";
+import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams, getPIITypeStats, getPIIOverview } from "./clickhouse.js";
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
@@ -85,6 +85,31 @@ app.get("/api/stats/24h", authenticate, async (req, res) => {
   } catch (e: any) {
     console.error("Error fetching stats from ClickHouse:", e);
     res.status(500).json({ error: "Failed to fetch statistics", details: e.message });
+  }
+});
+
+// PII Statistics endpoints (v1.7.0) - requires authentication
+app.get("/api/stats/pii/types", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '24h';
+    const interval = convertTimeRangeToInterval(timeRange);
+    const piiTypes = await getPIITypeStats(interval);
+    res.json(piiTypes);
+  } catch (e: any) {
+    console.error("Error fetching PII type stats from ClickHouse:", e);
+    res.status(500).json({ error: "Failed to fetch PII type statistics", details: e.message });
+  }
+});
+
+app.get("/api/stats/pii/overview", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '24h';
+    const interval = convertTimeRangeToInterval(timeRange);
+    const piiOverview = await getPIIOverview(interval);
+    res.json(piiOverview);
+  } catch (e: any) {
+    console.error("Error fetching PII overview from ClickHouse:", e);
+    res.status(500).json({ error: "Failed to fetch PII overview", details: e.message });
   }
 });
 
@@ -344,6 +369,7 @@ app.get("/api/prompts/search", authenticate, async (req, res) => {
       startDate,
       endDate,
       textQuery,
+      clientId,  // NEW v1.7.0
       status,
       minScore,
       maxScore,
@@ -359,6 +385,7 @@ app.get("/api/prompts/search", authenticate, async (req, res) => {
       startDate: startDate as string | undefined,
       endDate: endDate as string | undefined,
       textQuery: textQuery as string | undefined,
+      clientId: clientId as string | undefined,  // NEW v1.7.0
       status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
       minScore: minScore ? Number(minScore) : undefined,
       maxScore: maxScore ? Number(maxScore) : undefined,

@@ -87,13 +87,13 @@ vigil-guard/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd local-config-panel
+   cd vigil-guard
    ```
 
 2. **Install dependencies**
    ```bash
    # Backend
-   cd backend
+   cd services/web-ui/backend
    npm install
 
    # Frontend
@@ -104,11 +104,11 @@ vigil-guard/
 3. **Start the services**
    ```bash
    # Terminal 1: Backend
-   cd backend
+   cd services/web-ui/backend
    npm run start
 
    # Terminal 2: Frontend
-   cd frontend
+   cd services/web-ui/frontend
    npm run dev
    ```
 

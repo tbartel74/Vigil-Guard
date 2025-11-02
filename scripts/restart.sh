@@ -43,6 +43,17 @@ restart_service() {
     echo ""
 }
 
+reinit_clickhouse() {
+    echo ""
+    echo -e "${YELLOW}ℹ${NC} ClickHouse was restarted - reinitializing database schema..."
+    if [ -f "./scripts/init-clickhouse.sh" ]; then
+        ./scripts/init-clickhouse.sh
+    else
+        echo -e "${YELLOW}⚠${NC} init-clickhouse.sh not found, skipping schema initialization"
+        echo "   Run manually: ./scripts/init-clickhouse.sh"
+    fi
+}
+
 case $SERVICE in
     web-ui)
         restart_service "Web UI Backend" "web-ui-backend"
@@ -53,6 +64,7 @@ case $SERVICE in
         ;;
     monitoring)
         restart_service "ClickHouse" "clickhouse"
+        reinit_clickhouse
         restart_service "Grafana" "grafana"
         ;;
     prompt-guard)
@@ -65,7 +77,7 @@ case $SERVICE in
         echo -e "${YELLOW}Restarting all services...${NC}"
         docker-compose restart
         echo -e "${GREEN}✓${NC} All services restarted"
-        echo ""
+        reinit_clickhouse
         ;;
     *)
         echo "Unknown service: $SERVICE"

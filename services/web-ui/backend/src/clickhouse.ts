@@ -323,6 +323,7 @@ export interface SearchParams {
   startDate?: string;       // ISO 8601: "2025-10-19T00:00:00Z"
   endDate?: string;         // ISO 8601: "2025-10-20T23:59:59Z"
   textQuery?: string;       // Full-text search: "ignore all"
+  clientId?: string;        // NEW v1.7.0: Filter by browser client ID
   status?: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
   minScore?: number;        // 0-100
   maxScore?: number;        // 0-100
@@ -336,6 +337,7 @@ export interface SearchParams {
 export interface SearchResultRow {
   event_id: string;
   timestamp: string;
+  client_id: string;        // NEW v1.7.0: Persistent browser instance identifier
   prompt_input: string;
   final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
   threat_score: number;
@@ -345,6 +347,12 @@ export interface SearchResultRow {
   prompt_guard: string;     // JSON: PG score, risk_level, confidence
   final_decision: string;   // JSON: action_taken, internal_note, source
   sanitizer: string;        // JSON: decision, breakdown, removal_pct
+  // NEW v1.7.0: Browser metadata for detail view
+  browser_name?: string;
+  browser_version?: string;
+  browser_language?: string;
+  browser_timezone?: string;
+  os_name?: string;
 }
 
 export interface SearchResult {
@@ -376,6 +384,12 @@ export async function searchPrompts(params: SearchParams): Promise<SearchResult>
     if (params.textQuery && params.textQuery.trim() !== '') {
       whereConditions.push('positionCaseInsensitive(original_input, {textQuery:String}) > 0');
       queryParams.textQuery = params.textQuery.trim();
+    }
+
+    // NEW v1.7.0: Client ID filter (exact match)
+    if (params.clientId && params.clientId.trim() !== '') {
+      whereConditions.push('client_id = {clientId:String}');
+      queryParams.clientId = params.clientId.trim();
     }
 
     // Status filter
@@ -439,6 +453,7 @@ export async function searchPrompts(params: SearchParams): Promise<SearchResult>
       SELECT
         event_id,
         formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%SZ') AS timestamp,
+        client_id,
         original_input AS prompt_input,
         final_status,
         toUInt8(ifNull(JSONExtract(scoring_json, 'sanitizer_score', 'Int32'), 0)) AS threat_score,
@@ -450,7 +465,12 @@ export async function searchPrompts(params: SearchParams): Promise<SearchResult>
         toString(scoring_json) AS scoring,
         toString(prompt_guard_json) AS prompt_guard,
         toString(final_decision_json) AS final_decision,
-        toString(sanitizer_json) AS sanitizer
+        toString(sanitizer_json) AS sanitizer,
+        browser_name,
+        browser_version,
+        browser_language,
+        browser_timezone,
+        os_name
       FROM n8n_logs.events_processed
       ${whereClause}
       ORDER BY ${safeSortBy} ${sortOrder}
@@ -476,6 +496,128 @@ export async function searchPrompts(params: SearchParams): Promise<SearchResult>
   } catch (error) {
     console.error('ClickHouse query error (searchPrompts):', error);
     throw error;
+  }
+}
+
+// ============================================================================
+// PII STATISTICS (v1.7.0)
+// ============================================================================
+
+export interface PIITypeStats {
+  type: string;
+  count: number;
+  percentage: number;
+}
+
+export interface PIIOverview {
+  total_requests: number;
+  requests_with_pii: number;
+  pii_detection_rate: number;
+  total_pii_entities: number;
+  top_pii_types: PIITypeStats[];
+}
+
+/**
+ * Get PII entity type distribution (Top 10 PII types detected)
+ * NOTE: Requires ClickHouse schema v1.7.0 with pii_types_detected column
+ */
+export async function getPIITypeStats(timeRange: string = '24 HOUR'): Promise<PIITypeStats[]> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        pii_type,
+        count() AS count,
+        round(count() * 100.0 / sum(count()) OVER (), 2) AS percentage
+      FROM (
+        SELECT arrayJoin(pii_types_detected) AS pii_type
+        FROM n8n_logs.events_processed
+        WHERE timestamp >= now() - INTERVAL ${timeRange}
+          AND pii_sanitized = 1
+      )
+      GROUP BY pii_type
+      ORDER BY count DESC
+      LIMIT 10
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    const data = await resultSet.json<{pii_type: string; count: string; percentage: string}>();
+
+    return data.map(row => ({
+      type: row.pii_type,
+      count: Number(row.count),
+      percentage: Number(row.percentage),
+    }));
+  } catch (error) {
+    console.error('ClickHouse query error (getPIITypeStats):', error);
+    return [];
+  }
+}
+
+/**
+ * Get PII detection overview statistics
+ * NOTE: Requires ClickHouse schema v1.7.0 with pii_sanitized and pii_entities_count columns
+ */
+export async function getPIIOverview(timeRange: string = '24 HOUR'): Promise<PIIOverview> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        count() AS total_requests,
+        countIf(pii_sanitized = 1) AS requests_with_pii,
+        round(countIf(pii_sanitized = 1) * 100.0 / count(), 2) AS pii_detection_rate,
+        sum(pii_entities_count) AS total_pii_entities
+      FROM n8n_logs.events_processed
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    const data = await resultSet.json<{
+      total_requests: string;
+      requests_with_pii: string;
+      pii_detection_rate: string;
+      total_pii_entities: string;
+    }>();
+
+    // Get top PII types
+    const topTypes = await getPIITypeStats(timeRange);
+
+    if (data.length > 0) {
+      return {
+        total_requests: Number(data[0].total_requests),
+        requests_with_pii: Number(data[0].requests_with_pii),
+        pii_detection_rate: Number(data[0].pii_detection_rate),
+        total_pii_entities: Number(data[0].total_pii_entities),
+        top_pii_types: topTypes,
+      };
+    }
+
+    return {
+      total_requests: 0,
+      requests_with_pii: 0,
+      pii_detection_rate: 0,
+      total_pii_entities: 0,
+      top_pii_types: [],
+    };
+  } catch (error) {
+    console.error('ClickHouse query error (getPIIOverview):', error);
+    return {
+      total_requests: 0,
+      requests_with_pii: 0,
+      pii_detection_rate: 0,
+      total_pii_entities: 0,
+      top_pii_types: [],
+    };
   }
 }
 

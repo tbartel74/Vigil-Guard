@@ -142,7 +142,16 @@ window.fetch = async function(...args) {
               console.log('[Vigil Guard] 🌐 🧹 SANITIZED by network intercept');
               updateStatus('sanitize', `Sanitized: ${decision.reason || 'cleaned'}`);
 
-              // Modify request body with sanitized text
+              // PRIORITY 1: Use structured sanitizedBody if available (v1.7.0+)
+              if (decision.sanitizedBody) {
+                console.log('[Vigil Guard] ✅ Using sanitizedBody from workflow (Claude)');
+                const newOptions = { ...options, body: JSON.stringify(decision.sanitizedBody) };
+                pendingNetworkChecks.delete(promptText);
+                return ORIGINAL_FETCH.apply(this, [url, newOptions]);
+              }
+
+              // PRIORITY 2: Construct from chatInput (fallback)
+              console.warn('[Vigil Guard] ⚠️ sanitizedBody missing, using chatInput fallback (Claude)');
               const sanitizedText = decision.chatInput || decision.cleaned_prompt || '[Content sanitized by Vigil Guard]';
               const newBody = { ...bodyObj, prompt: sanitizedText };
               const newOptions = {
@@ -217,13 +226,37 @@ window.fetch = async function(...args) {
 
             } else if (decision.action === 'sanitize') {
               console.log('[Vigil Guard] 🌐 🧹 SANITIZED ChatGPT request');
-              const sanitizedText = decision.chatInput || decision.cleaned_prompt || '[Sanitized]';
 
-              // Update message content
+              // PRIORITY 1: Use structured sanitizedBody if available (v1.7.0+)
+              if (decision.sanitizedBody) {
+                console.log('[Vigil Guard] ✅ Using sanitizedBody from workflow');
+                const newOptions = { ...options, body: JSON.stringify(decision.sanitizedBody) };
+                pendingNetworkChecks.delete(promptText);
+                return ORIGINAL_FETCH.apply(this, [url, newOptions]);
+              }
+
+              // PRIORITY 2: Construct sanitizedBody from chatInput (fallback for backward compatibility)
+              console.warn('[Vigil Guard] ⚠️ sanitizedBody missing, constructing from chatInput (fallback)');
+              const sanitizedText = decision.chatInput || decision.cleaned_prompt || '[Content sanitized by Vigil Guard]';
+
+              // Construct proper ChatGPT API format
               if (bodyObj.messages && Array.isArray(bodyObj.messages)) {
-                bodyObj.messages[bodyObj.messages.length - 1].content = sanitizedText;
+                const lastIdx = bodyObj.messages.length - 1;
+
+                // Update last message with proper structure
+                bodyObj.messages[lastIdx] = {
+                  ...bodyObj.messages[lastIdx],
+                  content: {
+                    content_type: "text",
+                    parts: [sanitizedText]
+                  }
+                };
+
+                console.log('[Vigil Guard] 🔧 Constructed sanitizedBody for messages[] format');
               } else if (bodyObj.prompt) {
+                // Simple prompt field (legacy or alternative API format)
                 bodyObj.prompt = sanitizedText;
+                console.log('[Vigil Guard] 🔧 Constructed sanitizedBody for prompt field');
               }
 
               const newOptions = { ...options, body: JSON.stringify(bodyObj) };
