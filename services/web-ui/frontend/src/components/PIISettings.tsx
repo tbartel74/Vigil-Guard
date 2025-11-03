@@ -216,7 +216,7 @@ export function PIISettings() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/ui/api/pii-detection/analyze', {
+      const response = await fetch('/ui/api/pii-detection/analyze-full', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,7 +237,8 @@ export function PIISettings() {
 
       const data = await response.json();
       setTestResults(data);
-      toast.success(`Detected ${data.entities?.length || 0} PII entities`);
+      const detectedCount = data?.language_stats?.total_after_dedup ?? data?.entities?.length ?? 0;
+      toast.success(`Detected ${detectedCount} PII entities`);
     } catch (error: any) {
       console.error('Test error:', error);
       toast.error(`Test failed: ${error.message}`);
@@ -497,8 +498,24 @@ export function PIISettings() {
                 ) : (
                   <div className="space-y-2">
                     <div className="text-sm text-slate-300">
-                      Detected: <span className="text-blue-400 font-medium">{testResults.entities?.length || 0} entities</span>
+                      Detected: <span className="text-blue-400 font-medium">{testResults.language_stats?.total_after_dedup ?? testResults.entities?.length ?? 0} entities</span>
                     </div>
+                    {testResults.redacted_text && (
+                      <div className="text-xs text-slate-400">
+                        Redacted Text: <span className="text-blue-300 font-mono break-words">{testResults.redacted_text}</span>
+                      </div>
+                    )}
+                    {testResults.language_stats && (
+                      <div className="text-xs text-slate-400 space-y-1">
+                        <div>Detected Language: <span className="text-blue-300">{testResults.language_stats.detected_language}</span></div>
+                        <div>Primary Language: <span className="text-blue-300">{testResults.language_stats.primary_language}</span></div>
+                        <div>Polish Entities: <span className="text-blue-300">{testResults.language_stats.polish_entities_retained ?? testResults.language_stats.polish_entities ?? 0}</span></div>
+                        <div>English Entities: <span className="text-blue-300">{testResults.language_stats.english_entities_retained ?? testResults.language_stats.english_entities ?? 0}</span></div>
+                        {testResults.language_stats.regex_entities_retained !== undefined && (
+                          <div>Regex Entities: <span className="text-blue-300">{testResults.language_stats.regex_entities_retained}</span></div>
+                        )}
+                      </div>
+                    )}
                     {testResults.entities && testResults.entities.length > 0 && (
                       <div className="space-y-2 mt-3">
                         {testResults.entities.map((entity: any, idx: number) => (
@@ -512,6 +529,11 @@ export function PIISettings() {
                                 <div className="text-xs text-slate-400">
                                   Position: {entity.start}-{entity.end}
                                 </div>
+                                {entity.source_language && (
+                                  <div className="text-xs text-slate-500">
+                                    Source: {entity.source_language}
+                                  </div>
+                                )}
                               </div>
                               <div className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-300">
                                 {(entity.score * 100).toFixed(0)}%

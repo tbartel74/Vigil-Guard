@@ -11,6 +11,7 @@ import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submi
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
+import { analyzeDualLanguage } from "./piiAnalyzer.js";
 
 const app = express();
 const PORT = 8787;
@@ -289,8 +290,23 @@ app.get("/api/pii-detection/entity-types", authenticate, async (req, res) => {
   }
 });
 
-// PII Detection analyze endpoint - proxy to Presidio API
+// PII Detection analyze endpoint (dual-language by default, legacy proxy via query/body)
 app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
+  const useLegacyProxy = req.query.mode === 'legacy' || req.body?.legacy === true;
+
+  if (!useLegacyProxy) {
+    try {
+      const result = await analyzeDualLanguage(req.body || {});
+      return res.json(result);
+    } catch (error: any) {
+      console.error("Dual-language PII analyze (default route) failed:", error);
+      return res.status(502).json({
+        error: "Dual-language PII analysis failed",
+        message: error.message || "Unknown error"
+      });
+    }
+  }
+
   const presidioUrl = process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001';
 
   try {
@@ -318,7 +334,7 @@ app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
   } catch (e: any) {
     const errorType = e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
 
-    console.error(`Presidio analyze ${errorType}:`, e.message, {
+    console.error(`Legacy Presidio analyze ${errorType}:`, e.message, {
       error_id: 'PRESIDIO_ANALYZE_FAILED',
       url: `${presidioUrl}/analyze`,
       error_type: errorType
@@ -328,6 +344,22 @@ app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
       error: 'PII analysis service unavailable',
       error_type: errorType,
       message: e.message
+    });
+  }
+});
+
+// PII Detection analyze endpoint - dual-language workflow-parity
+app.post("/api/pii-detection/analyze-full", authenticate, async (req, res) => {
+  try {
+    const result = await analyzeDualLanguage(req.body || {});
+    res.json(result);
+  } catch (error: any) {
+    const isInputError = error?.message && /text is required/i.test(error.message);
+    const status = isInputError ? 400 : 502;
+    console.error("Dual-language PII analyze failed:", error);
+    res.status(status).json({
+      error: "Dual-language PII analysis failed",
+      message: error.message || "Unknown error"
     });
   }
 });
