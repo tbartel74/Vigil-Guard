@@ -589,7 +589,17 @@ def analyze():
 
                 for attr in attrs:
                     try:
-                        explanation_dict[attr] = getattr(explanation, attr)
+                        value = getattr(explanation, attr)
+
+                        # Serialize Presidio class objects to strings/dicts
+                        if attr == 'recognizer' and value is not None:
+                            # PatternRecognizer/EntityRecognizer objects -> string representation
+                            explanation_dict[attr] = str(value) if hasattr(value, '__class__') else value
+                        elif attr == 'pattern' and value is not None:
+                            # Pattern objects -> string representation
+                            explanation_dict[attr] = str(value) if hasattr(value, 'pattern') else value
+                        else:
+                            explanation_dict[attr] = value
                     except AttributeError:
                         # Expected case: attribute doesn't exist in this version
                         explanation_dict[attr] = None

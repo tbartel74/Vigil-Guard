@@ -54,17 +54,28 @@ export function PIISettings() {
   }, []);
 
   const fetchAll = async () => {
+    setLoading(true);
+
     try {
-      setLoading(true);
       await Promise.all([
         fetchServiceStatus(),
         fetchEntityTypes(),
         fetchConfig()
       ]);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to load PII settings');
-    } finally {
+
+      // Success - enable form editing
       setLoading(false);
+    } catch (error: any) {
+      console.error('Failed to fetch config:', error);
+
+      // Block editing when config load fails to prevent overwriting production config with defaults
+      toast.error(
+        'Failed to load PII configuration from server. Cannot safely edit settings until connection is restored.',
+        { duration: 10000 }
+      );
+
+      // Keep loading=true to disable save button and prevent dangerous edits
+      // User must refresh page or fix connection to retry
     }
   };
 
@@ -121,30 +132,18 @@ export function PIISettings() {
   };
 
   const fetchConfig = async () => {
-    try {
-      const file = await parseFile('unified_config.json');
-      const piiConfig = file.parsed?.pii_detection;
+    const file = await parseFile('unified_config.json');
+    const piiConfig = file.parsed?.pii_detection;
 
-      if (piiConfig) {
-        setConfig({
-          enabled: piiConfig.enabled !== false,
-          confidence_threshold: piiConfig.confidence_threshold || 0.7,
-          entities: piiConfig.entities || [],
-          redaction_mode: piiConfig.redaction_mode || 'replace',
-          fallback_to_regex: piiConfig.fallback_to_regex !== false,
-          languages: piiConfig.languages || ['pl', 'en']
-        });
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch config:', error);
-
-      // Block editing when config load fails to prevent overwriting production config with defaults
-      toast.error(
-        'Failed to load PII configuration from server. Cannot safely edit settings until connection is restored.',
-        { duration: 10000 }
-      );
-
-      setLoading(true);  // Keep loading state to disable save button
+    if (piiConfig) {
+      setConfig({
+        enabled: piiConfig.enabled !== false,
+        confidence_threshold: piiConfig.confidence_threshold || 0.7,
+        entities: piiConfig.entities || [],
+        redaction_mode: piiConfig.redaction_mode || 'replace',
+        fallback_to_regex: piiConfig.fallback_to_regex !== false,
+        languages: piiConfig.languages || ['pl', 'en']
+      });
     }
   };
 

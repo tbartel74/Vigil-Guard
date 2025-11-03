@@ -37,16 +37,14 @@ CLICKHOUSE_PASSWORD="$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2- | head
 CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
 CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
 
-# Validate credentials format (alphanumeric, underscore, hyphen only)
-if [[ ! "$CLICKHOUSE_USER" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    log_error "Invalid CLICKHOUSE_USER format in .env"
-    log_info "Username must contain only letters, numbers, underscore, or hyphen"
+# Validate credentials are non-empty (proper quoting prevents injection)
+if [[ -z "$CLICKHOUSE_USER" ]]; then
+    log_error "CLICKHOUSE_USER is empty in .env"
     exit 1
 fi
 
-if [[ ! "$CLICKHOUSE_PASSWORD" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    log_error "Invalid CLICKHOUSE_PASSWORD format in .env"
-    log_info "Password must contain only letters, numbers, underscore, or hyphen"
+if [[ -z "$CLICKHOUSE_PASSWORD" ]]; then
+    log_error "CLICKHOUSE_PASSWORD is empty in .env"
     exit 1
 fi
 
