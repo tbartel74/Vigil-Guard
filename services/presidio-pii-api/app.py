@@ -575,8 +575,20 @@ def analyze():
                     'recognizer_identifier': str(result.recognition_metadata.get('recognizer_identifier', ''))
                 }
 
-            if return_decision_process and hasattr(result, 'analysis_explanation'):
-                entity_dict['analysis_explanation'] = result.analysis_explanation
+            if return_decision_process and hasattr(result, 'analysis_explanation') and result.analysis_explanation:
+                # Convert AnalysisExplanation to dict (not JSON serializable by default)
+                explanation = result.analysis_explanation
+                entity_dict['analysis_explanation'] = {
+                    'recognizer': explanation.recognizer if hasattr(explanation, 'recognizer') else None,
+                    'pattern_name': explanation.pattern_name if hasattr(explanation, 'pattern_name') else None,
+                    'pattern': explanation.pattern if hasattr(explanation, 'pattern') else None,
+                    'original_score': explanation.original_score if hasattr(explanation, 'original_score') else None,
+                    'score': explanation.score if hasattr(explanation, 'score') else None,
+                    'textual_explanation': explanation.textual_explanation if hasattr(explanation, 'textual_explanation') else None,
+                    'score_context_improvement': explanation.score_context_improvement if hasattr(explanation, 'score_context_improvement') else None,
+                    'supportive_context_word': explanation.supportive_context_word if hasattr(explanation, 'supportive_context_word') else None,
+                    'validation_result': explanation.validation_result if hasattr(explanation, 'validation_result') else None
+                }
 
             entities_found.append(entity_dict)
 
