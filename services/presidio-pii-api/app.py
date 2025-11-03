@@ -575,8 +575,57 @@ def analyze():
                     'recognizer_identifier': str(result.recognition_metadata.get('recognizer_identifier', ''))
                 }
 
-            if return_decision_process and hasattr(result, 'analysis_explanation'):
-                entity_dict['analysis_explanation'] = result.analysis_explanation
+            if return_decision_process and hasattr(result, 'analysis_explanation') and result.analysis_explanation:
+                # Convert AnalysisExplanation to dict (not JSON serializable by default)
+                explanation = result.analysis_explanation
+                explanation_dict = {}
+
+                # Define expected attributes with explicit error handling
+                attrs = [
+                    'recognizer', 'pattern_name', 'pattern', 'original_score',
+                    'score', 'textual_explanation', 'score_context_improvement',
+                    'supportive_context_word', 'validation_result'
+                ]
+
+                for attr in attrs:
+                    try:
+                        value = getattr(explanation, attr)
+
+                        # Serialize Presidio class objects to JSON-safe types
+                        if value is None:
+                            explanation_dict[attr] = None
+                        elif attr == 'recognizer':
+                            # PatternRecognizer/EntityRecognizer objects -> string name
+                            explanation_dict[attr] = str(value)
+                        elif attr == 'pattern':
+                            # Pattern objects -> extract regex string
+                            if hasattr(value, 'regex'):
+                                explanation_dict[attr] = value.regex
+                            elif hasattr(value, 'name'):
+                                explanation_dict[attr] = value.name
+                            else:
+                                explanation_dict[attr] = str(value)
+                        elif attr == 'validation_result':
+                            # ValidationResult is a dataclass or class instance -> convert to dict
+                            if hasattr(value, '__dict__'):
+                                explanation_dict[attr] = {k: v for k, v in value.__dict__.items() if not k.startswith('_')}
+                            else:
+                                explanation_dict[attr] = str(value)
+                        else:
+                            # Primitive types (str, int, float, bool) pass through
+                            explanation_dict[attr] = value
+                    except AttributeError:
+                        # Expected case: attribute doesn't exist in this version
+                        explanation_dict[attr] = None
+                    except Exception as e:
+                        # Unexpected case: attribute exists but getter/serialization failed
+                        logger.error(
+                            f"Failed to serialize analysis_explanation.{attr}: {e}",
+                            extra={'error_id': 'PRESIDIO_EXPLANATION_ATTR_ERROR', 'attribute': attr}
+                        )
+                        explanation_dict[attr] = None
+
+                entity_dict['analysis_explanation'] = explanation_dict
 
             entities_found.append(entity_dict)
 

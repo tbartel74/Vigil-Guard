@@ -209,6 +209,15 @@ Test scenarios:
 **Tools**: Axe DevTools, WAVE, Lighthouse
 
 Run on all pages:
+
+**Production (via Caddy):**
+- [ ] http://localhost/ui/login
+- [ ] http://localhost/ui/
+- [ ] http://localhost/ui/config/quick-settings
+- [ ] http://localhost/ui/administration
+- [ ] http://localhost/ui/settings
+
+**Dev Mode (direct Vite):**
 - [ ] http://localhost:5173/ui/login
 - [ ] http://localhost:5173/ui/
 - [ ] http://localhost:5173/ui/config/quick-settings

@@ -36,7 +36,7 @@ Vigil Guard uses a rule-based detection system with **34 categories** of attack 
 Detection categories are evaluated in the **n8n workflow pipeline** at the following stages:
 
 **1. Pattern_Matching_Engine Node** (n8n Code node)
-- **Location**: `services/workflow/workflows/Vigil-Guard-v1.5.json`
+- **Location**: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
 - **Function**: Evaluates all patterns from `rules.config.json` against normalized input
 - **Process**:
   1. Loads detection rules from config file

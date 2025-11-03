@@ -29,13 +29,6 @@
       "groups": ["adv"]
     },
     {
-      "id": "pii-detection",
-      "title": "PII Detection",
-      "description": "Configure personally identifiable information detection and redaction",
-      "overview": "Control automatic detection and redaction of personally identifiable information (PII) using Microsoft Presidio NLP engine with dual-language support. Choose detection sensitivity mode, configure redaction format, and enable context-aware detection for Polish entities (PESEL, NIP, REGON) and international patterns (credit cards, emails, phone numbers).",
-      "groups": ["pii"]
-    },
-    {
       "id": "file-manager",
       "title": "File Manager",
       "description": "Download and upload configuration files with audit logging",

@@ -28,7 +28,28 @@ export default function ConfigNav() {
         </NavLink>
       ))}
 
-      {/* Special sections (not variable groups) */}
+      {/* PII Detection - standalone section */}
+      <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-4 mt-6">
+        PII Detection
+      </div>
+
+      <NavLink
+        to="/config/pii"
+        className={({ isActive }) =>
+          `block px-3 py-3 rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-darker ${
+            isActive
+              ? "bg-slate-800 text-white"
+              : "text-text-secondary hover:text-white hover:bg-slate-800/50"
+          }`
+        }
+      >
+        <div className="font-medium mb-1">PII Detection Configuration</div>
+        <div className="text-xs text-text-secondary leading-relaxed">
+          Configure Microsoft Presidio for advanced PII detection (50+ entity types)
+        </div>
+      </NavLink>
+
+      {/* System section */}
       <div className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-4 mt-6">
         System
       </div>

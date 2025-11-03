@@ -668,7 +668,7 @@ cp -R "$BACKUP_DIR/docs/"* docs/
 
 # 3. Reimport old workflow
 # Open n8n: http://localhost:5678
-# Import: $BACKUP_DIR/services/workflow/workflows/Vigil-Guard-v1.5.json
+# Import: $BACKUP_DIR/services/workflow/workflows/Vigil-Guard-v1.7.0.json
 
 # 4. Verify
 curl http://localhost:8787/health

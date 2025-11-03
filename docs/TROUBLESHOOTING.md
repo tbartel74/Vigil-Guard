@@ -24,7 +24,7 @@ This guide helps resolve common issues with Vigil Guard deployment and operation
 - ClickHouse: http://localhost/clickhouse/
 
 ### Development (direct access)
-- Web UI Frontend: http://localhost:5173/
+- Web UI Frontend: http://localhost/ui (production) or http://localhost:5173 (dev mode)
 - Web UI Backend: http://localhost:8787/api/
 - n8n: http://localhost:5678/
 - Grafana: http://localhost:3001/

@@ -31,11 +31,22 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Load ClickHouse credentials from .env
-CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
-CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+# Load ClickHouse credentials from .env (with proper quoting)
+CLICKHOUSE_USER="$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2- | head -1)"
+CLICKHOUSE_PASSWORD="$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2- | head -1)"
 CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
 CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+
+# Validate credentials are non-empty (proper quoting prevents injection)
+if [[ -z "$CLICKHOUSE_USER" ]]; then
+    log_error "CLICKHOUSE_USER is empty in .env"
+    exit 1
+fi
+
+if [[ -z "$CLICKHOUSE_PASSWORD" ]]; then
+    log_error "CLICKHOUSE_PASSWORD is empty in .env"
+    exit 1
+fi
 
 # Check if ClickHouse container is running
 # Note: grep -q with pipefail causes SIGPIPE, use grep > /dev/null instead

@@ -1,27 +1,29 @@
-// Minimal vitest config without importing vitest/config
-// This avoids ERR_MODULE_NOT_FOUND when vitest is not in local node_modules
+import { defineConfig } from 'vitest/config'
+import { config } from 'dotenv'
+import { resolve } from 'path'
 
-export default {
+// Load environment variables from root .env file
+config({ path: resolve(process.cwd(), '../../.env') })
+
+export default defineConfig({
   test: {
-    // Test environment
+    globals: false,
     environment: 'node',
-
-    // Test files location
-    include: ['tests/**/*.test.js'],
-
-    // Global timeout (important for E2E tests with workflow execution)
-    testTimeout: 30000, // 30 seconds for slow workflow executions
+    pool: 'forks',  // Use forks instead of threads to avoid tinypool issues
+    poolOptions: {
+      forks: {
+        singleFork: false
+      }
+    },
+    testTimeout: 30000,
     hookTimeout: 10000,
-
-    // Global setup/teardown
-    globalSetup: './tests/setup.js',
-
-    // Retry failed tests (useful for flaky webhook tests)
-    retry: 1,
-
-    // Run tests in sequence (safer for webhook testing)
+    teardownTimeout: 5000,
+    isolate: true,
+    fileParallelism: false,
+    maxConcurrency: 1,
     sequence: {
-      concurrent: false
+      concurrent: false,
+      shuffle: false
     }
   }
-};
+})

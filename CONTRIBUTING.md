@@ -185,7 +185,7 @@ Before submitting a PR, verify:
 
 1. Start all services
 2. Access Web UI at http://localhost/ui/ (production) or http://localhost:5173/ (dev)
-3. Login with credentials (default: admin/admin123)
+3. Login with credentials (use .env file: admin/WEB_UI_ADMIN_PASSWORD)
 4. Navigate to Configuration section
 5. Modify configuration variables
 6. Verify changes are saved with proper ETag validation
