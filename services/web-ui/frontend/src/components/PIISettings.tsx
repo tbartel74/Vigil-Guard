@@ -82,6 +82,17 @@ export function PIISettings() {
       const data = await response.json();
       setServiceStatus(data);
     } catch (error: any) {
+      console.error('Failed to fetch PII service status:', error);
+
+      // Show user-friendly error toast
+      let userMessage = 'PII detection service is offline';
+      if (error.message.includes('Failed to fetch')) {
+        userMessage += ' (network error - check connection)';
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        userMessage += ' (authentication failed - try logging in again)';
+      }
+      toast.error(userMessage);
+
       setServiceStatus({
         status: 'offline',
         fallback: 'regex',
@@ -126,7 +137,14 @@ export function PIISettings() {
       }
     } catch (error: any) {
       console.error('Failed to fetch config:', error);
-      toast.error('Failed to load PII configuration');
+
+      // Block editing when config load fails to prevent overwriting production config with defaults
+      toast.error(
+        'Failed to load PII configuration from server. Cannot safely edit settings until connection is restored.',
+        { duration: 10000 }
+      );
+
+      setLoading(true);  // Keep loading state to disable save button
     }
   };
 
@@ -185,6 +203,12 @@ export function PIISettings() {
   const handleTestDetection = async () => {
     if (!testText.trim()) {
       toast.error('Please enter test text');
+      return;
+    }
+
+    // Input validation: 10,000 character limit (backend constraint)
+    if (testText.length > 10000) {
+      toast.error(`Test text is too long (${testText.length} characters). Maximum allowed: 10,000 characters.`);
       return;
     }
 

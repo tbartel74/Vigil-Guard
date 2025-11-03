@@ -31,11 +31,24 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Load ClickHouse credentials from .env
-CLICKHOUSE_USER=$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2)
-CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
+# Load ClickHouse credentials from .env (with proper quoting)
+CLICKHOUSE_USER="$(grep "^CLICKHOUSE_USER=" .env | cut -d'=' -f2- | head -1)"
+CLICKHOUSE_PASSWORD="$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2- | head -1)"
 CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
 CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
+
+# Validate credentials format (alphanumeric, underscore, hyphen only)
+if [[ ! "$CLICKHOUSE_USER" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Invalid CLICKHOUSE_USER format in .env"
+    log_info "Username must contain only letters, numbers, underscore, or hyphen"
+    exit 1
+fi
+
+if [[ ! "$CLICKHOUSE_PASSWORD" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    log_error "Invalid CLICKHOUSE_PASSWORD format in .env"
+    log_info "Password must contain only letters, numbers, underscore, or hyphen"
+    exit 1
+fi
 
 # Check if ClickHouse container is running
 # Note: grep -q with pipefail causes SIGPIPE, use grep > /dev/null instead

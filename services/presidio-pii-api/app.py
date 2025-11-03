@@ -578,17 +578,30 @@ def analyze():
             if return_decision_process and hasattr(result, 'analysis_explanation') and result.analysis_explanation:
                 # Convert AnalysisExplanation to dict (not JSON serializable by default)
                 explanation = result.analysis_explanation
-                entity_dict['analysis_explanation'] = {
-                    'recognizer': explanation.recognizer if hasattr(explanation, 'recognizer') else None,
-                    'pattern_name': explanation.pattern_name if hasattr(explanation, 'pattern_name') else None,
-                    'pattern': explanation.pattern if hasattr(explanation, 'pattern') else None,
-                    'original_score': explanation.original_score if hasattr(explanation, 'original_score') else None,
-                    'score': explanation.score if hasattr(explanation, 'score') else None,
-                    'textual_explanation': explanation.textual_explanation if hasattr(explanation, 'textual_explanation') else None,
-                    'score_context_improvement': explanation.score_context_improvement if hasattr(explanation, 'score_context_improvement') else None,
-                    'supportive_context_word': explanation.supportive_context_word if hasattr(explanation, 'supportive_context_word') else None,
-                    'validation_result': explanation.validation_result if hasattr(explanation, 'validation_result') else None
-                }
+                explanation_dict = {}
+
+                # Define expected attributes with explicit error handling
+                attrs = [
+                    'recognizer', 'pattern_name', 'pattern', 'original_score',
+                    'score', 'textual_explanation', 'score_context_improvement',
+                    'supportive_context_word', 'validation_result'
+                ]
+
+                for attr in attrs:
+                    try:
+                        explanation_dict[attr] = getattr(explanation, attr)
+                    except AttributeError:
+                        # Expected case: attribute doesn't exist in this version
+                        explanation_dict[attr] = None
+                    except Exception as e:
+                        # Unexpected case: attribute exists but getter failed
+                        logger.error(
+                            f"Failed to access analysis_explanation.{attr}: {e}",
+                            extra={'error_id': 'PRESIDIO_EXPLANATION_ATTR_ERROR', 'attribute': attr}
+                        )
+                        explanation_dict[attr] = None
+
+                entity_dict['analysis_explanation'] = explanation_dict
 
             entities_found.append(entity_dict)
 
