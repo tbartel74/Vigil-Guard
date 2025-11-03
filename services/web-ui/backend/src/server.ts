@@ -79,8 +79,7 @@ app.use("/api/retention", retentionRoutes);
 // Stats endpoint - requires authentication
 app.get("/api/stats/24h", authenticate, async (req, res) => {
   try {
-    const timeRange = (req.query.timeRange as string) || '24h';
-    const interval = convertTimeRangeToInterval(timeRange);
+    const interval = getTimeRangeInterval(req);
     const stats = await getQuickStats(interval);
     res.json(stats);
   } catch (e: any) {
@@ -92,8 +91,7 @@ app.get("/api/stats/24h", authenticate, async (req, res) => {
 // PII Statistics endpoints (v1.7.0) - requires authentication
 app.get("/api/stats/pii/types", authenticate, async (req, res) => {
   try {
-    const timeRange = (req.query.timeRange as string) || '24h';
-    const interval = convertTimeRangeToInterval(timeRange);
+    const interval = getTimeRangeInterval(req);
     const piiTypes = await getPIITypeStats(interval);
     res.json(piiTypes);
   } catch (e: any) {
@@ -104,8 +102,7 @@ app.get("/api/stats/pii/types", authenticate, async (req, res) => {
 
 app.get("/api/stats/pii/overview", authenticate, async (req, res) => {
   try {
-    const timeRange = (req.query.timeRange as string) || '24h';
-    const interval = convertTimeRangeToInterval(timeRange);
+    const interval = getTimeRangeInterval(req);
     const piiOverview = await getPIIOverview(interval);
     res.json(piiOverview);
   } catch (e: any) {
@@ -295,13 +292,53 @@ app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
   const useLegacyProxy = req.query.mode === 'legacy' || req.body?.legacy === true;
 
   if (!useLegacyProxy) {
+    // Input validation (DoS protection)
+    const text = req.body?.text;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        error: "Invalid input",
+        message: "Field 'text' is required and must be a string"
+      });
+    }
+
+    const MAX_TEXT_LENGTH = 10000; // 10KB limit (same as frontend)
+    if (text.length > MAX_TEXT_LENGTH) {
+      return res.status(400).json({
+        error: "Input too large",
+        message: `Text length (${text.length}) exceeds maximum allowed (${MAX_TEXT_LENGTH} characters)`
+      });
+    }
+
+    // Validate entities array (optional field)
+    if (req.body.entities !== undefined) {
+      if (!Array.isArray(req.body.entities)) {
+        return res.status(400).json({
+          error: "Invalid input",
+          message: "Field 'entities' must be an array"
+        });
+      }
+
+      const MAX_ENTITIES = 50;
+      if (req.body.entities.length > MAX_ENTITIES) {
+        return res.status(400).json({
+          error: "Too many entities requested",
+          message: `Entity list length (${req.body.entities.length}) exceeds maximum (${MAX_ENTITIES})`
+        });
+      }
+    }
+
     try {
       const result = await analyzeDualLanguage(req.body || {});
       return res.json(result);
     } catch (error: any) {
+      // Distinguish input errors from service errors
+      const isInputError = error?.message && /text is required|invalid/i.test(error.message);
+      const status = isInputError ? 400 : 502;
+
       console.error("Dual-language PII analyze (default route) failed:", error);
-      return res.status(502).json({
-        error: "Dual-language PII analysis failed",
+      return res.status(status).json({
+        error: isInputError ? "Invalid input" : "Dual-language PII analysis failed",
         message: error.message || "Unknown error"
       });
     }
@@ -350,15 +387,50 @@ app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
 
 // PII Detection analyze endpoint - dual-language workflow-parity
 app.post("/api/pii-detection/analyze-full", authenticate, async (req, res) => {
+  // Input validation (same as /analyze endpoint)
+  const text = req.body?.text;
+
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({
+      error: "Invalid input",
+      message: "Field 'text' is required and must be a string"
+    });
+  }
+
+  const MAX_TEXT_LENGTH = 10000;
+  if (text.length > MAX_TEXT_LENGTH) {
+    return res.status(400).json({
+      error: "Input too large",
+      message: `Text length (${text.length}) exceeds maximum allowed (${MAX_TEXT_LENGTH} characters)`
+    });
+  }
+
+  if (req.body.entities !== undefined) {
+    if (!Array.isArray(req.body.entities)) {
+      return res.status(400).json({
+        error: "Invalid input",
+        message: "Field 'entities' must be an array"
+      });
+    }
+
+    const MAX_ENTITIES = 50;
+    if (req.body.entities.length > MAX_ENTITIES) {
+      return res.status(400).json({
+        error: "Too many entities requested",
+        message: `Entity list length (${req.body.entities.length}) exceeds maximum (${MAX_ENTITIES})`
+      });
+    }
+  }
+
   try {
     const result = await analyzeDualLanguage(req.body || {});
     res.json(result);
   } catch (error: any) {
-    const isInputError = error?.message && /text is required/i.test(error.message);
+    const isInputError = error?.message && /text is required|invalid/i.test(error.message);
     const status = isInputError ? 400 : 502;
     console.error("Dual-language PII analyze failed:", error);
     res.status(status).json({
-      error: "Dual-language PII analysis failed",
+      error: isInputError ? "Invalid input" : "Dual-language PII analysis failed",
       message: error.message || "Unknown error"
     });
   }
@@ -376,11 +448,16 @@ function convertTimeRangeToInterval(timeRange: string): string {
   return mapping[timeRange] || '24 HOUR';
 }
 
+// Extract time range from request query
+function getTimeRangeInterval(req: express.Request): string {
+  const timeRange = (req.query.timeRange as string) || '24h';
+  return convertTimeRangeToInterval(timeRange);
+}
+
 // Prompt analysis endpoints - requires authentication
 app.get("/api/prompts/list", authenticate, async (req, res) => {
   try {
-    const timeRange = (req.query.timeRange as string) || '24h';
-    const interval = convertTimeRangeToInterval(timeRange);
+    const interval = getTimeRangeInterval(req);
     const prompts = await getPromptList(interval);
     res.json(prompts);
   } catch (e: any) {
@@ -393,45 +470,49 @@ app.get("/api/prompts/list", authenticate, async (req, res) => {
 // INVESTIGATION - ADVANCED PROMPT SEARCH
 // ============================================================================
 
+// Helper to build search params from query string
+function buildSearchParams(query: any): SearchParams {
+  const {
+    startDate,
+    endDate,
+    textQuery,
+    clientId,
+    status,
+    minScore,
+    maxScore,
+    categories,
+    sortBy = 'timestamp',
+    sortOrder = 'DESC',
+    page = '1',
+    pageSize = '25'
+  } = query;
+
+  return {
+    startDate: startDate as string | undefined,
+    endDate: endDate as string | undefined,
+    textQuery: textQuery as string | undefined,
+    clientId: clientId as string | undefined,
+    status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
+    minScore: minScore ? Number(minScore) : undefined,
+    maxScore: maxScore ? Number(maxScore) : undefined,
+    categories: parseCategories(categories),
+    sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
+    sortOrder: sortOrder as 'ASC' | 'DESC',
+    page: Number(page),
+    pageSize: Number(pageSize)
+  };
+}
+
+function parseCategories(categories: any): string[] | undefined {
+  if (!categories) return undefined;
+  return (categories as string).split(',').filter(c => c.trim() !== '');
+}
+
 // Search prompts with advanced filters - requires authentication
 app.get("/api/prompts/search", authenticate, async (req, res) => {
   try {
-    // Parse query parameters
-    const {
-      startDate,
-      endDate,
-      textQuery,
-      clientId,  // NEW v1.7.0
-      status,
-      minScore,
-      maxScore,
-      categories,
-      sortBy = 'timestamp',
-      sortOrder = 'DESC',
-      page = '1',
-      pageSize = '25'
-    } = req.query;
-
-    // Build search params
-    const searchParams: SearchParams = {
-      startDate: startDate as string | undefined,
-      endDate: endDate as string | undefined,
-      textQuery: textQuery as string | undefined,
-      clientId: clientId as string | undefined,  // NEW v1.7.0
-      status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
-      minScore: minScore ? Number(minScore) : undefined,
-      maxScore: maxScore ? Number(maxScore) : undefined,
-      categories: categories ? (categories as string).split(',').filter(c => c.trim() !== '') : undefined,
-      sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
-      sortOrder: sortOrder as 'ASC' | 'DESC',
-      page: Number(page),
-      pageSize: Number(pageSize)
-    };
-
-    // Execute search
+    const searchParams = buildSearchParams(req.query);
     const result = await searchPrompts(searchParams);
-
-    // Calculate pagination metadata
     const pages = Math.ceil(result.total / searchParams.pageSize);
 
     res.json({
@@ -450,54 +531,45 @@ app.get("/api/prompts/search", authenticate, async (req, res) => {
 // Export prompts to CSV or JSON - requires authentication
 app.get("/api/prompts/export", authenticate, async (req, res) => {
   try {
-    const {
-      format = 'csv',
-      startDate,
-      endDate,
-      textQuery,
-      status,
-      minScore,
-      maxScore,
-      categories,
-      sortBy = 'timestamp',
-      sortOrder = 'DESC'
-    } = req.query;
-
-    // Build search params (limit to 10000 records for export)
-    const searchParams: SearchParams = {
-      startDate: startDate as string | undefined,
-      endDate: endDate as string | undefined,
-      textQuery: textQuery as string | undefined,
-      status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
-      minScore: minScore ? Number(minScore) : undefined,
-      maxScore: maxScore ? Number(maxScore) : undefined,
-      categories: categories ? (categories as string).split(',').filter(c => c.trim() !== '') : undefined,
-      sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
-      sortOrder: sortOrder as 'ASC' | 'DESC',
-      page: 1,
-      pageSize: 10000 // Export limit
-    };
-
-    // Execute search
+    const format = (req.query.format as string) || 'csv';
+    const searchParams = buildExportSearchParams(req.query);
     const result = await searchPrompts(searchParams);
 
     if (format === 'csv') {
-      // Convert to CSV
-      const csv = convertToCSV(result.rows);
-      res.header('Content-Type', 'text/csv');
-      res.header('Content-Disposition', `attachment; filename="prompts-export-${new Date().toISOString().split('T')[0]}.csv"`);
-      res.send(csv);
+      sendCSVResponse(res, result.rows);
     } else {
-      // Export as JSON
-      res.header('Content-Type', 'application/json');
-      res.header('Content-Disposition', `attachment; filename="prompts-export-${new Date().toISOString().split('T')[0]}.json"`);
-      res.json(result.rows);
+      sendJSONResponse(res, result.rows);
     }
   } catch (e: any) {
     console.error("Error exporting prompts:", e);
     res.status(500).json({ error: "Export failed", details: e.message });
   }
 });
+
+function buildExportSearchParams(query: any): SearchParams {
+  const params = buildSearchParams(query);
+  // Override pagination for export
+  return {
+    ...params,
+    page: 1,
+    pageSize: 10000 // Export limit
+  };
+}
+
+function sendCSVResponse(res: express.Response, rows: any[]): void {
+  const csv = convertToCSV(rows);
+  const filename = `prompts-export-${new Date().toISOString().split('T')[0]}.csv`;
+  res.header('Content-Type', 'text/csv');
+  res.header('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(csv);
+}
+
+function sendJSONResponse(res: express.Response, rows: any[]): void {
+  const filename = `prompts-export-${new Date().toISOString().split('T')[0]}.json`;
+  res.header('Content-Type', 'application/json');
+  res.header('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json(rows);
+}
 
 // Helper function to convert search results to CSV
 function convertToCSV(rows: any[]): string {
