@@ -591,22 +591,36 @@ def analyze():
                     try:
                         value = getattr(explanation, attr)
 
-                        # Serialize Presidio class objects to strings/dicts
-                        if attr == 'recognizer' and value is not None:
-                            # PatternRecognizer/EntityRecognizer objects -> string representation
-                            explanation_dict[attr] = str(value) if hasattr(value, '__class__') else value
-                        elif attr == 'pattern' and value is not None:
-                            # Pattern objects -> string representation
-                            explanation_dict[attr] = str(value) if hasattr(value, 'pattern') else value
+                        # Serialize Presidio class objects to JSON-safe types
+                        if value is None:
+                            explanation_dict[attr] = None
+                        elif attr == 'recognizer':
+                            # PatternRecognizer/EntityRecognizer objects -> string name
+                            explanation_dict[attr] = str(value)
+                        elif attr == 'pattern':
+                            # Pattern objects -> extract regex string
+                            if hasattr(value, 'regex'):
+                                explanation_dict[attr] = value.regex
+                            elif hasattr(value, 'name'):
+                                explanation_dict[attr] = value.name
+                            else:
+                                explanation_dict[attr] = str(value)
+                        elif attr == 'validation_result':
+                            # ValidationResult is a dataclass or class instance -> convert to dict
+                            if hasattr(value, '__dict__'):
+                                explanation_dict[attr] = {k: v for k, v in value.__dict__.items() if not k.startswith('_')}
+                            else:
+                                explanation_dict[attr] = str(value)
                         else:
+                            # Primitive types (str, int, float, bool) pass through
                             explanation_dict[attr] = value
                     except AttributeError:
                         # Expected case: attribute doesn't exist in this version
                         explanation_dict[attr] = None
                     except Exception as e:
-                        # Unexpected case: attribute exists but getter failed
+                        # Unexpected case: attribute exists but getter/serialization failed
                         logger.error(
-                            f"Failed to access analysis_explanation.{attr}: {e}",
+                            f"Failed to serialize analysis_explanation.{attr}: {e}",
                             extra={'error_id': 'PRESIDIO_EXPLANATION_ATTR_ERROR', 'attribute': attr}
                         )
                         explanation_dict[attr] = None
