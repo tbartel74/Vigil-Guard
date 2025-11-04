@@ -43,6 +43,17 @@ The installation process for Vigil Guard is **generally consistent and well-desi
 -rwxr-xr-x  install.sh                      # 755 (correct)
 ```
 **Recommendation:** Standardize to 755 for all executable scripts to ensure team members can run them.
+**Status:** ✅ Fixed in PR #42
+
+### 1a. SQL File Permission Inconsistency
+**Issue:** One SQL file has restricted permissions (600) while others are readable (644)
+```bash
+-rw-------  services/monitoring/sql/01-create-tables.sql  # 600 (too restrictive)
+-rw-r--r--  services/monitoring/sql/02-create-views.sql   # 644 (correct)
+-rw-r--r--  services/monitoring/sql/03-false-positives.sql # 644 (correct)
+```
+**Recommendation:** Standardize to 644 for all SQL files to ensure consistency.
+**Status:** ✅ Fixed locally (Git doesn't track 644 permission changes)
 
 ### 2. Missing SQL File Version Check
 **Issue:** `install.sh` references v1.7.0 SQL file but doesn't verify its existence before execution:
@@ -88,24 +99,34 @@ sleep 60
 
 ## 🔍 Specific Findings
 
-### 1. Llama Model Handling
+### 1. File Permission Issues (Fixed)
+**Scripts:** Changed from 700 to 755 for team accessibility
+- `scripts/create-pii-backup.sh` ✅
+- `scripts/download-pii-models.sh` ✅
+- `scripts/init-presidio.sh` ✅
+
+**SQL Files:** Changed from 600 to 644 for consistency
+- `services/monitoring/sql/01-create-tables.sql` ✅
+- Note: Git only tracks executable bit, not 644 vs 600 differences
+
+### 2. Llama Model Handling
 **Strength:** Comprehensive check with download option
 - Lines 1342-1435: Detailed model checking with multiple paths
 - Offers immediate download option
 - Clear licensing information
 
-### 2. ClickHouse Initialization
+### 3. ClickHouse Initialization
 **Strength:** Robust initialization with multiple SQL scripts
 - Lines 755-954: Executes 6 SQL scripts in sequence
 - Includes v1.7.0 migration for audit columns
 - Proper error handling for each step
 
-### 3. PII Model Dependencies
+### 4. PII Model Dependencies
 **Finding:** spaCy models are optional but recommended
 - Lines 233-247: Checks for models but continues without them
 - Documentation could be clearer about impact
 
-### 4. Platform-Specific Handling
+### 5. Platform-Specific Handling
 **Strength:** Excellent cross-platform support
 - Lines 46-55: Platform detection
 - Lines 278-290: macOS vs Linux sed handling
