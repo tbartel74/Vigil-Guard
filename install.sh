@@ -30,10 +30,17 @@ log_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+# Track installation progress
+TOTAL_STEPS=12
+CURRENT_STEP=0
+
 print_header() {
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+    PROGRESS=$((CURRENT_STEP * 100 / TOTAL_STEPS))
+
     echo ""
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}[$PROGRESS%] $1${NC}"
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 }
@@ -168,7 +175,7 @@ save_install_state() {
 
 # Check prerequisites
 check_prerequisites() {
-    print_header "1/8 Checking Prerequisites"
+    print_header "Checking Prerequisites"
 
     local missing_deps=0
 
@@ -330,7 +337,7 @@ generate_secure_passwords() {
 
 # Setup environment
 setup_environment() {
-    print_header "2/8 Setting Up Environment"
+    print_header "Setting Up Environment"
 
     # Check if .env exists
     if [ ! -f .env ]; then
@@ -600,6 +607,9 @@ setup_environment() {
         # Copy template and replace placeholder with actual password
         cp "$CLICKHOUSE_DATASOURCE_TEMPLATE" "$CLICKHOUSE_DATASOURCE_FILE"
 
+        # Note: Grafana provisioning files don't support environment variable substitution for datasource passwords
+        # Therefore we use sed to inject the password during installation. This is a known Grafana limitation.
+        # The password is securely sourced from .env and the resulting file is only readable by containers.
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s|CLICKHOUSE_PASSWORD_PLACEHOLDER|${CLICKHOUSE_PASSWORD}|g" "$CLICKHOUSE_DATASOURCE_FILE"
         else
@@ -626,7 +636,7 @@ setup_environment() {
 
 # Create data directories
 create_data_directories() {
-    print_header "3/8 Creating Data Directories"
+    print_header "Creating Data Directories"
 
     log_info "Creating vigil_data directory structure..."
 
@@ -709,7 +719,7 @@ create_data_directories() {
 
 # Create Docker network
 create_docker_network() {
-    print_header "4/8 Creating Docker Network"
+    print_header "Creating Docker Network"
 
     if docker network inspect vigil-net >/dev/null 2>&1; then
         log_info "Docker network 'vigil-net' already exists"
@@ -732,7 +742,7 @@ create_docker_network() {
 
 # Build and start all services
 start_all_services() {
-    print_header "5/8 Building and Starting All Services"
+    print_header "Building and Starting All Services"
 
     log_info "Building Docker images..."
     docker-compose build
@@ -746,14 +756,89 @@ start_all_services() {
     log_success "All services started"
     echo ""
 
-    log_info "Waiting for services to be ready (60 seconds)..."
-    sleep 60
+    log_info "Waiting for services to be ready..."
+    echo ""
+
+    # Define all services with their health check endpoints (name|url pairs)
+    SERVICES=(
+        "ClickHouse|http://localhost:8123/ping"
+        "Grafana|http://localhost:3001/api/health"
+        "n8n|http://localhost:5678/healthz"
+        "Web UI Backend|http://localhost:8787/health"
+        "Presidio PII|http://localhost:5001/health"
+        "Language Detector|http://localhost:5002/health"
+        "Prompt Guard|http://localhost:8000/health"
+    )
+
+    # Wait for each service with individual timeout
+    GLOBAL_TIMEOUT=120  # 2 minutes total
+    START_TIME=$(date +%s)
+
+    for SERVICE_ENTRY in "${SERVICES[@]}"; do
+        IFS='|' read -r SERVICE_NAME SERVICE_URL <<< "$SERVICE_ENTRY"
+        log_info "Checking $SERVICE_NAME..."
+
+        RETRY_COUNT=0
+        MAX_RETRIES=15
+
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            # Check global timeout
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            if [ $ELAPSED -ge $GLOBAL_TIMEOUT ]; then
+                log_warning "$SERVICE_NAME not ready within global timeout (continuing anyway)"
+                break
+            fi
+
+            # Try health check
+            if curl -s -f "$SERVICE_URL" >/dev/null 2>&1; then
+                log_success "$SERVICE_NAME is ready"
+                break
+            fi
+
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                sleep 2
+            else
+                log_warning "$SERVICE_NAME not responding (continuing anyway)"
+            fi
+        done
+    done
+
+    echo ""
+    log_success "Service initialization complete"
     echo ""
 }
 
 # Initialize ClickHouse database
 initialize_clickhouse() {
-    print_header "6/8 Initializing ClickHouse Database"
+    print_header "Initializing ClickHouse Database"
+
+    # Verify all required SQL scripts exist
+    REQUIRED_SQL_FILES=(
+        "services/monitoring/sql/01-create-tables.sql"
+        "services/monitoring/sql/02-create-views.sql"
+        "services/monitoring/sql/03-false-positives.sql"
+        "services/monitoring/sql/05-retention-config.sql"
+        "services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
+    )
+
+    log_info "Verifying SQL migration files..."
+    MISSING_FILES=0
+    for SQL_FILE in "${REQUIRED_SQL_FILES[@]}"; do
+        if [ ! -f "$SQL_FILE" ]; then
+            log_error "Missing SQL file: $SQL_FILE"
+            MISSING_FILES=$((MISSING_FILES + 1))
+        fi
+    done
+
+    if [ $MISSING_FILES -gt 0 ]; then
+        log_error "$MISSING_FILES SQL file(s) missing - cannot proceed"
+        log_info "Ensure you have the complete v1.7.0 repository"
+        return 1
+    fi
+    log_success "All SQL migration files present"
+    echo ""
 
     # Load ClickHouse configuration from .env
     if [ ! -f .env ]; then
@@ -918,8 +1003,15 @@ EOF
     fi
 
     # Execute v1.7.0 audit columns migration
+    SQL_FILE="services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
+    if [ ! -f "$SQL_FILE" ]; then
+        log_error "SQL migration file not found: $SQL_FILE"
+        log_info "This file is required for v1.7.0 audit columns (PII classification + browser fingerprinting)"
+        return 1
+    fi
+
     log_info "Adding v1.7.0 audit columns (PII classification + browser fingerprinting)..."
-    AUDIT_OUTPUT=$(cat services/monitoring/sql/06-add-audit-columns-v1.7.0.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    AUDIT_OUTPUT=$(cat "$SQL_FILE" | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
     AUDIT_STATUS=$?
 
     if [ $AUDIT_STATUS -eq 0 ]; then
@@ -955,7 +1047,7 @@ EOF
 
 # Initialize Grafana
 initialize_grafana() {
-    print_header "7/8 Initializing Grafana"
+    print_header "Initializing Grafana"
 
     # Load Grafana configuration from .env
     if [ -f .env ]; then
@@ -1020,7 +1112,7 @@ initialize_grafana() {
 
 # Initialize Presidio PII API
 initialize_presidio() {
-    print_header "6.5/8 Initializing Presidio PII API"
+    print_header "Initializing Presidio PII API"
 
     log_info "Waiting for Presidio to be ready..."
 
@@ -1069,7 +1161,7 @@ initialize_presidio() {
 
 # Initialize Language Detection Service
 initialize_language_detector() {
-    print_header "6.6/8 Initializing Language Detection Service"
+    print_header "Initializing Language Detection Service"
 
     log_info "Waiting for Language Detector to be ready..."
 
@@ -1106,7 +1198,7 @@ initialize_language_detector() {
 
 # Verify services
 verify_services() {
-    print_header "8/8 Verifying Services"
+    print_header "Verifying Services"
 
     local all_healthy=1
 
