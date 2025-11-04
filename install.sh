@@ -759,23 +759,23 @@ start_all_services() {
     log_info "Waiting for services to be ready..."
     echo ""
 
-    # Define all services with their health check endpoints
-    declare -A SERVICES=(
-        ["ClickHouse"]="http://localhost:8123/ping"
-        ["Grafana"]="http://localhost:3001/api/health"
-        ["n8n"]="http://localhost:5678/healthz"
-        ["Web UI Backend"]="http://localhost:8787/health"
-        ["Presidio PII"]="http://localhost:5001/health"
-        ["Language Detector"]="http://localhost:5002/health"
-        ["Prompt Guard"]="http://localhost:8000/health"
+    # Define all services with their health check endpoints (name|url pairs)
+    SERVICES=(
+        "ClickHouse|http://localhost:8123/ping"
+        "Grafana|http://localhost:3001/api/health"
+        "n8n|http://localhost:5678/healthz"
+        "Web UI Backend|http://localhost:8787/health"
+        "Presidio PII|http://localhost:5001/health"
+        "Language Detector|http://localhost:5002/health"
+        "Prompt Guard|http://localhost:8000/health"
     )
 
     # Wait for each service with individual timeout
     GLOBAL_TIMEOUT=120  # 2 minutes total
     START_TIME=$(date +%s)
 
-    for SERVICE_NAME in "${!SERVICES[@]}"; do
-        SERVICE_URL="${SERVICES[$SERVICE_NAME]}"
+    for SERVICE_ENTRY in "${SERVICES[@]}"; do
+        IFS='|' read -r SERVICE_NAME SERVICE_URL <<< "$SERVICE_ENTRY"
         log_info "Checking $SERVICE_NAME..."
 
         RETRY_COUNT=0
