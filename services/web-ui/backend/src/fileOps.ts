@@ -64,6 +64,15 @@ export async function parseFile(name: string) {
     catch (e: any) { throw new Error("JSON parse error: " + e.message); }
   }
   if (file.ext === ".conf") {
+    // Try JSON first (for pii.conf which is JSON despite .conf extension)
+    if (file.content.trim().startsWith('{') || file.content.trim().startsWith('[')) {
+      try {
+        return { ...file, parsed: JSON.parse(file.content) };
+      } catch (e: any) {
+        // If JSON parsing fails, fall back to INI parser
+        console.warn(`File ${name} looks like JSON but failed to parse, trying INI format:`, e.message);
+      }
+    }
     const doc = parseConf(file.content);
     return { ...file, parsed: toObjectSafe(doc), _rawDoc: doc };
   }

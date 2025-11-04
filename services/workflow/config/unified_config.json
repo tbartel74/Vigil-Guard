@@ -144,7 +144,8 @@
       "NIP_HINTED": "[NIP]",
       "NIP_BARE": "[NIP]",
       "REGON_HINTED": "[REGON]",
-      "REGON_BARE": "[REGON]"
+      "REGON_BARE": "[REGON]",
+      "PL_PHONE_NUMBER": "[PHONE]"
     },
     "fallback_to_regex": true,
     "context_enhancement": true,
