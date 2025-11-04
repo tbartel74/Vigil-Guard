@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=10
+TOTAL_STEPS=12
 CURRENT_STEP=0
 
 print_header() {

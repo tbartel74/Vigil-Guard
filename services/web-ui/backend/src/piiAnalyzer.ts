@@ -259,9 +259,13 @@ function deduplicateEntities(entities: PresidioEntity[]): PresidioEntity[] {
  */
 function sortEntitiesForDeduplication(entities: PresidioEntity[]): PresidioEntity[] {
   return [...entities].sort((a, b) => {
-    if (a.start !== b.start) return a.start - b.start;  // Position priority
-    if (a.end !== b.end) return a.end - b.end;          // Length priority
-    return (b.score ?? 0) - (a.score ?? 0);             // Score tiebreaker
+    if (a.start !== b.start) return a.start - b.start; // Position priority
+
+    const lengthA = a.end - a.start;
+    const lengthB = b.end - b.start;
+    if (lengthA !== lengthB) return lengthB - lengthA; // Longer span wins
+
+    return (b.score ?? 0) - (a.score ?? 0); // Score tiebreaker
   });
 }
 
@@ -831,6 +835,23 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
       setTimeout(() => reject(new Error(`Dual-language PII detection timed out after ${outerTimeoutMs}ms`)), outerTimeoutMs)
     )
   ]);
+
+  const attemptedLanguages = (shouldCallPolish ? 1 : 0) + (shouldCallEnglish ? 1 : 0);
+  const presidioErrors: string[] = [];
+
+  if (plResponse && typeof plResponse === "object" && "error" in plResponse && plResponse.error) {
+    console.warn("Polish Presidio analysis failed:", plResponse.error);
+    presidioErrors.push(`pl: ${plResponse.error}`);
+  }
+
+  if (enResponse && typeof enResponse === "object" && "error" in enResponse && enResponse.error) {
+    console.warn("English Presidio analysis failed:", enResponse.error);
+    presidioErrors.push(`en: ${enResponse.error}`);
+  }
+
+  if (attemptedLanguages > 0 && presidioErrors.length === attemptedLanguages) {
+    throw new Error(`Presidio analysis failed for all languages (${presidioErrors.join("; ")})`);
+  }
 
   const plEntitiesRaw = plResponse?.entities || [];
   const enEntitiesRaw = enResponse?.entities || [];
