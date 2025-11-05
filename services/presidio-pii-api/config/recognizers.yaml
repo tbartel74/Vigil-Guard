@@ -131,6 +131,8 @@ recognizers:
   - name: PL_REGON
     supported_language: pl
     supported_entity: PL_REGON
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_regon
     patterns:
       # REGON-9 formatted (with hyphens): 123-456-789
       - name: regon_9_formatted
@@ -183,6 +185,8 @@ recognizers:
   - name: PL_NIP
     supported_language: pl
     supported_entity: PL_NIP
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_nip
     patterns:
       # NIP formatted (with hyphens): 123-456-78-90
       - name: nip_formatted
@@ -282,16 +286,21 @@ recognizers:
   - name: PL_PESEL_ENHANCED
     supported_language: pl
     supported_entity: PL_PESEL
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_pesel
     patterns:
       # PESEL (11 digits, no formatting)
+      # CRITICAL FIX: Score 0.75 ensures pattern reaches checksum validator
+      # Before: 0.60 < 0.7 threshold → rejected before validation
+      # After: 0.75 > 0.7 threshold → checksum validator runs, rejects invalid
       - name: pesel_11_digits
         regex: '\b\d{11}\b'
-        score: 0.60  # Lower base score, boosted by context + checksum
+        score: 0.75  # HIGH score to ensure checksum validation runs
 
       # PESEL with spaces/hyphens (for readability): 920321 00157
       - name: pesel_formatted
         regex: '\b\d{6}[\s-]?\d{5}\b'
-        score: 0.70
+        score: 0.80
 
     # Context keywords for PESEL detection
     # These significantly boost confidence when found nearby
@@ -325,6 +334,8 @@ recognizers:
   - name: CREDIT_CARD_ENHANCED
     supported_language: pl
     supported_entity: CREDIT_CARD
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_credit_card
     patterns:
       # Visa: starts with 4, length 13 or 16
       - name: visa_formatted

@@ -9,7 +9,6 @@ cloudpathlib==0.23.0
 confection==0.1.5
 coverage==7.11.0
 cymem==2.0.11
-en-core-web-sm @ file:///tmp/models/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889
 filelock==3.20.0
 Flask==3.1.0
 idna==3.11
@@ -26,7 +25,6 @@ murmurhash==1.0.13
 numpy==1.26.4
 packaging==25.0
 phonenumbers==8.13.55
-pl-core-news-sm @ file:///tmp/models/pl_core_news_sm-3.7.0-py3-none-any.whl#sha256=94fd294e49f87fccf863f2792a1d89be1a0fd0a3c549790b2c8338ac304bee36
 pluggy==1.6.0
 preshed==3.0.10
 presidio_analyzer==2.2.355

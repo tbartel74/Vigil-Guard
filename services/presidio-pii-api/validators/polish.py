@@ -373,6 +373,58 @@ def checksum_pesel(text: str) -> bool:
 
 
 # ============================================================================
+# Presidio PatternRecognizer Integration
+# ============================================================================
+
+from presidio_analyzer import PatternRecognizer
+
+class ValidatedPatternRecognizer(PatternRecognizer):
+    """
+    Pattern recognizer with integrated checksum validation.
+    Rejects invalid checksums DURING pattern matching, not in post-processing.
+
+    This class extends Presidio's PatternRecognizer to add checksum validation
+    at the pattern matching stage, before scoring. Invalid checksums are rejected
+    immediately, preventing them from appearing in results.
+
+    Args:
+        validator_func: Callable that takes text string and returns bool (True if valid)
+        **kwargs: Additional arguments passed to PatternRecognizer base class
+
+    Example:
+        >>> recognizer = ValidatedPatternRecognizer(
+        ...     supported_entity="PL_NIP",
+        ...     name="NIP Pattern Recognizer",
+        ...     patterns=[Pattern("nip_pattern", r"\\d{3}-\\d{3}-\\d{2}-\\d{2}", 0.8)],
+        ...     validator_func=validate_nip
+        ... )
+    """
+    def __init__(self, validator_func=None, **kwargs):
+        super().__init__(**kwargs)
+        self.validator_func = validator_func
+
+    def validate_result(self, pattern_text):
+        """
+        Override base class method - called BEFORE scoring.
+        Return False to reject pattern match immediately.
+
+        Args:
+            pattern_text: The text matched by the regex pattern
+
+        Returns:
+            bool: True if checksum is valid (or no validator), False to reject match
+        """
+        if self.validator_func:
+            # Clean text for validation (remove separators)
+            cleaned_text = pattern_text.replace('-', '').replace(' ', '')
+            is_valid = self.validator_func(cleaned_text)
+            if not is_valid:
+                logger.debug(f"Checksum validation REJECTED: {pattern_text} for {self.name}")
+            return is_valid
+        return True  # No validator = allow
+
+
+# ============================================================================
 # Testing Helpers
 # ============================================================================
 
@@ -477,6 +529,9 @@ __all__ = [
     "checksum_nip",
     "checksum_regon",
     "checksum_pesel",
+
+    # Presidio PatternRecognizer integration
+    "ValidatedPatternRecognizer",
 
     # Helpers
     "extract_digits",
