@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendAndVerify, assertDetection } from '../helpers/webhook.js';
+import { sendAndVerify, assertDetection, parseJSONSafely } from '../helpers/webhook.js';
 
 describe('Input Validation Layer (Phase 2.4)', () => {
   describe('Maximum Length Protection', () => {
