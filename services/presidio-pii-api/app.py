@@ -368,6 +368,7 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     )
 
     if os.path.exists(recognizers_yaml_path):
+        global loaded_recognizers
         custom_recognizers = load_custom_recognizers(recognizers_yaml_path)
 
         # CRITICAL: Clear built-in recognizers BEFORE adding custom ones
@@ -376,9 +377,28 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
         analyzer_engine.registry.recognizers = []  # Clear all
         logger.info(f"🚫 Cleared {recognizer_count_before} built-in recognizers")
 
-        # Add custom recognizers to analyzer registry
-        global loaded_recognizers
+        # Reset list and add custom recognizers to analyzer registry
         loaded_recognizers = []
+
+        english_person_recognizer = PatternRecognizer(
+            supported_entity='PERSON',
+            supported_language='en',
+            patterns=[
+                Pattern(
+                    name='english_full_name',
+                    regex=r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b',
+                    score=0.45
+                )
+            ],
+            context=['name', 'contact', 'person', 'mr', 'mrs', 'ms']
+        )
+        analyzer_engine.registry.add_recognizer(english_person_recognizer)
+        loaded_recognizers.append({
+            'name': 'PERSON_EN_FALLBACK',
+            'entity': 'PERSON',
+            'language': 'en'
+        })
+
         for recognizer in custom_recognizers:
             analyzer_engine.registry.add_recognizer(recognizer)
             loaded_recognizers.append({

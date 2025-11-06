@@ -157,6 +157,7 @@ docker-compose logs -f web-ui-backend
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have removed any console.log or debug statements
 - [ ] TypeScript compilation passes without errors (`npm run build`)
+- [ ] PR title, description, and commits avoid referencing internal automation (Codex/Claude tooling, agent scaffolding, etc.)
 
 ### Testing
 

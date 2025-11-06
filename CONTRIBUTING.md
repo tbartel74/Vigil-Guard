@@ -89,6 +89,7 @@ Please read the complete [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for detailed c
    - Write clear, concise commit messages
    - Keep commits atomic and focused
    - Follow conventional commits format
+   - Keep commit messages and diffs free of references to internal tooling (e.g., Codex/Claude orchestration helpers)
 
 3. **Test your changes**
    ```bash
@@ -140,6 +141,8 @@ docs(readme): update installation instructions for Windows
 feat(workflow): add new detection pattern for polyglot attacks
 fix(monitoring): correct ClickHouse query performance issue
 ```
+
+> **Note:** Keep commit subjects and bodies free of references to internal automation (Codex/Claude agents, runtimes, orchestration helpers, etc.). Focus messages on the user-facing or repository-visible impact of the change.
 
 ## 🔒 Critical Files - Modify with Care
 

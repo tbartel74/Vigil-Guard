@@ -69,12 +69,37 @@ def detect_language_hybrid(text, detailed=False):
 
     # Polish-specific signals
     polish_keywords = [
-        'pesel', 'nip', 'regon', 'karta', 'kredytowa', 'kredytowej',
-        'dowód', 'dowod', 'osobisty', 'podatku', 'jest', 'jeszcze'
+        'pesel', 'nip', 'regon', 'karta', 'karty', 'kredytowa', 'kredytowej',
+        'dowód', 'dowod', 'osobisty', 'podatku', 'jest', 'jeszcze',
+        'moja', 'moją', 'moje', 'mojej', 'mój', 'moj', 'adres', 'email',
+        'konto', 'numer', 'nr', 'moj email', 'moja karta'
     ]
+
+    code_indicators = [
+        'const ', 'let ', 'var ', 'function ', 'class ', 'return ', '=>',
+        '{', '}', ';', '<', '>', 'javascript', 'typescript', 'console.log'
+    ]
+
+    english_single_word = {'hello', 'hi', 'thanks', 'please', 'email', 'test', 'contact'}
 
     text_lower = text.lower()
     polish_score = sum(1 for kw in polish_keywords if kw in text_lower)
+
+    # Treat obvious code snippets as English
+    if any(indicator in text_lower for indicator in code_indicators):
+        return {
+            'language': 'en',
+            'confidence': 0.95,
+            'method': 'code_heuristic'
+        }
+
+    # Single-word overrides (frequent English tokens)
+    if len(text_lower.split()) == 1 and text_lower in english_single_word:
+        return {
+            'language': 'en',
+            'confidence': 0.9,
+            'method': 'single_word_override'
+        }
 
     # PESEL pattern (11 digits) = strong signal
     if re.search(r'\b\d{11}\b', text):

@@ -107,6 +107,10 @@ vigil-llm-models/
 CLAUDE.md
 CHANGELOG.md
 
+# Codex tooling (local-only)
+.codex/
+bin/vg-orchestrate
+
 # Project management and scripts (not for repository)
 IMPLEMENTATION_TODO.md
 UX_TODO.md
