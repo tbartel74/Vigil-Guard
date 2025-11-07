@@ -146,72 +146,75 @@ jobs:
         run: docker build -t vigil-guard-prompt-guard-api:test .
 
       - name: Smoke test - Start container
+        env:
+          CONTAINER_NAME: test-container-${{ matrix.service }}
         run: |
+          set -euo pipefail
+          trap 'docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true' EXIT
+
           case "${{ matrix.service }}" in
             web-ui-backend)
-              docker run -d --name test-container -p 8787:8787 \
+              docker run -d --name "${CONTAINER_NAME}" \
                 -e NODE_ENV=test \
                 -e JWT_SECRET="${{ secrets.CI_JWT_SECRET || 'test-jwt-secret-min-32-chars-long-for-ci-smoke-test' }}" \
                 -e SESSION_SECRET="${{ secrets.CI_SESSION_SECRET || 'test-session-secret-min-64-chars-long-for-ci-smoke-test-validation-x' }}" \
                 -e WEB_UI_ADMIN_PASSWORD="${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars' }}" \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
-              sleep 10
-              docker logs test-container
               ;;
             web-ui-frontend)
-              docker run -d --name test-container -p 5173:80 \
+              docker run -d --name "${CONTAINER_NAME}" \
                 vigil-guard-web-ui-frontend:test
-              sleep 3
-              docker logs test-container
               ;;
             prompt-guard-api)
-              docker run -d --name test-container -p 8000:8000 \
+              docker run -d --name "${CONTAINER_NAME}" \
                 -e MOCK_MODEL=true \
                 vigil-guard-prompt-guard-api:test
-              sleep 10
-              docker logs test-container
               ;;
           esac
 
       - name: Smoke test - Health check
+        env:
+          CONTAINER_NAME: test-container-${{ matrix.service }}
         run: |
+          set -euo pipefail
           wait_for() {
-            local url="$1"
-            local attempts="${2:-10}"
-            local delay="${3:-3}"
+            local cmd="$1"
+            local attempts="${2:-12}"
+            local delay="${3:-5}"
             for i in $(seq 1 "$attempts"); do
-              if curl -fsS "$url" > /dev/null; then
-                echo "✅ $url is reachable"
+              if eval "$cmd"; then
+                echo "✅ Health check succeeded (attempt $i/$attempts)"
                 return 0
               fi
-              echo "⏳ Waiting for $url (attempt $i/$attempts)..."
+              echo "⏳ Waiting for service (attempt $i/$attempts)..."
               sleep "$delay"
             done
-            echo "❌ Timeout waiting for $url"
+            echo "❌ Service did not become healthy in time"
             return 1
           }
 
+          docker logs "${CONTAINER_NAME}"
+
           case "${{ matrix.service }}" in
             web-ui-backend)
-              wait_for http://localhost:8787/health || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8787/health" || exit 1
               ;;
             web-ui-frontend)
-              wait_for http://localhost:5173/ || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1/" || exit 1
               ;;
             prompt-guard-api)
-              wait_for http://localhost:8000/health || exit 1
-              wait_for http://localhost:8000/ || exit 1
-              # Test mock detection endpoint
-              curl -fsS -X POST http://localhost:8000/detect \
-                -H "Content-Type: application/json" \
-                -d '{"text": "Hello world"}' || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8000/health" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8000/" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS -X POST http://127.0.0.1:8000/detect -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'" || exit 1
               ;;
           esac
 
       - name: Cleanup
         if: always()
-        run: docker rm -f test-container || true
+        env:
+          CONTAINER_NAME: test-container-${{ matrix.service }}
+        run: docker rm -f "${CONTAINER_NAME}" || true
 
   # Docker Compose validation
   docker-compose-validate:
