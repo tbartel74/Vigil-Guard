@@ -18,6 +18,10 @@ from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_analyzer.context_aware_enhancers import LemmaContextAwareEnhancer
 from presidio_analyzer.recognizer_registry import RecognizerRegistry
+try:
+    from presidio_analyzer.predefined_recognizers.spacy_recognizer import SpacyRecognizer
+except ImportError:
+    SpacyRecognizer = None  # type: ignore[misc,assignment]
 import time
 import logging
 import yaml
@@ -26,11 +30,25 @@ from typing import List, Dict, Any, Optional
 
 # Import custom validators
 from validators.polish import (
-    checksum_nip, checksum_regon, checksum_pesel,
-    validate_nip, validate_regon, validate_pesel,
-    ValidatedPatternRecognizer
+    checksum_nip,
+    checksum_regon,
+    checksum_pesel,
+    validate_nip,
+    validate_regon,
+    validate_pesel,
+    ValidatedPatternRecognizer,
 )
 from validators.credit_card import validate_credit_card
+from validators.international import (
+    validate_us_ssn,
+    validate_uk_nhs,
+    validate_ca_sin,
+    validate_au_medicare,
+    validate_au_tfn,
+    validate_uk_nino,
+    validate_iban,
+    validate_us_passport,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -198,6 +216,20 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             'validate_nip': validate_nip,
             'validate_regon': validate_regon,
             'validate_pesel': validate_pesel,
+            'validate_us_ssn': validate_us_ssn,
+            'validate_uk_nhs': validate_uk_nhs,
+            'validate_ca_sin': validate_ca_sin,
+            'validate_au_medicare': validate_au_medicare,
+            'validate_au_tfn': validate_au_tfn,
+            'validate_uk_nino': validate_uk_nino,
+            'validate_iban': validate_iban,
+            'validate_us_passport': validate_us_passport,
+            'checksum_us_ssn': validate_us_ssn,
+            'checksum_uk_nhs': validate_uk_nhs,
+            'checksum_ca_sin': validate_ca_sin,
+            'checksum_au_medicare': validate_au_medicare,
+            'checksum_au_tfn': validate_au_tfn,
+            'checksum_iban': validate_iban,
         }
 
         for rec_config in config['recognizers']:
@@ -379,6 +411,37 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
         # Reset list and add custom recognizers to analyzer registry
         loaded_recognizers = []
+
+        if SpacyRecognizer:
+            try:
+                spacy_en = SpacyRecognizer(
+                    supported_language="en",
+                    supported_entities=["PERSON", "LOCATION", "ORG"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_en)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_EN',
+                    'entity': 'PERSON/LOCATION/ORG',
+                    'language': 'en'
+                })
+                logger.info("✅ Added spaCy recognizer for EN")
+            except Exception as exc:
+                logger.warning(f"Failed to initialize spaCy EN recognizer: {exc}")
+
+            try:
+                spacy_pl = SpacyRecognizer(
+                    supported_language="pl",
+                    supported_entities=["PERSON", "LOCATION"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_pl)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_PL',
+                    'entity': 'PERSON/LOCATION',
+                    'language': 'pl'
+                })
+                logger.info("✅ Added spaCy recognizer for PL")
+            except Exception as exc:
+                logger.warning(f"Failed to initialize spaCy PL recognizer: {exc}")
 
         english_person_recognizer = PatternRecognizer(
             supported_entity='PERSON',

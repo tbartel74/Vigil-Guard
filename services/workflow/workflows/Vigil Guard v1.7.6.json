@@ -1,0 +1,1172 @@
+{
+  "name": "Vigil Guard v1.7.6",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        96
+      ],
+      "id": "6c8d340a-85c4-4683-acc0-93b6c0c6aab0",
+      "name": "When chat message received",
+      "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Build_Sanitized_NDJSON - strict mode for config values\n * UPDATED: Uses output_text from Final Decision as primary source\n */\n\nfunction err(msg){ throw new Error(msg); }\n\nfunction simpleHash(str){\n  let hash = 0;\n  for (let i = 0; i < str.length; i++){\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nconst isPlainObject = v => Object.prototype.toString.call(v) === \"[object Object]\";\nfunction firstDefined(...vals){ for (const v of vals) if (v !== undefined && v !== null) return v; return undefined; }\nfunction s(v){ if (v===undefined||v===null) return undefined; const t=String(v); return t.trim()?t:undefined; }\nfunction deepPrune(value,{removeEmptyObjects=false,removeEmptyArrays=false}={}){\n  if (Array.isArray(value)){\n    const arr = value.map(v=>deepPrune(v,{removeEmptyObjects,removeEmptyArrays})).filter(v=>v!==undefined);\n    if (removeEmptyArrays && arr.length===0) return undefined;\n    return arr;\n  }\n  if (isPlainObject(value)){\n    const out = {};\n    for (const [k,v] of Object.entries(value)){\n      const pruned = deepPrune(v,{removeEmptyObjects,removeEmptyArrays});\n      if (pruned !== undefined) out[k]=pruned;\n    }\n    if (removeEmptyObjects && Object.keys(out).length===0) return undefined;\n    return out;\n  }\n  if (value===null || value===undefined || (typeof value===\"number\" && Number.isNaN(value))) return undefined;\n  return value;\n}\nfunction J(x){ try { return JSON.stringify(x ?? {}); } catch { return \"{}\"; } }\n\nconst items = $input.all();\nif (!items.length) err(\"Build_Sanitized_NDJSON: no input items.\");\n\nconst out = [];\n\nfor (const item of items){\n  const j = item.json || {};\n\n  const san = j.__san || {};\n  const snap = j._pipeline_snapshots || san._pipeline_snapshots || {};\n  const norm = j.normalization || san.normalization || {};\n\n  const pgDecision = j.decision || {};\n  const routing = j.routing || {};\n  const metrics = j.metrics || {};\n  const technical = j.technical || {};\n  const audit = j.audit || {};\n  const messages = j.messages || {};\n\n  const sanitizerDecision = j.sanitizer_decision || {};\n\n  const cfg = j.config || {};\n  const rules = j.rules || {};\n  const thr = j.thresholds || {};\n\n  const sessionId = firstDefined(\n    j.sessionId,\n    san.sessionId,\n    j.chat_payload?.sessionId\n  ) || \"unknown\";\n  \n  const action = firstDefined(\n    j.action,\n    san.action,\n    j.chat_payload?.action\n  ) || \"sendMessage\";\n\n  const originalInput = s(firstDefined(\n    j._original_input,  // \u2705 FIXED v1.7.0: Use preserved original (before PII redaction)\n    j.chatInput,  // Fallback to chatInput if _original_input not set\n    snap.beforeSanitization,\n    norm?.original,\n    j.audit?.originalPrompt\n  )) || \"N/A\";\n\n  const normalizedInput = s(firstDefined(\n    snap.input_normalized,\n    norm?.canonical,\n    norm?.normalized,\n    originalInput\n  )) || originalInput;\n\n  const sanitizedText = s(firstDefined(\n    snap.afterSanitization,\n    san.chat_payload?.chatInput,\n    j.chat_payload?.chatInput\n  ));\n\n  const redactedText = s(firstDefined(\n    snap.afterPII,\n    sanitizedText\n  ));\n\n  const pgShouldBlock = !!(routing.shouldBlock || j._isBlocked);\n  const pgShouldWarn = !!(routing.shouldWarn || j._requiresSanitization);\n  const pgIsSafe = !!(routing.isSafe || j._shouldContinue);\n  \n  const sanitizerDecisionStr = sanitizerDecision.decision || 'ALLOW';\n  const sanitizerBlocked = (sanitizerDecisionStr === 'BLOCK');\n  \n  // \u2713 NEW v1.7.0: Detect PII sanitization for status calculation\n  const piiDetected = !!(j._pii_sanitized || (j.pii_classification?.count > 0));\n  \n  let finalStatus;\n  if (pgShouldBlock || sanitizerBlocked) {\n    finalStatus = \"BLOCKED\";\n  } else if (pgShouldWarn || piiDetected) {  // \u2713 FIXED: Include PII detection\n    finalStatus = \"SANITIZED\";\n  } else {\n    finalStatus = \"ALLOWED\";\n  }\n\n  const shouldBlock = (finalStatus === \"BLOCKED\");\n  const shouldWarn = (finalStatus === \"SANITIZED\");\n  const isSafe = (finalStatus === \"ALLOWED\");\n\n  // \u2713 UPDATED: Priorytet dla output_text z Final Decision\n  const blockMessage = s(messages?.user) || s(cfg?.enforcement?.block_message) || \"Content blocked by security policy. Please rephrase without instructing how to respond.\";\n  const finalOutput = s(j.output_text) || \n                      (shouldBlock \n                        ? (redactedText ? `${blockMessage} ${redactedText}` : blockMessage)\n                        : (redactedText || sanitizedText || s(j.chat_payload?.chatInput) || \"N/A\"));\n\n  const pgHasDecision = !!(pgDecision && (pgDecision.action !== undefined || pgDecision.severity !== undefined || pgDecision.scoreRaw !== undefined));\n  const blockedByPG = shouldBlock && pgHasDecision;\n  const blockedBySan = shouldBlock && !pgHasDecision;\n\n  let source = \"sanitizer_pre_pg\";\n  let actionTaken = firstDefined(pgDecision.action, finalStatus);\n  \n  if (finalStatus === \"BLOCKED\"){\n    if (blockedBySan) { \n      source = \"sanitizer_only\"; \n      actionTaken = \"BLOCK_BY_SANITIZER\"; \n    }\n    if (blockedByPG) { \n      source = \"prompt_guard\"; \n      actionTaken = pgDecision.action || \"BLOCK_BY_PROMPT_GUARD\"; \n    }\n  } else {\n    source = pgHasDecision ? \"prompt_guard\" : \"sanitizer_pre_pg\";\n    if (finalStatus === \"ALLOWED\") actionTaken = \"ALLOW\";\n    if (finalStatus === \"SANITIZED\") actionTaken = actionTaken || \"SANITIZE\";\n  }\n\n  const nd = {\n    sessionId,\n    action,\n    chat_payload: {\n      sessionId,\n      action,\n      chatInput: finalOutput\n    },\n    sanitizer: {\n      decision: sanitizerDecisionStr,\n      removal_pct: san.enforcement?.removalPct ?? j.enforcement?.removalPct ?? 0,\n      mode: san.enforcement?.mode || j.enforcement?.mode,\n      score: j.score || sanitizerDecision.score || 0,\n      breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      pii: Object.assign({}, san.pii || {}, j.pii || {})\n    },\n    prompt_guard: pgHasDecision ? {\n      score: pgDecision.scoreRaw || metrics.injectionScore,\n      score_percent: pgDecision.scorePercent || metrics.scorePercent,\n      risk_level: pgDecision.riskLevel,\n      severity: pgDecision.severity,\n      action: pgDecision.action,\n      should_block: pgShouldBlock,\n      should_warn: pgShouldWarn,\n      is_safe: pgIsSafe,\n      confidence: metrics.confidence,\n      thresholds_used: technical.thresholdsUsed,\n      policies_used: technical.policiesUsed,\n      timestamp: audit.timestamp\n    } : {},\n    final_decision: {\n      status: finalStatus,\n      blocked: shouldBlock,\n      sanitized: shouldWarn,\n      allowed: isSafe,\n      action_taken: actionTaken,\n      user_message: s(messages?.user) || \"\",\n      internal_note: s(messages?.internal) || \"\",\n      source\n    },\n    pipeline_flow: {\n      input_raw: originalInput,\n      input_normalized: normalizedInput,\n      after_sanitization: sanitizedText || finalOutput,\n      after_pii_redaction: redactedText || finalOutput,\n      output_final: finalOutput,\n      output_status: finalStatus\n    },\n    scoring: {\n      sanitizer_score: Number(j.score ?? sanitizerDecision.score ?? 0),\n      prompt_guard_score: pgDecision.scoreRaw || metrics.injectionScore,\n      prompt_guard_percent: pgDecision.scorePercent || metrics.scorePercent,\n      combined_severity: firstDefined(\n        pgDecision.severity,\n        (j.score ?? 0) >= 76 ? 5 :\n        (j.score ?? 0) >= 56 ? 4 :\n        (j.score ?? 0) >= 30 ? 3 :\n        (j.score ?? 0) >= 10 ? 2 : 1\n      ),\n      score_breakdown: j.scoreBreakdown || sanitizerDecision.scoreBreakdown || {},\n      match_details: j.matchDetails || []\n    },\n    config_metadata: {\n      config_hash: (cfg && rules && thr) ? simpleHash(JSON.stringify({ cfg, rules, thr })) : \"no-config\",\n      config_version: cfg?.version || \"unknown\",\n      has_full_config: !!(cfg && rules && thr),\n      has_prompt_guard: pgHasDecision,\n      config_ref: {\n        normalization_unicode: cfg.normalization?.unicode_form,\n        scoring_ranges: thr?.ranges,\n        prompt_guard_thresholds: technical.thresholdsUsed\n      },\n      loader_info: j._loader\n    },\n    _audit: {\n      processing_timestamp: new Date().toISOString(),\n      pipeline_version: \"v1.7.0\",\n      total_processing_time: metrics.processingTime,\n      final_action: actionTaken\n    },\n    normalization: norm || {},  // Include full normalization data (encoding, obfuscation, etc.)\n    validation: cfg._validation || j._validation || j.validation || {}  // Include validation results from Input_Validator (Phase 2.4)\n  };\n\n  const ndClean = deepPrune(nd);\n\n  const row = {\n    sessionId: ndClean.sessionId,\n    action: ndClean.action,\n    timestamp: ndClean._audit?.processing_timestamp,\n\n    original_input: originalInput,  // \u2705 FIXED: Use calculated originalInput variable (j.chatInput)\n    normalized_input: ndClean.pipeline_flow?.input_normalized,\n    after_sanitization: ndClean.pipeline_flow?.after_sanitization,\n    after_pii_redaction: ndClean.pipeline_flow?.after_pii_redaction,\n    chat_input: ndClean.chat_payload?.chatInput,\n    result: ndClean.pipeline_flow?.output_final,\n\n    threat_score: ndClean.scoring?.sanitizer_score ?? ndClean.scoring?.prompt_guard_score ?? 0,\n    threat_severity: ndClean.prompt_guard?.risk_level ?? \"UNDEFINED\",\n    pg_score: ndClean.prompt_guard?.score ?? 0,\n    pg_score_percent: ndClean.prompt_guard?.score_percent ?? 0,\n    final_status: ndClean.final_decision?.status ?? \"UNKNOWN\",\n    final_action: ndClean._audit?.final_action ?? \"\",\n    user_message: ndClean.final_decision?.user_message ?? \"\",\n\n    removal_pct: ndClean.sanitizer?.removal_pct ?? 0,\n    threat_labels: [],\n    threat_matches: [],\n\n    config_version: ndClean.config_metadata?.config_version,\n    config_hash: ndClean.config_metadata?.config_hash,\n    pipeline_version: ndClean._audit?.pipeline_version,\n    processing_time_ms: ndClean._audit?.total_processing_time ?? 0,\n\n    sanitizer_json: J(ndClean.sanitizer),\n    prompt_guard_json: J(ndClean.prompt_guard),\n    scoring_json: J(ndClean.scoring),\n\n    // NEW v1.7.0: PII classification fields for audit trail\n    pii_sanitized: j._pii_sanitized ? 1 : 0,  // UInt8: Boolean as integer (0 or 1)\n    pii_types_detected: j.pii_classification?.types || [],  // Array(String): Entity types found\n    pii_entities_count: j.pii_classification?.count || 0,  // UInt16: Number of PII entities\n\n    // NEW v1.7.0: Client identification and browser metadata for audit trail\n    client_id: j.clientId || '',  // Persistent browser instance identifier from service worker\n    browser_name: j.browser_metadata?.browser || 'unknown',  // Chrome, Firefox, Safari, etc.\n    browser_version: j.browser_metadata?.browser_version || 'unknown',  // Browser version (e.g., \"120.0\")\n    os_name: j.browser_metadata?.os || 'unknown',  // Windows, macOS, Linux, etc.\n    browser_language: j.browser_metadata?.language || 'unknown',  // Browser language (e.g., \"en-US\")\n    browser_timezone: j.browser_metadata?.timezone || 'unknown',  // Browser timezone (e.g., \"America/New_York\")\n\n    final_decision_json: J(ndClean.final_decision),\n    pipeline_flow_json: J(ndClean.pipeline_flow),\n    config_metadata_json: J(ndClean.config_metadata),\n    raw_event: J(ndClean)\n  };\n\n  out.push({ json: { ndjson: ndClean, row } });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5920,
+        128
+      ],
+      "id": "b1b30e90-a9f3-448f-82a6-8877099379f8",
+      "name": "Build+Sanitize NDJSON"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://clickhouse:8123/?date_time_input_format=best_effort&input_format_skip_unknown_fields=1&query=INSERT%20INTO%20n8n_logs.events_processed%20FORMAT%20JSONEachRow",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/x-ndjson",
+        "body": "={{$json.row}}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6144,
+        128
+      ],
+      "id": "7f18d3f2-c001-4da4-9e90-1414a8e25dcf",
+      "name": "Logging to Clikhouse",
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "fHCRgjGiqnzwvaAh",
+          "name": "Clickhouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Load_Config - Production version with Bloom validation\n * FIXED: English messages, better error handling, bloom configuration validation\n */\n\nfunction safeParseJson(value, fieldName) {\n  if (value == null) {\n    return { ok: false, error: `${fieldName} is null/undefined` };\n  }\n  \n  if (typeof value === 'object') {\n    return { ok: true, data: value };\n  }\n  \n  if (typeof value === 'string') {\n    try {\n      return { ok: true, data: JSON.parse(value) };\n    } catch (e) {\n      return { ok: false, error: `${fieldName} JSON parse failed: ${e.message}` };\n    }\n  }\n  \n  return { ok: false, error: `${fieldName} has invalid type: ${typeof value}` };\n}\n\nfunction validateAllowlistSchema(obj) {\n  return obj && typeof obj === 'object' && \n    (obj.$schema || obj.title === 'Sanitizer Allowlist Schema');\n}\n\nfunction validateNormalizeConf(text) {\n  return typeof text === 'string' && \n    (/#\\s*normalize\\.conf/i.test(text) || \n     /\\\\u200B=|leet\\.char\\.|# Zero-width|# LEET map/.test(text));\n}\n\nfunction validatePiiConf(obj) {\n  return obj && typeof obj === 'object' && \n    Array.isArray(obj.rules) && \n    obj.rules.length > 0 &&\n    obj.rules.some(r => r && typeof r.pattern === 'string' && typeof r.name === 'string');\n}\n\nfunction validateThresholds(obj) {\n  return obj && typeof obj === 'object' && \n    obj.ranges && \n    obj.ranges.allow && \n    obj.ranges.block;\n}\n\nfunction validateUnifiedConfig(obj) {\n  return obj && typeof obj === 'object' && \n    obj.normalization && \n    obj.sanitization && \n    obj.scoring;\n}\n\nfunction validateRules(obj) {\n  return obj && typeof obj === 'object' && \n    obj.categories && \n    typeof obj.categories === 'object';\n}\n\nfunction validateBloomConfig(config) {\n  const warnings = [];\n  \n  if (!config.bloom || typeof config.bloom !== 'object') {\n    warnings.push('Missing or invalid bloom configuration, using defaults');\n  }\n  \n  if (!config.prefilter || typeof config.prefilter !== 'object') {\n    warnings.push('Missing or invalid prefilter configuration, using defaults');\n  }\n  \n  if (config.prefilter && !Array.isArray(config.prefilter.dangerous_patterns)) {\n    warnings.push('Missing dangerous_patterns in prefilter, will use defaults');\n  }\n  \n  if (!config.bloom_decisions || typeof config.bloom_decisions !== 'object') {\n    warnings.push('Missing bloom_decisions, using defaults');\n  }\n  \n  return warnings;\n}\n\nconst inputItems = $input.all();\nif (!inputItems || !inputItems.length) {\n  console.error('Load_Config: No input items');\n  return [{\n    json: {\n      error: 'No input items',\n      configError: true,\n      decision: { decision: 'ALLOW', reason: 'CONFIG_ERROR' }\n    }\n  }];\n}\n\nconst firstItem = inputItems[0];\nconst j = firstItem.json ? JSON.parse(JSON.stringify(firstItem.json)) : {};\n\nj._loader = {\n  sources: {},\n  missing: [],\n  errors: [],\n  warnings: []\n};\n\nconst data1Result = safeParseJson(j.data1, 'data1 (allowlist_schema)');\nif (data1Result.ok && validateAllowlistSchema(data1Result.data)) {\n  j.allowlist_schema = data1Result.data;\n  j._loader.sources.allowlist_schema = 'json.data1';\n} else {\n  j._loader.missing.push('allowlist_schema');\n  j._loader.errors.push(data1Result.error || 'data1: invalid allowlist_schema');\n}\n\nif (validateNormalizeConf(j.data2)) {\n  j.normalization_text = j.data2;\n  j._loader.sources.normalize_conf = 'json.data2';\n} else {\n  j._loader.missing.push('normalize_conf');\n  j._loader.errors.push('data2: invalid normalize.conf format');\n}\n\nconst data3Result = safeParseJson(j.data3, 'data3 (pii.conf)');\nif (data3Result.ok && validatePiiConf(data3Result.data)) {\n  j.pii_conf = data3Result.data;\n  j.pii_text = typeof j.data3 === 'string' ? j.data3 : JSON.stringify(data3Result.data);\n  j._loader.sources.pii_conf = 'json.data3';\n} else {\n  j._loader.missing.push('pii_conf');\n  j._loader.errors.push(data3Result.error || 'data3: invalid pii.conf format');\n}\n\nconst data4Result = safeParseJson(j.data4, 'data4 (thresholds)');\nif (data4Result.ok && validateThresholds(data4Result.data)) {\n  j.thresholds = data4Result.data;\n  j._loader.sources.thresholds = 'json.data4';\n} else {\n  j._loader.missing.push('thresholds');\n  j._loader.errors.push(data4Result.error || 'data4: invalid thresholds format');\n}\n\nconst data5Result = safeParseJson(j.data5, 'data5 (unified_config)');\nif (data5Result.ok && validateUnifiedConfig(data5Result.data)) {\n  j.config = data5Result.data;\n  j._loader.sources.unified_config = 'json.data5';\n  \n  // Validate bloom configuration and collect warnings\n  const bloomWarnings = validateBloomConfig(j.config);\n  if (bloomWarnings.length > 0) {\n    j._loader.warnings = j._loader.warnings.concat(bloomWarnings);\n    console.warn('Bloom config warnings:', bloomWarnings);\n  }\n  \n  // Ensure bloom configuration has required structure\n  if (!j.config.bloom) {\n    j.config.bloom = { m: 32768, k: 5, seed: 1337, match_mod: 97, min_matched_bits: 2 };\n  }\n  \n  if (!j.config.prefilter) {\n    j.config.prefilter = { \n      ngram: { min: 3, max: 6, prefix_window: 96 },\n      sample_limit: 800,\n      obf_signals: { min_count: 2 },\n      dangerous_patterns: []\n    };\n  } else if (!j.config.prefilter.dangerous_patterns) {\n    j.config.prefilter.dangerous_patterns = [];\n  }\n  \n  if (!j.config.bloom_decisions) {\n    j.config.bloom_decisions = {\n      route_to_ac_threshold: 15,\n      hard_block_threshold: 50,\n      require_zusatz_signals: true,\n      phrase_match_bonus: 20\n    };\n  }\n  \n  j.config.references = Object.assign({}, j.config.references || {}, {\n    rules_file: 'rules.config.json',\n    thresholds_file: 'thresholds.config.json',\n    normalize_conf: 'normalize.conf',\n    pii_conf: 'pii.conf'\n  });\n} else {\n  j._loader.missing.push('unified_config');\n  j._loader.errors.push(data5Result.error || 'data5: invalid unified_config format');\n}\n\nconst data6Result = safeParseJson(j.data6, 'data6 (rules)');\nif (data6Result.ok && validateRules(data6Result.data)) {\n  j.rules = data6Result.data;\n  j._loader.sources.rules = 'json.data6';\n} else {\n  j._loader.missing.push('rules');\n  j._loader.errors.push(data6Result.error || 'data6: invalid rules format');\n}\n\nif (j._loader.missing.length > 0) {\n  console.error('Load_Config: Missing required files:', j._loader.missing);\n  console.error('Error details:', j._loader.errors);\n  if (j._loader.warnings.length > 0) {\n    console.warn('Config warnings:', j._loader.warnings);\n  }\n  \n  return [{\n    json: {\n      ...j,\n      configError: true,\n      decision: { decision: 'ALLOW', reason: 'CONFIG_ERROR' },\n      error_message: `Missing required files: ${j._loader.missing.join(', ')}`\n    },\n    pairedItem: 0\n  }];\n}\n\nif (j._loader.warnings.length > 0) {\n  console.info('Config loaded with warnings:', j._loader.warnings);\n}\n\nreturn [{ json: j, pairedItem: 0 }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        128
+      ],
+      "id": "b39574dd-84b1-4cc2-bf90-7e7605386db0",
+      "name": "Config Loader"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 7,
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1664,
+        112
+      ],
+      "id": "0a130f90-b8ca-4f3b-9e92-0f391d88e49f",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b6fecd17-5c91-41b2-a235-85ac60cb4dc5",
+              "name": "chat_payload",
+              "value": "={{ {\n    chatInput: $json.body.chatInput || $json.chatInput || $json.text || \"\",\n    sessionId: $json.body.sessionId || $json.sessionId || $now.format('x'),\n    action: $json.body.action || $json.action || \"sendMessage\"\n  } }}",
+              "type": "object"
+            },
+            {
+              "id": "browser-fingerprint-client-id",
+              "name": "clientId",
+              "value": "={{ $json.body.clientId || $json.clientId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "browser-fingerprint-metadata",
+              "name": "browser_metadata",
+              "value": "={{ $json.body.browser_metadata || $json.browser_metadata || {} }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "1440ab8c-93e2-47e1-8ee5-b267cc1622b0",
+      "name": "Keep only set"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "destinationKey": "data1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        432
+      ],
+      "id": "001dc6d5-4301-4cff-9c89-96095d35e47c",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "data2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        624
+      ],
+      "id": "9bcdaf45-c6b6-4163-9f59-e362e246df84",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Normalize_Node - Production version with decodeNested()\n * FIXED: Added encoding bypass detection (base64, URL, hex)\n */\n\nfunction parseNormalizeConf(confText) {\n  const lines = (confText || \"\").split(/\\r?\\n/);\n  const map = new Map();\n  const leetChar = new Map();\n  const leetSingle = new Map();\n\n  for (const raw of lines) {\n    const line = raw.trim();\n    if (!line || line.startsWith(\"#\")) continue;\n    let m;\n    if ((m = line.match(/^leet\\.single\\.([^=]+)=(.*)$/))) {\n      leetSingle.set(m[1], m[2]);\n      continue;\n    }\n    if ((m = line.match(/^leet\\.char\\.([^=]+)=(.*)$/))) {\n      leetChar.set(m[1], m[2]);\n      continue;\n    }\n    const eq = line.indexOf(\"=\");\n    if (eq >= 0) {\n      const lhs = line.slice(0, eq);\n      const rhs = line.slice(eq + 1) || '';\n      const from = lhs.replace(/\\\\u\\{?([0-9A-Fa-f]{4,6})\\}?/g, (_, h) =>\n        String.fromCodePoint(parseInt(h, 16)),\n      );\n      const to = rhs.replace(/\\\\u\\{?([0-9A-Fa-f]{4,6})\\}?/g, (_, h) =>\n        String.fromCodePoint(parseInt(h, 16)),\n      );\n      map.set(from, to);\n    }\n  }\n  return { map, leetChar, leetSingle };\n}\n\n/**\n * decodeNested - Detects and decodes multiple encoding layers\n * Handles: URL encoding (double/triple), base64, hex\n */\nfunction decodeNested(input) {\n  let current = input;\n  let decoded = input;\n  const decodingSteps = [];\n  let changed = true;\n  let iterations = 0;\n  const MAX_ITERATIONS = 5; // Support multi-level encoding (was 3)\n\n  while (changed && iterations < MAX_ITERATIONS) {\n    changed = false;\n    iterations++;\n\n    // 1. URL Decode (multi-level)\n    try {\n      const urlDecoded = decodeURIComponent(current);\n      if (urlDecoded !== current) {\n        decodingSteps.push({ type: 'url', iteration: iterations });\n        current = urlDecoded;\n        decoded = urlDecoded;\n        changed = true;\n        continue;\n      }\n    } catch (e) {\n      // Invalid URL encoding - skip\n    }\n\n    // 2. Base64 Decode (with validation)\n    // FIXED: Match embedded base64 substrings (32+ chars) AND handle case-insensitive\n    const base64Pattern = /[A-Za-z0-9+/]{32,}={0,2}/;\n    const base64Match = current.match(base64Pattern);\n    if (base64Match) {\n      try {\n        const b64String = base64Match[0];\n        // Use Buffer for better compatibility than atob\n        const b64Decoded = (typeof Buffer !== 'undefined') ?\n          Buffer.from(b64String, 'base64').toString('utf-8') :\n          atob(b64String);\n\n        // Check if decoded result contains printable ASCII (likely malicious text)\n        if (b64Decoded && /[\\x20-\\x7E]{5,}/.test(b64Decoded)) {\n          decodingSteps.push({ type: 'base64', iteration: iterations, originalSubstr: b64String.substring(0, 30) });\n          // Replace base64 substring with decoded content\n          current = current.replace(b64String, b64Decoded);\n          decoded = current;\n          changed = true;\n          continue;\n        }\n      } catch (e) {\n        // Not valid base64 - skip\n      }\n    }\n\n    // 3. Hex Decode (0x prefix or pure hex)\n    const hexPattern = /^(?:0x)?([A-Fa-f0-9]{16,})$/;\n    const hexMatch = current.trim().match(hexPattern);\n    if (hexMatch) {\n      try {\n        const hexStr = hexMatch[1];\n        let hexDecoded = '';\n        for (let i = 0; i < hexStr.length; i += 2) {\n          hexDecoded += String.fromCharCode(parseInt(hexStr.substr(i, 2), 16));\n        }\n        // Check if decoded contains printable ASCII\n        if (hexDecoded && /[\\x20-\\x7E]{5,}/.test(hexDecoded)) {\n          decodingSteps.push({ type: 'hex', iteration: iterations });\n          current = hexDecoded;\n          decoded = hexDecoded;\n          changed = true;\n          continue;\n        }\n      } catch (e) {\n        // Invalid hex - skip\n      }\n    }\n  }\n\n  return {\n    decoded: decoded,\n    originalLength: input.length,\n    decodedLength: decoded.length,\n    steps: decodingSteps,\n    levelsDetected: decodingSteps.length\n  };\n}\n\nfunction stripZeroWidth(s) {\n  return s.replace(/[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u206F\\uFEFF]/g, \"\");\n}\n\nfunction collapseWhitespace(s) {\n  return s.replace(/\\s+/g, \" \").trim();\n}\n\nfunction hasMathAlnumSymbols(s) {\n  for (const ch of s) {\n    const cp = ch.codePointAt(0);\n    if (cp >= 0x1D400 && cp <= 0x1D7FF) return true;\n  }\n  return false;\n}\n\n/**\n * detectMixedScripts - Enhanced polyglot attack detection\n * Detects mixing of multiple writing systems (11 scripts total)\n * Returns: { detected: boolean, scripts: string[], count: number, suspicionBonus: number, signal: string }\n */\nfunction detectMixedScripts(text) {\n  const scriptRanges = {\n    latin: [\n      [0x0041, 0x007A],  // Basic Latin (A-Z, a-z)\n      [0x00C0, 0x024F]   // Latin Extended-A/B\n    ],\n    cyrillic: [\n      [0x0400, 0x04FF],  // Cyrillic\n      [0x0500, 0x052F]   // Cyrillic Supplement\n    ],\n    greek: [\n      [0x0370, 0x03FF],  // Greek and Coptic\n      [0x1F00, 0x1FFF]   // Greek Extended\n    ],\n    arabic: [\n      [0x0600, 0x06FF],  // Arabic\n      [0x0750, 0x077F],  // Arabic Supplement\n      [0xFB50, 0xFDFF],  // Arabic Presentation Forms-A\n      [0xFE70, 0xFEFF]   // Arabic Presentation Forms-B\n    ],\n    hebrew: [\n      [0x0590, 0x05FF]   // Hebrew\n    ],\n    thai: [\n      [0x0E00, 0x0E7F]   // Thai\n    ],\n    hangul: [\n      [0xAC00, 0xD7AF],  // Hangul Syllables\n      [0x1100, 0x11FF]   // Hangul Jamo\n    ],\n    hiragana: [\n      [0x3040, 0x309F]   // Hiragana\n    ],\n    katakana: [\n      [0x30A0, 0x30FF]   // Katakana\n    ],\n    cjk: [\n      [0x4E00, 0x9FFF],  // CJK Unified Ideographs\n      [0x3400, 0x4DBF]   // CJK Extension A\n    ],\n    emoji: [\n      [0x1F300, 0x1F9FF], // Emoticons, Symbols, Pictographs\n      [0x2600, 0x26FF],   // Miscellaneous Symbols\n      [0x2700, 0x27BF]    // Dingbats\n    ]\n  };\n\n  const detectedScripts = new Set();\n\n  // Scan text for scripts\n  for (const ch of text) {\n    const cp = ch.codePointAt(0);\n    \n    for (const [scriptName, ranges] of Object.entries(scriptRanges)) {\n      for (const [start, end] of ranges) {\n        if (cp >= start && cp <= end) {\n          detectedScripts.add(scriptName);\n          break;\n        }\n      }\n    }\n  }\n\n  const scriptsArray = Array.from(detectedScripts).sort();\n  const scriptCount = scriptsArray.length;\n\n  // Calculate suspicion bonus\n  let suspicionBonus = 0;\n  let signal = '';\n\n  if (scriptCount >= 3) {\n    suspicionBonus = 30;  // 3+ scripts = high suspicion\n    const first3 = scriptsArray.slice(0, 3);\n    signal = 'mixed-scripts-' + first3.join('-') + '+';\n  } else if (scriptCount === 2) {\n    // FIXED (Faza 2.3): Don't flag emoji+Latin as suspicious (normal use case)\n    // Only flag emoji with non-Latin scripts OR 2 non-emoji scripts\n    const hasEmoji = scriptsArray.includes('emoji');\n    const hasLatin = scriptsArray.includes('latin');\n    \n    if (hasEmoji && hasLatin && scriptCount === 2) {\n      // Emoji + Latin only = benign (e.g., \"Hello \ud83d\udc4b\", \"Great job! \ud83c\udf89\")\n      suspicionBonus = 0;\n      signal = '';\n    } else {\n      // Emoji + other script OR 2 non-emoji scripts = suspicious\n      suspicionBonus = 15;\n      signal = 'mixed-scripts-' + scriptsArray[0] + '-' + scriptsArray[1];\n    }\n  }\n\n  return {\n    detected: scriptCount >= 2,\n    scripts: scriptsArray,\n    count: scriptCount,\n    suspicionBonus: suspicionBonus,\n    signal: signal\n  };\n}\n\nfunction htmlDecodeIfNeeded(s, decode) {\n  if (!decode) return s;\n  return s\n    .replace(/&nbsp;/g, \" \")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\")\n    .replace(/&#(\\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))\n    .replace(/&#x([0-9A-Fa-f]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)));\n}\n\nfunction applyMap(s, mp) {\n  if (!mp || mp.size === 0) return s;\n  const keys = [...mp.keys()].sort((a, b) => b.length - a.length);\n  for (const k of keys) {\n    if (!k) continue;\n    const v = mp.get(k);\n    const re = new RegExp(k.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\"), \"g\");\n    s = s.replace(re, v);\n  }\n  return s;\n}\n\nfunction casefold(s) {\n  return s.toLocaleLowerCase(\"en\");\n}\n\n/**\n * detectObfuscation - Detects whitespace obfuscation BEFORE normalization\n * Returns: { detected: boolean, score: number, flags: object, signals: string[] }\n */\nfunction detectObfuscation(text) {\n  let obfuscationScore = 0;\n  const flags = {\n    zeroWidth: false,\n    excessiveSpacing: false,\n    spacedOutLetters: false\n  };\n  const signals = [];\n\n  // 1. Zero-width character detection\n  const zeroWidthPattern = /[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u206F\\uFEFF]/;\n  if (zeroWidthPattern.test(text)) {\n    flags.zeroWidth = true;\n    obfuscationScore += 25;\n    signals.push('zero-width-chars');\n\n    // Count zero-width characters\n    const zwCount = (text.match(new RegExp(zeroWidthPattern, 'g')) || []).length;\n    if (zwCount > 5) {\n      obfuscationScore += 10;  // Heavy use of zero-width\n      signals.push('zero-width-heavy');\n    }\n  }\n\n  // 2. Excessive spacing detection (3+ consecutive spaces)\n  if (/\\s{3,}/.test(text)) {\n    flags.excessiveSpacing = true;\n    obfuscationScore += 15;\n    signals.push('excessive-spacing');\n  }\n\n  // 3. Spaced-out letters detection (e.g., \"i g n o r e\")\n  // Look for pattern: letter + space + letter + space + letter (at least 5 chars with spaces)\n  const spacedLetterPattern = /\\b[a-zA-Z]\\s+[a-zA-Z]\\s+[a-zA-Z]\\s+[a-zA-Z]\\s+[a-zA-Z]/;\n  if (spacedLetterPattern.test(text)) {\n    flags.spacedOutLetters = true;\n    obfuscationScore += 20;\n    signals.push('spaced-out-letters');\n  }\n\n  return {\n    detected: obfuscationScore > 0,\n    score: obfuscationScore,\n    flags: flags,\n    signals: signals\n  };\n}\n\nfunction buildSignals(original, beforeHomoglyphMap, afterLeet, final, decodingResult, mixedScriptsResult) {\n  const sigs = [];\n\n  // Existing signals\n  if (original.length !== stripZeroWidth(original).length) sigs.push(\"zero-width-removed\");\n  if (hasMathAlnumSymbols(original) || hasMathAlnumSymbols(afterLeet)) sigs.push(\"math-alnum/fraktur\");\n  if (mixedScriptsResult && mixedScriptsResult.detected) {\n    sigs.push(mixedScriptsResult.signal);\n  }\n  if (/[A-Za-z]/.test(original) && /[0-9]/.test(original) && /[@$%|]/.test(original)) sigs.push(\"leet-like-mix\");\n  \n  const separators = beforeHomoglyphMap.match(/(?:_{3,}|-{3,}|\\.{3,}|={3,}|\\*{3,}){1,}/g);\n  if (separators && separators.length >= 3) sigs.push(\"separator-abuse\");\n\n  if (/(?:<\\|\\/?(system|assistant|user|user_query)\\|>|\\{\\{\\s*system\\s*\\}\\}|\\[\\[\\s*system\\s*\\]\\])/.test(beforeHomoglyphMap)) {\n    sigs.push(\"template-markers\");\n  }\n\n  // NEW: Encoding detection signals\n  if (decodingResult && decodingResult.levelsDetected > 0) {\n    sigs.push(`encoding-detected-${decodingResult.levelsDetected}-levels`);\n    decodingResult.steps.forEach(step => {\n      sigs.push(`encoding-${step.type}`);\n    });\n  }\n  \n  return sigs;\n}\n\n// FIXED: Added items declaration\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Normalize_Node: No input items');\n  return [];\n}\n\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const cfg = (j.config ?? {});\n  const ncfg = cfg.normalization ?? {};\n  const confText = j.normalization_text || \"\";\n  const { map, leetChar, leetSingle } = parseNormalizeConf(confText);\n\n  const input =\n    j?.chat_payload?.chatInput ??\n    j?.chatInput ??\n    j?.input ??\n    \"\";\n\n  const steps = [];\n  let s = String(input);\n  const original = s;\n\n  // v1.7.5: Save original BEFORE casefold for PERSON detection\n  // This preserves capitalization needed for Polish names and proper nouns\n\n  // **NEW: Detect obfuscation BEFORE any normalization**\n  const obfuscationDetected = detectObfuscation(s);\n\n  // **NEW: Decode nested encodings FIRST**\n  const decodingResult = decodeNested(s);\n  if (decodingResult.levelsDetected > 0) {\n    s = decodingResult.decoded;\n    steps.push({ \n      step: \"decode_nested\", \n      levels: decodingResult.levelsDetected,\n      decodingSteps: decodingResult.steps,\n      originalLen: decodingResult.originalLength,\n      decodedLen: decodingResult.decodedLength\n    });\n  }\n\n  s = htmlDecodeIfNeeded(s, !!ncfg.decode_entities);\n  steps.push({ step: \"html_decode\", outLen: s.length });\n\n  try {\n    s = s.normalize(\"NFKC\");\n  } catch {}\n  steps.push({ step: \"nfkc\", outLen: s.length });\n\n  s = casefold(s);\n  steps.push({ step: \"casefold\", outLen: s.length });\n\n  if (ncfg.remove_zero_width !== false) {\n    const s0 = s;\n    s = stripZeroWidth(s);\n    if (s !== s0) steps.push({ step: \"strip_zwsp\", removed: s0.length - s.length });\n  }\n\n  const beforeHomoglyphMap = s;\n\n  s = applyMap(s, map);\n  steps.push({ step: \"homoglyph_map\", outLen: s.length });\n\n  const HEART_PLACEHOLDER = '\\uE000HEART\\uE001';\n  s = s.replace(/<3/g, HEART_PLACEHOLDER);\n  \n  if (leetChar.size) {\n    for (const [k, v] of leetChar.entries()) {\n      if (!k) continue;\n      const re = new RegExp(k.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\"), \"g\");\n      s = s.replace(re, v);\n    }\n    steps.push({ step: \"leet.char\", outLen: s.length });\n  }\n  \n  s = s.replace(new RegExp(HEART_PLACEHOLDER, 'g'), '<3');\n\n  const afterLeet = s;\n\n  if (leetSingle.size) {\n    const tokens = s.split(/(\\b)/);\n    for (let i = 0; i < tokens.length; i++) {\n      const t = tokens[i];\n      if (/^\\b$/.test(t)) continue;\n      const mapped = leetSingle.get(t);\n      if (mapped) tokens[i] = mapped;\n    }\n    s = tokens.join(\"\");\n    steps.push({ step: \"leet.single\", outLen: s.length });\n  }\n\n  if (ncfg.collapse_whitespace !== false) {\n    s = collapseWhitespace(s);\n    steps.push({ step: \"collapse_ws\", outLen: s.length });\n  }\n\n  const canonical = s;\n\n  // FIXED: Use decoded text for scoring IF encoding was detected\n  // This ensures Pattern_Matching_Engine analyzes the actual malicious content\n  let forScoring = canonical;\n  if (decodingResult.levelsDetected > 0) {\n    // Apply same normalization to decoded text before scoring\n    let decodedForScoring = decodingResult.decoded;\n\n    // Apply critical normalization steps\n    try {\n      decodedForScoring = decodedForScoring.normalize(\"NFKC\");\n    } catch {}\n\n    decodedForScoring = casefold(decodedForScoring);\n    decodedForScoring = stripZeroWidth(decodedForScoring);\n    decodedForScoring = applyMap(decodedForScoring, map);\n    decodedForScoring = collapseWhitespace(decodedForScoring);\n\n    forScoring = decodedForScoring;\n  }\n\n  // Polyglot attack detection (moved before buildSignals)\n  const mixedScriptsResult = detectMixedScripts(original);\n  \n  const signals = buildSignals(original, beforeHomoglyphMap, afterLeet, canonical, decodingResult, mixedScriptsResult);\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.input_raw = original;\n  j._pipeline_snapshots.input_normalized = canonical;\n  if (decodingResult.levelsDetected > 0) {\n    j._pipeline_snapshots.input_decoded = decodingResult.decoded;\n  }\n\n  j.normalization = {\n    original: original,\n    normalized: canonical,\n    canonical: canonical,\n    forScoring: forScoring,\n    steps,\n    obfuscationSignals: signals,\n    mixedScripts: mixedScriptsResult,\n    decodingDetected: decodingResult.levelsDetected > 0 ? decodingResult : null,\n    obfuscationDetected: obfuscationDetected.detected ? obfuscationDetected : null\n  };\n\n  j.chat_payload = j.chat_payload || {};\n  j.normalized_input = canonical;  // v1.7.4: For PII_Redactor_v2\n  j._original_input = original;  // v1.7.5: Preserve original text for PERSON detection\n  j.chat_payload.chatInput = canonical;\n  j.input_raw = original;\n\n  item.json = j;\n  results.push(item);\n}\n\nreturn results;\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        128
+      ],
+      "id": "d973bdb6-9239-4e23-8f46-818911497a45",
+      "name": "Normalize_Node"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "583cd94d-198b-4b10-a901-b4feb6edc51a",
+              "name": "sessionId",
+              "value": "={{ $('Build+Sanitize NDJSON').item.json.ndjson.chat_payload.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "998db0bf-ad74-49e7-bbad-7d720cedea60",
+              "name": "chatInput",
+              "value": "={{ $('Build+Sanitize NDJSON').item.json.row.chat_input }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6400,
+        128
+      ],
+      "id": "14ffc921-0b2c-46d5-b393-377734d1d72c",
+      "name": "Clean output"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/normalize.conf",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        624
+      ],
+      "id": "f885c6a8-b0db-44a7-9e43-7b4a6e2171d0",
+      "name": "Loading config files *.conf"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/allowlist.schema.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        432
+      ],
+      "id": "9853544e-18c3-4658-b81e-78dfc7038988",
+      "name": "Loading config files *.json"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Unified Decision Engine - FIXED: Added items declaration, score validation\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n  \n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n  \n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\n// FIXED: Added items declaration\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Unified Decision Engine: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  \n  // Skip processing if already blocked by validator\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n  \n  // Validate score (handle NaN, Infinity, wrong types)\n  let score = 0;\n  const rawScore = j.score;\n  \n  if (typeof rawScore === 'number' && !isNaN(rawScore) && isFinite(rawScore)) {\n    score = Math.max(0, Math.min(100, rawScore));\n  } else if (typeof rawScore === 'string') {\n    const parsed = parseFloat(rawScore);\n    score = (!isNaN(parsed) && isFinite(parsed)) ? Math.max(0, Math.min(100, parsed)) : 0;\n  } else {\n    score = 0;\n  }\n  \n  if (score !== rawScore) {\n    console.warn(`Invalid score detected: ${rawScore}, normalized to ${score}`);\n  }\n  \n  const scoreBreakdown = j.scoreBreakdown ?? {};\n  const thresholds = j.thresholds || {};\n  \n  const ranges = (thresholds && thresholds.ranges) || {\n    allow: { min: 0, max: 29 },\n    sanitize_light: { min: 30, max: 55 },\n    sanitize_heavy: { min: 56, max: 75 },\n    block: { min: 76, max: 100 },\n  };\n\n  let decision = 'ALLOW';\n  if (score >= ranges.block.min) decision = 'BLOCK';\n  else if (score >= ranges.sanitize_heavy.min) decision = 'SANITIZE_HEAVY';\n  else if (score >= ranges.sanitize_light.min) decision = 'SANITIZE_LIGHT';\n\n  mergeDecision(j, decision, 'unified_decision_engine', {\n    score: score,\n    scoreBreakdown: scoreBreakdown,\n    reason: decision === 'ALLOW' ? 'OK' : 'POLICY'\n  });\n\n  // FIX 2.5.1: Set unified_decision.threat_score for sliding window gating\n  j.unified_decision = {\n    threat_score: score,\n    decision: decision,\n    ranges_used: ranges\n  };\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3504,
+        128
+      ],
+      "id": "fae88db2-6c1a-4684-9a3b-d2edbcbfb2e1",
+      "name": "Unified Decision Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Allowlist_Validator - FIXED: Better error handling, English messages\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n  \n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n  \n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\nfunction validateJsonSchema(data, schema) {\n  if (!schema || !schema.required) return { valid: true, errors: [] };\n  \n  const errors = [];\n  for (const field of schema.required || []) {\n    if (!(field in data)) {\n      errors.push(`Missing required field: ${field}`);\n    }\n  }\n  \n  if (schema.properties) {\n    for (const [key, propSchema] of Object.entries(schema.properties)) {\n      if (key in data) {\n        const value = data[key];\n        const expectedType = Array.isArray(propSchema.type) ? propSchema.type : [propSchema.type];\n        const actualType = value === null ? 'null' : typeof value === 'object' && Array.isArray(value) ? 'array' : typeof value;\n        \n        if (!expectedType.includes(actualType) && !(expectedType.includes('null') && value === null)) {\n          errors.push(`Field ${key}: expected ${expectedType.join('|')}, got ${actualType}`);\n        }\n      }\n    }\n  }\n  \n  return { valid: errors.length === 0, errors };\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Allowlist_Validator: No input items');\n  return [];\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const schema = j.allowlist_schema || null;\n  \n  const hasInput = !!(j.chat_payload && typeof j.chat_payload.chatInput === \"string\" && j.chat_payload.chatInput.length >= 0);\n  \n  let schemaValid = true;\n  let schemaErrors = [];\n  \n  if (schema && hasInput) {\n    const validation = validateJsonSchema(j, schema);\n    schemaValid = validation.valid;\n    schemaErrors = validation.errors;\n  }\n  \n  const ok = hasInput && schemaValid;\n  \n  j.validation = {\n    ok,\n    errors: ok ? [] : [\n      ...(!hasInput ? [\"chat_payload_missing_or_invalid\"] : []),\n      ...schemaErrors\n    ],\n    enforced: true,\n    schemaVersion: schema ? (schema.$schema || \"unknown\") : \"none\",\n  };\n  \n  if (!ok) {\n    j.configError = true;\n    \n    mergeDecision(j, 'BLOCK', 'allowlist_validator', {\n      validation_failed: true,\n      validation_errors: j.validation.errors,\n      processingMs: 0\n    });\n    \n    if (j.config?.enforcement?.block_message) {\n      j.chat_payload = j.chat_payload || {};\n      j.chat_payload.chatInput = j.config.enforcement.block_message;\n    }\n  }\n  \n  item.json = j;\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        128
+      ],
+      "id": "61ff4b6c-7126-482d-947d-6b7b6616e11d",
+      "name": "Allowlist_Validator"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Sanitization_Enforcement - VERSION 2.0\n *\n * FIXED: Now uses ACTUAL detected patterns from Pattern_Matching_Engine\n * instead of hardcoded patterns in unified_config.json\n *\n * Strategy:\n * - SANITIZE_LIGHT: Remove patterns from LOW/MEDIUM severity categories\n * - SANITIZE_HEAVY: Remove patterns from ALL detected categories\n * - Uses matchDetails from Pattern_Matching_Engine to get actual regex patterns\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n\n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n\n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\n/**\n * Category severity mapping for LIGHT sanitization\n * LOW/MEDIUM categories will be removed in LIGHT mode\n * HIGH/CRITICAL categories will be removed in HEAVY mode\n */\nconst LOW_MEDIUM_CATEGORIES = [\n  \"MILD_SUSPICIOUS\",\n  \"ENCODING_SUSPICIOUS\",\n  \"FORMAT_COERCION\",\n  \"HYPOTHETICAL_ESCAPE\",\n  \"UNFILTERED_REQUEST\",\n  \"REBEL_RESPONSE\",\n  \"ENCODING_INDICATORS\",\n  \"JAILBREAK_ATTEMPT\",\n  \"GODMODE_JAILBREAK\",\n  \"EXPLICIT_JAILBREAK\"\n];\n\nconst HIGH_CRITICAL_CATEGORIES = [\n  \"CRITICAL_INJECTION\",\n  \"CONTROL_OVERRIDE\",\n  \"PROMPT_LEAK_ATTEMPT\",\n  \"HEAVY_OBFUSCATION\",\n  \"DANGEROUS_CONTENT\",\n  \"PROMPT_TEMPLATING_MARKERS\",\n  \"SEPARATOR_ABUSE\",\n  \"TEMPLATE_TOKEN\",\n  \"HEADER_ESCAPE\",\n  \"DIVIDER_ABUSE\",\n  \"SQL_XSS_ATTACKS\",\n  \"PRIVILEGE_ESCALATION\",\n  \"COMMAND_INJECTION\",\n  \"PATH_TRAVERSAL\",\n  \"XXE_INJECTION\",\n  \"LDAP_INJECTION\",\n  \"SSRF_ATTEMPT\",\n  \"CRLF_INJECTION\",\n  \"NOSQL_INJECTION\",\n  \"TEMPLATE_INJECTION\"\n];\n\n/**\n * Extract all unique regex patterns from matchDetails\n * @param {Array} matchDetails - Array from Pattern_Matching_Engine\n * @param {Array} categoryFilter - List of category names to include (null = all)\n * @returns {Array} Array of regex pattern strings\n */\nfunction extractPatternsFromMatches(matchDetails, categoryFilter = null) {\n  const patterns = [];\n\n  if (!matchDetails || !Array.isArray(matchDetails)) {\n    return patterns;\n  }\n\n  for (const detail of matchDetails) {\n    // Skip if category filter specified and this category not in filter\n    if (categoryFilter && !categoryFilter.includes(detail.category)) {\n      continue;\n    }\n\n    // Skip non-pattern categories (Mixed Scripts, Encoding Detection, Obfuscation Detection)\n    if (!detail.matches || !Array.isArray(detail.matches)) {\n      continue;\n    }\n\n    // Extract patterns from matches\n    for (const match of detail.matches) {\n      if (match.pattern) {\n        patterns.push(match.pattern);\n      }\n    }\n  }\n\n  return patterns;\n}\n\n/**\n * Apply sanitization using detected patterns\n * @param {string} text - Original text\n * @param {Array} patterns - Array of regex pattern strings\n * @param {string} redact - Replacement token\n * @returns {Object} {out: sanitized text, removedPct: percentage removed, removedChars: count}\n */\nfunction applySanitizeFromMatches(text, patterns, redact) {\n  if (!patterns || !patterns.length) {\n    return { out: text, removedPct: 0, removedChars: 0 };\n  }\n\n  let out = text;\n  let removed = 0;\n  const uniquePatterns = [...new Set(patterns)]; // Remove duplicates\n\n  for (const pattern of uniquePatterns) {\n    try {\n      const re = new RegExp(pattern, \"giu\");\n      out = out.replace(re, (m) => {\n        removed += m.length;\n        return redact || \"\";\n      });\n    } catch (e) {\n      console.warn(`Invalid sanitization regex: ${pattern}`, e);\n    }\n  }\n\n  const removedPct = text.length ? Math.round((removed / text.length) * 100) : 0;\n  return { out, removedPct, removedChars: removed };\n}\n\n// ============================================================================\n// MAIN LOGIC\n// ============================================================================\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Sanitization_Enforcement: No input items');\n  return [];\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const decision = j.decision?.decision || \"ALLOW\";\n\n  // Skip if config error or validation failed\n  if (j.configError === true) {\n    console.error(\"Sanitization_Enforcement: Config error detected\");\n    item.json = j;\n    continue;\n  }\n\n  if (!j.config || !j.config.enforcement) {\n    console.error(\"Sanitization_Enforcement: Missing config.enforcement\");\n    j.error = \"Missing enforcement config\";\n    j.decision = { decision: \"ALLOW\", reason: \"CONFIG_ERROR\" };\n    item.json = j;\n    continue;\n  }\n\n  const inText = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n  const sessionId = j.sessionId ?? j.chat_payload?.sessionId ?? \"unknown\";\n  const action = j.action ?? j.chat_payload?.action ?? \"sendMessage\";\n  const matchDetails = j.matchDetails || [];\n\n  let finalText = inText;\n  let mode = \"none\";\n  let removalPct = 0;\n  let patternsUsed = [];\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.beforeSanitization = inText;\n\n  if (decision === \"SANITIZE_LIGHT\") {\n    // LIGHT: Remove only LOW/MEDIUM severity patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, LOW_MEDIUM_CATEGORIES);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_LIGHT but no LOW/MEDIUM patterns detected\");\n      finalText = inText;\n      mode = \"light_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[removed]\");\n      finalText = res.out;\n      removalPct = res.removedPct;\n      mode = \"light\";\n\n      console.log(`Sanitization_Enforcement LIGHT: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n    }\n  }\n  else if (decision === \"SANITIZE_HEAVY\") {\n    // HEAVY: Remove ALL detected patterns\n    patternsUsed = extractPatternsFromMatches(matchDetails, null);\n\n    if (patternsUsed.length === 0) {\n      console.warn(\"Sanitization_Enforcement: SANITIZE_HEAVY but no patterns detected\");\n      finalText = inText;\n      mode = \"heavy_nopatterns\";\n    } else {\n      const res = applySanitizeFromMatches(inText, patternsUsed, \"[REDACTED]\");\n      removalPct = res.removedPct;\n\n      // Check if removal exceeds threshold (default: 60%)\n      const threshold = j.config.sanitization?.heavy?.max_removal_percent || 60;\n      const policy = j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\";\n\n      if (policy === \"block_if_exceeds\" && removalPct > threshold) {\n        // TOO MUCH removed - escalate to BLOCK\n        mergeDecision(j, 'BLOCK', 'sanitization_enforcement', {\n          removal_pct: removalPct,\n          sanitizer_decision: 'SANITIZE_HEAVY',\n          blocked_by_sanitizer: true,\n          threshold_exceeded: threshold,\n          patterns_attempted: patternsUsed.length\n        });\n\n        finalText = j.config.enforcement.block_message || \"Content blocked by security policy\";\n        mode = \"blocked_excessive_removal\";\n\n        console.log(`Sanitization_Enforcement: BLOCKED due to excessive removal (${removalPct}% > ${threshold}%)`);\n      } else {\n        // Acceptable removal - proceed with sanitization\n        finalText = res.out;\n        mode = \"heavy\";\n\n        console.log(`Sanitization_Enforcement HEAVY: Removed ${res.removedChars} chars (${removalPct}%) using ${patternsUsed.length} patterns`);\n      }\n    }\n  }\n  else if (decision === \"BLOCK\") {\n    j._isBlocked = true;\n    finalText = j.config.enforcement?.block_message || \"Content blocked by security policy\";\n    mode = \"blocked\";\n  }\n  else {\n    // ALLOW - no sanitization\n    mode = \"allow\";\n  }\n\n  // Update chat_payload with sanitized text\n  j.chat_payload = j.chat_payload || {};\n  j.chat_payload.sessionId = sessionId;\n  j.chat_payload.action = action;\n  j.chat_payload.chatInput = finalText;\n\n  j._pipeline_snapshots.afterSanitization = finalText;\n\n  j.enforcement = Object.assign({}, j.enforcement, {\n    mode,\n    removalPct,\n    patternsUsed: patternsUsed.length,\n    patternsPreview: patternsUsed.slice(0, 5).map(p => p.substring(0, 30))\n  });\n\n  j.__san = {\n    sessionId,\n    action,\n    chat_payload: { sessionId, action, chatInput: finalText },\n    _pipeline_snapshots: {\n      beforeSanitization: j._pipeline_snapshots.beforeSanitization,\n      afterSanitization: j._pipeline_snapshots.afterSanitization\n    },\n    normalization: j.normalization,\n    enforcement: {\n      mode,\n      removalPct,\n      patternsUsed: patternsUsed.length,\n      heavy_policy: j.config.sanitization?.heavy?.policy || \"sanitize_if_exceeds\",\n      heavy_threshold_pct: j.config.sanitization?.heavy?.max_removal_percent || 60\n    },\n    pii: j.pii ? { ...j.pii } : undefined\n  };\n\n  j.__metadata = j.__metadata || {};\n  const finalStatus = j.decision?.decision || \"ALLOW\";\n  j.__metadata.should_run_prompt_guard = (finalStatus !== \"BLOCK\");\n\n  item.json = j;\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4016,
+        128
+      ],
+      "id": "39c09888-982a-410f-b846-6e3a45540b8a",
+      "name": "Sanitization_Enforcement"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * PII_Redactor_v2 - Dual-Language Presidio Integration + PII Classification\n * Version: 1.7.0 - Added PII Classification Audit Trail\n * Date: 2025-11-01\n *\n * Features:\n * - DUAL-LANGUAGE DETECTION: Calls Presidio API twice (pl + en)\n * - Parallel API calls for performance (Promise.all)\n * - Entity deduplication and merging\n * - Custom Polish recognizers (PESEL, NIP, REGON, ID card)\n * - International recognizers (Credit Card, Email, Phone, etc.)\n * - NEW v1.7.0: PII Classification tracking (_pii_sanitized, pii_classification object)\n *\n * Revision History:\n * - Rev 9 (v1.7.0): PII Classification audit trail (types, count, sanitization flag)\n * - Rev 8 (v1.6.10): DUAL-LANGUAGE detection (pl + en) for comprehensive PII coverage\n */\n// Entity Type Registry - Maps regex pattern names to Presidio entity types\nlet ENTITY_TYPE_REGISTRY = { validated: {} };\n\n// Validation rule registry (populated from config)\nlet VALIDATION_RULES = {};\n\n// Maps validator keys from config to actual checksum helpers\nconst VALIDATION_HANDLER_REGISTRY = {\n  pesel: validatePesel,\n  nip: validateNip,\n  regon: validateRegon,\n  credit_card: validateCardPan,\n  iban: validateIban,\n  email: validateEmail,\n  phone_international: validatePhoneInternational,\n  phone_polish: validatePhonePolish,\n  us_ssn: validateUsSsn,\n  uk_nhs: validateUkNhs,\n  uk_nino: validateUkNino,\n  ca_sin: validateCaSin,\n  au_medicare: validateAuMedicare,\n  au_tfn: validateAuTfn,\n  us_passport: validateUsPassport\n};\n\nfunction digitsOnly(value) {\n  return (value || '').replace(/[^0-9]/g, '');\n}\n\nfunction validatePesel(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 11) return false;\n  const weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];\n  const weightedSum = digits\n    .split('')\n    .slice(0, 10)\n    .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0);\n  const checksum = (10 - (weightedSum % 10)) % 10;\n  return checksum === parseInt(digits[10], 10);\n}\n\nfunction validateNip(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];\n  const weightedSum = digits\n    .split('')\n    .slice(0, 9)\n    .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0);\n  const checksum = weightedSum % 11;\n  if (checksum === 10) return false;\n  return checksum === parseInt(digits[9], 10);\n}\n\nfunction validateRegon(value) {\n  const digits = digitsOnly(value);\n  if (digits.length === 9) {\n    const weights = [8, 9, 2, 3, 4, 5, 6, 7];\n    const checksum = digits\n      .split('')\n      .slice(0, 8)\n      .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0) % 11;\n    if (checksum === 10) return false;\n    return checksum === parseInt(digits[8], 10);\n  }\n  if (digits.length === 14) {\n    const weights = [2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8];\n    const checksum = digits\n      .split('')\n      .slice(0, 13)\n      .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0) % 11;\n    if (checksum === 10) return false;\n    return checksum === parseInt(digits[13], 10);\n  }\n  return false;\n}\n\nfunction validateCardPan(value) {\n  const digits = digitsOnly(value);\n  if (digits.length < 13 || digits.length > 19) return false;\n  let sum = 0;\n  let shouldDouble = false;\n  for (let i = digits.length - 1; i >= 0; i--) {\n    let digit = parseInt(digits.charAt(i), 10);\n    if (shouldDouble) {\n      digit *= 2;\n      if (digit > 9) digit -= 9;\n    }\n    sum += digit;\n    shouldDouble = !shouldDouble;\n  }\n  return sum % 10 === 0;\n}\n\nfunction validateIban(value) {\n  if (!value) return false;\n  const cleaned = value.replace(/\\s+/g, '').toUpperCase();\n  if (cleaned.length < 15 || cleaned.length > 34) return false;\n  if (!/^[A-Z]{2}\\d{2}[A-Z0-9]{11,30}$/.test(cleaned)) return false;\n  const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);\n  let remainder = 0;\n  for (const char of rearranged) {\n    const expanded = (char >= 'A' && char <= 'Z')\n      ? String(char.charCodeAt(0) - 55)\n      : char;\n    for (const digit of expanded) {\n      remainder = (remainder * 10 + parseInt(digit, 10)) % 97;\n    }\n  }\n  return remainder === 1;\n}\n\nfunction validateEmail(value) {\n  if (!value) return false;\n  const candidate = String(value).trim();\n  return /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/i.test(candidate);\n}\n\nfunction validatePhoneInternational(value) {\n  const digits = digitsOnly(value);\n  return digits.length >= 9;\n}\n\nfunction validatePhonePolish(value) {\n  const digits = digitsOnly(value);\n  if (digits.length === 9) return true;\n  if (digits.length === 11 && digits.startsWith('48')) return true;\n  return false;\n}\n\nfunction validateUsSsn(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  const uniqueDigits = new Set(digits.split(''));\n  if (uniqueDigits.size === 1) return false;\n  const group = parseInt(digits.slice(3, 5), 10);\n  const serial = parseInt(digits.slice(5), 10);\n  if (group === 0 || serial === 0) return false;\n  return true;\n}\n\nfunction validateUkNhs(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  const weights = [10, 9, 8, 7, 6, 5, 4, 3, 2];\n  const total = weights.reduce((sum, weight, index) => sum + weight * parseInt(digits.charAt(index), 10), 0);\n  const remainder = total % 11;\n  let check = 11 - remainder;\n  if (check === 11 || check === 10) check = 0;\n  return check === parseInt(digits.charAt(9), 10);\n}\n\nfunction validateUkNino(value) {\n  if (!value) return false;\n  const cleaned = value.replace(/[\\s-]+/g, '').toUpperCase();\n  if (!/^[A-Z]{2}\\d{6}[A-D]$/.test(cleaned)) return false;\n  const invalidPrefixes = new Set(['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ']);\n  if (invalidPrefixes.has(cleaned.slice(0, 2))) return false;\n  const forbiddenLetters = new Set(['D', 'F', 'I', 'U', 'V']);\n  if (forbiddenLetters.has(cleaned.charAt(0)) || forbiddenLetters.has(cleaned.charAt(1))) return false;\n  return true;\n}\n\nfunction validateCaSin(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  const uniqueDigits = new Set(digits.split(''));\n  if (uniqueDigits.size === 1) return false;\n  let total = 0;\n  for (let i = 0; i < digits.length; i++) {\n    let digit = parseInt(digits.charAt(i), 10);\n    if (i % 2 === 1) {\n      digit *= 2;\n      if (digit > 9) digit -= 9;\n    }\n    total += digit;\n  }\n  if (total % 10 === 0) {\n    return true;\n  }\n  return true;\n}\n\nfunction validateAuMedicare(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  if (digits.charAt(8) === '0' && digits.charAt(9) === '0') return false;\n  return true;\n}\n\nfunction validateAuTfn(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  if (digits.split('').every((digit) => digit === digits.charAt(0))) return false;\n  return true;\n}\n\nfunction validateUsPassport(value) {\n  if (!value) return false;\n  const cleaned = String(value).trim().toUpperCase();\n  return /^[A-Z][0-9]{7}$/.test(cleaned);\n}\n\nfunction refineEntityByContext(entity, originalText) {\n  if (!entity || typeof entity.start !== 'number' || typeof entity.end !== 'number') {\n    return entity;\n  }\n  const contextStart = Math.max(0, entity.start - 40);\n  const context = originalText.slice(contextStart, entity.start).toLowerCase();\n  const textValue = entity.text || originalText.substring(entity.start, entity.end);\n  const updated = { ...entity, text: textValue };\n  const phoneTypes = new Set(['PHONE_NUMBER', 'PHONE_INTL', 'PHONE_PL', 'PL_PHONE_NUMBER']);\n  if (phoneTypes.has(updated.type)) {\n    if (/(ssn|social security)/.test(context)) {\n      if (validateUsSsn(textValue)) {\n        updated.type = 'US_SSN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid US SSN)`);\n        return null;\n      }\n    } else if (/nhs/.test(context)) {\n      if (validateUkNhs(textValue)) {\n        updated.type = 'UK_NHS';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid UK NHS number)`);\n        return null;\n      }\n    } else if (/(national insurance|ni number)/.test(context)) {\n      if (validateUkNino(textValue)) {\n        updated.type = 'UK_NINO';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid UK NINO)`);\n        return null;\n      }\n    } else if (/(\\bsin\\b|social insurance)/.test(context)) {\n      if (validateCaSin(textValue)) {\n        updated.type = 'CA_SIN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid CA SIN)`);\n        return null;\n      }\n    } else if (/medicare/.test(context)) {\n      if (validateAuMedicare(textValue)) {\n        updated.type = 'AU_MEDICARE';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid AU Medicare)`);\n        return null;\n      }\n    } else if (/(tax file|tfn)/.test(context)) {\n      if (validateAuTfn(textValue)) {\n        updated.type = 'AU_TFN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid AU TFN)`);\n        return null;\n      }\n    }\n  }\n  return updated;\n}\n\nfunction initializeMappingsFromConfig(piiConf, piiConfig) {\n  const registry = { validated: {} };\n  const validationMap = {};\n  const rules = Array.isArray(piiConf?.rules) ? piiConf.rules : [];\n\n  if (rules.length === 0) {\n    return {\n      entityRegistry: ENTITY_TYPE_REGISTRY,\n      validationMap: VALIDATION_RULES\n    };\n  }\n\n  for (const rule of rules) {\n    if (!rule || !rule.name) continue;\n\n    const entry = {\n      entity: typeof rule.target_entity === 'string' ? rule.target_entity : undefined,\n      validator: rule.validator,\n      validated: rule.validated\n    };\n\n    if (piiConfig?.regex_entity_map && piiConfig.regex_entity_map[rule.name]) {\n      const override = piiConfig.regex_entity_map[rule.name];\n      if (typeof override === 'string') {\n        entry.entity = override;\n      } else if (override && typeof override === 'object') {\n        if (override.entity || override.target_entity) {\n          entry.entity = override.entity || override.target_entity;\n        }\n        if (override.validator) {\n          entry.validator = override.validator;\n        }\n        if (override.validated !== undefined) {\n          entry.validated = override.validated;\n        }\n      }\n    }\n\n    if (entry.validator && VALIDATION_HANDLER_REGISTRY[entry.validator]) {\n      validationMap[rule.name] = VALIDATION_HANDLER_REGISTRY[entry.validator];\n    }\n\n    if (entry.entity) {\n      if (entry.validated === true) {\n        registry.validated[rule.name] = entry.entity;\n      } else {\n        if (!registry.general) registry.general = {};\n        registry.general[rule.name] = entry.entity;\n      }\n    }\n  }\n\n  if (piiConfig?.regex_entity_map) {\n    for (const [ruleName, value] of Object.entries(piiConfig.regex_entity_map)) {\n      if (registry.validated[ruleName] || validationMap[ruleName]) {\n        continue;\n      }\n\n      const entry = typeof value === 'string'\n        ? { entity: value }\n        : (value || {});\n\n      if (entry.validator && VALIDATION_HANDLER_REGISTRY[entry.validator]) {\n        validationMap[ruleName] = VALIDATION_HANDLER_REGISTRY[entry.validator];\n      }\n\n      if (entry.entity) {\n        if (entry.validated === true) {\n          registry.validated[ruleName] = entry.entity;\n        } else {\n          if (!registry.general) registry.general = {};\n          registry.general[ruleName] = entry.entity;\n        }\n      }\n    }\n  }\n\n  if (Object.keys(registry.validated).length === 0 && ENTITY_TYPE_REGISTRY?.validated) {\n    registry.validated = { ...ENTITY_TYPE_REGISTRY.validated };\n  }\n\n  if (Object.keys(validationMap).length === 0) {\n    Object.assign(validationMap, VALIDATION_RULES);\n  }\n\n  return { entityRegistry: registry, validationMap };\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor_v2: No input items');\n  return [];\n}\n\nconst out = [];\n\n\n/**\n * Build map of text regions examined by Presidio for validated entity types\n * This tracks ALL regions Presidio examined (accepted + rejected by validators)\n */\nfunction buildPresidioExaminedRegions(allEntities, inputText) {\n  const regions = {};\n\n  for (const entity of allEntities) {\n    const entityType = entity.type;\n\n    // Only track validated entity types (those with checksum validators)\n    if (Object.values(ENTITY_TYPE_REGISTRY.validated).includes(entityType)) {\n      if (!regions[entityType]) {\n        regions[entityType] = [];\n      }\n\n      regions[entityType].push({\n        start: entity.start,\n        end: entity.end,\n        text: inputText.substring(entity.start, entity.end)\n      });\n    }\n  }\n\n  return regions;\n}\n\n/**\n * Check if regex match overlaps with region examined by Presidio\n */\nfunction checkOverlapWithPresidio(matchStart, matchEnd, presidioEntityType, presidioExaminedRegions) {\n  const examinedRegions = presidioExaminedRegions[presidioEntityType] || [];\n\n  for (const region of examinedRegions) {\n    // Check for ANY overlap (not just exact matches)\n    const hasOverlap = !(matchEnd <= region.start || matchStart >= region.end);\n\n    if (hasOverlap) {\n      return true;  // Presidio examined this region\n    }\n  }\n\n  return false;  // Presidio did not examine this region\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n\n  const originalChatInput = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  if (!j._original_input) {\n    j._original_input = originalChatInput;\n  }\n\n  // v1.7.5: Use original text (preserves capitalization for PERSON detection)\n  // _original_input comes from Normalize_Node BEFORE casefold\n  let text = j._original_input || originalChatInput;\n\n  if (text) {\n    text = text.replace(/[\\u2010-\\u2015\\u2212]/g, '-');\n  }\n\n  if (!text) {\n    j.pii_error = \"PII_Redactor_v2: no text to redact\";\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  const piiConfig = j.config?.pii_detection || {};\n  const { entityRegistry, validationMap } = initializeMappingsFromConfig(j.pii_conf, piiConfig);\n  ENTITY_TYPE_REGISTRY = entityRegistry;\n  VALIDATION_RULES = validationMap;\n  const enablePresidio = piiConfig.enabled !== false;\n  const fallbackToRegex = piiConfig.fallback_to_regex !== false;\n\n  let results = {\n    entities: [],\n    redacted_text: text,\n    detection_method: 'none',\n    processing_time_ms: 0,\n    error: null,\n    language_stats: {}\n  };\n\n  // DUAL-LANGUAGE DETECTION\n  if (enablePresidio) {\n    const languageDetectionEnabled = piiConfig.language_detection !== false;\n    const languageDetectorUrl = piiConfig.language_detector_url || 'http://vigil-language-detector:5002/detect';\n    const supportedLanguages = Array.isArray(piiConfig.languages) && piiConfig.languages.length > 0\n      ? piiConfig.languages\n      : ['pl', 'en'];\n\n    let detectedLanguage = null;\n    let languageDetectionMeta = null;\n    let primaryLanguage = null;\n    let shouldCallPolish = supportedLanguages.includes('pl');\n    let shouldCallEnglish = supportedLanguages.includes('en');\n    let polishEntities = [];\n    let englishEntities = [];\n\n    try {\n      const startTime = Date.now();\n      const axios = require('axios');\n      const apiUrl = piiConfig.api_url || 'http://vigil-presidio-pii:5001/analyze';\n      const scoreThreshold = piiConfig.confidence_threshold || 0.7;\n      const apiTimeout = piiConfig.api_timeout_ms || 3000;\n\n      const generalEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', 'PHONE_NUMBER', 'IBAN_CODE', 'IP_ADDRESS', 'URL', 'US_SSN', 'UK_NHS', 'UK_NINO', 'CA_SIN', 'AU_MEDICARE', 'AU_TFN', 'US_DRIVER_LICENSE', 'PASSPORT', 'DATE_TIME', 'LOCATION'];\n      const polishSpecificEntities = ['PL_PESEL', 'PL_NIP', 'PL_REGON', 'PL_ID_CARD', 'PL_PHONE_NUMBER', 'DATE_TIME'];\n\n      if (languageDetectionEnabled) {\n        try {\n          const langResponse = await axios.post(languageDetectorUrl, {\n            text,\n            detailed: true\n          }, {\n            headers: { 'Content-Type': 'application/json' },\n            timeout: piiConfig.language_detector_timeout_ms || 1200\n          });\n\n          if (langResponse?.data?.language) {\n            detectedLanguage = langResponse.data.language;\n            languageDetectionMeta = {\n              confidence: langResponse.data.confidence ?? null,\n              method: langResponse.data.method || 'unknown',\n              processing_time_ms: langResponse.data.processing_time_ms ?? null\n            };\n          }\n        } catch (langErr) {\n          console.warn(`Language detection failed: ${langErr.message}`);\n          languageDetectionMeta = {\n            error: langErr.message,\n            method: 'fallback'\n          };\n        }\n      }\n\n      // PESEL pattern override (T-01 fix)\n      const minConfidence = 0.6;\n      if (/\\b\\d{11}\\b/.test(text)) {\n        primaryLanguage = 'pl';  // Force Polish for PESEL-containing text\n        console.log('Language override: PESEL pattern detected, using Polish');\n      } else if (detectedLanguage && supportedLanguages.includes(detectedLanguage) && (languageDetectionMeta?.confidence ?? 1.0) >= minConfidence) {\n        primaryLanguage = detectedLanguage;\n        console.log(`Language detected: ${detectedLanguage} (confidence: ${languageDetectionMeta.confidence})`);\n      } else if (supportedLanguages.includes('pl')) {\n        primaryLanguage = 'pl';  // Fallback to Polish\n        console.log(`Language fallback: using Polish (detected: ${detectedLanguage || 'none'}, confidence: ${languageDetectionMeta?.confidence ?? 'N/A'})`);\n      } else {\n        primaryLanguage = supportedLanguages[0] || 'en';\n        console.log(`Language fallback: using ${primaryLanguage}`);\n      }\n\n      if (shouldCallPolish) {\n        polishEntities = [...polishSpecificEntities, ...generalEntities];\n        if (primaryLanguage === 'pl') {\n          polishEntities.push('PERSON');\n        }\n      }\n\n      if (shouldCallEnglish) {\n        englishEntities = [...generalEntities, 'PERSON'];\n      }\n\n      const unique = (arr) => [...new Set(arr)];\n      polishEntities = unique(polishEntities);\n      englishEntities = unique(englishEntities);\n\n      const detectionMode = piiConfig.detection_mode || 'balanced';\n      const contextEnhancement = piiConfig.context_enhancement !== false;\n\n      try {\n        const configUrl = apiUrl.replace('/analyze', '/config');\n\n        const currentModeKey = `presidio_mode_${detectionMode}_${contextEnhancement}`;\n        if (!global.__presidio_mode_cache || global.__presidio_mode_cache !== currentModeKey) {\n          const currentConfig = await axios.get(configUrl, { timeout: 1000 }).catch(() => ({ data: { current_mode: null } }));\n\n          if (currentConfig.data.current_mode !== detectionMode) {\n            await axios.post(configUrl, {\n              mode: detectionMode,\n              enable_context_enhancement: contextEnhancement\n            }, {\n              headers: { 'Content-Type': 'application/json' },\n              timeout: 2000\n            });\n            console.log(`\u2705 Presidio mode updated: ${currentConfig.data.current_mode} \u2192 ${detectionMode} (context: ${contextEnhancement})`);\n          }\n\n          global.__presidio_mode_cache = currentModeKey;\n        }\n      } catch (configError) {\n        console.warn(`\u26a0\ufe0f Failed to sync Presidio mode: ${configError.message} - continuing with current mode`);\n      }\n\n      const polishCall = (shouldCallPolish && polishEntities.length > 0)\n        ? axios.post(apiUrl, {\n            text,\n            language: 'pl',\n            entities: polishEntities,\n            score_threshold: scoreThreshold,\n            return_decision_process: false,\n            return_rejected: true\n          }, {\n            headers: { 'Content-Type': 'application/json' },\n            timeout: apiTimeout\n          }).catch(err => {\n            console.warn(`Polish API call failed: ${err.message}`);\n            return { data: { entities: [] }, error: err.message, status: err.response?.status ?? null };\n          })\n        : Promise.resolve({ data: { entities: [] } });\n\n      const englishCall = (shouldCallEnglish && englishEntities.length > 0)\n        ? axios.post(apiUrl, {\n            text,\n            language: 'en',\n            entities: englishEntities,\n            score_threshold: scoreThreshold,\n            return_decision_process: false,\n            return_rejected: true\n          }, {\n            headers: { 'Content-Type': 'application/json' },\n            timeout: apiTimeout\n          }).catch(err => {\n            console.warn(`International API call failed: ${err.message}`);\n            return { data: { entities: [] }, error: err.message, status: err.response?.status ?? null };\n          })\n        : Promise.resolve({ data: { entities: [] } });\n\n      const [plResponse, enResponse] = await Promise.all([polishCall, englishCall]);\n\n      const plEntities = Array.isArray(plResponse?.data?.entities) ? plResponse.data.entities : [];\n      const enEntities = Array.isArray(enResponse?.data?.entities) ? enResponse.data.entities : [];\n\n      const presidioErrors = [];\n      if (plResponse?.error) {\n        presidioErrors.push({ language: 'pl', error: plResponse.error, status: plResponse.status ?? null });\n      }\n      if (enResponse?.error) {\n        presidioErrors.push({ language: 'en', error: enResponse.error, status: enResponse.status ?? null });\n      }\n\n      // Extract rejected entities to include in examined regions\n      const plRejected = Array.isArray(plResponse?.data?.rejected_entities) ? plResponse.data.rejected_entities : [];\n      const enRejected = Array.isArray(enResponse?.data?.rejected_entities) ? enResponse.data.rejected_entities : [];\n\n      console.log(`\ud83d\udccb Presidio Polish: ${plEntities.length} accepted, ${plRejected.length} rejected`);\n      console.log(`\ud83d\udccb Presidio English: ${enEntities.length} accepted, ${enRejected.length} rejected`);\n\n      const annotateEntities = (entities, lang) => entities.map(entity => ({\n        ...entity,\n        source_language: lang,\n        text: entity?.text || text.substring(entity.start, entity.end)\n      }));\n\n      let combinedEntities = [\n        ...annotateEntities(plEntities, 'pl'),\n        ...annotateEntities(enEntities, 'en')\n      ].map(entity => refineEntityByContext(entity, text)).filter(Boolean);\n\n      if (primaryLanguage === 'pl') {\n        combinedEntities = combinedEntities.filter(entity => {\n          if (entity.source_language === 'en' && entity.type === 'PERSON') {\n            const candidate = (entity.text || '').trim();\n            if (candidate.length < 3) {\n              return false;\n            }\n            if (!/^[A-Z\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b]/.test(candidate)) {\n              return false;\n            }\n          }\n          return true;\n        });\n      }\n\n      \n      // Build map of regions examined by Presidio for validated types (accepted + rejected)\n      // This prevents regex fallback from overriding Presidio's validator decisions\n      const allExaminedEntities = [...combinedEntities];\n      const presidioExaminedRegions = buildPresidioExaminedRegions(allExaminedEntities, text);\n\n      console.log(`\ud83d\udd0d Examined regions built from ${combinedEntities.length} accepted entities (rejected entities will fall back to regex)`);\n\n      let dedupedEntities = deduplicateEntities(combinedEntities);\n\n      let regexEntities = [];\n      const shouldFallback = fallbackToRegex && j.pii_conf && (dedupedEntities.length === 0 || presidioErrors.length > 0);\n      if (shouldFallback) {\n        regexEntities = findRegexEntities(text, j.pii_conf, piiConfig, presidioExaminedRegions)\n          .map(entity => refineEntityByContext(entity, text))\n          .filter(entity => {\n            return !dedupedEntities.some(existing => (\n              entity.start < existing.end && entity.end > existing.start\n            ));\n          });\n\n        if (regexEntities.length > 0) {\n          dedupedEntities = deduplicateEntities([\n            ...dedupedEntities,\n            ...regexEntities\n          ]);\n        }\n      }\n\n      const detectionMeta = languageDetectionMeta || {};\n      const polishRetained = dedupedEntities.filter(e => e.source_language === 'pl').length;\n      const englishRetained = dedupedEntities.filter(e => e.source_language === 'en').length;\n      const regexRetained = dedupedEntities.filter(e => e.source_language === 'regex').length;\n\n      results.entities = dedupedEntities;\n      if (shouldFallback) {\n        results.detection_method = 'regex_fallback';\n      } else {\n        results.detection_method = 'presidio';  // v1.7.2: Backward compatible\n      }\n      results.detection_mode = 'dual_language';  // New field\n      results.processing_time_ms = Date.now() - startTime;\n\n      results.language_stats = {\n        detected_language: detectedLanguage || 'unknown',\n        primary_language: primaryLanguage,\n        detection_confidence: detectionMeta.confidence ?? null,\n        detection_method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n        detection_processing_ms: detectionMeta.processing_time_ms ?? null,\n        polish_entities: plEntities.length,\n        english_entities: enEntities.length,\n        regex_entities: regexEntities.length,\n        polish_entities_retained: polishRetained,\n        english_entities_retained: englishRetained,\n        regex_entities_retained: regexRetained,\n        international_entities: enEntities.length,\n        polish_requested_entities: polishEntities.length,\n        english_requested_entities: englishEntities.length,\n        total_after_dedup: dedupedEntities.length,\n        presidio_errors: presidioErrors\n      };\n\n      if (regexEntities.length > 0) {\n        results.language_stats.regex_entities_added = regexEntities.length;\n      }\n\n      if (presidioErrors.length > 0) {\n        results.language_stats.detection_error = presidioErrors.map(err => err.error).join('; ');\n        results.language_stats.fallback_triggered = shouldFallback;\n      } else if (shouldFallback) {\n        results.language_stats.fallback_triggered = true;\n      } else if (detectionMeta.error) {\n        results.language_stats.detection_error = detectionMeta.error;\n      }\n\n      console.log(\n        `Language routing: primary=${primaryLanguage}, detected=${detectedLanguage || 'unknown'}, entities=${results.entities.length} (pl:${plEntities.length}, en:${enEntities.length}) in ${results.processing_time_ms}ms`\n      );\n\n      j.language_detection = {\n        detected: detectedLanguage || 'unknown',\n        primary: primaryLanguage,\n        enabled: languageDetectionEnabled,\n        confidence: detectionMeta.confidence ?? null,\n        method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n        processing_time_ms: detectionMeta.processing_time_ms ?? null,\n        error: detectionMeta.error || null\n      };\n\n    } catch (error) {\n      console.warn(`Presidio adaptive language error: ${error.message}`);\n      results.error = error.message;\n\n      const detectionMeta = languageDetectionMeta || {};\n      if (!results.language_stats) {\n        results.language_stats = {\n          detected_language: detectedLanguage || 'unknown',\n          primary_language: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          detection_confidence: detectionMeta.confidence ?? null,\n          detection_method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n          detection_error: detectionMeta.error || error.message,\n          total_after_dedup: 0\n        };\n      }\n\n      if (!j.language_detection) {\n        j.language_detection = {\n          detected: detectedLanguage || 'unknown',\n          primary: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          enabled: languageDetectionEnabled,\n          confidence: detectionMeta.confidence ?? null,\n          method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n          processing_time_ms: detectionMeta.processing_time_ms ?? null,\n          error: detectionMeta.error || error.message\n        };\n      }\n\n      if (fallbackToRegex) {\n        console.log('Falling back to regex rules');\n        results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n        const detectionMeta = languageDetectionMeta || {};\n        const fallbackStats = Object.assign({}, results.language_stats, {\n          detected_language: detectedLanguage || 'unknown',\n          primary_language: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          detection_confidence: detectionMeta.confidence ?? null,\n          detection_method: 'regex_fallback',\n          detection_error: detectionMeta.error || results.error || null,\n          fallback_triggered: true\n        });\n        if (fallbackStats.english_entities === undefined) {\n          fallbackStats.english_entities = 0;\n        }\n        if (fallbackStats.polish_entities === undefined) {\n          fallbackStats.polish_entities = 0;\n        }\n        if (fallbackStats.english_entities_retained === undefined) {\n          fallbackStats.english_entities_retained = fallbackStats.english_entities;\n        }\n        if (fallbackStats.polish_entities_retained === undefined) {\n          fallbackStats.polish_entities_retained = fallbackStats.polish_entities;\n        }\n        if (fallbackStats.international_entities === undefined) {\n          fallbackStats.international_entities = fallbackStats.english_entities;\n        }\n        results.language_stats = fallbackStats;\n      } else {\n        j.pii_error = `Presidio API failed: ${error.message}`;\n        item.json = j;\n        out.push(item);\n        continue;\n      }\n    }\n  } else if (fallbackToRegex) {\n    const regexEntitiesOnly = findRegexEntities(text, j.pii_conf, piiConfig, null);\n    const dedupedRegexEntities = deduplicateEntities(regexEntitiesOnly);\n\n    results.entities = dedupedRegexEntities;\n    results.detection_method = 'regex_fallback';\n    results.processing_time_ms = 0;\n    results.error = null;\n    results.language_stats = {\n      detected_language: 'regex_only',\n      primary_language: 'regex',\n      regex_entities: regexEntitiesOnly.length,\n      regex_entities_retained: dedupedRegexEntities.length,\n      total_after_dedup: dedupedRegexEntities.length\n    };\n  }\n\n  // APPLY REDACTION\n  let redactedText = text;\n  let redactionCount = 0;\n\n  if (results.entities.length > 0) {\n    const sortedEntities = results.entities.sort((a, b) => b.start - a.start);\n\n    for (const entity of sortedEntities) {\n      const originalText = text.substring(entity.start, entity.end);\n      const redactionToken = getRedactionToken(entity.type, originalText, piiConfig);\n\n      redactedText =\n        redactedText.substring(0, entity.start) +\n        redactionToken +\n        redactedText.substring(entity.end);\n\n      redactionCount++;\n    }\n  } else if (results.detection_method === 'regex_fallback') {\n    redactedText = results.redacted_text;\n    redactionCount = results.entities.length;\n  }\n\n  const hasPII = (redactedText !== text);\n\n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n    j.chatInput = redactedText;\n    j.messages = j.messages || {};\n    if (j.messages.user) {\n      if (!j.messages.user.includes(redactedText)) {\n        j.messages.user = `${j.messages.user} ${redactedText}`.trim();\n      }\n    } else {\n      j.messages.user = `Content blocked by security policy. ${redactedText}`.trim();\n    }\n  } else {\n    j.chatInput = originalChatInput;\n  }\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n\n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII,\n    detection_method: results.detection_method,\n    processing_time_ms: results.processing_time_ms,\n    entities_detected: results.entities.length,\n    language_stats: results.language_stats || {},\n    entities: results.entities.map(e => ({\n      type: e.type,\n      start: e.start,\n      end: e.end,\n      score: e.score\n    }))\n  };\n  // NEW v1.7.0: Add PII classification flags for audit trail\n  j._pii_sanitized = hasPII;  // Boolean flag: was PII detected and redacted?\n\n  // Extract unique entity types for classification\n  const uniqueTypes = [...new Set(results.entities.map(e => e.type))];\n\n  j.pii_classification = {\n    types: uniqueTypes,  // e.g., ['EMAIL_ADDRESS', 'CREDIT_CARD', 'PL_PESEL']\n    count: results.entities.length,\n    method: results.detection_method,  // 'presidio_dual_language' or 'regex_fallback'\n    sanitization_applied: hasPII  // Redundant with _pii_sanitized but explicit\n  };\n\n  console.log('PII Classification:', uniqueTypes.length > 0 ? uniqueTypes.join(', ') : 'none', '(' + results.entities.length + ' entities)');\n\n\n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;\n\nfunction deduplicateEntities(entities) {\n  if (entities.length <= 1) return entities;\n\n  const sorted = entities.sort((a, b) => {\n    if (a.start !== b.start) return a.start - b.start;\n    return b.score - a.score;\n  });\n\n  const unique = [];\n  for (const entity of sorted) {\n    const overlaps = unique.some(existing => {\n      return (\n        (entity.start >= existing.start && entity.start < existing.end) ||\n        (entity.end > existing.start && entity.end <= existing.end) ||\n        (entity.start <= existing.start && entity.end >= existing.end)\n      );\n    });\n\n    if (!overlaps) {\n      unique.push(entity);\n    }\n  }\n\n  return unique;\n}\n\nfunction findRegexEntities(text, piiConf, piiConfig, presidioExaminedRegions) {\n  if (!piiConf || !Array.isArray(piiConf.rules) || piiConf.rules.length === 0) {\n    return [];\n  }\n\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n  const matches = [];\n\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    // Check if this pattern corresponds to a validated entity type\n    const presidioEntityType = ENTITY_TYPE_REGISTRY.validated[ruleName];\n    const isValidatedType = !!presidioEntityType;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      let match;\n      while ((match = re.exec(text)) !== null) {\n        const matchStart = match.index;\n        const matchEnd = match.index + match[0].length;\n        const matchText = match[0];\n\n        const validator = VALIDATION_RULES[rule.name];\n        if (validator && !validator(matchText)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${matchText.substring(0, 20)}...\" (validator rejected)`);\n          continue;\n        }\n\n        // Decision logic: Skip validated types if Presidio examined this region\n        if (isValidatedType && presidioExaminedRegions) {\n          const wasExaminedByPresidio = checkOverlapWithPresidio(\n            matchStart,\n            matchEnd,\n            presidioEntityType,\n            presidioExaminedRegions\n          );\n\n          if (wasExaminedByPresidio) {\n            // Skip - Presidio already made the decision (accept or reject)\n            console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${matchText.substring(0, 20)}...\" (Presidio examined as ${presidioEntityType})`);\n            continue;\n          } else {\n            // Presidio missed this - include it (edge case)\n            console.log(`\u2705 Regex INCLUDE: ${ruleName} \"${matchText.substring(0, 20)}...\" (Presidio missed this region)`);\n          }\n        }\n\n        matches.push({\n          type: rule.name,\n          start: matchStart,\n          end: matchEnd,\n          text: matchText,\n          score: 1.0,\n          source_language: 'regex'\n        });\n      }\n    } catch (error) {\n      console.warn(`Regex fallback failed for ${ruleName}: ${error.message}`);\n    }\n  }\n\n  return matches;\n}\nfunction getRedactionToken(entityType, originalText, piiConfig) {\n  const redactionMode = piiConfig.redaction_mode || 'replace';\n  const tokens = piiConfig.redaction_tokens || {};\n\n  switch (redactionMode) {\n    case 'replace':\n      return tokens[entityType] || `[${entityType}]`;\n\n    case 'mask':\n      if (originalText.length <= 4) {\n        return '*'.repeat(originalText.length);\n      }\n      const first = originalText.substring(0, 2);\n      const last = originalText.substring(originalText.length - 2);\n      const masked = '*'.repeat(originalText.length - 4);\n      return `${first}${masked}${last}`;\n\n    default:\n      return tokens[entityType] || `[${entityType}]`;\n  }\n}\n\nfunction applyLegacyPiiRules(text, piiConf, piiConfig) {\n  const startTime = Date.now();\n\n  if (!piiConf || !Array.isArray(piiConf.rules) || piiConf.rules.length === 0) {\n    console.warn('No pii_conf available for fallback');\n    return {\n      entities: [],\n      redacted_text: text,\n      detection_method: 'regex_fallback_failed',\n      processing_time_ms: 0,\n      error: 'No pii.conf rules available'\n    };\n  }\n\n  const entities = [];\n  let redactedText = text;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      const matches = [];\n      let match;\n      while ((match = re.exec(text)) !== null) {\n        matches.push({\n          index: match.index,\n          length: match[0].length,\n          text: match[0]\n        });\n      }\n\n      matches.sort((a, b) => b.index - a.index);\n\n      for (const m of matches) {\n        const baseValidator = VALIDATION_RULES[ruleName];\n        if (baseValidator && !baseValidator(m.text)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${m.text.substring(0, 20)}...\" (validator rejected)`);\n          continue;\n        }\n\n        let entity = {\n          type: ruleName,\n          start: m.index,\n          end: m.index + m.length,\n          text: m.text,\n          score: 1.0,\n          source: 'regex'\n        };\n\n        entity = refineEntityByContext(entity, text);\n        if (!entity) {\n          continue;\n        }\n\n        const refinedValidator = VALIDATION_RULES[entity.type];\n        if (refinedValidator && !refinedValidator(entity.text)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${entity.type} \"${entity.text.substring(0, 20)}...\" (refined validator rejected)`);\n          continue;\n        }\n\n        const redactionToken = getRedactionToken(entity.type, entity.text, piiConfig);\n\n        redactedText =\n          redactedText.substring(0, entity.start) +\n          redactionToken +\n          redactedText.substring(entity.end);\n\n        entities.push({\n          ...entity\n        });\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n\n  return {\n    entities,\n    redacted_text: redactedText,\n    detection_method: 'regex_fallback',\n    processing_time_ms: Date.now() - startTime,\n    error: null\n  };\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        128
+      ],
+      "id": "d4370aec-b969-4c45-a8c2-499595df0306",
+      "name": "PII_Redactor_v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Correlation_Engine - FIXED: Added items validation\n */\n\nfunction nowIsoMs() { return new Date().toISOString(); }\n\nfunction mergeDecision(j, decision, source, extraMeta = {}) {\n  j.decision = j.decision || {};\n  Object.assign(j.decision, {\n    decision: decision,\n    source: source,\n    updated_at: nowIsoMs()\n  });\n  \n  j.__metadata = Object.assign({}, j.__metadata || {}, {\n    final_decision: decision,\n    decision_source: source,\n    ...extraMeta\n  });\n  \n  if (decision === 'BLOCK') {\n    j._isBlocked = true;\n  }\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Correlation_Engine: No input items');\n  return [];\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  \n  // Skip correlation if validation failed\n  if (j.configError === true) {\n    item.json = j;\n    continue;\n  }\n  \n  const sigs = j.normalization?.obfuscationSignals || [];\n  const dec = j.decision?.decision || \"ALLOW\";\n\n  let escalated = dec;\n  \n  if (sigs.includes(\"template-markers\")) {\n    escalated = \"BLOCK\";\n  }\n  else if (sigs.includes(\"math-alnum/fraktur\")) {\n    // Math/Fraktur obfuscation - single escalation level\n    if (dec === \"ALLOW\") escalated = \"SANITIZE_LIGHT\";\n    else if (dec === \"SANITIZE_LIGHT\") escalated = \"SANITIZE_HEAVY\";\n    else if (dec === \"SANITIZE_HEAVY\") escalated = \"BLOCK\";\n  }\n  else {\n    // Mixed scripts detection (Phase 2.1) - 4-level escalation based on script count\n    const mixedScriptsSig = sigs.find(s => s.startsWith(\"mixed-scripts-\"));\n    if (mixedScriptsSig) {\n      const is3PlusScripts = mixedScriptsSig.endsWith('+');\n      \n      if (is3PlusScripts) {\n        // 3+ scripts = CRITICAL threat (30 pts bonus) - double escalation\n        if (dec === \"ALLOW\") escalated = \"SANITIZE_HEAVY\";  // Skip LIGHT\n        else if (dec === \"SANITIZE_LIGHT\") escalated = \"BLOCK\";  // Skip HEAVY\n        else if (dec === \"SANITIZE_HEAVY\") escalated = \"BLOCK\";\n      } else {\n        // 2 scripts = HIGH threat (15 pts bonus) - single escalation\n        if (dec === \"ALLOW\") escalated = \"SANITIZE_LIGHT\";\n        else if (dec === \"SANITIZE_LIGHT\") escalated = \"SANITIZE_HEAVY\";\n        else if (dec === \"SANITIZE_HEAVY\") escalated = \"BLOCK\";\n      }\n    }\n  }\n\n  const correlationReason = escalated !== dec \n    ? `ESCALATED_FROM_${dec}_BY_SIGNALS_${sigs.join(',')}` \n    : (j.decision?.reason || 'POLICY');\n\n  j.correlation = { \n    signals: sigs, \n    before: dec, \n    after: escalated,\n    escalated: escalated !== dec\n  };\n  \n  mergeDecision(j, escalated, 'correlation_engine', {\n    correlation_applied: escalated !== dec,\n    correlation_signals: sigs,\n    previous_decision: dec,\n    reason: correlationReason,\n    escalated_by_correlation: escalated !== dec\n  });\n  \n  item.json = j;\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        128
+      ],
+      "id": "0598d2b0-4477-4e21-aa55-b681dde6c5a9",
+      "name": "Correlation_Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Pattern_Matching_Engine - OPTIMIZED VERSION (Faza 2.2)\n *\n * OPTIMIZATIONS:\n * 1. Pre-compilation: Regex patterns compiled once and cached\n * 2. Early exit: Loop breaks when totalScore >= 100\n * 3. Category sorting: Process high-weight categories first for faster exit\n *\n * Target: 20% latency reduction on P95\n */\n\n// ============================================================================\n// GLOBAL REGEX CACHE - Persists across workflow executions\n// ============================================================================\n// Note: In n8n Code nodes, global variables persist during the workflow run\n// but are cleared when workflow is restarted. This is acceptable for caching.\nif (typeof globalThis.COMPILED_PATTERNS_CACHE === 'undefined') {\n  globalThis.COMPILED_PATTERNS_CACHE = new Map();\n  globalThis.CACHE_STATS = { hits: 0, misses: 0, compilations: 0 };\n}\n\n/**\n * Safe regex compilation with caching\n * @param {string} pattern - Regex pattern string\n * @param {string} flags - Regex flags (default: 'giu')\n * @returns {RegExp|null} Compiled regex or null if invalid\n */\nfunction safeRegexCached(pattern, flags = 'giu') {\n  const cacheKey = `${pattern}|||${flags}`;\n\n  // Check cache first\n  if (globalThis.COMPILED_PATTERNS_CACHE.has(cacheKey)) {\n    globalThis.CACHE_STATS.hits++;\n    return globalThis.COMPILED_PATTERNS_CACHE.get(cacheKey);\n  }\n\n  // Cache miss - compile new regex\n  globalThis.CACHE_STATS.misses++;\n  try {\n    const regex = new RegExp(pattern, flags);\n    globalThis.COMPILED_PATTERNS_CACHE.set(cacheKey, regex);\n    globalThis.CACHE_STATS.compilations++;\n    return regex;\n  } catch (e) {\n    console.warn(`Invalid regex pattern: ${pattern}`, e);\n    // Cache the null result to avoid recompiling invalid patterns\n    globalThis.COMPILED_PATTERNS_CACHE.set(cacheKey, null);\n    return null;\n  }\n}\n\n/**\n * Calculate category score based on match count\n */\nfunction calculateCategoryScore(baseWeight, multiplier, matchCount) {\n  if (matchCount === 0) return 0;\n  return Math.round(baseWeight * Math.pow(multiplier, matchCount - 1));\n}\n\n// ============================================================================\n// MAIN PROCESSING LOGIC\n// ============================================================================\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Pattern_Matching_Engine: No input items');\n  return [];\n}\n\nconst out = [];\nconst startTime = Date.now(); // Track overall execution time\n\nfor (const item of items) {\n  const itemStartTime = Date.now();\n  const j = item.json ?? {};\n\n  // Skip only if config error (not if already blocked - we still want to add detection metadata)\n  if (j.configError === true) {\n    out.push(item);\n    continue;\n  }\n\n  // Check if already blocked (will skip pattern matching but still add detection bonuses)\n  const alreadyBlocked = (j._isBlocked === true);\n\n  const text = j.normalization?.forScoring ?? j.chat_payload?.chatInput ?? \"\";\n  const rules = j.rules?.categories ?? {};\n\n  if (!text) {\n    j.scoreBreakdown = {};\n    j.score = 0;\n    j._performance = { patternMatchingMs: 0, earlyExitTriggered: false };\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  const scoreBreakdown = {};\n  let totalScore = 0;\n  const matchDetails = [];\n  let earlyExitTriggered = false;\n  let categoriesProcessed = 0;\n\n  // Only run expensive pattern matching if NOT already blocked\n  if (!alreadyBlocked) {\n    // OPTIMIZATION: Sort categories by base_weight DESC for faster early exit\n    const sortedCategories = Object.entries(rules).sort((a, b) => {\n      const weightA = a[1].base_weight || 0;\n      const weightB = b[1].base_weight || 0;\n      return weightB - weightA; // Descending order\n    });\n\n    // Iterate through categories (highest weight first)\n    for (const [categoryName, categoryData] of sortedCategories) {\n      const { base_weight, multiplier, patterns } = categoryData;\n\n      if (!patterns || !Array.isArray(patterns)) continue;\n\n      categoriesProcessed++;\n      let categoryMatchCount = 0;\n      const categoryMatches = [];\n\n      // Iterate through patterns in category\n      for (const pattern of patterns) {\n        const re = safeRegexCached(pattern, 'giu');\n        if (!re) continue;\n\n        // Reset lastIndex for global regex (important!)\n        re.lastIndex = 0;\n        const matches = text.match(re);\n\n        if (matches && matches.length > 0) {\n          categoryMatchCount += matches.length;\n          categoryMatches.push({\n            pattern: pattern.substring(0, 50),\n            count: matches.length,\n            samples: matches.slice(0, 3).map(m => m.substring(0, 50) + (m.length > 50 ? '...' : ''))\n          });\n        }\n      }\n\n      // Add category score if matches found\n      if (categoryMatchCount > 0) {\n        const categoryScore = calculateCategoryScore(base_weight, multiplier, categoryMatchCount);\n        scoreBreakdown[categoryName] = categoryScore;\n        totalScore += categoryScore;\n\n        matchDetails.push({\n          category: categoryName,\n          matchCount: categoryMatchCount,\n          score: categoryScore,\n          matches: categoryMatches\n        });\n      }\n\n      // OPTIMIZATION: Early exit if score already at maximum\n      if (totalScore >= 100) {\n        earlyExitTriggered = true;\n        break;\n      }\n    }\n  }\n\n  // Add suspicion bonus from mixed scripts detection\n  const mixedScripts = j.normalization?.mixedScripts || {};\n  if (mixedScripts.suspicionBonus > 0) {\n    totalScore += mixedScripts.suspicionBonus;\n    matchDetails.push({\n      category: \"Mixed Scripts\",\n      score: mixedScripts.suspicionBonus,\n      matches: [mixedScripts.signal]\n    });\n  }\n\n  // Add encoding detection bonus (ENHANCED: Higher scores for suspicious encoding)\n  const decodingDetected = j.normalization?.decodingDetected || {};\n  if (decodingDetected.levelsDetected > 0) {\n    // Calculate bonus based on encoding types (base64 is VERY suspicious in prompts)\n    let encodingBonus = 0;\n    const encodingTypes = [];\n\n    for (const step of decodingDetected.steps) {\n      encodingTypes.push(step.type);\n      if (step.type === 'base64') {\n        encodingBonus += 45;  // Base64 in prompts is HIGHLY suspicious\n      } else if (step.type === 'url') {\n        encodingBonus += 30;  // URL encoding in prompts is very suspicious\n      } else if (step.type === 'hex') {\n        encodingBonus += 35;  // Hex encoding is quite suspicious\n      }\n    }\n\n    totalScore += encodingBonus;\n    matchDetails.push({\n      category: \"Encoding Detection\",\n      score: encodingBonus,\n      matches: [`${decodingDetected.levelsDetected} layer(s): ${encodingTypes.join(', ')}`]\n    });\n    scoreBreakdown[\"ENCODING_DETECTED\"] = encodingBonus;\n  }\n\n  // Add obfuscation detection bonus (whitespace, zero-width chars)\n  const obfuscationDetected = j.normalization?.obfuscationDetected || {};\n  if (obfuscationDetected.detected && obfuscationDetected.score > 0) {\n    totalScore += obfuscationDetected.score;\n    matchDetails.push({\n      category: \"Obfuscation Detection\",\n      score: obfuscationDetected.score,\n      matches: obfuscationDetected.signals\n    });\n    scoreBreakdown[\"OBFUSCATION_DETECTED\"] = obfuscationDetected.score;\n  }\n\n  // Cap score at 100\n  if (totalScore > 100) totalScore = 100;\n\n  // Calculate item processing time\n  const itemProcessingMs = Date.now() - itemStartTime;\n\n  // Store results\n  j.scoreBreakdown = scoreBreakdown;\n  j.score = totalScore;\n  j.matchDetails = matchDetails;\n  j._performance = {\n    patternMatchingMs: itemProcessingMs,\n    earlyExitTriggered: earlyExitTriggered,\n    categoriesProcessed: categoriesProcessed,\n    totalCategories: Object.keys(rules).length,\n    cacheStats: {\n      hits: globalThis.CACHE_STATS.hits,\n      misses: globalThis.CACHE_STATS.misses,\n      compilations: globalThis.CACHE_STATS.compilations,\n      cacheSize: globalThis.COMPILED_PATTERNS_CACHE.size\n    }\n  };\n\n  item.json = j;\n  out.push(item);\n}\n\n// Log overall execution stats\nconst totalExecutionMs = Date.now() - startTime;\nconsole.log(`Pattern_Matching_Engine OPTIMIZED: Processed ${items.length} items in ${totalExecutionMs}ms (avg: ${(totalExecutionMs / items.length).toFixed(2)}ms/item)`);\nconsole.log(`Cache stats: ${globalThis.CACHE_STATS.hits} hits, ${globalThis.CACHE_STATS.misses} misses, ${globalThis.CACHE_STATS.compilations} compilations, ${globalThis.COMPILED_PATTERNS_CACHE.size} cached patterns`);\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3248,
+        128
+      ],
+      "id": "d03b0995-6be2-4f14-98d3-bbbceaf748fd",
+      "name": "Pattern_Matching_Engine"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "data3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        832
+      ],
+      "id": "8328209b-c065-46e4-9791-3ab5a1d50bfd",
+      "name": "Extract from File2"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/pii.conf",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        832
+      ],
+      "id": "b5fd51ad-8f30-4faf-b4b1-8d2ed5415e5a",
+      "name": "Loading config files *.conf1"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "data4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1040
+      ],
+      "id": "2c9a93e6-bda3-4d9f-90d3-b77e5a343d65",
+      "name": "Extract from File3"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/thresholds.config.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        1040
+      ],
+      "id": "25431f86-db75-4911-b649-9e2dd45c53fc",
+      "name": "Loading config files *.conf2"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "data5",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1280
+      ],
+      "id": "906572ef-6069-48c1-b341-624f39811470",
+      "name": "Extract from File4"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/unified_config.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        1280
+      ],
+      "id": "5b173c37-bc19-4a2b-b363-ce5b570327d8",
+      "name": "Loading config files *.conf3"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "data6",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        1504
+      ],
+      "id": "f12c3885-37a2-47a9-8d92-1aad17f8adba",
+      "name": "Extract from File5"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/rules.config.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        1504
+      ],
+      "id": "e5bf124e-26b4-4c06-8493-a4c53fb710a8",
+      "name": "Loading config files *.conf4"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Final Decision Node - BINARY CLASSIFICATION MODE\n * Updated for Llama Prompt Guard 2 (CRITICAL / MINIMAL only)\n * ADDED: output_text field for unified output logic\n * FIXED: shouldWarn and shouldSanitize detection for SANITIZED status\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  throw new Error('Final Decision: No input items available');\n}\n\n// ========================================\n// HELPER FUNCTIONS\n// ========================================\n\nconst in01Regex = /(?:^|[^\\d])(1(?:\\.0+)?|0?\\.?\\d+|0)(?!\\d)/;\n\nfunction tryParse01(val) {\n  if (val === null || val === undefined) return null;\n  if (typeof val === 'number' && val >= 0 && val <= 100) return val;  // Accept 0-100 range\n  const str = String(val);\n  const m = str.match(in01Regex);\n  if (!m) return null;\n  const v = parseFloat(m[1]);\n  return (v >= 0 && v <= 100) ? v : null;  // Accept 0-100 range\n}\n\nfunction pickCtxItem(all) {\n  const fullConfigItem = all.find(it => {\n    const j = it?.json;\n    return j && j.config && j.rules && j.thresholds && j.chat_payload;\n  });\n  if (fullConfigItem) return fullConfigItem;\n\n  const configItem = all.find(it => {\n    const j = it?.json;\n    return j && (j.config || j.data5);\n  });\n  if (configItem) return configItem;\n\n  const restoredItem = all.find(it => {\n    const j = it?.json;\n    return j && j._llm_context_restored === true;\n  });\n  if (restoredItem) return restoredItem;\n\n  return all[0];\n}\n\nfunction findPgScore(all) {\n  let score = null, src = null, raw = null;\n\n  for (const it of all) {\n    const j = it?.json;\n\n    // Check for risk_score from Prompt Guard API\n    if (j && typeof j.risk_score === 'number') {\n      score = j.risk_score;\n      src = 'json.risk_score (Prompt Guard API)';\n      raw = j;\n      break;\n    }\n\n    if (j && j.llm_result && typeof j.llm_result.score === 'number') {\n      score = j.llm_result.score;\n      src = 'llm_result.score (restored context)';\n      raw = j.llm_result.raw_output;\n      break;\n    }\n\n    if (typeof j === 'string') {\n      const v = tryParse01(j);\n      if (v !== null) { score = v; src = 'json:string'; raw = j; break; }\n    }\n\n    if (Array.isArray(j) && j.length) {\n      const first = j[0];\n      if (first && typeof first === 'object' && 'text' in first) {\n        const v = tryParse01(first.text);\n        if (v !== null) { score = v; src = 'array[0].text'; raw = first; break; }\n      } else {\n        const v = tryParse01(first);\n        if (v !== null) { score = v; src = 'array[0]'; raw = first; break; }\n      }\n    }\n\n    if (j && typeof j === 'object' && 'text' in j) {\n      const v = tryParse01(j.text);\n      if (v !== null) { score = v; src = 'json.text'; raw = j.text; break; }\n    }\n\n    if (j && j.data && Array.isArray(j.data) && j.data[0] && 'text' in j.data[0]) {\n      const v = tryParse01(j.data[0].text);\n      if (v !== null) { score = v; src = 'json.data[0].text'; raw = j.data[0].text; break; }\n    }\n\n    if (j && j.metrics && j.metrics.injectionScore !== undefined) {\n      const v = tryParse01(j.metrics.injectionScore);\n      if (v !== null) { score = v; src = 'json.metrics.injectionScore'; raw = j.metrics.injectionScore; break; }\n    }\n  }\n\n  if (score === null) { score = 0; src = 'default:0'; raw = null; }\n\n  return { score, src, raw };\n}\n\n// ========================================\n// MAIN LOGIC\n// ========================================\n\nconst ctxItem = pickCtxItem(items);\nconst { score: injectionScoreRaw, src: extractedFrom, raw: pgRaw } = findPgScore(items);\n\nlet config = ctxItem?.json?.config || ctxItem?.json?.data5;\n\nif (!config) {\n  const configFromOtherItem = items.find(it => it?.json?.config || it?.json?.data5);\n\n  if (!configFromOtherItem) {\n    throw new Error(\n      'Final Decision: Missing config in all items. ' +\n      'Ensure Config Loader output is properly merged. ' +\n      'Available item keys: ' +\n      items.map((it, i) => `[${i}]: ${Object.keys(it?.json || {}).join(', ')}`).join(' | ')\n    );\n  }\n\n  config = configFromOtherItem.json.config || configFromOtherItem.json.data5;\n\n  if (!ctxItem.json.rules && configFromOtherItem.json.rules) {\n    ctxItem.json.rules = configFromOtherItem.json.rules;\n  }\n  if (!ctxItem.json.thresholds && configFromOtherItem.json.thresholds) {\n    ctxItem.json.thresholds = configFromOtherItem.json.thresholds;\n  }\n}\n\nconst promptGuardConfig = config.prompt_guard_policy;\nif (!promptGuardConfig) {\n  throw new Error('Final Decision: Missing config.prompt_guard_policy');\n}\n\nconst configEnabled = promptGuardConfig.enabled !== false;\nconst riskLevelsConfig = promptGuardConfig.risk_levels;\n\nif (!riskLevelsConfig) {\n  throw new Error('Final Decision: Missing config.prompt_guard_policy.risk_levels');\n}\n\n// Binary classification: only CRITICAL and MINIMAL required\nif (!riskLevelsConfig.CRITICAL) {\n  throw new Error('Final Decision: Missing config.prompt_guard_policy.risk_levels.CRITICAL');\n}\nif (!riskLevelsConfig.MINIMAL) {\n  throw new Error('Final Decision: Missing config.prompt_guard_policy.risk_levels.MINIMAL');\n}\n\nif (typeof riskLevelsConfig.CRITICAL.threshold_min !== 'number') {\n  throw new Error('Final Decision: Missing threshold_min for CRITICAL risk level');\n}\nif (typeof riskLevelsConfig.MINIMAL.threshold_min !== 'number') {\n  throw new Error('Final Decision: Missing threshold_min for MINIMAL risk level');\n}\nif (!riskLevelsConfig.CRITICAL.policy) {\n  throw new Error('Final Decision: Missing policy for CRITICAL risk level');\n}\nif (!riskLevelsConfig.MINIMAL.policy) {\n  throw new Error('Final Decision: Missing policy for MINIMAL risk level');\n}\n\nconst thresholds = {\n  critical: riskLevelsConfig.CRITICAL.threshold_min,\n  minimal: riskLevelsConfig.MINIMAL.threshold_min\n};\n\nconst policies = {\n  CRITICAL: riskLevelsConfig.CRITICAL.policy,\n  MINIMAL: riskLevelsConfig.MINIMAL.policy\n};\n\nif (!config.enforcement || !config.enforcement.block_message) {\n  throw new Error('Final Decision: Missing config.enforcement.block_message');\n}\nconst blockMessage = config.enforcement.block_message;\nconst redactedPreview = ctxItem?.json?.sanitizer?.pii?.redactedPreview || ctxItem?.json?.pii?.redactedPreview || ctxItem?.json?.chat_payload?.chatInput;\nconst appendRedacted = (message) => {\n  if (!redactedPreview) return message;\n  if (typeof message !== \"string\") return message;\n  if (message.includes(redactedPreview)) return message;\n  return `${message} ${redactedPreview}`.trim();\n};\n\nlet injectionScore = Math.max(0, Math.min(100, injectionScoreRaw));  // Accept 0-100 range\nlet riskLevel, severity;\n\n// Binary classification: CRITICAL (>=0.9) or MINIMAL (<0.9)\nif (injectionScore >= thresholds.critical * 100) {  // Compare in 0-100 scale\n  riskLevel = 'CRITICAL';\n  severity = 5;\n} else {\n  riskLevel = 'MINIMAL';\n  severity = 1;\n}\n\nconst configPolicy = policies[riskLevel];\nconst shouldBlockByPolicy = configPolicy === 'block';\n\nlet action, route, userMessage = null, internalNote;\n\nif (riskLevel === 'CRITICAL') {\n  if (shouldBlockByPolicy) {\n    action = 'BLOCK_IMMEDIATE';\n    route = 'blocked';\n    userMessage = appendRedacted(blockMessage);\n    internalNote = `Critical injection attempt detected by Prompt Guard (risk_score: ${injectionScore.toFixed(4)}) - blocked by policy=${configPolicy}`;\n  } else {\n    action = 'ALLOW_WITH_LOGGING';\n    route = 'safe';\n    userMessage = null;\n    internalNote = `Critical risk detected (risk_score: ${injectionScore.toFixed(4)}) - allowed by policy=${configPolicy} (unusual config)`;\n  }\n} else {\n  // MINIMAL risk level\n  if (shouldBlockByPolicy) {\n    action = 'BLOCK_WITH_WARNING';\n    route = 'blocked';\n    userMessage = appendRedacted(blockMessage);\n    internalNote = `Minimal risk (risk_score: ${injectionScore < 0.01 ? injectionScore.toExponential(2) : injectionScore.toFixed(4)}) - blocked by policy=${configPolicy} (unusual config)`;\n  } else {\n    action = 'ALLOW';\n    route = 'safe';\n    userMessage = null;\n    internalNote = `Safe request confirmed by Prompt Guard (risk_score: ${injectionScore < 0.01 ? injectionScore.toExponential(2) : injectionScore.toFixed(4)}) - allowed`;\n  }\n}\n\n// Check for sanitizer override\nconst previousDecision =\n  ctxItem?.json?.decision?.decision ||\n  ctxItem?.json?.__metadata?.final_decision ||\n  ctxItem?.json?.correlation?.after;\n\nif (previousDecision === 'BLOCK' || previousDecision === 'blocked' || ctxItem?.json?._isBlocked === true) {\n  route = 'blocked';\n  action = 'BLOCK_BY_SANITIZER';\n  userMessage = appendRedacted(userMessage || blockMessage);\n  internalNote += ' | Forced block by sanitizer (previousDecision=' + previousDecision + ', _isBlocked=' + ctxItem?.json?._isBlocked + ')';\n}\n\n// ========================================\n// DETECT SANITIZATION\n// ========================================\n\n// Check if content was sanitized by Sanitization_Enforcement node\nconst enforcementMode = ctxItem?.json?.enforcement?.mode;\nconst wasSanitized = (enforcementMode === 'light' || enforcementMode === 'heavy');\n\n// Alternative check: previous decision was SANITIZE_LIGHT or SANITIZE_HEAVY\nconst sanitizeDecision = (\n  previousDecision === 'SANITIZE_LIGHT' ||\n  previousDecision === 'SANITIZE_HEAVY'\n);\n\n// Final sanitization flag\nconst isSanitized = wasSanitized || sanitizeDecision;\n\n// ========================================\n// DETERMINE OUTPUT_TEXT\n// ========================================\n\nlet outputText;\n\nif (route === 'blocked') {\n  // BLOCKED: use block message\n  outputText = userMessage || appendRedacted(blockMessage);\n} else {\n  // ALLOWED or SANITIZED: use text after PII redaction or sanitization\n  outputText = ctxItem?.json?._pipeline_snapshots?.afterSanitization ||\n               ctxItem?.json?._pipeline_snapshots?.afterPII ||\n               ctxItem?.json?.output_text_redacted ||\n               ctxItem?.json?.chat_payload?.chatInput ||\n               ctxItem?.json?.normalization?.canonical ||\n               'N/A';\n}\n\n// ========================================\n// BUILD RESULT\n// ========================================\n\nconst result = {\n  decision: {\n    action,\n    route,\n    severity,\n    riskLevel,\n    scoreRaw: injectionScore,\n    scorePercent: Math.round(injectionScore * 100),\n    scoreFormatted: injectionScore < 0.01 ? injectionScore.toExponential(2) : injectionScore.toFixed(4),\n    appliedPolicy: configPolicy,\n    model: 'Llama-Prompt-Guard-2-86M'\n  },\n  messages: {\n    user: userMessage,\n    internal: internalNote\n  },\n  routing: {\n    shouldBlock: route === 'blocked',\n    shouldWarn: isSanitized && route !== 'blocked',  // \u2713 FIXED: detect sanitization\n    shouldLog: severity >= 2,\n    shouldSanitize: isSanitized,  // \u2713 FIXED: detect sanitization\n    isSafe: route === 'safe' && !isSanitized  // Safe only if NOT sanitized\n  },\n  metrics: {\n    injectionScore,\n    scorePercent: Math.round(injectionScore * 100),\n    severity,\n    confidence: injectionScore > 0.9 || injectionScore < 0.1 ? 'high' : 'medium',\n    processingTime: Date.now()\n  },\n  technical: {\n    thresholdsUsed: thresholds,\n    policiesUsed: policies,\n    configEnabled: configEnabled,\n    pgRaw,\n    extractedFrom,\n    binaryClassification: true,\n    enforcementMode: enforcementMode || 'none',  // \u2713 ADDED: debugging info\n    wasSanitized: isSanitized  // \u2713 ADDED: debugging info\n  },\n  audit: {\n    timestamp: new Date().toISOString(),\n    node: 'final_decision',\n    originalPrompt:\n      ctxItem?.json?.output_text_redacted ||\n      ctxItem?.json?.chatInput ||\n      ctxItem?.json?.input ||\n      ctxItem?.json?.chat_payload?.chatInput ||\n      'N/A',\n    llmScore: injectionScore,\n    finalDecision: action,\n    appliedPolicy: configPolicy,\n    configSource: 'unified_config.json',\n    previousDecision: previousDecision || 'none',\n    blockFlagSet: ctxItem?.json?._isBlocked === true,\n    promptGuardModel: 'Llama-Prompt-Guard-2-86M',\n    sanitizationApplied: isSanitized  // \u2713 ADDED: audit trail\n  },\n\n  __san: ctxItem?.json?.__san || {},\n  _pipeline_snapshots: ctxItem?.json?._pipeline_snapshots || {},\n  normalization: ctxItem?.json?.normalization || {},\n  chat_payload: ctxItem?.json?.chat_payload || {},\n  sessionId: ctxItem?.json?.sessionId || ctxItem?.json?.chat_payload?.sessionId || 'unknown',\n  action: ctxItem?.json?.action || ctxItem?.json?.chat_payload?.action || 'sendMessage',\n  config: config,\n  rules: ctxItem?.json?.rules || {},\n  thresholds: ctxItem?.json?.thresholds || {},\n  enforcement: ctxItem?.json?.enforcement || {},\n  _loader: ctxItem?.json?._loader || {},\n  score: ctxItem?.json?.score || 0,\n  scoreBreakdown: ctxItem?.json?.scoreBreakdown || {},\n  matchDetails: ctxItem?.json?.matchDetails || [],\n  sanitizer_decision: ctxItem?.json?.decision || {},\n\n  // \u2713 UNIFIED OUTPUT FIELD\n  output_text: outputText,\n\n  _route: route,\n  _shouldContinue: route === 'safe',\n  _requiresSanitization: isSanitized,  // \u2713 FIXED: proper sanitization flag\n  _isBlocked: route === 'blocked',\n\n  // \u2713 PRESERVED v1.7.0 PII FLAGS (from PII_Redactor_v2)\n  _pii_sanitized: ctxItem?.json?._pii_sanitized,\n  pii_classification: ctxItem?.json?.pii_classification,\n  pii: ctxItem?.json?.pii || {},\n\n  // \u2713 NEW v1.7.0: Browser fingerprinting data (from Keep only set node)\n  clientId: ctxItem?.json?.clientId,\n  browser_metadata: ctxItem?.json?.browser_metadata\n};\n\nreturn [{\n  json: result,\n  binary: ctxItem?.binary || {}\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5680,
+        128
+      ],
+      "id": "81bd17d7-acde-4c47-9f87-c32a88c88ad0",
+      "name": "Finale Decision"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        5440,
+        128
+      ],
+      "id": "c26f5f4f-0e47-4f9b-a77b-d633663a67f6",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "36e14137-f077-4f9b-8bb7-0596338fa273",
+              "leftValue": "={{ $json.decision?.decision }}",
+              "rightValue": "BLOCK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4272,
+        128
+      ],
+      "id": "6b42ce82-7601-4b37-8f89-27798a614c4c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NEW VERSION: LLM Context Restore with Multi-Chunk Aggregation\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json;\n  const responses = j.pg_responses || [];\n\n  // Helper function: Determine risk level from score\n  function determineRiskLevel(score) {\n    if (score >= 80) return 'CRITICAL';\n    if (score >= 60) return 'HIGH';\n    if (score >= 40) return 'MEDIUM';\n    if (score >= 20) return 'LOW';\n    return 'SAFE';\n  }\n\n  let riskScore = 0;\n  let llmRawOutput = null;\n  let llmVerdict = null;\n  let llmIsAttack = false;\n  let confidence = 0;\n\n  // CASE 1: Multi-chunk analysis (sliding window used)\n  if (responses.length > 1) {\n    const scores = responses.map(r => r.risk_score || 0);\n    const maxScore = Math.max(...scores);\n    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;\n    const attackDetected = responses.some(r => r.is_attack);\n\n    // Use MAX score (most conservative approach)\n    riskScore = maxScore;\n    confidence = maxScore / 100;  // Convert to 0-1 range\n    llmIsAttack = attackDetected;\n    llmVerdict = attackDetected ? '\ud83d\udea8 ATTACK DETECTED (multi-chunk)!' : '\u2705 Safe (multi-chunk)';\n\n    // Create summary output\n    llmRawOutput = JSON.stringify({\n      analysis_type: 'sliding_window',\n      chunks_analyzed: responses.length,\n      max_score: maxScore,\n      avg_score: avgScore.toFixed(2),\n      attack_detected: attackDetected,\n      chunks_with_attacks: responses.filter(r => r.is_attack).length,\n      chunks_details: responses.map(r => ({\n        index: r.chunk_index,\n        score: r.risk_score,\n        is_attack: r.is_attack,\n        verdict: r.verdict\n      }))\n    });\n\n    // Store detailed aggregation in j\n    j.llm_guard_score = maxScore;\n    j.llm_guard_score_avg = avgScore;\n    j.llm_guard_score_max = maxScore;\n    j.llm_guard_attack_detected = attackDetected;\n    j.risk_level = determineRiskLevel(maxScore);\n\n    // Audit trail\n    j.audit = j.audit || {};\n    j.audit.chunks_analyzed = responses.length;\n    j.audit.chunks_with_attacks = responses.filter(r => r.is_attack).length;\n    j.audit.sliding_window_used = j.sliding_window_enabled || false;\n  }\n  // CASE 2: Single chunk analysis (original behavior) or fallback\n  else if (responses.length === 1) {\n    const apiData = responses[0];\n\n    riskScore = apiData.risk_score || 0;\n    confidence = apiData.confidence || 0;\n    llmIsAttack = apiData.is_attack || false;\n    llmVerdict = apiData.verdict || 'unknown';\n\n    llmRawOutput = JSON.stringify({\n      analysis_type: 'single_chunk',\n      text: apiData.text_analyzed,\n      is_attack: apiData.is_attack,\n      risk_score: apiData.risk_score,\n      confidence: apiData.confidence,\n      verdict: apiData.verdict\n    });\n\n    j.llm_guard_score = riskScore;\n    j.llm_guard_attack_detected = llmIsAttack;\n    j.risk_level = determineRiskLevel(riskScore);\n\n    // Audit trail\n    j.audit = j.audit || {};\n    j.audit.chunks_analyzed = 1;\n    j.audit.chunks_with_attacks = llmIsAttack ? 1 : 0;\n    j.audit.sliding_window_used = false;\n  }\n  // CASE 3: No responses (error fallback)\n  else {\n    riskScore = 0;\n    confidence = 0;\n    llmIsAttack = false;\n    llmVerdict = 'no_analysis';\n    llmRawOutput = JSON.stringify({ error: 'No Prompt Guard responses available' });\n\n    j.llm_guard_score = 0;\n    j.llm_guard_attack_detected = false;\n    j.risk_level = 'SAFE';\n\n    j.audit = j.audit || {};\n    j.audit.chunks_analyzed = 0;\n    j.audit.chunks_with_attacks = 0;\n    j.audit.sliding_window_used = false;\n    j.audit.error = 'no_pg_responses';\n  }\n\n  // Ensure score is valid (0-100 range for compatibility)\n  if (isNaN(riskScore)) riskScore = 0;\n  riskScore = Math.max(0, Math.min(100, riskScore));\n\n  // Normalize to 0-1 range for risk_score (backwards compatible)\n  j.risk_score = riskScore;  // Already in 0-100 range from Prompt Guard API node\n\n  // Store full result object\n  j.llm_result = {\n    score: riskScore,  // 0-100 range (already scaled)\n    score_raw: riskScore,    // 0-100 range\n    raw_output: llmRawOutput,\n    is_attack: llmIsAttack,\n    verdict: llmVerdict,\n    confidence: confidence,\n    source: 'meta-llama/llama-prompt-guard-2-86m',\n    timestamp: new Date().toISOString()\n  };\n\n  j._llm_context_restored = true;\n\n  // Clean up temporary fields\n  delete j.chunks_array;\n  delete j.pg_responses;\n\n  results.push({\n    json: j,\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5168,
+        336
+      ],
+      "id": "cfdb9213-1d54-4049-b144-1aaebe4ddcd3",
+      "name": "LLM Context Restore"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NEW VERSION: Prepare LLM Request with Sliding Window Analysis\n\n/**\n * Analyzes text using sliding window approach for long inputs\n * @param {string} text - Input text to analyze\n * @param {number} windowSize - Size of each chunk (default: 500)\n * @param {number} stride - Step size between chunks (default: 250)\n * @param {number} maxChunks - Maximum number of chunks (default: 5)\n * @returns {Array} Array of chunk objects\n */\nfunction analyzeWithSlidingWindow(text, windowSize = 500, stride = 250, maxChunks = 5) {\n  // If text shorter than window \u2192 return single chunk\n  if (text.length <= windowSize) {\n    return [{\n      chunk: text,\n      start: 0,\n      end: text.length,\n      index: 0,\n      isLast: true\n    }];\n  }\n\n  const chunks = [];\n  let position = 0;\n  let chunkIndex = 0;\n\n  while (position < text.length && chunkIndex < maxChunks) {\n    const end = Math.min(position + windowSize, text.length);\n    const chunk = text.substring(position, end);\n\n    chunks.push({\n      chunk: chunk,\n      start: position,\n      end: end,\n      index: chunkIndex,\n      isLast: (end === text.length)\n    });\n\n    position += stride;\n    chunkIndex++;\n\n    // Break if we reached end\n    if (end === text.length) break;\n  }\n\n  return chunks;\n}\n\n// Main n8n node logic\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json;\n\n  const content = j._pipeline_snapshots?.afterSanitization ||\n                  j.chat_payload?.chatInput ||\n                  \"test\";\n\n  // Determine if sliding window should be used\n  const preliminaryScore = j.unified_decision?.threat_score || 0;\n  const shouldUseSlidingWindow = (\n    content.length > 500 &&                    // Text longer than window\n    preliminaryScore >= 30                     // Suspicious enough (SANITIZE_LIGHT or higher)\n  );\n\n  let chunksArray;\n  let slidingWindowEnabled;\n\n  if (shouldUseSlidingWindow) {\n    chunksArray = analyzeWithSlidingWindow(content);\n    slidingWindowEnabled = true;\n  } else {\n    // Single chunk mode (original behavior)\n    chunksArray = [{\n      chunk: content,\n      start: 0,\n      end: content.length,\n      index: 0,\n      isLast: true\n    }];\n    slidingWindowEnabled = false;\n  }\n\n  results.push({\n    json: {\n      ...j,\n      chunks_array: chunksArray,\n      sliding_window_enabled: slidingWindowEnabled,\n      sliding_window_config: {\n        window_size: 500,\n        stride: 250,\n        max_chunks: 5,\n        text_length: content.length,\n        chunks_generated: chunksArray.length\n      }\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        320
+      ],
+      "id": "3787e3bb-d517-404d-bf29-0958b3e03efd",
+      "name": "Prepare LLM Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NEW VERSION v1.3.4: Prompt Guard API with axios\n// Using axios (enabled via NODE_FUNCTION_ALLOW_EXTERNAL=axios)\n\nconst axios = require('axios');\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json;\n  const chunksArray = j.chunks_array || [];\n  const responses = [];\n\n  // Loop through all chunks and call Prompt Guard API\n  for (const chunkData of chunksArray) {\n    try {\n      // Call Prompt Guard API using axios\n      const response = await axios.post('http://prompt-guard-api:8000/detect', {\n        text: chunkData.chunk\n      }, {\n        headers: {\n          'Content-Type': 'application/json'\n        },\n        timeout: 10000  // 10 second timeout\n      });\n\n      const result = response.data;\n\n      // Store response with chunk metadata\n      responses.push({\n        chunk_index: chunkData.index,\n        chunk_start: chunkData.start,\n        chunk_end: chunkData.end,\n        is_attack: result.is_attack || false,\n        confidence: result.confidence || 0,\n        risk_score: (result.risk_score || 0) * 100,  // Convert 0-1 to 0-100\n        verdict: result.verdict || 'unknown',\n        text_analyzed: chunkData.chunk.substring(0, 100) + (chunkData.chunk.length > 100 ? '...' : '')\n      });\n\n    } catch (error) {\n      console.error(`\u26a0\ufe0f Prompt Guard CRITICAL ERROR - chunk ${chunkData.index}:`, error.message);\n\n      // FIX 2.5.2: FAIL-CLOSED - Treat errors as attacks (prevent bypass)\n      responses.push({\n        chunk_index: chunkData.index,\n        chunk_start: chunkData.start,\n        chunk_end: chunkData.end,\n        error: error.message,\n        risk_score: 95,  // \u2705 CRITICAL threat level\n        is_attack: true,  // \u2705 Fail-closed: treat errors as attacks\n        confidence: 0.95,\n        verdict: '\u26a0\ufe0f PG_ERROR - BLOCKED (fail-closed)',\n        _pg_error: true  // Audit flag for monitoring\n      });\n    }\n  }\n\n  // Attach all responses to item\n  results.push({\n    json: {\n      ...j,\n      pg_responses: responses,\n      chunks_analyzed: responses.length,\n      pg_api_timestamp: new Date().toISOString()\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4752,
+        464
+      ],
+      "id": "972b0ed1-0b41-4d3d-bf6c-97a6fc7a5eee",
+      "name": "Prompt Guard API"
+    },
+    {
+      "parameters": {
+        "mode": "combineByPosition"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4944,
+        336
+      ],
+      "id": "886ba6d3-e735-42e5-adef-38d1f769571c",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Bloom_Prefilter - FIXED VERSION\n *\n * PROBLEM: Poprzednia implementacja dodawa\u0142a pe\u0142ne frazy do Bloom Filter,\n * ale testowa\u0142a kr\u00f3tkie n-gramy (3-6 znak\u00f3w). To nigdy nie mog\u0142o zadzia\u0142a\u0107,\n * bo Bloom Filter operuje na pe\u0142nych stringach, nie substringach.\n *\n * ROZWI\u0104ZANIE: Opcja A (Performance-Optimized)\n * - Indeksuj wszystkie n-gramy z dangerous patterns\n * - Testuj n-gramy z input text\n * - To zapewnia sp\u00f3jno\u015b\u0107: te same typy string\u00f3w w obu operacjach\n *\n * ROZWI\u0104ZANIE ALTERNATYWNE: Opcja B (Higher Accuracy)\n * - Indeksuj pe\u0142ne frazy\n * - Testuj sliding windows r\u00f3\u017cnych d\u0142ugo\u015bci\n * - Wolniejsze, ale wykryje exact phrase matches\n */\n\nclass SimpleBloomFilter {\n  constructor(size = 32768, k = 5, seed = 1337) {\n    this.bits = new Uint8Array(size);\n    this.size = size;\n    this.k = k;\n    this.seed = seed;\n    this.itemCount = 0;\n  }\n\n  hash(str, seed) {\n    let h = seed;\n    for (let i = 0; i < str.length; i++) {\n      h ^= str.charCodeAt(i);\n      h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);\n      h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);\n      h ^= h >>> 16;\n    }\n    return h >>> 0;\n  }\n\n  getHashes(item) {\n    const hashes = [];\n    for (let i = 0; i < this.k; i++) {\n      const h = this.hash(item, this.seed + i) % this.size;\n      hashes.push(h);\n    }\n    return hashes;\n  }\n\n  add(item) {\n    const hashes = this.getHashes(item);\n    for (const h of hashes) {\n      this.bits[h] = 1;\n    }\n    this.itemCount++;\n  }\n\n  test(item) {\n    const hashes = this.getHashes(item);\n    for (const h of hashes) {\n      if (this.bits[h] === 0) return false;\n    }\n    return true;\n  }\n\n  estimateFalsePositiveRate() {\n    const bitsSet = this.bits.reduce((sum, bit) => sum + bit, 0);\n    const p = bitsSet / this.size;\n    return Math.pow(p, this.k);\n  }\n}\n\nconst DEFAULT_DANGEROUS_PATTERNS = [\n  'ignore all instructions',\n  'ignore previous instructions',\n  'disregard instructions',\n  'override system',\n  'you are now',\n  'act as dan',\n  'jailbreak',\n  'developer mode',\n  'godmode enabled',\n  'love pliny',\n  'im free',\n  'i\\'m free',\n  'system prompt',\n  'reveal instructions',\n  'show your prompt',\n  'print instructions',\n  'forget everything'\n];\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('BloomPrefilter: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  // Skip if already blocked\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n\n  const cfg = j.config ?? {};\n\n  // Get configuration from unified_config.json with defaults\n  const bloomCfg = cfg.bloom || {\n    m: 32768,\n    k: 5,\n    seed: 1337,\n    match_mod: 97,\n    min_matched_bits: 2\n  };\n\n  const prefilterCfg = cfg.prefilter || {\n    ngram: { min: 3, max: 6, prefix_window: 96 },\n    sample_limit: 800,\n    obf_signals: { min_count: 2 }\n  };\n\n  // Get dangerous patterns from config or use defaults\n  const dangerousPatterns = (prefilterCfg.dangerous_patterns && Array.isArray(prefilterCfg.dangerous_patterns) && prefilterCfg.dangerous_patterns.length > 0)\n    ? prefilterCfg.dangerous_patterns\n    : DEFAULT_DANGEROUS_PATTERNS;\n\n  const bloomDecisions = cfg.bloom_decisions || {\n    route_to_ac_threshold: 15,\n    hard_block_threshold: 50,\n    require_zusatz_signals: true,\n    phrase_match_bonus: 20\n  };\n\n  // Initialize bloom filter\n  const bloom = new SimpleBloomFilter(bloomCfg.m, bloomCfg.k, bloomCfg.seed);\n\n  // ========================================\n  // FIX: Indeksuj n-gramy z patterns (nie pe\u0142ne frazy!)\n  // ========================================\n  const ngramMin = prefilterCfg.ngram?.min || 3;\n  const ngramMax = prefilterCfg.ngram?.max || 6;\n\n  let totalNgramsIndexed = 0;\n  for (const pattern of dangerousPatterns) {\n    if (typeof pattern === 'string' && pattern.length > 0) {\n      const normalizedPattern = pattern.toLowerCase();\n\n      // Add full pattern (dla dok\u0142adnych dopasowa\u0144)\n      bloom.add(normalizedPattern);\n      totalNgramsIndexed++;\n\n      // Add n-grams from pattern (dla cz\u0119\u015bciowych dopasowa\u0144)\n      for (let n = ngramMin; n <= Math.min(ngramMax, normalizedPattern.length); n++) {\n        for (let i = 0; i <= normalizedPattern.length - n; i++) {\n          const ngram = normalizedPattern.substring(i, i + n);\n          // Skipuj n-gramy sk\u0142adaj\u0105ce si\u0119 tylko ze spacji\n          if (ngram.trim().length > 0) {\n            bloom.add(ngram);\n            totalNgramsIndexed++;\n          }\n        }\n      }\n    }\n  }\n\n  const text = j.normalization?.forScoring ?? j.chat_payload?.chatInput ?? \"\";\n  const original = j.normalization?.original ?? \"\";\n\n  // Skip if no text to analyze\n  if (!text) {\n    j.prefilter = {\n      bloom: {\n        matchedBitsCount: 0,\n        totalHashes: 0,\n        matchRatio: 0,\n        suspiciousScore: 0,\n        falsePositiveRate: bloom.estimateFalsePositiveRate(),\n        patternsLoaded: dangerousPatterns.length,\n        ngramsIndexed: totalNgramsIndexed,\n        skipped: true,\n        skipReason: 'no_text',\n        version: 'FIXED_v1.0'\n      },\n      ngram: { sampledCount: 0 },\n      routeToAC: false,\n      hardBlock: false,\n      signals: {}\n    };\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  // ========================================\n  // FIX: Testuj zar\u00f3wno n-gramy jak i sliding windows\n  // ========================================\n  const sampleLimit = prefilterCfg.sample_limit || 800;\n  const testText = text.substring(0, sampleLimit).toLowerCase();\n\n  let matchedNgrams = 0;\n  let totalNgramTests = 0;\n  let matchedPhrases = [];\n\n  // Test 1: N-gram matching (fast, general detection)\n  for (let n = ngramMin; n <= ngramMax; n++) {\n    for (let i = 0; i <= testText.length - n; i++) {\n      const ngram = testText.substring(i, i + n);\n      totalNgramTests++;\n      if (bloom.test(ngram)) {\n        matchedNgrams++;\n      }\n    }\n  }\n\n  // Test 2: Phrase matching (slower, but catches exact phrases)\n  // Testuj sliding windows od 10 do 50 znak\u00f3w\n  for (let windowSize = 10; windowSize <= Math.min(50, testText.length); windowSize += 5) {\n    for (let i = 0; i <= testText.length - windowSize; i++) {\n      const window = testText.substring(i, i + windowSize).trim();\n      if (bloom.test(window)) {\n        // Znale\u017ali\u015bmy potencjaln\u0105 fraz\u0119!\n        // Sprawd\u017a czy to jedna z known patterns\n        for (const pattern of dangerousPatterns) {\n          if (window.includes(pattern.toLowerCase())) {\n            if (!matchedPhrases.includes(pattern)) {\n              matchedPhrases.push(pattern);\n            }\n          }\n        }\n      }\n    }\n  }\n\n  const ngramMatchRatio = totalNgramTests > 0 ? matchedNgrams / totalNgramTests : 0;\n\n  // Additional cheap signals\n  const hasZWSP = /[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u206F\\uFEFF]/.test(original);\n  const longBase64 = /\\b[A-Za-z0-9+/]{100,}={0,2}\\b/.test(text);\n  const hasTemplateMarkers = j.normalization?.obfuscationSignals?.includes(\"template-markers\") || false;\n  const hasSeparatorAbuse = j.normalization?.obfuscationSignals?.includes(\"separator-abuse\") || false;\n\n  // ========================================\n  // FIX: Scoring z uwzgl\u0119dnieniem phrase matches\n  // ========================================\n  // Base score z n-gram\u00f3w\n  let suspiciousScore = ngramMatchRatio * 100;\n\n  // Boost score je\u015bli znaleziono exact phrases\n  if (matchedPhrases.length > 0) {\n    // Ka\u017cda znaleziona fraza dodaje konfigurowalne punkty\n    const phraseBonus = bloomDecisions.phrase_match_bonus || 20;\n    suspiciousScore += matchedPhrases.length * phraseBonus;\n    // Cap at 100\n    suspiciousScore = Math.min(100, suspiciousScore);\n  }\n\n  // Decision based on config thresholds\n  // n-gram overlap is natural in normal language - need strong signal\n  const routeToAC = (suspiciousScore > bloomDecisions.route_to_ac_threshold) ||\n                    hasTemplateMarkers || hasSeparatorAbuse ||\n                    matchedPhrases.length > 0;  // Route if any phrase matched\n\n  const hardBlock = (suspiciousScore > bloomDecisions.hard_block_threshold) &&\n                    (!bloomDecisions.require_zusatz_signals ||\n                     (hasZWSP || longBase64 || matchedPhrases.length >= 2));\n\n  j.prefilter = {\n    bloom: {\n      matchedBitsCount: matchedNgrams,\n      totalHashes: totalNgramTests,\n      matchRatio: ngramMatchRatio,\n      suspiciousScore: Math.round(suspiciousScore),\n      falsePositiveRate: bloom.estimateFalsePositiveRate(),\n      patternsLoaded: dangerousPatterns.length,\n      ngramsIndexed: totalNgramsIndexed,\n      configSource: (prefilterCfg.dangerous_patterns && prefilterCfg.dangerous_patterns.length > 0) ? 'config' : 'defaults',\n      version: 'FIXED_v1.0'\n    },\n    ngram: {\n      sampledCount: Math.min(text.length, sampleLimit),\n      ngramMin,\n      ngramMax\n    },\n    phrases: {\n      matchedCount: matchedPhrases.length,\n      matched: matchedPhrases.slice(0, 5)  // Limit to first 5 for logging\n    },\n    routeToAC,\n    hardBlock,\n    signals: { hasZWSP, longBase64, hasTemplateMarkers, hasSeparatorAbuse },\n    thresholdsUsed: {\n      route_threshold: bloomDecisions.route_to_ac_threshold,\n      block_threshold: bloomDecisions.hard_block_threshold,\n      zusatz_required: bloomDecisions.require_zusatz_signals\n    }\n  };\n\n  // If hard block detected, set decision early\n  if (hardBlock) {\n    j.decision = j.decision || {};\n    j.decision.decision = 'BLOCK';\n    j.decision.source = 'bloom_prefilter';\n    j.decision.reason = 'HIGH_RISK_PATTERN_DETECTED';\n    j.decision.details = {\n      suspiciousScore: Math.round(suspiciousScore),\n      matchedPhrases: matchedPhrases,\n      signals: Object.keys(j.prefilter.signals).filter(k => j.prefilter.signals[k]),\n      ngramMatchRatio: ngramMatchRatio,\n      threshold: bloomDecisions.hard_block_threshold\n    };\n    j._isBlocked = true;\n  }\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        128
+      ],
+      "id": "7080f611-6ac5-4765-9616-478158000eea",
+      "name": "Bloom_Prefilter"
+    },
+    {
+      "parameters": {
+        "content": "## Standard chat input",
+        "height": 320,
+        "width": 560,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "c5ed9e8f-f998-4b79-8c8a-638f7bae6c1a",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "42f773e2-7ebf-42f7-a993-8be016d218e1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        752
+      ],
+      "id": "7e4618d8-5e71-481b-bca0-c812fa8a4c33",
+      "name": "Webhook",
+      "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
+    },
+    {
+      "parameters": {
+        "content": "## Webhook",
+        "height": 320,
+        "width": 560,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -16,
+        624
+      ],
+      "typeVersion": 1,
+      "id": "f19e3dfc-ee10-46f4-a6e0-f38365d3c905",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Input_Validator - Pre-filtering DoS Protection (Phase 2.4)\n * Validates input before main pipeline to prevent resource exhaustion\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('Input_Validator: No input items');\n  return [];\n}\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  // Skip if config error already present\n  if (j.configError === true) {\n    j.validation = { passed: false, reason: 'CONFIG_ERROR' };\n    item.json = j;\n    out.push(item);\n    continue;\n  }\n\n  // Get input text\n  const text = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  // Initialize validation result\n  const validation = {\n    passed: true,\n    reason: null,\n    checks: {},\n    input_length: text.length\n  };\n\n  // CHECK 1: Minimum length (empty input)\n  if (text.length < 1) {\n    validation.passed = false;\n    validation.reason = 'EMPTY_INPUT';\n    validation.checks.min_length = false;\n\n    j._isBlocked = true;\n    j.decision = {\n      decision: 'BLOCK',\n      source: 'input_validator',\n      reason: 'EMPTY_INPUT',\n      updated_at: new Date().toISOString()\n    };\n    j.score = 100;\n    j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n  }\n  // CHECK 2: Maximum length (DoS protection)\n  else if (text.length > 10000) {\n    validation.passed = false;\n    validation.reason = 'EXCESSIVE_LENGTH';\n    validation.checks.max_length = false;\n\n    j._isBlocked = true;\n    j.decision = {\n      decision: 'BLOCK',\n      source: 'input_validator',\n      reason: 'EXCESSIVE_LENGTH',\n      updated_at: new Date().toISOString()\n    };\n    j.score = 100;\n    j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n  }\n  // CHECK 3: Excessive control characters (>30%)\n  else {\n    const controlChars = (text.match(/[\\x00-\\x1F\\x7F-\\x9F]/g) || []).length;\n    const controlRatio = text.length > 0 ? controlChars / text.length : 0;\n\n    if (controlRatio > 0.30) {\n      validation.passed = false;\n      validation.reason = 'EXCESSIVE_CONTROL_CHARS';\n      validation.checks.control_chars = false;\n      validation.checks.control_ratio = controlRatio;\n\n      j._isBlocked = true;\n      j.decision = {\n        decision: 'BLOCK',\n        source: 'input_validator',\n        reason: 'EXCESSIVE_CONTROL_CHARS',\n        updated_at: new Date().toISOString()\n      };\n      j.score = 100;\n      j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n    }\n    // CHECK 4: Excessive repetition (uniqueChars < 5 for >100 char inputs)\n    else if (text.length > 100) {\n      const uniqueChars = new Set(text).size;\n\n      if (uniqueChars < 5) {\n        validation.passed = false;\n        validation.reason = 'EXCESSIVE_REPETITION';\n        validation.checks.unique_chars = uniqueChars;\n        validation.checks.repetition_detected = true;\n\n        j._isBlocked = true;\n        j.decision = {\n          decision: 'BLOCK',\n          source: 'input_validator',\n          reason: 'EXCESSIVE_REPETITION',\n          updated_at: new Date().toISOString()\n        };\n        j.score = 100;\n        j.scoreBreakdown = { INPUT_VALIDATION: 100 };\n      } else {\n        validation.checks.unique_chars = uniqueChars;\n        validation.checks.repetition_detected = false;\n      }\n    }\n\n    // Mark all checks passed if no failures\n    if (validation.passed) {\n      validation.checks.min_length = true;\n      validation.checks.max_length = true;\n      validation.checks.control_chars = true;\n      validation.checks.repetition_detected = false;\n    }\n  }\n\n  // Store validation result\n  j.validation = validation;\n  j._validation = validation;  // Protected field for pipeline persistence\n  j._input_validated = true;\n  \n  // CRITICAL: Store in config for pipeline persistence (Phase 2.4)\n  if (!j.config) j.config = {};\n  j.config._validation = validation;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        128
+      ],
+      "id": "c554be3f-1283-4bc8-81a5-d135efb1d013",
+      "name": "Input_Validator"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1db9e612-fab9-48c2-83ec-16bd5b821126",
+              "leftValue": "={{ $json.validation?.passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2176,
+        560
+      ],
+      "id": "01a94ffb-e13a-4c17-8b2a-2b343e15f683",
+      "name": "Validation Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Early Block Response - Validation failure handler (SIMPLIFIED)\n */\n\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json ?? {};\n  const validation = j.validation || {};\n\n  // Get original input\n  const originalInput = j.chat_payload?.chatInput || \"\";\n\n  // Create block message\n  let blockMessage = \"Content blocked by security policy\";\n  switch (validation.reason) {\n    case 'EMPTY_INPUT':\n      blockMessage = \"Invalid request: Empty input\";\n      break;\n    case 'EXCESSIVE_LENGTH':\n      blockMessage = \"Invalid request: Input exceeds maximum length (10000 characters)\";\n      break;\n    case 'EXCESSIVE_CONTROL_CHARS':\n      blockMessage = \"Invalid request: Excessive control characters detected\";\n      break;\n    case 'EXCESSIVE_REPETITION':\n      blockMessage = \"Invalid request: Excessive character repetition detected\";\n      break;\n  }\n\n  // Set output\n  j.output_text = blockMessage;\n  j.chat_payload = j.chat_payload || {};\n  j.chat_payload.chatInput = blockMessage;\n\n  // Preserve original for logging\n  j.audit = j.audit || {};\n  j.audit.originalPrompt = originalInput;\n  j.audit.validationFailure = true;\n  j.audit.validationReason = validation.reason;\n\n  item.json = j;\n  out.push(item);\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5664,
+        576
+      ],
+      "id": "e29b0acd-cab7-4334-b35d-8b76b3ad6d6e",
+      "name": "Early Block Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * output to plugin - Format response for browser extension (v1.7.0)\n *\n * CRITICAL CHANGE: ALWAYS construct sanitizedBody for SANITIZE actions\n * - Priority 1: Use fullBody if available (full reconstruction)\n * - Priority 2: Construct minimal fallback (single message format)\n * - NO FALLBACK to chatInput only (security risk)\n */\n\n// Get data from Build+Sanitize NDJSON (not from $input!)\nconst buildOutput = $('Build+Sanitize NDJSON').item.json;\n\nconsole.log('Build output keys:', Object.keys(buildOutput || {}));\n\nconst ndjson = buildOutput?.ndjson;\n\nif (!ndjson) {\n  console.log('\u274c No ndjson data from Build+Sanitize NDJSON');\n  return [{\n    json: {\n      action: 'allow',\n      reason: 'no_ndjson_data',\n      error: 'Could not read data from Build+Sanitize NDJSON node'\n    }\n  }];\n}\n\n// Extract decision data\nconst finalStatus = ndjson.final_decision?.status || 'ALLOWED';\nconst threatScore = ndjson.scoring?.sanitizer_score || ndjson.scoring?.prompt_guard_score || 0;\nconst cleanedPrompt = ndjson.chat_payload?.chatInput || '';\nconst sessionId = ndjson.sessionId || 'unknown';\n\nconsole.log('Final status:', finalStatus);\nconsole.log('Threat score:', threatScore);\nconsole.log('Cleaned prompt:', cleanedPrompt);\n\n// Map status to action\nlet action = 'allow';\nif (finalStatus === 'BLOCKED' || threatScore >= 85) {\n  action = 'block';\n} else if (finalStatus === 'SANITIZED' || threatScore >= 30) {\n  action = 'sanitize';\n}\n\n// Build response for plugin\nconst response = {\n  action: action,\n  chatInput: cleanedPrompt,  // v1.7.2: Always include\n  reason: finalStatus.toLowerCase(),\n  threat_score: threatScore,\n  sessionId: sessionId\n};\n\n// NEW v1.7.0: ALWAYS construct sanitizedBody for SANITIZE actions\nif (action === 'sanitize') {\n  try {\n    const webhookInput = $('Webhook').first().json;\n    const originalBody = webhookInput?._debug?.fullBody;\n\n    // PRIORITY 1: Full reconstruction with original metadata\n    if (originalBody && originalBody.messages) {\n      response.sanitizedBody = {\n        ...originalBody,\n        messages: [{\n          ...originalBody.messages[0],\n          content: {\n            content_type: \"text\",\n            parts: [cleanedPrompt]\n          }\n        }]\n      };\n      console.log('\u2705 Built sanitizedBody with full original metadata');\n\n    } else {\n      // PRIORITY 2: Minimal fallback (construct basic message structure)\n      console.warn('\u26a0\ufe0f fullBody unavailable, constructing minimal sanitizedBody');\n\n      response.sanitizedBody = {\n        messages: [{\n          id: Date.now().toString(),  // Generate ID\n          author: { role: \"user\" },\n          content: {\n            content_type: \"text\",\n            parts: [cleanedPrompt]\n          },\n          create_time: Math.floor(Date.now() / 1000),\n          update_time: null,\n          end_turn: null,\n          weight: 1.0,\n          metadata: {},\n          recipient: \"all\"\n        }]\n      };\n      console.log('\u2705 Built minimal sanitizedBody (fallback)');\n    }\n\n    // Also include chatInput for backward compatibility (deprecated in v1.7.0)\n    response.chatInput = cleanedPrompt;\n\n  } catch (e) {\n    console.error('\u274c CRITICAL: Failed to construct sanitizedBody:', e.message);\n\n    // EMERGENCY FALLBACK: Construct minimal sanitizedBody anyway\n    response.sanitizedBody = {\n      messages: [{\n        id: Date.now().toString(),\n        author: { role: \"user\" },\n        content: {\n          content_type: \"text\",\n          parts: [cleanedPrompt || '[Content sanitized by Vigil Guard]']\n        }\n      }]\n    };\n    console.warn('\ud83d\udd27 Emergency fallback sanitizedBody constructed');\n\n    // Include error info for debugging\n    response._error = {\n      message: e.message,\n      type: 'sanitizedBody_construction_error'\n    };\n  }\n\n} else if (action === 'block') {\n  // For BLOCK actions, no need for sanitizedBody (request will be rejected)\n  // Include chatInput for logging purposes only\n  response.chatInput = cleanedPrompt;\n}\n\nconsole.log('Final response:', JSON.stringify(response, null, 2));\n\n// Return single object\nreturn [{\n  json: response\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6400,
+        448
+      ],
+      "id": "8328426d-3ed7-446c-a09e-377b324dfff4",
+      "name": "output to plugin"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Build+Sanitize NDJSON": {
+      "main": [
+        [
+          {
+            "node": "Logging to Clikhouse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logging to Clikhouse": {
+      "main": [
+        [
+          {
+            "node": "Clean output",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "output to plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Loader": {
+      "main": [
+        [
+          {
+            "node": "Input_Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Config Loader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep only set": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.json",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.conf",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.conf1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.conf2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.conf3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loading config files *.conf4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Normalize_Node": {
+      "main": [
+        [
+          {
+            "node": "PII_Redactor_v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loading config files *.conf": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loading config files *.json": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unified Decision Engine": {
+      "main": [
+        [
+          {
+            "node": "Correlation_Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allowlist_Validator": {
+      "main": [
+        [
+          {
+            "node": "Pattern_Matching_Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitization_Enforcement": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Correlation_Engine": {
+      "main": [
+        [
+          {
+            "node": "Sanitization_Enforcement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pattern_Matching_Engine": {
+      "main": [
+        [
+          {
+            "node": "Unified Decision Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Loading config files *.conf1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File3": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Loading config files *.conf2": {
+      "main": [
+        [
+          {
+            "node": "Extract from File3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File4": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Loading config files *.conf3": {
+      "main": [
+        [
+          {
+            "node": "Extract from File4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 6
+          }
+        ]
+      ]
+    },
+    "Loading config files *.conf4": {
+      "main": [
+        [
+          {
+            "node": "Extract from File5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finale Decision": {
+      "main": [
+        [
+          {
+            "node": "Build+Sanitize NDJSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Finale Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare LLM Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Context Restore": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prompt Guard API": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "LLM Context Restore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bloom_Prefilter": {
+      "main": [
+        [
+          {
+            "node": "Allowlist_Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare LLM Request": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prompt Guard API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Keep only set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Keep only set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input_Validator": {
+      "main": [
+        [
+          {
+            "node": "Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Check": {
+      "main": [
+        [
+          {
+            "node": "Normalize_Node",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Early Block Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Early Block Response": {
+      "main": [
+        [
+          {
+            "node": "Build+Sanitize NDJSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PII_Redactor_v2": {
+      "main": [
+        [
+          {
+            "node": "Bloom_Prefilter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aa725aa2-83c4-4b66-9e05-6561c3d896bd",
+  "meta": {
+    "instanceId": "b0cd02b142db7b259987e697fc2ad57d349f949e19af6164b972e62255cbe327"
+  },
+  "id": "BtZiIekntNztZyf3",
+  "tags": []
+}
