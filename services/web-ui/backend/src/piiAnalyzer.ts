@@ -77,12 +77,20 @@ interface AnalyzeOptions {
 }
 
 /** Dual-Language Analysis Result */
+interface RegexFallbackMeta {
+  regex_entities_attempted: number;
+  regex_entities_added: number;
+  regex_rule_failures: number;
+  degraded: boolean;
+}
+
 interface DualAnalyzeResult {
   entities: PresidioEntity[];
   detection_method: string;
   processing_time_ms: number;
   redacted_text: string;
   language_stats: LanguageStats;
+  regex_fallback?: RegexFallbackMeta;
 }
 
 let cachedUnifiedConfig: { data: any; etag: string } | null = null;
@@ -467,9 +475,14 @@ const REGEX_TO_PRESIDIO_TYPE_MAP = {
 type RegexRuleName = keyof typeof REGEX_TO_PRESIDIO_TYPE_MAP;
 type MappedEntityType = typeof REGEX_TO_PRESIDIO_TYPE_MAP[RegexRuleName];
 
-function findRegexEntities(text: string, piiConf: any, piiConfig: PiiConfig, requestedEntities?: PresidioEntityType[]): PresidioEntity[] {
+function findRegexEntities(
+  text: string,
+  piiConf: any,
+  piiConfig: PiiConfig,
+  requestedEntities?: PresidioEntityType[]
+): { entities: PresidioEntity[]; failedRules: number } {
   if (!piiConf || !Array.isArray(piiConf.rules)) {
-    return [];
+    return { entities: [], failedRules: 0 };
   }
 
   const order = piiConf.order || piiConf.rules.map((r: any) => r.name);
@@ -521,7 +534,10 @@ function findRegexEntities(text: string, piiConf: any, piiConfig: PiiConfig, req
     console.warn(`⚠️  ${failedRulesCount} regex rule(s) failed to compile/execute`);
   }
 
-  return results;
+  return {
+    entities: results,
+    failedRules: failedRulesCount
+  };
 }
 
 // Entity type constants (strongly typed)
@@ -700,11 +716,16 @@ function integrateRegexEntities(
   reqBody: AnalyzeOptions,
   piiConf: any,
   piiConfig: PiiConfig
-): PresidioEntity[] {
+): { entities: PresidioEntity[]; regexMeta: RegexFallbackMeta } {
   let dedupedEntities = deduplicateEntities(combinedEntities);
 
   const requestedEntities = reqBody.entities?.length ? reqBody.entities : undefined;
-  const regexEntities = findRegexEntities(reqBody.text, piiConf, piiConfig, requestedEntities);
+  const { entities: regexEntities, failedRules } = findRegexEntities(
+    reqBody.text,
+    piiConf,
+    piiConfig,
+    requestedEntities
+  );
 
   // Filter out overlapping regex entities
   const nonOverlappingRegexEntities = regexEntities.filter(regexEntity =>
@@ -715,7 +736,14 @@ function integrateRegexEntities(
     dedupedEntities = deduplicateEntities([...dedupedEntities, ...nonOverlappingRegexEntities]);
   }
 
-  return dedupedEntities;
+  const regexMeta: RegexFallbackMeta = {
+    regex_entities_attempted: regexEntities.length,
+    regex_entities_added: nonOverlappingRegexEntities.length,
+    regex_rule_failures: failedRules,
+    degraded: failedRules > 0
+  };
+
+  return { entities: dedupedEntities, regexMeta };
 }
 
 /**
@@ -862,7 +890,7 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
     detectedLanguage
   );
 
-  const dedupedEntities = integrateRegexEntities(
+  const { entities: dedupedEntities, regexMeta } = integrateRegexEntities(
     combinedEntities,
     reqBody,
     piiConf,
@@ -889,7 +917,8 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
     detection_method: "presidio_dual_language",
     processing_time_ms: processingTime,
     redacted_text: redactedText,
-    language_stats: languageStats
+    language_stats: languageStats,
+    regex_fallback: regexMeta
   };
 }
 
