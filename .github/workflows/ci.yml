@@ -156,7 +156,7 @@ jobs:
                 -e WEB_UI_ADMIN_PASSWORD="${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars' }}" \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
-              sleep 5
+              sleep 10
               docker logs test-container
               ;;
             web-ui-frontend)
@@ -169,25 +169,41 @@ jobs:
               docker run -d --name test-container -p 8000:8000 \
                 -e MOCK_MODEL=true \
                 vigil-guard-prompt-guard-api:test
-              sleep 5
+              sleep 10
               docker logs test-container
               ;;
           esac
 
       - name: Smoke test - Health check
         run: |
+          wait_for() {
+            local url="$1"
+            local attempts="${2:-10}"
+            local delay="${3:-3}"
+            for i in $(seq 1 "$attempts"); do
+              if curl -fsS "$url" > /dev/null; then
+                echo "✅ $url is reachable"
+                return 0
+              fi
+              echo "⏳ Waiting for $url (attempt $i/$attempts)..."
+              sleep "$delay"
+            done
+            echo "❌ Timeout waiting for $url"
+            return 1
+          }
+
           case "${{ matrix.service }}" in
             web-ui-backend)
-              curl -f http://localhost:8787/health || exit 1
+              wait_for http://localhost:8787/health || exit 1
               ;;
             web-ui-frontend)
-              curl -f http://localhost:5173/ || exit 1
+              wait_for http://localhost:5173/ || exit 1
               ;;
             prompt-guard-api)
-              curl -f http://localhost:8000/health || exit 1
-              curl -f http://localhost:8000/ || exit 1
+              wait_for http://localhost:8000/health || exit 1
+              wait_for http://localhost:8000/ || exit 1
               # Test mock detection endpoint
-              curl -f -X POST http://localhost:8000/detect \
+              curl -fsS -X POST http://localhost:8000/detect \
                 -H "Content-Type: application/json" \
                 -d '{"text": "Hello world"}' || exit 1
               ;;
