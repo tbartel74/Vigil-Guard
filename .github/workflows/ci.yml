@@ -117,6 +117,7 @@ jobs:
   docker-build:
     name: Docker - Build & Smoke Test
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     strategy:
       matrix:
@@ -147,10 +148,10 @@ jobs:
 
       - name: Smoke test - Start container
         env:
-          CONTAINER_NAME: test-container-${{ matrix.service }}
+          CONTAINER_NAME: test-${{ matrix.service }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          trap 'docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true' EXIT
+          docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
           case "${{ matrix.service }}" in
             web-ui-backend)
@@ -161,23 +162,36 @@ jobs:
                 -e WEB_UI_ADMIN_PASSWORD="${{ secrets.CI_WEB_UI_ADMIN_PASSWORD || 'test-admin-password-min-32-chars' }}" \
                 -e TARGET_DIR=/tmp/test \
                 vigil-guard-web-ui-backend:test
+              sleep 8
+              docker logs "${CONTAINER_NAME}"
               ;;
             web-ui-frontend)
               docker run -d --name "${CONTAINER_NAME}" \
                 vigil-guard-web-ui-frontend:test
+              sleep 5
+              docker logs "${CONTAINER_NAME}"
               ;;
             prompt-guard-api)
               docker run -d --name "${CONTAINER_NAME}" \
                 -e MOCK_MODEL=true \
                 vigil-guard-prompt-guard-api:test
+              sleep 8
+              docker logs "${CONTAINER_NAME}"
               ;;
           esac
 
       - name: Smoke test - Health check
         env:
-          CONTAINER_NAME: test-container-${{ matrix.service }}
+          CONTAINER_NAME: test-${{ matrix.service }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
+
+          if ! docker ps -a --format '{{.Names}}' | grep -Fxq "${CONTAINER_NAME}"; then
+            echo "::error::Container ${CONTAINER_NAME} is not running"
+            docker ps -a
+            exit 1
+          fi
+
           wait_for() {
             local cmd="$1"
             local attempts="${2:-12}"
@@ -194,18 +208,16 @@ jobs:
             return 1
           }
 
-          docker logs "${CONTAINER_NAME}"
-
           case "${{ matrix.service }}" in
             web-ui-backend)
-              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8787/health" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8787/health >/dev/null" || exit 1
               ;;
             web-ui-frontend)
-              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1/" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1/" || exit 1
               ;;
             prompt-guard-api)
-              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8000/health" || exit 1
-              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:8000/" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:8000/health" || exit 1
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:8000/" || exit 1
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS -X POST http://127.0.0.1:8000/detect -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'" || exit 1
               ;;
           esac
@@ -213,7 +225,7 @@ jobs:
       - name: Cleanup
         if: always()
         env:
-          CONTAINER_NAME: test-container-${{ matrix.service }}
+          CONTAINER_NAME: test-${{ matrix.service }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm -f "${CONTAINER_NAME}" || true
 
   # Docker Compose validation
