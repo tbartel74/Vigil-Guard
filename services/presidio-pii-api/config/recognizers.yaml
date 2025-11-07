@@ -53,6 +53,21 @@ recognizers:
         regex: '\b\d{3}[\s-]\d{3}[\s-]\d{3}\b'
         score: 0.70
 
+      # US-style phone number with parentheses: (555) 123-4567
+      - name: phone_us_parentheses
+        regex: '\(\d{3}\)\s?\d{3}[-.\s]\d{4}\b'
+        score: 0.85
+
+      # North American phone with dots: 555.123.4567
+      - name: phone_us_dots
+        regex: '\b\d{3}[.\s-]\d{3}[.\s-]\d{4}\b'
+        score: 0.80
+
+      # US phone with explicit country code
+      - name: phone_us_country
+        regex: '\+1[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{4}\b'
+        score: 0.90
+
       # International format with + (any country)
       - name: phone_intl_generic
         regex: '\+\d{1,3}[\s-]?\d{1,14}\b'
@@ -131,6 +146,8 @@ recognizers:
   - name: PL_REGON
     supported_language: pl
     supported_entity: PL_REGON
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_regon
     patterns:
       # REGON-9 formatted (with hyphens): 123-456-789
       - name: regon_9_formatted
@@ -183,6 +200,8 @@ recognizers:
   - name: PL_NIP
     supported_language: pl
     supported_entity: PL_NIP
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_nip
     patterns:
       # NIP formatted (with hyphens): 123-456-78-90
       - name: nip_formatted
@@ -282,16 +301,21 @@ recognizers:
   - name: PL_PESEL_ENHANCED
     supported_language: pl
     supported_entity: PL_PESEL
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_pesel
     patterns:
       # PESEL (11 digits, no formatting)
+      # CRITICAL FIX: Score 0.75 ensures pattern reaches checksum validator
+      # Before: 0.60 < 0.7 threshold → rejected before validation
+      # After: 0.75 > 0.7 threshold → checksum validator runs, rejects invalid
       - name: pesel_11_digits
         regex: '\b\d{11}\b'
-        score: 0.60  # Lower base score, boosted by context + checksum
+        score: 0.75  # HIGH score to ensure checksum validation runs
 
       # PESEL with spaces/hyphens (for readability): 920321 00157
       - name: pesel_formatted
         regex: '\b\d{6}[\s-]?\d{5}\b'
-        score: 0.70
+        score: 0.80
 
     # Context keywords for PESEL detection
     # These significantly boost confidence when found nearby
@@ -325,6 +349,8 @@ recognizers:
   - name: CREDIT_CARD_ENHANCED
     supported_language: pl
     supported_entity: CREDIT_CARD
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_credit_card
     patterns:
       # Visa: starts with 4, length 13 or 16
       - name: visa_formatted
@@ -408,6 +434,271 @@ recognizers:
     # Luhn checksum validation
     validators:
       - validate_credit_card
+
+  # ============================================================================
+  # IBAN_CODE - International Bank Account Number
+  # ============================================================================
+  - name: IBAN_CODE_ENHANCED
+    supported_language: en
+    supported_entity: IBAN_CODE
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_iban
+    patterns:
+      - name: iban_grouped
+        regex: '\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b'
+        score: 0.85
+
+      - name: iban_compact
+        regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b'
+        score: 0.80
+    context:
+      - "iban"
+      - "bank"
+      - "konto"
+      - "account"
+      - "rachunek"
+      - "swift"
+      - "transfer"
+    validators:
+      - validate_iban
+
+  # ============================================================================
+  # US_SSN - United States Social Security Number
+  # ============================================================================
+  - name: US_SSN_STRICT
+    supported_language: en
+    supported_entity: US_SSN
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_us_ssn
+    patterns:
+      - name: ssn_formatted
+        regex: '\b(?!000|666|9\d\d)\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b'
+        score: 0.90
+
+      - name: ssn_compact
+        regex: '\b(?!000|666|9\d\d)\d{9}\b'
+        score: 0.75
+    context:
+      - "ssn"
+      - "social"
+      - "security"
+      - "tax"
+      - "irs"
+      - "identity"
+    validators:
+      - validate_us_ssn
+
+  # ============================================================================
+  # UK_NHS - UK National Health Service Number
+  # ============================================================================
+  - name: UK_NHS_ENHANCED
+    supported_language: en
+    supported_entity: UK_NHS
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_uk_nhs
+    patterns:
+      - name: nhs_grouped
+        regex: '\b\d{3}\s?\d{3}\s?\d{4}\b'
+        score: 0.85
+    context:
+      - "nhs"
+      - "health"
+      - "medical"
+      - "patient"
+      - "care"
+    validators:
+      - validate_uk_nhs
+
+  # ============================================================================
+  # UK_NINO - UK National Insurance Number
+  # ============================================================================
+  - name: UK_NINO_STANDARD
+    supported_language: en
+    supported_entity: UK_NINO
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_uk_nino
+    patterns:
+      - name: nino_standard
+        regex: '\b[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b'
+        score: 0.80
+    context:
+      - "national insurance"
+      - "ni number"
+      - "ni:"
+      - "insurance"
+      - "hmrc"
+    validators:
+      - validate_uk_nino
+
+  # ============================================================================
+  # CA_SIN - Canadian Social Insurance Number
+  # ============================================================================
+  - name: CA_SIN_ENHANCED
+    supported_language: en
+    supported_entity: CA_SIN
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_ca_sin
+    patterns:
+      - name: sin_grouped
+        regex: '\b\d{3}[-\s]?\d{3}[-\s]?\d{3}\b'
+        score: 0.85
+    context:
+      - "sin"
+      - "canada"
+      - "social insurance"
+      - "cra"
+      - "benefit"
+    validators:
+      - validate_ca_sin
+
+  # ============================================================================
+  # AU_MEDICARE - Australian Medicare Number
+  # ============================================================================
+  - name: AU_MEDICARE_NUMBER
+    supported_language: en
+    supported_entity: AU_MEDICARE
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_au_medicare
+    patterns:
+      - name: medicare_grouped
+        regex: '\b\d{4}\s?\d{5}\s?\d\b'
+        score: 0.85
+    context:
+      - "medicare"
+      - "australia"
+      - "health"
+      - "patient"
+      - "card"
+    validators:
+      - validate_au_medicare
+
+  # ============================================================================
+  # AU_TFN - Australian Tax File Number
+  # ============================================================================
+  - name: AU_TFN_NUMBER
+    supported_language: en
+    supported_entity: AU_TFN
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_au_tfn
+    patterns:
+      - name: tfn_grouped
+        regex: '\b\d{3}\s?\d{3}\s?\d{3}\b'
+        score: 0.80
+    context:
+      - "tfn"
+      - "tax file"
+      - "ato"
+      - "australian taxation"
+      - "tax"
+    validators:
+      - validate_au_tfn
+
+  # ============================================================================
+  # IP_ADDRESS - IPv4 and IPv6 detection
+  # ============================================================================
+  - name: IP_ADDRESS_ENHANCED
+    supported_language: en
+    supported_entity: IP_ADDRESS
+    patterns:
+      - name: ipv4_standard
+        regex: '\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b'
+        score: 0.85
+
+      - name: ipv6_standard
+        regex: '\b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b'
+        score: 0.80
+    context:
+      - "ip"
+      - "address"
+      - "server"
+      - "host"
+      - "network"
+      - "dns"
+    validators: []
+
+  # ============================================================================
+  # URL - HTTP/HTTPS URLs
+  # ============================================================================
+  - name: URL_ENHANCED
+    supported_language: en
+    supported_entity: URL
+    patterns:
+      - name: url_http
+        regex: '\bhttps?:\/\/[^\s<>()]+\b'
+        score: 0.85
+
+      - name: url_www
+        regex: '\bwww\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:\/[^\s]*)?\b'
+        score: 0.75
+    context:
+      - "url"
+      - "link"
+      - "http"
+      - "https"
+      - "website"
+      - "web"
+    validators: []
+
+  # ============================================================================
+  # US_DRIVER_LICENSE - Simplified pattern (state-specific formats vary)
+  # ============================================================================
+  - name: US_DRIVER_LICENSE_SIMPLE
+    supported_language: en
+    supported_entity: US_DRIVER_LICENSE
+    patterns:
+      - name: driver_license_generic
+        regex: '\b[A-Z0-9]{1,2}\d{6,8}\b'
+        score: 0.70
+    context:
+      - "driver"
+      - "license"
+      - "dl"
+      - "dmv"
+      - "driving"
+    validators: []
+
+  # ============================================================================
+  # PASSPORT - Generic passport number
+  # ============================================================================
+  - name: PASSPORT_GENERIC
+    supported_language: en
+    supported_entity: PASSPORT
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_us_passport
+    patterns:
+      - name: passport_general
+        regex: '\b[A-Z][0-9]{7}\b'
+        score: 0.75
+    context:
+      - "passport"
+      - "travel"
+      - "identity"
+      - "government"
+    validators:
+      - validate_us_passport
+
+  # ============================================================================
+  # DATE_TIME - ISO date formats (used for DOB detection)
+  # ============================================================================
+  - name: DATE_TIME_ISO
+    supported_language: en
+    supported_entity: DATE_TIME
+    patterns:
+      - name: date_iso
+        regex: '\b\d{4}-\d{2}-\d{2}\b'
+        score: 0.70
+
+      - name: date_eu
+        regex: '\b\d{2}[\/.]\d{2}[\/.]\d{4}\b'
+        score: 0.65
+    context:
+      - "dob"
+      - "date of birth"
+      - "birth"
+      - "urodzenia"
+      - "data"
+      - "deadline"
+    validators: []
 
 # ============================================================================
 # Configuration Notes

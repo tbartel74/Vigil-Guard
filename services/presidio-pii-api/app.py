@@ -17,6 +17,11 @@ from flask import Flask, request, jsonify
 from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_analyzer.context_aware_enhancers import LemmaContextAwareEnhancer
+from presidio_analyzer.recognizer_registry import RecognizerRegistry
+try:
+    from presidio_analyzer.predefined_recognizers.spacy_recognizer import SpacyRecognizer
+except ImportError:
+    SpacyRecognizer = None  # type: ignore[misc,assignment]
 import time
 import logging
 import yaml
@@ -24,8 +29,26 @@ import os
 from typing import List, Dict, Any, Optional
 
 # Import custom validators
-from validators.polish import checksum_nip, checksum_regon, checksum_pesel
+from validators.polish import (
+    checksum_nip,
+    checksum_regon,
+    checksum_pesel,
+    validate_nip,
+    validate_regon,
+    validate_pesel,
+    ValidatedPatternRecognizer,
+)
 from validators.credit_card import validate_credit_card
+from validators.international import (
+    validate_us_ssn,
+    validate_uk_nhs,
+    validate_ca_sin,
+    validate_au_medicare,
+    validate_au_tfn,
+    validate_uk_nino,
+    validate_iban,
+    validate_us_passport,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +65,7 @@ analyzer_engine = None
 analyzer = None  # Backward compatibility alias for tests
 current_mode = "balanced"  # Default mode
 current_context_enabled = True  # Track context enhancement state
+startup_error = None  # Track initialization failures
 
 # ============================================================================
 # DETECTION MODES - Based on Microsoft/NVIDIA Best Practices
@@ -190,6 +214,23 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             'checksum_regon': checksum_regon,
             'checksum_pesel': checksum_pesel,
             'validate_credit_card': validate_credit_card,
+            'validate_nip': validate_nip,
+            'validate_regon': validate_regon,
+            'validate_pesel': validate_pesel,
+            'validate_us_ssn': validate_us_ssn,
+            'validate_uk_nhs': validate_uk_nhs,
+            'validate_ca_sin': validate_ca_sin,
+            'validate_au_medicare': validate_au_medicare,
+            'validate_au_tfn': validate_au_tfn,
+            'validate_uk_nino': validate_uk_nino,
+            'validate_iban': validate_iban,
+            'validate_us_passport': validate_us_passport,
+            'checksum_us_ssn': validate_us_ssn,
+            'checksum_uk_nhs': validate_uk_nhs,
+            'checksum_ca_sin': validate_ca_sin,
+            'checksum_au_medicare': validate_au_medicare,
+            'checksum_au_tfn': validate_au_tfn,
+            'checksum_iban': validate_iban,
         }
 
         for rec_config in config['recognizers']:
@@ -228,24 +269,53 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
                 )
                 patterns.append(pattern)
 
-            # Create PatternRecognizer
-            recognizer = PatternRecognizer(
-                supported_entity=supported_entity,
-                name=name,
-                supported_language=supported_language,
-                patterns=patterns,
-                context=context if context else None,
-                deny_list=None
-            )
+            # v1.7.5: Check if recognizer should use ValidatedPatternRecognizer
+            validator_class = rec_config.get('validator_class')
+            validator_func_name = rec_config.get('validator_func')
 
-            # Store validator mapping for post-processing
+            if validator_class == 'ValidatedPatternRecognizer' and validator_func_name:
+                # Use ValidatedPatternRecognizer for checksum validation DURING matching
+                validator_func = validator_map.get(validator_func_name)
+                if validator_func:
+                    recognizer = ValidatedPatternRecognizer(
+                        supported_entity=supported_entity,
+                        name=name,
+                        supported_language=supported_language,
+                        patterns=patterns,
+                        context=context if context else None,
+                        deny_list=None,
+                        validator_func=validator_func
+                    )
+                    logger.info(f"  ⚡ ValidatedPatternRecognizer with '{validator_func_name}' for {name}")
+                else:
+                    logger.warning(f"Validator '{validator_func_name}' not found, using standard PatternRecognizer")
+                    recognizer = PatternRecognizer(
+                        supported_entity=supported_entity,
+                        name=name,
+                        supported_language=supported_language,
+                        patterns=patterns,
+                        context=context if context else None,
+                        deny_list=None
+                    )
+            else:
+                # Standard PatternRecognizer for entities without checksum validation
+                recognizer = PatternRecognizer(
+                    supported_entity=supported_entity,
+                    name=name,
+                    supported_language=supported_language,
+                    patterns=patterns,
+                    context=context if context else None,
+                    deny_list=None
+                )
+
+            # KEEP post-processing validator for backward compatibility and threshold filtering
             validator_names = rec_config.get('validators', [])
             if validator_names:
                 validator_name = validator_names[0]
                 validator_func = validator_map.get(validator_name)
                 if validator_func:
                     recognizer._custom_validator = validator_func
-                    logger.info(f"  ⚡ Validator '{validator_name}' attached to {name}")
+                    logger.info(f"  ✅ Post-processing validator '{validator_name}' attached to {name}")
                 else:
                     logger.warning(f"Validator '{validator_name}' not found for recognizer '{name}'")
 
@@ -267,7 +337,7 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
 
 def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"], enable_context: bool = True):
     """Initialize Presidio analyzer with specified mode and context enhancement setting"""
-    global analyzer_engine, current_mode, current_context_enabled
+    global analyzer_engine, current_mode, current_context_enabled, startup_error
 
     # Validate mode BEFORE proceeding - raise error instead of silent fallback
     if mode not in DETECTION_MODES:
@@ -310,10 +380,13 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     else:
         logger.info("⚠️ Context-aware enhancer disabled (NER base scores only)")
 
-    # Initialize analyzer
+    # Initialize analyzer with standard registry
+    # Built-in recognizers will be cleared before loading custom ones
+    registry = RecognizerRegistry()
     analyzer_engine = AnalyzerEngine(
         nlp_engine=nlp_engine,
-        context_aware_enhancer=context_enhancer  # Can be None
+        context_aware_enhancer=context_enhancer,  # Can be None
+        registry=registry
     )
 
     # Update backward compatibility alias for tests
@@ -328,11 +401,68 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     )
 
     if os.path.exists(recognizers_yaml_path):
+        global loaded_recognizers
         custom_recognizers = load_custom_recognizers(recognizers_yaml_path)
 
-        # Add custom recognizers to analyzer registry
-        global loaded_recognizers
+        # CRITICAL: Clear built-in recognizers BEFORE adding custom ones
+        # Built-ins don't have checksum validation, causing false positives
+        recognizer_count_before = len(analyzer_engine.registry.recognizers)
+        analyzer_engine.registry.recognizers = []  # Clear all
+        logger.info(f"🚫 Cleared {recognizer_count_before} built-in recognizers")
+
+        # Reset list and add custom recognizers to analyzer registry
         loaded_recognizers = []
+
+        if SpacyRecognizer:
+            try:
+                spacy_en = SpacyRecognizer(
+                    supported_language="en",
+                    supported_entities=["PERSON", "LOCATION", "ORG"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_en)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_EN',
+                    'entity': 'PERSON/LOCATION/ORG',
+                    'language': 'en'
+                })
+                logger.info("✅ Added spaCy recognizer for EN")
+            except Exception as exc:
+                logger.warning(f"Failed to initialize spaCy EN recognizer: {exc}")
+
+            try:
+                spacy_pl = SpacyRecognizer(
+                    supported_language="pl",
+                    supported_entities=["PERSON", "LOCATION"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_pl)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_PL',
+                    'entity': 'PERSON/LOCATION',
+                    'language': 'pl'
+                })
+                logger.info("✅ Added spaCy recognizer for PL")
+            except Exception as exc:
+                logger.warning(f"Failed to initialize spaCy PL recognizer: {exc}")
+
+        english_person_recognizer = PatternRecognizer(
+            supported_entity='PERSON',
+            supported_language='en',
+            patterns=[
+                Pattern(
+                    name='english_full_name',
+                    regex=r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b',
+                    score=0.45
+                )
+            ],
+            context=['name', 'contact', 'person', 'mr', 'mrs', 'ms']
+        )
+        analyzer_engine.registry.add_recognizer(english_person_recognizer)
+        loaded_recognizers.append({
+            'name': 'PERSON_EN_FALLBACK',
+            'entity': 'PERSON',
+            'language': 'en'
+        })
+
         for recognizer in custom_recognizers:
             analyzer_engine.registry.add_recognizer(recognizer)
             loaded_recognizers.append({
@@ -347,6 +477,7 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
     current_mode = mode
     current_context_enabled = enable_context  # FIX: Track context state
+    startup_error = None
     logger.info(f"✅ Presidio Analyzer initialized in '{mode}' mode")
 
 
@@ -360,24 +491,33 @@ logger.info(f"🚀 Starting Presidio with mode={startup_mode}, context={startup_
 try:
     initialize_analyzer(mode=startup_mode, enable_context=startup_context)
 except Exception as e:
+    startup_error = str(e)
     logger.error(f"❌ Failed to initialize Presidio Analyzer: {e}")
-    raise
+    logger.warning("⚠️ Presidio is running in DEGRADED mode (health endpoint will report degraded status).")
 
 
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint with service info"""
-    return jsonify({
+    mode_meta = DETECTION_MODES.get(current_mode, {})
+    payload = {
         'status': 'healthy',
         'version': '1.6.11',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
-        'mode_description': DETECTION_MODES[current_mode]['description'],
+        'mode_description': mode_meta.get('description', 'Unavailable'),
         'spacy_models': ['en_core_web_sm', 'pl_core_news_sm'],
         'custom_recognizers': loaded_recognizers,
         'recognizers_loaded': len(loaded_recognizers),
         'offline_capable': True
-    }), 200
+    }
+
+    if startup_error or analyzer_engine is None:
+        payload['status'] = 'degraded'
+        payload['error'] = startup_error or 'Analyzer not initialized'
+        return jsonify(payload), 503
+
+    return jsonify(payload), 200
 
 
 @app.route('/config', methods=['GET', 'POST'])
@@ -504,10 +644,19 @@ def analyze():
         language = data.get('language', 'pl')
         entities = data.get('entities')
         return_decision_process = data.get('return_decision_process', False)
+        return_rejected = data.get('return_rejected', False)  # NEW: Return rejected entities
 
         if language not in ['pl', 'en']:
             logger.warning(f"Unsupported language '{language}', falling back to 'pl'")
             language = 'pl'
+
+        if analyzer_engine is None:
+            logger.error("Analyzer unavailable - degraded mode active")
+            return jsonify({
+                'error': 'ANALYZER_UNAVAILABLE',
+                'message': startup_error or 'Analyzer not initialized',
+                'status': 'degraded'
+            }), 503
 
         # Get thresholds for current mode
         mode_config = DETECTION_MODES[current_mode]
@@ -525,22 +674,33 @@ def analyze():
 
         # Post-process: Apply custom validators and per-entity thresholds
         validated_results = []
+        rejected_results = []  # NEW: Track rejected entities
+        logger.info(f"🔍 Post-processing {len(results)} results...")
         for result in results:
             matched_text = text[result.start:result.end]
             should_keep = True
+            rejection_reason = None
 
             # Check custom validator (checksum validation)
+            validator_found = False
             for recognizer in analyzer_engine.registry.recognizers:
+                logger.debug(f"Checking recognizer: {recognizer.name}, entities: {recognizer.supported_entities}, has_validator: {hasattr(recognizer, '_custom_validator')}")
                 if (hasattr(recognizer, 'supported_entities') and
                     result.entity_type in recognizer.supported_entities and
                     hasattr(recognizer, '_custom_validator')):
+                    validator_found = True
                     validator_func = recognizer._custom_validator
+                    logger.info(f"🔎 Running validator for {result.entity_type}: {matched_text}")
                     if not validator_func(matched_text):
                         should_keep = False
-                        logger.debug(f"❌ Invalid checksum {result.entity_type}: {matched_text}")
+                        rejection_reason = "invalid_checksum"
+                        logger.warning(f"❌ REJECTED - Invalid checksum {result.entity_type}: {matched_text}")
                         break
                     else:
-                        logger.debug(f"✅ Validated {result.entity_type}: {matched_text}")
+                        logger.info(f"✅ ACCEPTED - Valid checksum {result.entity_type}: {matched_text}")
+
+            if not validator_found:
+                logger.debug(f"ℹ️  No validator for {result.entity_type}: {matched_text}")
 
             # Check per-entity threshold
             if should_keep:
@@ -553,10 +713,22 @@ def analyze():
                         f"(score: {result.score:.2f} >= {entity_threshold:.2f})"
                     )
                 else:
+                    should_keep = False
+                    rejection_reason = "low_score"
                     logger.debug(
                         f"Rejected: {result.entity_type} "
                         f"(score: {result.score:.2f} < {entity_threshold:.2f})"
                     )
+
+            # Track rejected entities if requested
+            if not should_keep and return_rejected:
+                rejected_results.append({
+                    'type': result.entity_type,
+                    'start': result.start,
+                    'end': result.end,
+                    'text': matched_text,
+                    'reason': rejection_reason
+                })
 
         # Convert results to dict format
         entities_found = []
@@ -642,6 +814,11 @@ def analyze():
 
         if entities is not None:
             response['entities_requested'] = entities
+
+        # Include rejected entities if requested
+        if return_rejected and rejected_results:
+            response['rejected_entities'] = rejected_results
+            logger.info(f"📋 Returning {len(rejected_results)} rejected entities")
 
         return jsonify(response), 200
 

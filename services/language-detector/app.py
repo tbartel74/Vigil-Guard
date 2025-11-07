@@ -69,12 +69,74 @@ def detect_language_hybrid(text, detailed=False):
 
     # Polish-specific signals
     polish_keywords = [
-        'pesel', 'nip', 'regon', 'karta', 'kredytowa', 'kredytowej',
-        'dowód', 'dowod', 'osobisty', 'podatku', 'jest', 'jeszcze'
+        'pesel', 'nip', 'regon', 'karta', 'karty', 'kredytowa', 'kredytowej',
+        'dowód', 'dowod', 'osobisty', 'podatku', 'jest', 'jeszcze',
+        'moja', 'moją', 'moje', 'mojej', 'mój', 'moj', 'adres', 'email',
+        'konto', 'numer', 'nr', 'moj email', 'moja karta'
     ]
 
+    code_indicators = [
+        'const ', 'let ', 'var ', 'function ', 'class ', 'return ', '=>',
+        '{', '}', ';', '<', '>', 'javascript', 'typescript', 'console.log'
+    ]
+
+    english_single_word = {'hello', 'hi', 'thanks', 'please', 'email', 'test', 'contact'}
+    polish_function_words = {
+        'to', 'jest', 'czy', 'dla', 'moja', 'moje', 'moja', 'mam', 'masz',
+        'prosze', 'proszę', 'dzieki', 'dziękuję', 'jeszcze', 'moją', 'mojej'
+    }
+    english_question_words = {
+        'is', 'are', 'can', 'should', 'would', 'what', 'why',
+        'how', 'do', 'does', 'will', 'could'
+    }
+
     text_lower = text.lower()
+    tokens = re.findall(r"[a-ząćęłńóśźż]+", text_lower)
+    word_count = len(tokens)
+    english_question_hits = sum(1 for token in tokens if token in english_question_words)
+    has_question_mark = '?' in text
     polish_score = sum(1 for kw in polish_keywords if kw in text_lower)
+
+    # Treat obvious code snippets as English
+    if any(indicator in text_lower for indicator in code_indicators):
+        return {
+            'language': 'en',
+            'confidence': 0.95,
+            'method': 'code_heuristic'
+        }
+
+    # Single-word overrides (frequent English tokens)
+    if len(text_lower.split()) == 1 and text_lower in english_single_word:
+        return {
+            'language': 'en',
+            'confidence': 0.9,
+            'method': 'single_word_override'
+        }
+
+    if has_question_mark and english_question_hits >= 1 and word_count <= 10:
+        return {
+            'language': 'en',
+            'confidence': 0.91,
+            'method': 'question_override'
+        }
+
+    if 0 < word_count <= 4:
+        polish_hits = sum(1 for token in tokens if token in polish_function_words)
+        english_hits = english_question_hits
+
+        if polish_hits >= 2 or (polish_hits >= 1 and 'jest' in tokens):
+            return {
+                'language': 'pl',
+                'confidence': 0.92,
+                'method': 'short_text_polish'
+            }
+
+        if english_hits >= 1 and (has_question_mark or word_count <= 3):
+            return {
+                'language': 'en',
+                'confidence': 0.9,
+                'method': 'short_text_english'
+            }
 
     # PESEL pattern (11 digits) = strong signal
     if re.search(r'\b\d{11}\b', text):
@@ -228,13 +290,14 @@ def detect_language():
     except LangDetectException as e:
         logger.error(f"Language detection failed: {e}", exc_info=True)
         return jsonify({
-            'error': 'LANG_DETECTION_FAILED',
+            'error': 'LANG_DETECTION_UNAVAILABLE',
             'error_id': 'LANG_001',
             'message': f'Language detection library error: {str(e)}',
+            'service_error': True,
             'fallback_applied': True,
-            'fallback_language': 'en',
-            'warning': 'Results may be inaccurate - manual review recommended'
-        }), 500  # Return error status to alert workflow
+            'fallback_language': 'pl',
+            'recommended_action': 'Use default language for dual-language detection'
+        }), 503  # Service unavailable signals workflow to fail-secure
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

@@ -102,6 +102,8 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
           timestamp,
           original_input,
           normalized_input,
+          chat_input,
+          result,
           final_status,
           final_action,
           threat_score,

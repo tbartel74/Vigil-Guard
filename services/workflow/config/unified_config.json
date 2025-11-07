@@ -113,7 +113,16 @@
       "CREDIT_CARD",
       "IBAN_CODE",
       "IP_ADDRESS",
-      "URL"
+      "URL",
+      "US_SSN",
+      "UK_NHS",
+      "UK_NINO",
+      "CA_SIN",
+      "AU_MEDICARE",
+      "AU_TFN",
+      "US_DRIVER_LICENSE",
+      "PASSPORT",
+      "DATE_TIME"
     ],
     "languages": [
       "pl",
@@ -145,7 +154,19 @@
       "NIP_BARE": "[NIP]",
       "REGON_HINTED": "[REGON]",
       "REGON_BARE": "[REGON]",
-      "PL_PHONE_NUMBER": "[PHONE]"
+      "PL_PHONE_NUMBER": "[PHONE]",
+      "US_SSN": "[PERSON]",
+      "UK_NHS": "[PERSON]",
+      "UK_NINO": "[PERSON]",
+      "CA_SIN": "[PERSON]",
+      "AU_MEDICARE": "[PERSON]",
+      "AU_TFN": "[PERSON]",
+      "US_DRIVER_LICENSE": "[PERSON]",
+      "PASSPORT": "[PERSON]",
+      "DATE_TIME": "[PERSON]",
+      "LOCATION": "[PERSON]",
+      "US_PASSPORT": "[PERSON]",
+      "ADDRESS": "[PERSON]"
     },
     "fallback_to_regex": true,
     "context_enhancement": true,

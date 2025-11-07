@@ -15,7 +15,7 @@
       },
       {
         "name": "REGON_9_digits",
-        "text": "REGON firmy: 123-456-789",
+        "text": "REGON firmy: 192-598-184",
         "expected_entities": ["PL_REGON"],
         "note": "9-digit REGON with dashes"
       },
@@ -59,7 +59,7 @@
       },
       {
         "name": "Credit_card_Visa",
-        "text": "Card: 4532-1234-5678-9010",
+        "text": "Card: 4532-1234-5678-9113",
         "expected_entities": ["CREDIT_CARD"],
         "note": "Visa card format with dashes"
       },

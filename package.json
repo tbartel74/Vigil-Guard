@@ -40,7 +40,8 @@
     "docker:build": "docker-compose build",
     "docker:pull": "docker-compose pull",
     "backup": "./scripts/backup.sh",
-    "restore": "./scripts/restore.sh"
+    "restore": "./scripts/restore.sh",
+    "orchestrate": "node ./bin/vg-orchestrate"
   },
   "repository": {
     "type": "git",

@@ -13,7 +13,7 @@ services:
   # MONITORING STACK (Start first)
   # ============================================
   clickhouse:
-    image: clickhouse/clickhouse-server:24.1@sha256:44caeed7c81f7934c28a8ffa3a422a4ca96cf3bccc486d21311e5133ce88d49f
+    image: clickhouse/clickhouse-server:25.10.1@sha256:24fdba661a4414a67cdfa323807fa57d9c62ab0e815b1d1a4d443caf49092f24
     container_name: vigil-clickhouse
     ports:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
@@ -28,10 +28,10 @@ services:
     volumes:
       - ./vigil_data/clickhouse:/var/lib/clickhouse
       - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
-      - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/02-create-views.sql:ro
-      - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/03-false-positives.sql:ro
+      - ./services/monitoring/sql/06-add-audit-columns-v1.7.0.sql:/docker-entrypoint-initdb.d/02-add-audit-columns-v1.7.0.sql:ro
+      - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/03-create-views.sql:ro
+      - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/04-false-positives.sql:ro
       - ./services/monitoring/sql/05-retention-config.sql:/docker-entrypoint-initdb.d/05-retention-config.sql:ro
-      - ./services/monitoring/sql/06-add-audit-columns-v1.7.0.sql:/docker-entrypoint-initdb.d/06-add-audit-columns-v1.7.0.sql:ro
     networks:
       vigil-net:
         aliases:
@@ -44,7 +44,7 @@ services:
       retries: 3
 
   grafana:
-    image: grafana/grafana:11.4.0@sha256:d8ea37798ccc41061a62ab080f2676dda6bf7815558499f901bdb0f533a456fb
+    image: grafana/grafana:12.2.1@sha256:35c41e0fd0295f5d0ee5db7e780cf33506abfaf47686196f825364889dee878b
     container_name: vigil-grafana
     user: "${GRAFANA_UID:-472}:${GRAFANA_GID:-472}"  # Default Grafana user, override in .env for macOS
     environment:
@@ -83,7 +83,7 @@ services:
   # WORKFLOW ENGINE
   # ============================================
   n8n:
-    image: n8nio/n8n:1.72.0@sha256:f0182719d8b29884a7705b67435c555d63ae88af35ad876ff4ed5710204797f6
+    image: n8nio/n8n:1.118.2@sha256:a17dbca282c95d2aa5021f0860ca136c1bda529daaa37dbece117c029d65ca39
     container_name: vigil-n8n
     user: "node"
     working_dir: /home/node

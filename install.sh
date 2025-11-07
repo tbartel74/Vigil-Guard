@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=12
+TOTAL_STEPS=13
 CURRENT_STEP=0
 
 print_header() {
@@ -92,7 +92,7 @@ check_existing_installation() {
         return 0
     else
         # Return 1 = fresh installation (no existing state, normal install proceeds)
-        return 1
+        exit 1
     fi
 }
 
@@ -835,7 +835,7 @@ initialize_clickhouse() {
     if [ $MISSING_FILES -gt 0 ]; then
         log_error "$MISSING_FILES SQL file(s) missing - cannot proceed"
         log_info "Ensure you have the complete v1.7.0 repository"
-        return 1
+        exit 1
     fi
     log_success "All SQL migration files present"
     echo ""
@@ -892,7 +892,7 @@ initialize_clickhouse() {
             log_info "  4. Verify authentication:"
             log_info "     curl -u ${CLICKHOUSE_USER}:PASSWORD http://localhost:${CLICKHOUSE_HTTP_PORT}/ping"
             echo ""
-            return 1
+            exit 1
         fi
     done
 
@@ -930,84 +930,15 @@ EOF
         log_info "     - Insufficient permissions"
         log_info "  3. Verify database: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW DATABASES'"
         echo ""
-        return 1
+        exit 1
     fi
 
-    # Execute views creation script
-    log_info "Creating views..."
-    VIEW_OUTPUT=$(cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    VIEW_STATUS=$?
-
-    if [ $VIEW_STATUS -eq 0 ]; then
-        log_success "Views created"
-    else
-        log_error "Failed to create views"
-        log_error "ClickHouse error output:"
-        echo "$VIEW_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/02-create-views.sql"
-        log_info "  2. Common issues:"
-        log_info "     - View already exists (drop first with: DROP VIEW IF EXISTS ...)"
-        log_info "     - Referenced tables do not exist (check previous step)"
-        log_info "     - Syntax errors in view definition"
-        log_info "  3. Check existing views: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-        echo ""
-        return 1
-    fi
-
-    # Execute false positive reports schema
-    log_info "Creating false positive reports table..."
-    FP_OUTPUT=$(cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    FP_STATUS=$?
-
-    if [ $FP_STATUS -eq 0 ]; then
-        log_success "False positive reports table created"
-    else
-        log_error "Failed to create false positive reports table"
-        log_error "ClickHouse error output:"
-        echo "$FP_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/03-false-positives.sql"
-        log_info "  2. Common issues:"
-        log_info "     - Table/view already exists (drop first with: DROP TABLE/VIEW IF EXISTS ...)"
-        log_info "     - Syntax errors in SQL"
-        log_info "     - Database does not exist"
-        log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-        echo ""
-        return 1
-    fi
-
-    # Execute retention config schema
-    log_info "Creating retention config table..."
-    RETENTION_OUTPUT=$(cat services/monitoring/sql/05-retention-config.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    RETENTION_STATUS=$?
-
-    if [ $RETENTION_STATUS -eq 0 ]; then
-        log_success "Retention config table created"
-    else
-        log_error "Failed to create retention config table"
-        log_error "ClickHouse error output:"
-        echo "$RETENTION_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/05-retention-config.sql"
-        log_info "  2. Common issues:"
-        log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
-        log_info "     - Syntax errors in SQL"
-        log_info "     - Database does not exist"
-        log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-        echo ""
-        return 1
-    fi
-
-    # Execute v1.7.0 audit columns migration
+    # Execute v1.7.0 audit columns migration FIRST (before views that reference these columns)
     SQL_FILE="services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
     if [ ! -f "$SQL_FILE" ]; then
         log_error "SQL migration file not found: $SQL_FILE"
         log_info "This file is required for v1.7.0 audit columns (PII classification + browser fingerprinting)"
-        return 1
+        exit 1
     fi
 
     log_info "Adding v1.7.0 audit columns (PII classification + browser fingerprinting)..."
@@ -1027,9 +958,118 @@ EOF
         log_info "     - Columns already exist (migration idempotent with IF NOT EXISTS)"
         log_info "     - Syntax errors in ALTER TABLE statements"
         log_info "     - Target table does not exist"
-        log_info "  3. Verify columns: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'DESCRIBE TABLE ${CLICKHOUSE_DB}.events_processed'"
         echo ""
-        return 1
+        exit 1
+    fi
+
+    # Check if views already exist (created by Docker entrypoint)
+    log_info "Checking views..."
+    VIEW_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SELECT COUNT(*) FROM system.tables WHERE database = '${CLICKHOUSE_DB}' AND name LIKE 'v_%'" 2>/dev/null | tr -d ' ')
+
+    if [ "$VIEW_COUNT" -ge 2 ]; then
+        log_info "Views already created (Docker entrypoint initialized them)"
+        log_info "Verifying view schema compatibility..."
+        VIEW_SCHEMA=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW CREATE VIEW ${CLICKHOUSE_DB}.v_grafana_prompts_table" 2>&1)
+        VIEW_SCHEMA_STATUS=$?
+
+        if [ $VIEW_SCHEMA_STATUS -ne 0 ]; then
+            log_warning "Unable to read existing view definition (status $VIEW_SCHEMA_STATUS). Recreating views..."
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_grafana_prompts_table" >/dev/null 2>&1 || true
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_malice_index_timeseries" >/dev/null 2>&1 || true
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.events_summary_realtime" >/dev/null 2>&1 || true
+            VIEW_COUNT=0
+        elif echo "$VIEW_SCHEMA" | grep -q "pii_sanitized"; then
+            log_success "Existing views are compatible with v1.7.0 schema"
+        else
+            log_warning "Existing views are outdated (missing v1.7.0 audit columns). Recreating..."
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_grafana_prompts_table" >/dev/null 2>&1 || true
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_malice_index_timeseries" >/dev/null 2>&1 || true
+            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.events_summary_realtime" >/dev/null 2>&1 || true
+            VIEW_COUNT=0
+        fi
+    else
+        log_info "Creating views..."
+        VIEW_OUTPUT=$(cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+        VIEW_STATUS=$?
+
+        if [ $VIEW_STATUS -eq 0 ]; then
+            log_success "Views created"
+        else
+            log_error "Failed to create views"
+            log_error "ClickHouse error output:"
+            echo "$VIEW_OUTPUT" | sed 's/^/    /'
+            echo ""
+            log_info "Troubleshooting:"
+            log_info "  1. Check SQL file: services/monitoring/sql/02-create-views.sql"
+            log_info "  2. Common issues:"
+            log_info "     - View already exists (drop first with: DROP VIEW IF EXISTS ...)"
+            log_info "     - Referenced tables do not exist (check previous step)"
+            log_info "     - Syntax errors in view definition"
+            log_info "  3. Check existing views: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+            echo ""
+            exit 1
+        fi
+    fi
+
+    # Check if false positive reports table exists
+    log_info "Checking false positive reports table..."
+    FP_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "EXISTS TABLE false_positive_reports" 2>/dev/null | tr -d ' ')
+
+    if [ "$FP_EXISTS" = "1" ]; then
+        log_success "False positive reports table already exists (Docker entrypoint initialized it)"
+    else
+        log_info "Creating false positive reports table..."
+        FP_OUTPUT=$(cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+        FP_STATUS=$?
+
+        if [ $FP_STATUS -eq 0 ]; then
+            log_success "False positive reports table created"
+        else
+            log_error "Failed to create false positive reports table"
+            log_error "ClickHouse error output:"
+            echo "$FP_OUTPUT" | sed 's/^/    /'
+            echo ""
+            log_info "Troubleshooting:"
+            log_info "  1. Check SQL file: services/monitoring/sql/03-false-positives.sql"
+            log_info "  2. Common issues:"
+            log_info "     - Table/view already exists (drop first with: DROP TABLE/VIEW IF EXISTS ...)"
+            log_info "     - Syntax errors in SQL"
+            log_info "     - Database does not exist"
+            log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+            echo ""
+            exit 1
+        fi
+    fi
+
+    # Check if retention config table exists
+    log_info "Checking retention config table..."
+    RETENTION_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "EXISTS TABLE retention_config" 2>/dev/null | tr -d ' ')
+
+    if [ "$RETENTION_EXISTS" = "1" ]; then
+        log_success "Retention config table already exists (Docker entrypoint initialized it)"
+    else
+        log_info "Creating retention config table..."
+        RETENTION_OUTPUT=$(cat services/monitoring/sql/05-retention-config.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+        RETENTION_STATUS=$?
+
+        if [ $RETENTION_STATUS -eq 0 ]; then
+            log_success "Retention config table created"
+        else
+            log_error "Failed to create retention config table"
+            log_error "ClickHouse error output:"
+            echo "$RETENTION_OUTPUT" | sed 's/^/    /'
+            echo ""
+            log_info "Troubleshooting:"
+            log_info "  1. Check SQL file: services/monitoring/sql/05-retention-config.sql"
+            log_info "  2. Common issues:"
+            log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
+            log_info "     - Syntax errors in SQL"
+            log_info "     - Database does not exist"
+            log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
+            log_info "  4. Verify columns: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'DESCRIBE TABLE ${CLICKHOUSE_DB}.events_processed'"
+            echo ""
+            exit 1
+        fi
     fi
 
     # Verify installation
@@ -1365,19 +1405,19 @@ show_summary() {
     echo ""
     echo -e "  ${GREEN}Web UI:${NC}"
     echo -e "    Username: ${BLUE}admin${NC}"
-    echo -e "    Password: ${BLUE}${WEB_UI_ADMIN_PASSWORD}${NC} (from .env: WEB_UI_ADMIN_PASSWORD)"
+    echo -e "    Password: ${BLUE}${WEB_UI_ADMIN_PASSWORD:-[see .env file]}${NC} (from .env: WEB_UI_ADMIN_PASSWORD)"
     echo -e "    ${YELLOW}⚠️  System will force password change on first login${NC}"
     echo ""
     echo -e "  ${GREEN}Grafana:${NC}"
     echo -e "    Username: ${BLUE}admin${NC}"
-    echo -e "    Password: ${BLUE}${GF_SECURITY_ADMIN_PASSWORD}${NC} (from .env: GF_SECURITY_ADMIN_PASSWORD)"
+    echo -e "    Password: ${BLUE}${GF_SECURITY_ADMIN_PASSWORD:-[see .env file]}${NC} (from .env: GF_SECURITY_ADMIN_PASSWORD)"
     echo -e "    Datasource: ${GREEN}ClickHouse (auto-configured)${NC}"
     echo -e "    Dashboard: ${GREEN}Vigil (auto-imported)${NC}"
     echo ""
     echo -e "  ${GREEN}ClickHouse:${NC}"
-    echo -e "    Username: ${BLUE}${CLICKHOUSE_USER}${NC}"
-    echo -e "    Password: ${BLUE}${CLICKHOUSE_PASSWORD}${NC}"
-    echo -e "    Database: ${BLUE}${CLICKHOUSE_DB}${NC}"
+    echo -e "    Username: ${BLUE}${CLICKHOUSE_USER:-admin}${NC}"
+    echo -e "    Password: ${BLUE}${CLICKHOUSE_PASSWORD:-[see .env file]}${NC}"
+    echo -e "    Database: ${BLUE}${CLICKHOUSE_DB:-n8n_logs}${NC}"
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE${NC}"
