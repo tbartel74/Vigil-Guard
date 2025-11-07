@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "test": "echo \"No backend tests defined\"",
     "start": "node dist/server.js",
     "build": "tsc"
   },

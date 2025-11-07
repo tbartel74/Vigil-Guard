@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 5173",
+    "test": "echo \"No frontend tests defined\"",
     "dev:no-cache": "vite dev --port 5173 --force --clearScreen false",
     "no-cache": "./no-cache-dev.sh",
     "sync-docs": "node scripts/sync-docs.js",
