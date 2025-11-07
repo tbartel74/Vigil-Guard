@@ -65,6 +65,7 @@ analyzer_engine = None
 analyzer = None  # Backward compatibility alias for tests
 current_mode = "balanced"  # Default mode
 current_context_enabled = True  # Track context enhancement state
+startup_error = None  # Track initialization failures
 
 # ============================================================================
 # DETECTION MODES - Based on Microsoft/NVIDIA Best Practices
@@ -336,7 +337,7 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
 
 def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "en"], enable_context: bool = True):
     """Initialize Presidio analyzer with specified mode and context enhancement setting"""
-    global analyzer_engine, current_mode, current_context_enabled
+    global analyzer_engine, current_mode, current_context_enabled, startup_error
 
     # Validate mode BEFORE proceeding - raise error instead of silent fallback
     if mode not in DETECTION_MODES:
@@ -476,6 +477,7 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
     current_mode = mode
     current_context_enabled = enable_context  # FIX: Track context state
+    startup_error = None
     logger.info(f"✅ Presidio Analyzer initialized in '{mode}' mode")
 
 
@@ -489,24 +491,33 @@ logger.info(f"🚀 Starting Presidio with mode={startup_mode}, context={startup_
 try:
     initialize_analyzer(mode=startup_mode, enable_context=startup_context)
 except Exception as e:
+    startup_error = str(e)
     logger.error(f"❌ Failed to initialize Presidio Analyzer: {e}")
-    raise
+    logger.warning("⚠️ Presidio is running in DEGRADED mode (health endpoint will report degraded status).")
 
 
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint with service info"""
-    return jsonify({
+    mode_meta = DETECTION_MODES.get(current_mode, {})
+    payload = {
         'status': 'healthy',
         'version': '1.6.11',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
-        'mode_description': DETECTION_MODES[current_mode]['description'],
+        'mode_description': mode_meta.get('description', 'Unavailable'),
         'spacy_models': ['en_core_web_sm', 'pl_core_news_sm'],
         'custom_recognizers': loaded_recognizers,
         'recognizers_loaded': len(loaded_recognizers),
         'offline_capable': True
-    }), 200
+    }
+
+    if startup_error or analyzer_engine is None:
+        payload['status'] = 'degraded'
+        payload['error'] = startup_error or 'Analyzer not initialized'
+        return jsonify(payload), 503
+
+    return jsonify(payload), 200
 
 
 @app.route('/config', methods=['GET', 'POST'])
@@ -638,6 +649,14 @@ def analyze():
         if language not in ['pl', 'en']:
             logger.warning(f"Unsupported language '{language}', falling back to 'pl'")
             language = 'pl'
+
+        if analyzer_engine is None:
+            logger.error("Analyzer unavailable - degraded mode active")
+            return jsonify({
+                'error': 'ANALYZER_UNAVAILABLE',
+                'message': startup_error or 'Analyzer not initialized',
+                'status': 'degraded'
+            }), 503
 
         # Get thresholds for current mode
         mode_config = DETECTION_MODES[current_mode]

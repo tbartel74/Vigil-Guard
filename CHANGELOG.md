@@ -4,6 +4,30 @@ All notable changes to Vigil Guard will be documented in this file.
 
 ## [1.7.0] - 2025-11-01
 
+## [1.7.6] - 2025-11-07
+
+### Added
+- **Workflow v1.7.6** (`services/workflow/workflows/Vigil Guard v1.7.6.json`) with checksum-aware fallback logic driven entirely by `config/pii.conf`.
+- **International validators** (`services/presidio-pii-api/validators/international.py`) covering IBAN, US SSN/Passport, UK NHS/NINO, CA SIN, AU TFN/Medicare, plus spaCy PERSON recognizers for EN/PL.
+- **Documentation**: `docs/WORKFLOW_v1.7.6_NOTES.md` now houses the import/restart checklist; README/QUICKSTART/DOCKER all reference the new workflow and restart procedure.
+
+### Changed
+- **Presidio recognizers**: `services/presidio-pii-api/config/recognizers.yaml` updated with international patterns and phone formats; `app.py` registers validators + spaCy recognizers.
+- **Config files**: `services/workflow/config/pii.conf` and `config/unified_config.json` describe every fallback rule (target entity, validator, replacement) so the workflow stays data-driven.
+- **Docs**: README/QUICKSTART/DOCKER instructions point to `Vigil Guard v1.7.6.json`, explain how to rebuild Presidio/language-detector/n8n, and highlight the 63/63 passing PII suite.
+
+### Fixed
+- **PII Regression T-02**: International entity detection now passes `tests/e2e/pii-detection-comprehensive.test.js` (63/63). Credit-card normalization and URL/IBAN/UK/AU/CA cases are validated via Presidio first, then checksum-aware regex fallback.
+- **Documentation drift**: prior guides still referenced v1.7.0 exports and default credentials; they now align with the current install script and workflow release.
+
+### Upgrade Notes
+1. Import `services/workflow/workflows/Vigil Guard v1.7.6.json` in n8n.
+2. Restart detection components:
+   ```bash
+   docker compose up -d --build presidio-pii-api language-detector n8n
+   ```
+3. (Optional) Run `npm test -- pii-detection-comprehensive.test.js` from `services/workflow/` to confirm the international suite.
+
 ### Added - Data Integrity & Audit Trail
 
 #### Sanitization Integrity (CRITICAL Security Enhancement)

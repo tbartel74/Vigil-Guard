@@ -68,7 +68,7 @@ After installation completes, you **must** perform these manual steps:
 2. Click **"Add Workflow"** → **"Import from File"**
 3. Import the workflow file from:
    ```
-   services/workflow/workflows/Vigil-Guard-v1.7.0.json
+   services/workflow/workflows/Vigil Guard v1.7.6.json
    ```
 4. The workflow will load with all 40 nodes
 
@@ -84,6 +84,20 @@ After installation completes, you **must** perform these manual steps:
    - **Password**: [check `.env` file for `CLICKHOUSE_PASSWORD`]
 5. Click **"Save"**
 6. Activate the workflow by clicking the toggle switch
+
+#### Step 4: Reload Detection Services
+1. Rebuild Presidio and the language detector so the workflow picks up the new validators:
+   ```bash
+   docker compose up -d --build presidio-pii-api language-detector n8n
+   ```
+2. Verify `http://localhost:5001/health` and `http://localhost:5002/health` report **healthy**.
+
+#### Step 5: Sanity-Check PII Tests (optional)
+```bash
+cd services/workflow
+npm test -- pii-detection-comprehensive.test.js
+```
+You should see **63/63** tests passing for workflow v1.7.6.
 
 ✅ **Your workflow is now ready to process requests!**
 

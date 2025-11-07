@@ -18,7 +18,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 - 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 34 detection categories
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
-- 🔒 **PII Detection** - Dual-language Microsoft Presidio integration with 50+ entity types (v1.6.10)
+- 🔒 **PII Detection** - Dual-language Microsoft Presidio integration with 60+ entity types (v1.7.6)
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching
@@ -289,7 +289,8 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
+   - Import: `services/workflow/workflows/Vigil Guard v1.7.6.json`
+   - (Previous exports such as `Vigil-Guard-v1.7.0.json` remain for reference only.)
 
 3. **Configure ClickHouse Credentials**
    - Locate "Logging to ClickHouse" node in workflow
@@ -301,7 +302,29 @@ After installation completes, you **must** manually configure n8n:
      - Password: **[use the auto-generated password shown during install.sh]**
    - Save and activate workflow
 
+4. **Restart Detection Stack (PII Refresh)**
+   - Rebuild Presidio + language detector so the workflow sees the new validators:
+     ```bash
+     docker compose up -d --build presidio-pii-api language-detector n8n
+     ```
+   - Confirm health at `http://localhost:5001/health` (Presidio) and `http://localhost:5002/health` (language-detector).
+
+5. **Verify PII Tests (Optional but Recommended)**
+   - From `services/workflow/`, run:
+     ```bash
+     npm test -- pii-detection-comprehensive.test.js
+     ```
+   - Expect **63/63** passing for workflow v1.7.6.
+
 📖 **Detailed guide**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
+
+### ℹ️ PII Detection Stack (v1.7.6)
+
+- **Workflow export**: `services/workflow/workflows/Vigil Guard v1.7.6.json`
+- **Config-driven fallback**: `services/workflow/config/pii.conf` and `config/unified_config.json` now hold the rule metadata (no hard-coded tables in the workflow).
+- **Presidio validators**: `services/presidio-pii-api/validators/*` define checksum logic for IBAN, US SSN/Passport, UK NHS/NINO, AU TFN/Medicare, CA SIN, etc.
+- **Docs**: `docs/WORKFLOW_v1.7.6_NOTES.md` describes the release plus import/restart checklist.
+- **Service restart**: Any time you edit the workflow or Presidio configs, run `docker compose up -d --build presidio-pii-api language-detector n8n` to ensure the changes are loaded.
 
 ### 🔒 Security: Automatic Password Generation
 
