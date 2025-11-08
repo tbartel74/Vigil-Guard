@@ -24,7 +24,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendAndVerify } from '../helpers/webhook.js';
+import { sendAndVerify, parseJSONSafely } from '../helpers/webhook.js';
 import uncovered from '../fixtures/owasp-aitg-uncovered-categories.json';
 
 const { metadata } = uncovered;
@@ -447,24 +447,24 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
       const regexDetectionRate = (detectedCount / totalCount) * 100;
       const llmGuardDetectionRate = (llmGuardDetectedCount / totalCount) * 100;
 
-      console.log(`\n📊 UNCOVERED CATEGORIES Detection Summary:`);
+      console.log(`\n📊 OWASP CATEGORY COVERAGE SUMMARY:`);
       console.log(`   Total Payloads Tested: ${totalCount}`);
       console.log(`   Regex Detection Rate: ${regexDetectionRate.toFixed(2)}% (${detectedCount}/${totalCount})`);
       console.log(`   🤖 LLM Guard Detection Rate: ${llmGuardDetectionRate.toFixed(2)}% (${llmGuardDetectedCount}/${totalCount})`);
-      console.log(`   Coverage Gaps: ${totalCount - detectedCount}/${totalCount} payloads missed`);
+      console.log(`   Remaining Gaps: ${totalCount - detectedCount}/${totalCount}`);
 
-      console.log(`\n🎯 Priority Categories to Add:`);
-      console.log(`   1. CRITICAL: TRAINING_DATA_LEAKAGE (prevents data leaks)`);
-      console.log(`   2. HIGH: BIAS_FAIRNESS_VIOLATION (prevents discrimination)`);
-      console.log(`   3. HIGH: HARMFUL_MEDICAL_ADVICE (safety risk)`);
-      console.log(`   4. HIGH: EXCESSIVE_AGENCY_ATTEMPT (autonomous action risk)`);
-      console.log(`   5. HIGH: TOXICITY_GENERATION (abuse prevention)`);
-      console.log(`   6. HIGH: HIGH_STAKES_DOMAIN_MISUSE (legal liability)`);
-      console.log(`   7. MEDIUM: PII_EXTRACTION_ATTEMPT (privacy)`);
-      console.log(`   8. MEDIUM: MODEL_EXTRACTION_ATTEMPT (IP protection)\n`);
+      console.log(`\n🎯 Recently added categories protecting these payloads:`);
+      console.log(`   - TRAINING_DATA_LEAKAGE`);
+      console.log(`   - PII_EXTRACTION_ATTEMPT`);
+      console.log(`   - MODEL_EXTRACTION_ATTEMPT`);
+      console.log(`   - EXCESSIVE_AGENCY_ATTEMPT`);
+      console.log(`   - HARMFUL_MEDICAL_ADVICE`);
+      console.log(`   - HIGH_STAKES_DOMAIN_MISUSE`);
+      console.log(`   - TOXICITY_GENERATION`);
+      console.log(`   - BIAS_FAIRNESS_VIOLATION\n`);
 
-      // Assert that we identified coverage gaps (should be LOW detection rate)
-      expect(regexDetectionRate).toBeLessThan(50); // Most should be ALLOWED (gaps exist)
+      // Assert that regex coverage is now high (regress if it drops)
+      expect(regexDetectionRate).toBeGreaterThanOrEqual(90);
     }, 300000); // 5 minutes timeout
   });
 });
