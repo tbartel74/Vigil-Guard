@@ -19,7 +19,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendAndVerify } from '../helpers/webhook.js';
+import { sendAndVerify, parseJSONSafely } from '../helpers/webhook.js';
 import indirectInjection from '../fixtures/owasp-aitg-app-02.json';
 
 const { metadata } = indirectInjection;

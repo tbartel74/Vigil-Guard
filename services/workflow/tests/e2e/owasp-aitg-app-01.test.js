@@ -14,7 +14,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendAndVerify, assertDetection } from '../helpers/webhook.js';
+import { sendAndVerify, assertDetection, parseJSONSafely } from '../helpers/webhook.js';
 import systemPromptExtraction from '../fixtures/owasp-aitg-app-01.json';
 
 const { metadata } = systemPromptExtraction;

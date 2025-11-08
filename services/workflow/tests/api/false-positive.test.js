@@ -1,16 +1,25 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 const API_BASE = process.env.BACKEND_API_URL || 'http://localhost:8787/api';
+const ADMIN_PASSWORD =
+  process.env.WEBUI_ADMIN_PASSWORD ||
+  process.env.WEB_UI_ADMIN_PASSWORD ||
+  '';
+const SHOULD_SKIP =
+  !ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12 || process.env.SKIP_API_TESTS === 'true';
 let authToken = null;
 
 // Helper function to login and get JWT token
 async function login() {
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12) {
+    throw new Error('WEBUI_ADMIN_PASSWORD must be set (>=12 chars) to run API false-positive tests');
+  }
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username: 'admin',
-      password: process.env.WEBUI_ADMIN_PASSWORD || 'admin123'
+      password: ADMIN_PASSWORD
     })
   });
 
@@ -38,7 +47,15 @@ async function authenticatedFetch(url, options = {}) {
   });
 }
 
-describe('False Positive Reporting API', () => {
+const describeOrSkip = SHOULD_SKIP ? describe.skip : describe;
+
+if (SHOULD_SKIP) {
+  console.warn(
+    'Skipping API false-positive tests: set WEBUI_ADMIN_PASSWORD (>=12 chars) and BACKEND_API_URL to enable.'
+  );
+}
+
+describeOrSkip('False Positive Reporting API', () => {
   beforeAll(async () => {
     // Login once before all tests
     authToken = await login();
