@@ -656,11 +656,13 @@ ORDER BY timestamp DESC;
 | `snap.afterPII` | `after_pii_redaction` | String |
 | `nd.chat_payload.chatInput` | `chat_input` | String |
 | `nd.chat_payload.chatInput` | `result` | String (duplicate) |
-| `nd.scoring.sanitizer_score` | `threat_score` | Float64 |
+| `nd.scoring.threat_score` (max of Sanitizer & Prompt Guard) | `threat_score` | Float64 |
 | `nd.final_decision.status` | `final_status` | LowCardinality(String) |
 | `nd.sanitizer` | `sanitizer_json` | String (JSON blob) |
 | `nd.scoring` | `scoring_json` | String (JSON blob) |
 | `nd` | `raw_event` | String (full NDJSON) |
+
+> **Threat score calculation:** `nd.scoring.threat_score` is computed inside the workflow as `max(sanitizer_score, prompt_guard_score)`. This ensures ClickHouse/Grafana receive a single risk metric even when only Prompt Guard fires (sanitizer score stays `0` but threat score reflects the higher prompt-guard value).
 
 ### Workflow → Extension
 
@@ -668,7 +670,7 @@ ORDER BY timestamp DESC;
 |---------------|----------------|---------|
 | `nd.final_decision.status` | `action` | 'allow'/'sanitize'/'block' |
 | `nd.final_decision.status` | `reason` | Human-readable reason |
-| `nd.scoring.sanitizer_score` | `threat_score` | Numeric score 0-100 |
+| `nd.scoring.threat_score` (combined) | `threat_score` | Numeric score 0-100 |
 | `nd.sessionId` | `sessionId` | Session tracking |
 | `response.sanitizedBody` | `sanitizedBody` | Full ChatGPT API body (sanitized) |
 | `nd.chat_payload.chatInput` | `chatInput` | Fallback (flat string) |

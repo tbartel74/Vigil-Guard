@@ -375,7 +375,7 @@ Returns processed prompt entries for the Prompt Analyzer.
 - `timestamp`: Processing time (ISO 8601)
 - `input_raw`: Original prompt (truncated to 100 chars in list view)
 - `final_status`: Final decision (`ALLOWED`, `SANITIZED`, `BLOCKED`)
-- `threat_score`: Total Sanitizer score (0–100)
+- `threat_score`: Combined risk score (max of Sanitizer score and Prompt Guard score, 0–100)
 - `pg_score_percent`: Prompt Guard score (0–100)
 
 **Errors:**
@@ -422,6 +422,8 @@ Returns detailed information about a specific prompt and its analysis.
   "processing_time_ms": 145
 }
 ```
+
+> **Note:** `threat_score` exposed by list/detail endpoints is the maximum of the Sanitizer score and Prompt Guard score. This ensures that blocks enforced by Prompt Guard (even with zero Sanitizer score) still surface as high-risk events in the API/UI.
 
 **Response fields:**
 - `input_normalized`: Unicode-normalized text (NFKC, homoglyph mapping)

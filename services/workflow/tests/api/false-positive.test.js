@@ -1,48 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import {
+  authenticatedFetch,
+  expectUnauthorized,
+  getDescribeOrSkip
+} from '../helpers/auth.js';
 
 const API_BASE = process.env.BACKEND_API_URL || 'http://localhost:8787/api';
-let authToken = null;
+const describeOrSkip = getDescribeOrSkip();
 
-// Helper function to login and get JWT token
-async function login() {
-  const response = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: 'admin',
-      password: process.env.WEBUI_ADMIN_PASSWORD || 'admin123'
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`Login failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.token;
-}
-
-// Helper function to make authenticated requests
-async function authenticatedFetch(url, options = {}) {
-  if (!authToken) {
-    authToken = await login();
-  }
-
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${authToken}`,
-      'Content-Type': 'application/json'
-    }
-  });
-}
-
-describe('False Positive Reporting API', () => {
-  beforeAll(async () => {
-    // Login once before all tests
-    authToken = await login();
-  });
+describeOrSkip('False Positive Reporting API', () => {
 
   describe('POST /api/feedback/false-positive', () => {
     it('should submit a false positive report successfully', async () => {
@@ -79,13 +45,7 @@ describe('False Positive Reporting API', () => {
         comment: 'Test without auth'
       };
 
-      const response = await fetch(`${API_BASE}/feedback/false-positive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(report)
-      });
-
-      expect(response.status).toBe(401);
+      await expectUnauthorized('/feedback/false-positive', 'POST', report);
     });
 
     it('should reject report without required fields', async () => {
