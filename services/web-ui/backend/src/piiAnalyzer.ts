@@ -42,7 +42,7 @@ interface LanguageDetectionResult {
   is_service_error?: boolean;
 }
 
-/** Language Detection and Entity Statistics (workflow v1.7.0 format) */
+/** Language Detection and Entity Statistics (workflow v1.7.7 format) */
 interface LanguageStats {
   detected_language: string;
   primary_language: string;
@@ -222,7 +222,7 @@ function maskText(text: string): string {
 /**
  * Deduplicates overlapping PII entities using position-priority algorithm
  *
- * Algorithm (matches workflow v1.7.0 deduplication logic):
+ * Algorithm (matches workflow v1.7.7 deduplication logic):
  * 1. Sort by position (start, then end) - ensures left-to-right processing
  * 2. For overlaps at same position, prioritize by length (longer span wins)
  * 3. For same position + length, use score as tiebreaker
@@ -231,7 +231,7 @@ function maskText(text: string): string {
  * Rationale for position-first priority:
  * - Multiple PII types can detect same text (e.g., "Jan Kowalski" = PERSON + PL_PESEL false positive)
  * - Position-based deduplication prevents double redaction: "[PERSON]" not "[[PERSON]]"
- * - Consistent with n8n workflow deduplication (workflow/workflows/Vigil-Guard-v1.7.0.json)
+ * - Consistent with n8n workflow deduplication (workflow/workflows/Vigil-Guard-v1.7.7.json)
  *
  * Example:
  *   Input: [
@@ -591,9 +591,9 @@ function prepareUserEntityLists(
    * - Increases false positive rate (both models detect same text differently)
    * - Deduplication cannot resolve conflicting entity types at same position
    * - Performance cost (PERSON detection is expensive for large texts)
-   * - Workflow v1.7.0 uses single-model routing (parity requirement)
+   * - Workflow v1.7.7 uses single-model routing (parity requirement)
    *
-   * @see workflow/workflows/Vigil-Guard-v1.7.0.json for workflow implementation
+   * @see workflow/workflows/Vigil-Guard-v1.7.7.json for workflow implementation
    */
   if (userEntities.includes("PERSON")) {
     const targetList = detectedLanguage === "pl" ? polishEntities : englishEntities;
@@ -611,7 +611,7 @@ function prepareUserEntityLists(
 /**
  * Prepares default entity lists when user doesn't specify entities
  *
- * Default strategy (workflow v1.7.0 parity):
+ * Default strategy (workflow v1.7.7 parity):
  * - Polish model: All Polish-specific entities + general entities + PERSON (if lang=pl)
  * - English model: General entities only + PERSON (if lang=en)
  *
@@ -747,7 +747,7 @@ function integrateRegexEntities(
 }
 
 /**
- * Dual-language PII detection orchestrator (workflow v1.7.0 parity)
+ * Dual-language PII detection orchestrator (workflow v1.7.7 parity)
  *
  * Execution flow:
  * 1. Load configuration (unified_config.json + pii.conf)
@@ -810,7 +810,7 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
   const shouldCallPolish = supportedLanguages.includes("pl");
   const shouldCallEnglish = supportedLanguages.includes("en");
 
-  // Build language-specific entity lists (workflow v1.7.0 parity)
+  // Build language-specific entity lists (workflow v1.7.7 parity)
   const entityLists = prepareEntityLists(reqBody.entities, detectedLanguage);
   const polishEntitiesList = entityLists.polish;
   const englishEntitiesList = entityLists.english;
