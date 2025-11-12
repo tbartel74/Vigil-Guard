@@ -515,8 +515,19 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
                     'language': 'en'
                 })
                 logger.info("✅ Added spaCy recognizer for EN (with PERSON detection)")
+            except ImportError as exc:
+                logger.error(f"spaCy EN model not installed: {exc}", extra={'error_id': 'SPACY_EN_MODEL_MISSING'})
+                startup_error = f"Critical: spaCy EN model missing: {exc}"
+                raise RuntimeError("Cannot start without EN spaCy model for PERSON detection") from exc
+            except MemoryError as exc:
+                logger.critical(f"Out of memory loading spaCy EN model: {exc}", extra={'error_id': 'SPACY_EN_OOM'})
+                startup_error = f"Critical: Insufficient memory for spaCy EN: {exc}"
+                raise
             except Exception as exc:
-                logger.warning(f"Failed to initialize spaCy EN recognizer: {exc}")
+                logger.error(f"Unexpected spaCy EN initialization error: {exc}", exc_info=True,
+                             extra={'error_id': 'SPACY_EN_INIT_FAILED'})
+                startup_error = f"Critical: spaCy EN initialization failed: {exc}"
+                raise RuntimeError("Cannot start with broken EN spaCy recognizer") from exc
 
             try:
                 spacy_pl = SpacyRecognizer(
@@ -530,8 +541,19 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
                     'language': 'pl'
                 })
                 logger.info("✅ Added spaCy recognizer for PL")
+            except ImportError as exc:
+                logger.error(f"spaCy PL model not installed: {exc}", extra={'error_id': 'SPACY_PL_MODEL_MISSING'})
+                startup_error = f"Critical: spaCy PL model missing: {exc}"
+                raise RuntimeError("Cannot start without PL spaCy model for PERSON detection") from exc
+            except MemoryError as exc:
+                logger.critical(f"Out of memory loading spaCy PL model: {exc}", extra={'error_id': 'SPACY_PL_OOM'})
+                startup_error = f"Critical: Insufficient memory for spaCy PL: {exc}"
+                raise
             except Exception as exc:
-                logger.warning(f"Failed to initialize spaCy PL recognizer: {exc}")
+                logger.error(f"Unexpected spaCy PL initialization error: {exc}", exc_info=True,
+                             extra={'error_id': 'SPACY_PL_INIT_FAILED'})
+                startup_error = f"Critical: spaCy PL initialization failed: {exc}"
+                raise RuntimeError("Cannot start with broken PL spaCy recognizer") from exc
 
         # PHASE 3: SmartPersonRecognizer with multi-rule validation
         # NOTE: validate_result() is NOT called by PatternRecognizer - using post-processing filters instead
