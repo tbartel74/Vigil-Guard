@@ -107,6 +107,10 @@ vigil-llm-models/
 CLAUDE.md
 CHANGELOG.md
 
+# Claude Code UI state (runtime-generated, not for repository)
+.claude-code/ui-state.json
+# Keep prompt.txt and agent-manifest.json (static configuration)
+
 # Codex tooling (local-only)
 .codex/
 bin/vg-orchestrate
