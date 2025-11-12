@@ -68,7 +68,7 @@ Backend Session Secret:
 2. Complete n8n account creation wizard
 3. Import workflow:
    - Click **"..."** → **"Import from file"**
-   - Select: `services/workflow/workflows/Vigil-Guard-v1.6.11.json`
+   - Select: `services/workflow/workflows/Vigil Guard v1.7.9.json`
 4. Configure ClickHouse credentials:
    - Open imported workflow
    - Find **"ClickHouse"** node
@@ -102,7 +102,7 @@ Test the detection endpoint:
 ```bash
 # First, get the webhook URL from n8n:
 # 1. Open http://localhost:5678
-# 2. Open the "Vigil-Guard-v1.6.11" workflow
+# 2. Open the "Vigil Guard v1.7.9" workflow
 # 3. Click the "Chat Message" trigger node (first node)
 # 4. Copy the "Webhook URL" shown (e.g., http://localhost:5678/webhook/abc123...)
 

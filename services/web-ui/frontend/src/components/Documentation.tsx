@@ -16,8 +16,8 @@ import docsManifest from "../generated/docs-manifest.json";
 import type { DocsManifest } from "../types/docs-manifest";
 
 // Documentation version and build info
-const DOC_VERSION = "1.7.0";
-const BUILD_DATE = "2025-11-01";
+const DOC_VERSION = "1.7.9";
+const BUILD_DATE = "2025-11-12";
 
 // Documentation structure matching the docs/ directory
 interface DocSection {

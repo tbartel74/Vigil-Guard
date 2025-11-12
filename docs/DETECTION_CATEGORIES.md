@@ -1,7 +1,7 @@
 # Detection Categories Reference
 
 **Last Updated**: 2025-11-12
-**Version**: 1.7.8
+**Version**: 1.7.9
 
 This document describes all detection categories in Vigil Guard, their scoring weights, and the types of attacks they detect.
 
@@ -36,7 +36,7 @@ Vigil Guard uses a rule-based detection system with **44 categories** of attack 
 Detection categories are evaluated in the **n8n workflow pipeline** at the following stages:
 
 **1. Pattern_Matching_Engine Node** (n8n Code node)
-- **Location**: `services/workflow/workflows/Vigil-Guard-v1.7.7.json`
+- **Location**: `services/workflow/workflows/Vigil Guard v1.7.9.json`
 - **Function**: Evaluates all patterns from `rules.config.json` against normalized input
 - **Process**:
   1. Loads detection rules from config file
@@ -76,6 +76,51 @@ All detection logic is implemented in JavaScript within n8n Code nodes. The work
 6. Logs results to ClickHouse
 
 **Note**: Detection categories are **hardcoded** in `rules.config.json` and not user-editable via Web UI. Only threshold ranges (score-to-action mapping) can be configured.
+
+---
+
+## Aho-Corasick Prefilter Architecture (v1.7.9)
+
+**Overview**: Fast multi-pattern matching using Aho-Corasick algorithm to prefilter input before full regex evaluation.
+
+### Key Statistics (Production Data - 24h)
+- **Keywords**: 993 patterns (lowercase-normalized)
+- **Literals**: 296 exact-match strings
+- **Performance**: 77% single-category hits → AC prefilter is working effectively
+- **Coverage**: OWASP AITG-APP-01: 96% (48/50), APP-02: 82.5% (33/40)
+
+### How It Works
+1. **Input Normalization** - Convert to lowercase, apply leet speak mappings
+2. **AC Scan** - Match against 993 keywords in O(n+m) time complexity
+3. **Category Mapping** - Map matched keywords to detection categories
+4. **Regex Validation** - Full regex patterns validate AC hits (reduce false positives)
+
+### Configuration
+- **File**: `services/workflow/config/unified_config.json` (section: `aho_corasick`)
+- **Structure**:
+  ```json
+  {
+    "aho_corasick": {
+      "enabled": true,
+      "patterns": {
+        "keywords": [...],  // 993 entries
+        "literals": [...]   // 296 entries
+      }
+    }
+  }
+  ```
+
+### Performance Benefits
+- **Speed**: O(n+m) vs O(n*k) for regex (where k = number of patterns)
+- **Detection Rate**: 77.15% threats detected (2446/3170 requests in 24h)
+- **PII Processing**: 18.5ms avg (P95: 29ms) - 81.5% faster than baseline
+
+### Testing
+```bash
+cd services/workflow
+npm test -- ac-prefilter.test.js  # AC-specific tests
+npm test                           # Full test suite (160+ tests)
+```
 
 ---
 
