@@ -405,9 +405,9 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
     # Configure NER model configuration for English (exclude PERSON from spaCy NER)
     english_ner_config = NerModelConfiguration(
-        labels_to_ignore=["PER"],  # Disable spaCy's PERSON detection (use SmartPersonRecognizer instead)
+        labels_to_ignore=["PER"],  # Disable spaCy's PERSON detection (SmartPersonRecognizer disabled - see line 629)
         model_to_presidio_entity_mapping={
-            # PER intentionally excluded - handled by SmartPersonRecognizer
+            # PER intentionally excluded - would cause false positives (AI models, jailbreak personas)
             "LOC": "LOCATION",
             "ORG": "ORGANIZATION",
             "GPE": "LOCATION",
