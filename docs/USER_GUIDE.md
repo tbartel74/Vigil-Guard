@@ -25,12 +25,15 @@
 
 The Vigil Guard Web UI provides a comprehensive interface for:
 
-- **Real-time Monitoring** - Live security metrics and threat detection analytics
+- **Real-time Monitoring** - Live security metrics and threat detection analytics (v1.7.9: 44 detection categories)
 - **Investigation** - Advanced prompt search and detailed decision analysis
 - **Threat Analysis** - Detailed inspection of detected malicious prompts
-- **Configuration** - Dynamic security policy management
+- **Configuration** - Dynamic security policy management with Aho-Corasick prefilter (993 keywords)
 - **File Management** - Direct configuration file editing with audit logging
 - **User Management** - Role-based access control and user administration
+
+**Current Version**: v1.7.9 (2025-11-12)
+**Key Features**: AC prefilter (77% single-category hits), 160+ tests, OWASP AITG coverage (APP-01: 96%, APP-02: 82.5%)
 
 ### User Roles & Permissions
 

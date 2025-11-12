@@ -16,9 +16,10 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 
 ### Key Features
 
-- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 34 detection categories
+- 🔍 **Advanced Threat Detection** - Multi-layer detection engine with 44 detection categories
+- ⚡ **Aho-Corasick Prefilter** - 993 keyword patterns for fast detection (77% single-category hits)
 - 🛡️ **Intelligent Sanitization** - Light and heavy sanitization modes with configurable policies
-- 🔒 **PII Detection** - Dual-language Microsoft Presidio integration with 60+ entity types (v1.7.7)
+- 🔒 **PII Detection** - Dual-language Microsoft Presidio integration with 60+ entity types (avg 18.5ms)
 - 🌐 **Browser Extension** - Real-time client-side protection for ChatGPT and Claude.ai (Chrome/Edge)
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching
@@ -27,7 +28,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 - 🔄 **n8n Workflow Engine** - Scalable processing pipeline with 40 nodes
 - 📈 **ClickHouse Logging** - High-performance data storage and analytics
 - 🎯 **Risk-based Actions** - ALLOW, SANITIZE (Light/Heavy), BLOCK decisions
-- ✅ **Comprehensive Testing** - E2E test suite with 58+ tests and CI/CD integration
+- ✅ **Comprehensive Testing** - E2E test suite with 160+ tests and CI/CD integration (OWASP AITG coverage)
 
 ## 📸 Visual Overview
 
@@ -289,8 +290,8 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil Guard v1.7.7.json`
-   - (Previous exports such as `Vigil-Guard-v1.7.0.json` remain for reference only.)
+   - Import: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+   - (Previous exports remain for reference only)
 
 3. **Configure ClickHouse Credentials**
    - Locate "Logging to ClickHouse" node in workflow
@@ -314,16 +315,16 @@ After installation completes, you **must** manually configure n8n:
      ```bash
      npm test -- pii-detection-comprehensive.test.js
      ```
-   - Expect **63/63** passing for workflow v1.7.7.
+   - Expect **160+** tests passing for workflow v1.7.9 (OWASP AITG coverage: APP-01 96%, APP-02 82.5%).
 
 📖 **Detailed guide**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
 
-### ℹ️ PII Detection Stack (v1.7.7)
+### ℹ️ PII Detection Stack (v1.7.9)
 
-- **Workflow export**: `services/workflow/workflows/Vigil Guard v1.7.7.json`
+- **Workflow export**: `services/workflow/workflows/Vigil Guard v1.7.9.json`
 - **Config-driven fallback**: `services/workflow/config/pii.conf` and `config/unified_config.json` now hold the rule metadata (no hard-coded tables in the workflow).
 - **Presidio validators**: `services/presidio-pii-api/validators/*` define checksum logic for IBAN, US SSN/Passport, UK NHS/NINO, AU TFN/Medicare, CA SIN, etc.
-- **Docs**: `docs/WORKFLOW_v1.7.7_NOTES.md` describes the release plus import/restart checklist.
+- **Docs**: See `docs/DETECTION_CATEGORIES.md` for AC prefilter architecture and OWASP AITG coverage.
 - **Service restart**: Any time you edit the workflow or Presidio configs, run `docker compose up -d --build presidio-pii-api language-detector n8n` to ensure the changes are loaded.
 
 ### 🔒 Security: Automatic Password Generation
