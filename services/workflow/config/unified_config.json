@@ -172,7 +172,7 @@
     "context_enhancement": true,
     "log_detection_details": true,
     "notes": "PII detection using Microsoft Presidio with custom Polish recognizers. Fallback to legacy regex rules (pii.conf) if Presidio API is offline.",
-    "confidence_threshold": 0.7
+    "confidence_threshold": 0.9
   },
   "prefilter": {
     "ngram": {

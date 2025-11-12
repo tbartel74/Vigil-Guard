@@ -1072,6 +1072,88 @@ EOF
         fi
     fi
 
+    # Verify v1.7.0 audit columns (9 columns: PII classification + browser fingerprinting)
+    log_info "Verifying v1.7.0 audit columns..."
+    AUDIT_COLUMNS=(
+        "pii_sanitized"
+        "pii_types_detected"
+        "pii_entities_count"
+        "client_id"
+        "browser_name"
+        "browser_version"
+        "os_name"
+        "browser_language"
+        "browser_timezone"
+    )
+
+    MISSING_COLUMNS=0
+    MISSING_COLUMN_NAMES=()
+    for COLUMN in "${AUDIT_COLUMNS[@]}"; do
+        COLUMN_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+            --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+            --database "$CLICKHOUSE_DB" \
+            -q "SELECT count() FROM system.columns WHERE database = '${CLICKHOUSE_DB}' AND table = 'events_processed' AND name = '${COLUMN}'" \
+            2>/dev/null | tr -d ' ')
+
+        if [ "$COLUMN_EXISTS" = "0" ]; then
+            log_warning "Column '${COLUMN}' missing in events_processed"
+            MISSING_COLUMNS=$((MISSING_COLUMNS + 1))
+            MISSING_COLUMN_NAMES+=("$COLUMN")
+        fi
+    done
+
+    if [ $MISSING_COLUMNS -gt 0 ]; then
+        log_warning "$MISSING_COLUMNS audit column(s) missing - may indicate incomplete migration"
+        log_info "Missing columns: ${MISSING_COLUMN_NAMES[*]}"
+        echo ""
+        log_info "Re-running 06-add-audit-columns-v1.7.0.sql to fix..."
+
+        # Re-run migration (idempotent with IF NOT EXISTS)
+        RERUN_OUTPUT=$(cat "services/monitoring/sql/06-add-audit-columns-v1.7.0.sql" | \
+            docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+            --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+            --multiquery 2>&1)
+        RERUN_STATUS=$?
+
+        if [ $RERUN_STATUS -eq 0 ]; then
+            log_success "Audit columns migration re-applied successfully"
+
+            # Verify again
+            VERIFY_COUNT=0
+            for COLUMN in "${AUDIT_COLUMNS[@]}"; do
+                COLUMN_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+                    --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+                    --database "$CLICKHOUSE_DB" \
+                    -q "SELECT count() FROM system.columns WHERE database = '${CLICKHOUSE_DB}' AND table = 'events_processed' AND name = '${COLUMN}'" \
+                    2>/dev/null | tr -d ' ')
+                if [ "$COLUMN_EXISTS" = "1" ]; then
+                    VERIFY_COUNT=$((VERIFY_COUNT + 1))
+                fi
+            done
+
+            if [ $VERIFY_COUNT -eq 9 ]; then
+                log_success "All 9 audit columns now present after re-run"
+            else
+                log_error "Migration re-run completed but columns still missing ($VERIFY_COUNT/9)"
+                log_error "ClickHouse error output:"
+                echo "$RERUN_OUTPUT" | sed 's/^/    /'
+                echo ""
+                exit 1
+            fi
+        else
+            log_error "Failed to re-run audit columns migration"
+            log_error "ClickHouse error output:"
+            echo "$RERUN_OUTPUT" | sed 's/^/    /'
+            echo ""
+            exit 1
+        fi
+    else
+        log_success "All 9 audit columns present"
+        log_info "v1.7.0 audit columns: pii_sanitized, pii_types_detected, pii_entities_count, client_id, browser_name, browser_version, os_name, browser_language, browser_timezone"
+    fi
+
+    echo ""
+
     # Verify installation
     log_info "Verifying database structure..."
     TABLE_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
