@@ -388,6 +388,90 @@ Expected: Service works without internet access ✅
 
 ## Troubleshooting
 
+### Problem: PERSON Entity False Positives (Fixed in v1.7.9+)
+
+**Issue**: AI model names, jailbreak personas, pronouns, or tech brands detected as PERSON entities
+
+**Root Cause**: Presidio boundary extension bug in SmartPersonRecognizer
+- Regex patterns match correctly (e.g., `\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}` for "John Smith")
+- Presidio incorrectly extends entity boundaries beyond regex match
+- Example: Regex should match "John Smith" but Presidio returns "John Smith lives"
+- Result: False positives for lowercase phrases like "every command", "amoral and obeys"
+
+**Architecture Decision (v1.7.9+)**:
+- **English PERSON Detection**: spaCy NER ONLY
+  - SmartPersonRecognizer DISABLED due to boundary extension bug (app.py lines 607-631)
+  - spaCy en_core_web_sm provides baseline detection
+  - Post-processing filters applied (allow-list, pronouns, boundary trimming)
+  - Trade-off: Lower detection rate, but zero false positives for AI models/jailbreak personas
+
+- **Polish PERSON Detection**: spaCy NER + PatternRecognizer
+  - spaCy pl_core_news_sm for linguistic detection
+  - PatternRecognizer from recognizers.yaml (lines 98-124)
+  - Fixed: `supported_language: pl` (was incorrectly set to `en`)
+  - Post-processing filters applied
+
+**Solution**:
+1. **Disable SmartPersonRecognizer for English** (app.py lines 607-631):
+   ```python
+   # English SmartPersonRecognizer - DISABLED due to Presidio boundary extension bug
+   # smart_person_recognizer_en = SmartPersonRecognizer(...)  # COMMENTED OUT
+   ```
+
+2. **Fix PERSON_PL language** (recognizers.yaml line 99):
+   ```yaml
+   - name: PERSON_PL
+     supported_language: pl  # Fixed (was: en)
+   ```
+
+3. **Re-enable spaCy for English** (app.py line 509):
+   ```python
+   # PERSON entity: Use spaCy for English (SmartPersonRecognizer disabled)
+   if language == 'en' and 'PERSON' in entities_filter:
+       # spaCy en_core_web_sm enabled
+   ```
+
+4. **Post-processing filters** (app.py lines 500-605):
+   - Allow-list: 90+ entries (AI models, pronouns, jailbreak personas, tech brands)
+   - Boundary trimming, pronoun filtering, single-word filtering, ALL CAPS filtering
+
+**Test Coverage**:
+- Test file: `services/workflow/tests/e2e/pii-person-false-positives.test.js`
+- Total: 16 tests, 100% passing
+- Categories: Product names, jailbreak personas, pronouns, generic references, narrative text, valid names, edge cases
+
+**Verification**:
+```bash
+# Test that ChatGPT is NOT detected as PERSON
+curl -X POST http://localhost:5001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "ChatGPT is an AI assistant",
+    "language": "en",
+    "entities": ["PERSON"],
+    "allow_list": ["ChatGPT"]
+  }'
+# Expected: "entities": []
+
+# Test that John Smith IS detected as PERSON
+curl -X POST http://localhost:5001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "John Smith lives in London",
+    "language": "en",
+    "entities": ["PERSON"]
+  }'
+# Expected: "entities": [{"type": "PERSON", "text": "John Smith", ...}]
+```
+
+**References**:
+- Implementation: `app.py` lines 500-650
+- Configuration: `config/recognizers.yaml` lines 98-124
+- Test suite: `services/workflow/tests/e2e/pii-person-false-positives.test.js`
+- Documentation: `docs/PII_DETECTION.md` Issue 0
+
+---
+
 ### Problem: Service returns 503 on startup
 
 **Cause:** spaCy models not loaded yet

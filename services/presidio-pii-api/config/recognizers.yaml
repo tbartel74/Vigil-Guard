@@ -96,7 +96,7 @@ recognizers:
   # - WITH context keywords: 0.45 + 0.35 = 0.80 >= 0.60 → ACCEPTED ✅
   # Trade-off: Names without context (e.g., "Jan Kowalski" alone) won't be detected
   - name: PERSON_PL
-    supported_language: en
+    supported_language: pl
     supported_entity: PERSON
     patterns:
       # Polish name pattern: Capitalized words (2 words, min 3 chars each)

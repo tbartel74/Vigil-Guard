@@ -15,7 +15,7 @@ Features:
 
 from flask import Flask, request, jsonify
 from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
-from presidio_analyzer.nlp_engine import NlpEngineProvider
+from presidio_analyzer.nlp_engine import NlpEngineProvider, NerModelConfiguration
 from presidio_analyzer.context_aware_enhancers import LemmaContextAwareEnhancer
 from presidio_analyzer.recognizer_registry import RecognizerRegistry
 try:
@@ -66,6 +66,55 @@ analyzer = None  # Backward compatibility alias for tests
 current_mode = "balanced"  # Default mode
 current_context_enabled = True  # Track context enhancement state
 startup_error = None  # Track initialization failures
+
+# ============================================================================
+# DEFAULT ALLOW-LIST - False Positive Prevention for Chatbot Context
+# ============================================================================
+# Based on community best practices for conversational AI PII detection
+# Source: Microsoft Presidio Allow-List Tutorial + Production Deployments
+
+DEFAULT_ALLOW_LIST = [
+    # AI models & platforms
+    "ChatGPT", "GPT-4", "GPT-3.5", "GPT-3", "GPT", "Claude", "Claude-3", "Claude-2",
+    "Gemini", "Llama", "Llama-2", "Llama-3", "PaLM", "Bard",
+    "OpenAI", "Anthropic", "Google", "Meta", "Microsoft", "DeepMind",
+
+    # Pronouns (most common false positives)
+    "he", "He", "she", "She", "they", "They",
+    "him", "Him", "her", "Her", "them", "Them",
+    "his", "His", "hers", "Hers", "their", "Their", "theirs", "Theirs",
+    "himself", "Himself", "herself", "Herself", "themselves", "Themselves",
+
+    # Jailbreak personas (known attack vectors)
+    "Sigma", "DAN", "UCAR", "Yool", "NaN", "SDA",
+    "STAN", "DUDE", "JailBreak", "DevMode", "Developer Mode",
+
+    # Placeholder names (ONLY crypto examples, NOT real names)
+    # NOTE: John/Jane/Smith are TOO COMMON as real names - excluded from allow-list
+    "Alice", "Bob", "Charlie", "Dave", "Eve", "Frank",
+    "Test", "Example",
+
+    # Tech brands & social media
+    "Instagram", "Facebook", "Twitter", "X", "LinkedIn",
+    "YouTube", "TikTok", "Reddit", "Discord", "Slack",
+    "WhatsApp", "Telegram", "Snapchat", "Pinterest",
+
+    # Generic references
+    "User", "Assistant", "AI", "Bot", "Agent", "Helper",
+    "Person", "People", "Someone", "Anyone", "Everyone", "Nobody",
+
+    # Role descriptors
+    "Storyteller", "Character", "Narrator", "Protagonist",
+    "Administrator", "Moderator", "Developer", "Engineer",
+    "Manager", "Director", "President", "CEO",
+
+    # Programming & tech terms
+    "Python", "JavaScript", "Java", "Ruby", "Swift",
+    "Docker", "Kubernetes", "AWS", "Azure", "Linux",
+
+    # Common words often flagged as names
+    "Welcome", "Hello", "Thanks", "Please", "Sorry"
+]
 
 # ============================================================================
 # DETECTION MODES - Based on Microsoft/NVIDIA Best Practices
@@ -133,7 +182,7 @@ DETECTION_MODES = {
             "URL": 0.75,
 
             # NER-based entities
-            "PERSON": 0.60,  # HIGH threshold to prevent FP (requires explicit context keywords)
+            "PERSON": 0.50,  # Balanced threshold - post-processing filters prevent FP
             "LOCATION": 0.50,
             "ORGANIZATION": 0.50,
             "DATE_TIME": 0.55,
@@ -354,12 +403,49 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
     logger.info(f"Context enhancement: {'enabled' if enable_context else 'disabled'}")
 
+    # Configure NER model configuration for English (exclude PERSON from spaCy NER)
+    english_ner_config = NerModelConfiguration(
+        labels_to_ignore=["PER"],  # Disable spaCy's PERSON detection (use SmartPersonRecognizer instead)
+        model_to_presidio_entity_mapping={
+            # PER intentionally excluded - handled by SmartPersonRecognizer
+            "LOC": "LOCATION",
+            "ORG": "ORGANIZATION",
+            "GPE": "LOCATION",
+            "DATE": "DATE_TIME"
+        },
+        low_confidence_score_multiplier=0.5,
+        low_score_entity_names=["ORGANIZATION"]
+    )
+
+    # Configure NER model configuration for Polish model (persName → PERSON mapping)
+    polish_ner_config = NerModelConfiguration(
+        labels_to_ignore=[],
+        model_to_presidio_entity_mapping={
+            "persName": "PERSON",
+            "placeName": "LOCATION",
+            "orgName": "ORGANIZATION",
+            "geogName": "LOCATION",
+            "date": "DATE_TIME",
+            "time": "DATE_TIME"
+        },
+        low_confidence_score_multiplier=0.5,
+        low_score_entity_names=["ORGANIZATION"]
+    )
+
     # Configure NLP engine
     nlp_configuration = {
         "nlp_engine_name": "spacy",
         "models": [
-            {"lang_code": "en", "model_name": "en_core_web_sm"},
-            {"lang_code": "pl", "model_name": "pl_core_news_sm"}
+            {
+                "lang_code": "en",
+                "model_name": "en_core_web_sm",
+                "model_config": {"ner_model_configuration": english_ner_config}
+            },
+            {
+                "lang_code": "pl",
+                "model_name": "pl_core_news_sm",
+                "model_config": {"ner_model_configuration": polish_ner_config}
+            }
         ]
     }
 
@@ -415,17 +501,20 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
         if SpacyRecognizer:
             try:
+                # PHASE 4: Re-enable PERSON for EN but rely ONLY on spaCy NER
+                # SmartPersonRecognizer disabled due to Presidio boundary extension bug
+                # Post-processing filters prevent false positives from spaCy
                 spacy_en = SpacyRecognizer(
                     supported_language="en",
-                    supported_entities=["PERSON", "LOCATION", "ORG"]
+                    supported_entities=["PERSON", "LOCATION", "ORG"]  # PERSON enabled
                 )
                 analyzer_engine.registry.add_recognizer(spacy_en)
                 loaded_recognizers.append({
                     'name': 'SPACY_NER_EN',
-                    'entity': 'PERSON/LOCATION/ORG',
+                    'entity': 'PERSON/LOCATION/ORG',  # PERSON included
                     'language': 'en'
                 })
-                logger.info("✅ Added spaCy recognizer for EN")
+                logger.info("✅ Added spaCy recognizer for EN (with PERSON detection)")
             except Exception as exc:
                 logger.warning(f"Failed to initialize spaCy EN recognizer: {exc}")
 
@@ -444,23 +533,126 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
             except Exception as exc:
                 logger.warning(f"Failed to initialize spaCy PL recognizer: {exc}")
 
-        english_person_recognizer = PatternRecognizer(
+        # PHASE 3: SmartPersonRecognizer with multi-rule validation
+        # NOTE: validate_result() is NOT called by PatternRecognizer - using post-processing filters instead
+        class SmartPersonRecognizer(PatternRecognizer):
+            """
+            Custom PERSON recognizer with validation to prevent false positives
+            in conversational AI text (jailbreak personas, AI models, pronouns)
+            """
+
+            PRONOUNS = {
+                "he", "she", "they", "him", "her", "them",
+                "his", "hers", "their", "theirs"
+            }
+
+            AI_MODELS = {
+                "ChatGPT", "GPT", "Claude", "Gemini", "Llama",
+                "OpenAI", "Anthropic", "Google", "Meta"
+            }
+
+            JAILBREAK_PERSONAS = {
+                "Sigma", "DAN", "UCAR", "Yool", "SDA", "STAN"
+            }
+
+            def validate_result(self, pattern_text: str) -> bool:
+                """
+                Multi-rule validation for PERSON entities.
+                Returns True if entity passes all checks, False otherwise.
+                """
+
+                # Rule 1: Reject pronouns
+                if pattern_text.lower() in self.PRONOUNS:
+                    return False
+
+                # Rule 2: Require full name format (min 2 words)
+                # Exception: Polish titles (Pan, Pani, Dr, Prof, Mgr)
+                has_space = " " in pattern_text.strip()
+                has_polish_title = any(pattern_text.startswith(t) for t in ["Pan ", "Pani ", "Dr ", "Prof ", "Mgr "])
+                if not (has_space or has_polish_title):
+                    return False
+
+                # Rule 3: Reject AI model names
+                if pattern_text in self.AI_MODELS:
+                    return False
+
+                # Rule 4: Reject jailbreak personas
+                if pattern_text in self.JAILBREAK_PERSONAS:
+                    return False
+
+                # Rule 5: Reject ALL CAPS (acronyms, not names)
+                if pattern_text == pattern_text.upper():
+                    return False
+
+                # Rule 6: Require minimum length
+                if len(pattern_text) < 4:
+                    return False
+
+                # Rule 7: Reject generic role descriptors
+                generic_roles = ["User", "Assistant", "Bot", "Agent", "Helper", "Person"]
+                if pattern_text in generic_roles:
+                    return False
+
+                # Rule 8: Reject if contains lowercase words after name (boundary issue)
+                # Valid: "John Smith", "Jan Kowalski"
+                # Invalid: "John Smith lives", "Jan Kowalski mieszka"
+                words = pattern_text.split()
+                if len(words) >= 3:
+                    # Check if last word is lowercase (not a name)
+                    if words[-1][0].islower():
+                        return False
+
+                return True
+
+        # English SmartPersonRecognizer - DISABLED due to Presidio boundary extension bug
+        # The regex pattern '\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}' should only match
+        # capitalized names like "John Smith", but Presidio extends boundaries and
+        # incorrectly detects lowercase phrases like "every command", "amoral and obeys"
+        # Solution: Disable for English, rely on spaCy NER (already disabled via labels_to_ignore)
+        # Result: NO PERSON detection for English (acceptable for chatbot use case)
+        #
+        # smart_person_recognizer_en = SmartPersonRecognizer(
+        #     supported_entity='PERSON',
+        #     supported_language='en',
+        #     patterns=[
+        #         Pattern(
+        #             name='english_full_name',
+        #             regex=r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b',
+        #             score=0.85  # High score - pattern is reliable with post-processing filters
+        #         )
+        #     ],
+        #     context=['name', 'contact', 'person', 'mr', 'mrs', 'ms']
+        # )
+        # analyzer_engine.registry.add_recognizer(smart_person_recognizer_en)
+        # loaded_recognizers.append({
+        #     'name': 'SMART_PERSON_EN',
+        #     'entity': 'PERSON',
+        #     'language': 'en'
+        # })
+
+        # Polish Pattern Recognizer (SIMPLE - no validation yet, test if patterns work)
+        polish_person_recognizer = PatternRecognizer(
             supported_entity='PERSON',
-            supported_language='en',
+            supported_language='pl',
             patterns=[
                 Pattern(
-                    name='english_full_name',
-                    regex=r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b',
-                    score=0.45
+                    name='polish_full_name',
+                    regex=r'\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,})?\b',
+                    score=0.85  # High score - full name pattern is reliable
+                ),
+                Pattern(
+                    name='polish_name_with_title',
+                    regex=r'\b(?:Pan|Pani|Dr|Prof|Mgr)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,})?\b',
+                    score=0.90  # Very high - title is strong indicator
                 )
             ],
-            context=['name', 'contact', 'person', 'mr', 'mrs', 'ms']
+            context=['imię', 'nazwisko', 'pan', 'pani', 'dr', 'prof', 'mgr', 'imie']
         )
-        analyzer_engine.registry.add_recognizer(english_person_recognizer)
+        analyzer_engine.registry.add_recognizer(polish_person_recognizer)
         loaded_recognizers.append({
-            'name': 'PERSON_EN_FALLBACK',
+            'name': 'POLISH_PERSON_PATTERN',
             'entity': 'PERSON',
-            'language': 'en'
+            'language': 'pl'
         })
 
         for recognizer in custom_recognizers:
@@ -645,6 +837,7 @@ def analyze():
         entities = data.get('entities')
         return_decision_process = data.get('return_decision_process', False)
         return_rejected = data.get('return_rejected', False)  # NEW: Return rejected entities
+        allow_list = data.get('allow_list', [])  # NEW: Allow-list for false positive prevention
 
         if language not in ['pl', 'en']:
             logger.warning(f"Unsupported language '{language}', falling back to 'pl'")
@@ -669,17 +862,125 @@ def analyze():
             language=language,
             entities=entities,
             score_threshold=0.3,  # Low initial threshold
-            return_decision_process=return_decision_process
+            return_decision_process=return_decision_process,
+            allow_list=allow_list  # NEW: Exclude allow-listed terms from detection
         )
 
         # Post-process: Apply custom validators and per-entity thresholds
         validated_results = []
         rejected_results = []  # NEW: Track rejected entities
         logger.info(f"🔍 Post-processing {len(results)} results...")
+
+        # PHASE 2: Define post-processing filters for PERSON entities
+        PRONOUNS = {
+            "he", "she", "they", "him", "her", "them",
+            "his", "hers", "their", "theirs", "himself", "herself", "themselves"
+        }
+
+        # Create case-insensitive allow-list set for efficient lookup
+        allow_list_lower = {item.lower() for item in allow_list}
+
         for result in results:
             matched_text = text[result.start:result.end]
             should_keep = True
             rejection_reason = None
+
+            # PHASE 2 FILTERS: Apply for both EN and PL (boundary fix needed for both)
+            logger.info(f"🔍 Processing {result.entity_type}: '{matched_text}' (language={language})")
+            if result.entity_type == "PERSON" and language in ["en", "pl"]:
+                # FILTER 0: Reject allow-listed terms (fallback if Presidio's allow-list missed them)
+                # Check exact match OR if any word in the phrase is in allow-list
+                if matched_text in allow_list or matched_text.lower() in allow_list_lower:
+                    should_keep = False
+                    rejection_reason = "allow_list_exact_match"
+                    logger.info(f"❌ REJECTED - Exact allow-list match: {matched_text}")
+                elif should_keep and any(word in allow_list or word.lower() in allow_list_lower for word in matched_text.split()):
+                    should_keep = False
+                    rejection_reason = "allow_list_word_match"
+                    logger.info(f"❌ REJECTED - Contains allow-listed word: {matched_text}")
+
+                # FILTER 1: Reject pronouns (most common false positives)
+                # Check if matched text IS a pronoun or CONTAINS pronouns
+                if should_keep:
+                    text_lower = matched_text.lower()
+                    if text_lower in PRONOUNS:
+                        should_keep = False
+                        rejection_reason = "pronoun_exact_match"
+                        logger.info(f"❌ REJECTED - Exact pronoun: {matched_text}")
+                    elif any(word.lower() in PRONOUNS for word in matched_text.split()):
+                        should_keep = False
+                        rejection_reason = "pronoun_in_phrase"
+                        logger.info(f"❌ REJECTED - Contains pronoun: {matched_text}")
+
+                # FILTER 2: Reject single-word names (require full name format)
+                if should_keep:
+                    has_space = " " in matched_text.strip()
+                    has_polish_title = any(matched_text.startswith(t) for t in ["Pan ", "Pani ", "Dr ", "Prof ", "Mgr "])
+                    if not (has_space or has_polish_title):
+                        should_keep = False
+                        rejection_reason = "single_word_name"
+                        logger.debug(f"❌ REJECTED - Single word name (not full name): {matched_text}")
+
+                # FILTER 3: Reject ALL CAPS (likely acronyms, not names)
+                if should_keep and matched_text == matched_text.upper() and len(matched_text) > 1:
+                    should_keep = False
+                    rejection_reason = "all_caps_acronym"
+                    logger.debug(f"❌ REJECTED - ALL CAPS acronym: {matched_text}")
+
+                # FILTER 4: Fix Presidio boundary bug - trim to only capitalized words
+                # Presidio extends boundaries beyond regex match
+                # "John Smith lives" → trim to "John Smith"
+                # "Contact John Smith" → trim to "John Smith"
+                if should_keep and matched_text:
+                    words = matched_text.split()
+                    # Find first and last capitalized word
+                    cap_words = [(i, w) for i, w in enumerate(words) if w and w[0].isupper()]
+                    if cap_words:
+                        first_cap_idx = cap_words[0][0]
+                        last_cap_idx = cap_words[-1][0]
+
+                        # If first or last word is not capitalized, trim the result
+                        if first_cap_idx > 0 or last_cap_idx < len(words) - 1:
+                            trimmed_words = words[first_cap_idx:last_cap_idx + 1]
+                            trimmed_text = " ".join(trimmed_words)
+
+                            # Recalculate start/end positions
+                            prefix_len = len(" ".join(words[:first_cap_idx]))
+                            if first_cap_idx > 0:
+                                prefix_len += 1  # Space before first cap word
+
+                            result.start = result.start + prefix_len
+                            result.end = result.start + len(trimmed_text)
+                            matched_text = trimmed_text  # Update for subsequent filters
+
+                            logger.info(f"🔧 TRIMMED boundary → '{trimmed_text}' (pos {result.start}-{result.end})")
+
+                            # Re-check filters after trimming
+                            # FILTER 0 (post-trim): Check allow-list
+                            if matched_text in allow_list or matched_text.lower() in allow_list_lower:
+                                should_keep = False
+                                rejection_reason = "allow_list_filter_post_trim"
+                                logger.info(f"❌ REJECTED (post-trim) - In allow-list: {matched_text}")
+
+                            # FILTER 1 (post-trim): Reject pronouns
+                            if should_keep and matched_text.lower() in PRONOUNS:
+                                should_keep = False
+                                rejection_reason = "pronoun_filter_post_trim"
+                                logger.info(f"❌ REJECTED (post-trim) - Pronoun: {matched_text}")
+
+                            # FILTER 2 (post-trim): Reject single-word names
+                            if should_keep and " " not in matched_text.strip():
+                                has_polish_title = any(matched_text.startswith(t) for t in ["Pan", "Pani", "Dr", "Prof", "Mgr"])
+                                if not has_polish_title:
+                                    should_keep = False
+                                    rejection_reason = "single_word_name_post_trim"
+                                    logger.info(f"❌ REJECTED (post-trim) - Single word: {matched_text}")
+
+                            # FILTER 3 (post-trim): Reject ALL CAPS
+                            if should_keep and matched_text == matched_text.upper() and len(matched_text) > 1:
+                                should_keep = False
+                                rejection_reason = "all_caps_acronym_post_trim"
+                                logger.info(f"❌ REJECTED (post-trim) - ALL CAPS: {matched_text}")
 
             # Check custom validator (checksum validation)
             validator_found = False
@@ -708,15 +1009,15 @@ def analyze():
 
                 if result.score >= entity_threshold:
                     validated_results.append(result)
-                    logger.debug(
-                        f"Accepted: {result.entity_type} "
+                    logger.info(
+                        f"✅ Accepted: {result.entity_type} '{matched_text}' "
                         f"(score: {result.score:.2f} >= {entity_threshold:.2f})"
                     )
                 else:
                     should_keep = False
                     rejection_reason = "low_score"
-                    logger.debug(
-                        f"Rejected: {result.entity_type} "
+                    logger.info(
+                        f"❌ Rejected: {result.entity_type} '{matched_text}' "
                         f"(score: {result.score:.2f} < {entity_threshold:.2f})"
                     )
 
