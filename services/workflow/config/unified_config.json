@@ -86,7 +86,7 @@
   },
   "performance": {
     "timeout_ms": 5000,
-    "max_input_length": 10000,
+    "max_input_length": 20000,
     "cache_ttl_ms": 60000
   },
   "bloom": {

@@ -205,9 +205,9 @@ export function PIISettings() {
       return;
     }
 
-    // Input validation: 10,000 character limit (backend constraint)
-    if (testText.length > 10000) {
-      toast.error(`Test text is too long (${testText.length} characters). Maximum allowed: 10,000 characters.`);
+    // Input validation: 20,000 character limit (backend constraint)
+    if (testText.length > 20000) {
+      toast.error(`Test text is too long (${testText.length} characters). Maximum allowed: 20,000 characters.`);
       return;
     }
 

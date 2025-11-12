@@ -4,6 +4,53 @@ const DEFAULT_PRESIDIO_URL = process.env.PRESIDIO_URL || "http://vigil-presidio-
 const DEFAULT_LANGUAGE_DETECTOR_URL = process.env.LANGUAGE_DETECTOR_URL || "http://vigil-language-detector:5002/detect";
 
 /**
+ * DEFAULT ALLOW-LIST - False Positive Prevention
+ * Synchronized with Presidio API (services/presidio-pii-api/app.py)
+ */
+export const DEFAULT_ALLOW_LIST = [
+  // AI models & platforms
+  "ChatGPT", "GPT-4", "GPT-3.5", "GPT-3", "GPT", "Claude", "Claude-3", "Claude-2",
+  "Gemini", "Llama", "Llama-2", "Llama-3", "PaLM", "Bard",
+  "OpenAI", "Anthropic", "Google", "Meta", "Microsoft", "DeepMind",
+
+  // Pronouns (most common false positives)
+  "he", "He", "she", "She", "they", "They",
+  "him", "Him", "her", "Her", "them", "Them",
+  "his", "His", "hers", "Hers", "their", "Their", "theirs", "Theirs",
+  "himself", "Himself", "herself", "Herself", "themselves", "Themselves",
+
+  // Jailbreak personas (known attack vectors)
+  "Sigma", "DAN", "UCAR", "Yool", "NaN", "SDA",
+  "STAN", "DUDE", "JailBreak", "DevMode", "Developer Mode",
+
+  // Placeholder names (ONLY crypto examples, NOT real names)
+  // NOTE: John/Jane/Smith are TOO COMMON as real names - excluded from allow-list
+  "Alice", "Bob", "Charlie", "Dave", "Eve", "Frank",
+  "Test", "Example",
+
+  // Tech brands & social media
+  "Instagram", "Facebook", "Twitter", "X", "LinkedIn",
+  "YouTube", "TikTok", "Reddit", "Discord", "Slack",
+  "WhatsApp", "Telegram", "Snapchat", "Pinterest",
+
+  // Generic references
+  "User", "Assistant", "AI", "Bot", "Agent", "Helper",
+  "Person", "People", "Someone", "Anyone", "Everyone", "Nobody",
+
+  // Role descriptors
+  "Storyteller", "Character", "Narrator", "Protagonist",
+  "Administrator", "Moderator", "Developer", "Engineer",
+  "Manager", "Director", "President", "CEO",
+
+  // Programming & tech terms
+  "Python", "JavaScript", "Java", "Ruby", "Swift",
+  "Docker", "Kubernetes", "AWS", "Azure", "Linux",
+
+  // Common words often flagged as names
+  "Welcome", "Hello", "Thanks", "Please", "Sorry"
+];
+
+/**
  * Presidio Entity Types
  * Comprehensive list of all supported PII entity types (50+ standard + Polish custom + legacy aliases)
  */
@@ -337,7 +384,8 @@ async function callPresidio(analyzePayload: AnalyzeOptions, piiConfig: PiiConfig
       language: analyzePayload.language ?? "pl",
       entities: analyzePayload.entities,
       score_threshold: analyzePayload.score_threshold ?? piiConfig.confidence_threshold ?? 0.7,
-      return_decision_process: analyzePayload.return_decision_process ?? false
+      return_decision_process: analyzePayload.return_decision_process ?? false,
+      allow_list: DEFAULT_ALLOW_LIST  // NEW: Use default allow-list for false positive prevention
     }),
     signal: AbortSignal.timeout(piiConfig.api_timeout_ms || 5000)
   });
@@ -866,20 +914,25 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
 
   const attemptedLanguages = (shouldCallPolish ? 1 : 0) + (shouldCallEnglish ? 1 : 0);
   const presidioErrors: string[] = [];
+  const warnings: string[] = [];
 
   if (plResponse && typeof plResponse === "object" && "error" in plResponse && plResponse.error) {
     console.warn("Polish Presidio analysis failed:", plResponse.error);
     presidioErrors.push(`pl: ${plResponse.error}`);
+    warnings.push(`Polish PII detection failed: ${plResponse.error}`);
   }
 
   if (enResponse && typeof enResponse === "object" && "error" in enResponse && enResponse.error) {
     console.warn("English Presidio analysis failed:", enResponse.error);
     presidioErrors.push(`en: ${enResponse.error}`);
+    warnings.push(`English PII detection failed: ${enResponse.error}`);
   }
 
   if (attemptedLanguages > 0 && presidioErrors.length === attemptedLanguages) {
     throw new Error(`Presidio analysis failed for all languages (${presidioErrors.join("; ")})`);
   }
+
+  const detectionComplete = presidioErrors.length === 0;
 
   const plEntitiesRaw = plResponse?.entities || [];
   const enEntitiesRaw = enResponse?.entities || [];
@@ -918,7 +971,9 @@ export async function analyzeDualLanguage(reqBody: AnalyzeOptions): Promise<Dual
     processing_time_ms: processingTime,
     redacted_text: redactedText,
     language_stats: languageStats,
-    regex_fallback: regexMeta
+    regex_fallback: regexMeta,
+    detection_complete: detectionComplete,
+    ...(warnings.length > 0 && { warnings })
   };
 }
 

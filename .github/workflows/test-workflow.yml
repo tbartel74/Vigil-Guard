@@ -22,13 +22,13 @@ jobs:
         image: clickhouse/clickhouse-server:latest
         env:
           CLICKHOUSE_USER: admin
-          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
           CLICKHOUSE_DB: n8n_logs
         ports:
           - 8123:8123
           - 9000:9000
         options: >-
-          --health-cmd "clickhouse-client --user admin --password \$CLICKHOUSE_PASSWORD --query 'SELECT 1'"
+          --health-cmd "clickhouse-client --user admin --password ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }} --query 'SELECT 1'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -82,19 +82,19 @@ jobs:
           CLICKHOUSE_HOST: localhost
           CLICKHOUSE_PORT: 8123
           CLICKHOUSE_USER: admin
-          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
         run: |
           # Wait for ClickHouse to be ready
           sleep 5
 
           # Create database and tables
           cat services/monitoring/sql/01-create-tables.sql | \
-            curl -u admin:${{ secrets.CI_CLICKHOUSE_PASSWORD }} \
+            curl -u admin:${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }} \
             'http://localhost:8123/' \
             --data-binary @-
 
           # Verify tables created
-          curl -u admin:${{ secrets.CI_CLICKHOUSE_PASSWORD }} \
+          curl -u admin:${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }} \
             'http://localhost:8123/?query=SHOW+TABLES+FROM+n8n_logs'
         if: steps.workflow_dir.outputs.exists == 'true'
 
