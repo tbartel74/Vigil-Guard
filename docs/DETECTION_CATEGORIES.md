@@ -593,7 +593,6 @@ Detects hate speech, discriminatory content, and requests for content targeting 
 - US Civil Rights Act: Anti-discrimination provisions
 
 **Enhancement Rationale**: Previous patterns were too specific (e.g., requiring exact ethnicities like "African Americans" or "Jews"). Attackers could easily bypass by substituting "[specific ethnicity]" or "[religious group]". New generalized patterns detect the hate speech structure itself rather than specific target groups.
-
 ---
 
 ### DANGEROUS_CONTENT (HIGH)
