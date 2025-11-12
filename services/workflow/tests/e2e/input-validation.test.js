@@ -2,7 +2,7 @@
  * Input Validation E2E Tests (Phase 2.4)
  *
  * Tests the Input_Validator node pre-filtering capabilities:
- * - Max length check (>10000 chars)
+ * - Max length check (>20000 chars)
  * - Min length check (<1 char)
  * - Excessive control characters (>30%)
  * - Excessive repetition (uniqueChars < 5 for >100 char)
@@ -13,9 +13,9 @@ import { sendAndVerify, assertDetection, parseJSONSafely } from '../helpers/webh
 
 describe('Input Validation Layer (Phase 2.4)', () => {
   describe('Maximum Length Protection', () => {
-    test('should block 15000 char input (exceeds max 10000)', async () => {
-      // Generate 15000 character input
-      const longText = 'A'.repeat(15000);
+    test('should block 25000 char input (exceeds max 20000)', async () => {
+      // Generate 25000 character input
+      const longText = 'A'.repeat(25000);
 
       const result = await sendAndVerify(longText);
 
@@ -29,12 +29,12 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_LENGTH');
 
-      console.log(`✅ Test passed: 15000 char input blocked (reason: ${rawEvent.validation?.reason})`);
+      console.log(`✅ Test passed: 25000 char input blocked (reason: ${rawEvent.validation?.reason})`);
     }, 30000);
 
-    test('should allow legitimate 8000 char input (under max)', async () => {
-      // Generate 8000 character legitimate input
-      const legitimateText = 'This is a legitimate long document. '.repeat(200); // ~8000 chars
+    test('should allow legitimate 18000 char input (under max)', async () => {
+      // Generate 18000 character legitimate input
+      const legitimateText = 'This is a legitimate long document. '.repeat(450); // ~18000 chars
 
       const result = await sendAndVerify(legitimateText);
 
@@ -48,7 +48,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(rawEvent.validation?.checks?.max_length).toBe(true);
       expect(rawEvent.validation?.checks?.min_length).toBe(true);
 
-      console.log(`✅ Test passed: 8000 char input passed validation (status: ${result.final_status})`);
+      console.log(`✅ Test passed: 18000 char input passed validation (status: ${result.final_status})`);
     }, 30000);
   });
 
@@ -213,14 +213,14 @@ describe('Input Validation Layer (Phase 2.4)', () => {
         validate length constraints, character encoding, and repetition patterns
         to prevent denial of service attacks. Here are the key requirements:
 
-        1. Maximum length: 10000 characters to prevent memory exhaustion
+        1. Maximum length: 20000 characters to prevent memory exhaustion
         2. Minimum length: 1 character to reject empty requests
         3. Control character ratio: <30% to prevent binary injection
         4. Unique character threshold: >=5 for inputs >100 chars
 
         Implementation considerations include performance optimization,
         backward compatibility, and comprehensive test coverage.
-      `.repeat(10); // ~5000 chars of varied content (under 10000 limit)
+      `.repeat(20); // ~10000 chars of varied content (under 20000 limit)
 
       const result = await sendAndVerify(text);
 
@@ -230,31 +230,31 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       // Check validation passed
       const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
       expect(rawEvent.validation?.passed).toBe(true);
-      expect(rawEvent.validation?.input_length).toBeLessThanOrEqual(10000);
+      expect(rawEvent.validation?.input_length).toBeLessThanOrEqual(20000);
 
       console.log(`✅ Test passed: Long technical content passed validation (${rawEvent.validation?.input_length} chars)`);
     }, 30000);
   });
 
   describe('Edge Cases', () => {
-    test('should handle exactly 10000 characters (boundary)', async () => {
-      const text = 'A'.repeat(10000);
+    test('should handle exactly 20000 characters (boundary)', async () => {
+      const text = 'A'.repeat(20000);
 
       const result = await sendAndVerify(text);
 
       // Assertions
       expect(result).toBeDefined();
 
-      // At exactly 10000, should PASS validation but FAIL repetition check
+      // At exactly 20000, should PASS validation but FAIL repetition check
       const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
-      // Validation may pass or fail depending on implementation (10000 is the boundary)
+      // Validation may pass or fail depending on implementation (20000 is the boundary)
       // The test just verifies the system handles the boundary correctly
-      console.log(`✅ Test passed: 10000 char boundary handled (validation.passed: ${rawEvent.validation?.passed}, reason: ${rawEvent.validation?.reason || 'none'})`);
+      console.log(`✅ Test passed: 20000 char boundary handled (validation.passed: ${rawEvent.validation?.passed}, reason: ${rawEvent.validation?.reason || 'none'})`);
     }, 30000);
 
-    test('should handle 10001 characters (just over limit)', async () => {
-      const text = 'A'.repeat(10001);
+    test('should handle 20001 characters (just over limit)', async () => {
+      const text = 'A'.repeat(20001);
 
       const result = await sendAndVerify(text);
 
@@ -267,7 +267,7 @@ describe('Input Validation Layer (Phase 2.4)', () => {
       expect(rawEvent.validation?.passed).toBe(false);
       expect(rawEvent.validation?.reason).toBe('EXCESSIVE_LENGTH');
 
-      console.log(`✅ Test passed: 10001 chars blocked as expected`);
+      console.log(`✅ Test passed: 20001 chars blocked as expected`);
     }, 30000);
 
     test('should handle newlines and special characters correctly', async () => {

@@ -223,7 +223,7 @@ The system uses score-based decision making on a **0-100 scale**. Based on the t
 
 #### `performance.max_input_length`
 - **Type**: `number`
-- **Default**: `10000`
+- **Default**: `20000`
 - **Purpose**: Maximum input length in characters
 - **File**: `unified_config.json`
 - **Path**: `performance.max_input_length`

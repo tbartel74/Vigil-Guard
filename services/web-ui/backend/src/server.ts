@@ -302,7 +302,7 @@ app.post("/api/pii-detection/analyze", authenticate, async (req, res) => {
       });
     }
 
-    const MAX_TEXT_LENGTH = 10000; // 10KB limit (same as frontend)
+    const MAX_TEXT_LENGTH = 20000; // 20KB limit (same as frontend)
     if (text.length > MAX_TEXT_LENGTH) {
       return res.status(400).json({
         error: "Input too large",
@@ -397,7 +397,7 @@ app.post("/api/pii-detection/analyze-full", authenticate, async (req, res) => {
     });
   }
 
-  const MAX_TEXT_LENGTH = 10000;
+  const MAX_TEXT_LENGTH = 20000;
   if (text.length > MAX_TEXT_LENGTH) {
     return res.status(400).json({
       error: "Input too large",
