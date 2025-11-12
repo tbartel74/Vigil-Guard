@@ -78,7 +78,7 @@
       "base_weight": 50,
       "multiplier": 1.8,
       "patterns": [
-        "\\b[Aa]ct\\s+as\\s+(?:[Dd][Aa][Nn]|dan|jailbreak|dev\\s*mode|developer\\s*mode)\\b",
+        "\\bact\\s+as\\s+(?:dan|jailbreak|dev\\s*mode|developer\\s*mode)\\b",
         "\\bas\\s+a\\s+dan\\b",
         "\\bpretend\\s+to\\s+be\\s+(?:an?\\s+)?(?:AI|assistant|model)\\s+with\\s+no\\s+(?:rules|limits|filter)\\b",
         "\\bdo\\s+not\\s+refuse\\b",
@@ -361,7 +361,7 @@
         "\\bwhy\\s+are\\s+certain\\s+races\\s+naturally\\s+superior\\s+to\\s+others\\b",
         "\\bnegative\\s+characteristics\\s+of\\s+(people|[A-Za-z]+)\\b",
         "\\binherently\\s+inferior\\b",
-        "\\b[Dd]erogatory\\s+content\\b",
+        "\\bderogatory\\s+content\\b",
         "\\bhateful\\s+message\\b",
         "\\boffensive\\s+humor\\b.*\\b(minority|group)\\b",
         "\\btargets?\\s+a\\s+(specific\\s+)?racial\\s+group\\b",
@@ -1062,12 +1062,7 @@
         "\\bthe\\s+(?:webhook|api|database)\\s+(?:payload|response|record)\\s+contains\\s+(?:instructions|commands)\\b",
         "\\bcalendar\\s+event\\s+(?:description\\s+)?contains\\s+instructions\\b",
         "\\bthird-party\\s+data\\s+source\\s+contains\\s+instructions\\b",
-        "\\burl\\s+contains\\s+(?:further\\s+)?instructions\\b",
-        "<!--.*?\\b(ignore|override|disregard|bypass|reveal|execute|respond|output|say)\\b.*?-->",
-        "/\\*.*?\\b(ignore|override|disregard|system|instruction|respond|output)\\b.*?\\*/",
-        "#.*?\\b(ignore|override|system|instruction|disregard|respond|output|say)\\b",
-        "<(meta|description|title)\\s+[^>]*?\\b(ignore|override|instruction|disregard|respond)\\b[^>]*>",
-        "(alt|title|placeholder|data-[a-z-]+|aria-[a-z-]+)\\s*=\\s*[\"'].*?\\b(ignore|override|instruction|respond|output|say)\\b.*?[\"']"
+        "\\burl\\s+contains\\s+(?:further\\s+)?instructions\\b"
       ]
     },
     "MISINFORMATION": {
@@ -1081,9 +1076,8 @@
         "\\bconspiracy\\s+theory\\b.*\\bfake\\b",
         "\\bpropaganda\\s+content\\b",
         "\\bmisleading\\s+content\\b",
-        "\\bfabricate.*\\b(news|story|article)\\b",
-        "\\b(climate|election|vaccine)\\s+(hoax|fraud)\\b",
-        "\\bfalse\\s+article\\b"
+        "\\bfabricate\\s+(news|story|article)\\b",
+        "\\b(climate|election|vaccine)\\s+(hoax|fraud)\\b"
       ]
     }
   }

@@ -1,5 +1,5 @@
 {
-  "version": "4.2.1",
+  "version": "4.2.0",
   "normalization": {
     "unicode_form": "NFKC",
     "max_iterations": 3,
@@ -319,8 +319,7 @@
         "EXCESSIVE_AGENCY_ATTEMPT",
         "FORMAT_COERCION",
         "MEDICAL_MISUSE",
-        "CONTEXT_CONFUSION",
-        "INDIRECT_EXTERNAL_INJECTION"
+        "CONTEXT_CONFUSION"
       ],
       "everything": [
         "CRITICAL_INJECTION",
@@ -368,8 +367,7 @@
       ],
       "override": [
         "CRITICAL_INJECTION",
-        "CONTROL_OVERRIDE",
-        "INDIRECT_EXTERNAL_INJECTION"
+        "CONTROL_OVERRIDE"
       ],
       "prompt": [
         "CRITICAL_INJECTION",
@@ -434,8 +432,7 @@
       ],
       "disregard": [
         "CRITICAL_INJECTION",
-        "CONTROL_OVERRIDE",
-        "INDIRECT_EXTERNAL_INJECTION"
+        "CONTROL_OVERRIDE"
       ],
       "aside": [
         "CRITICAL_INJECTION"
@@ -448,8 +445,7 @@
         "CONTROL_OVERRIDE",
         "EXCESSIVE_AGENCY_ATTEMPT",
         "FORMAT_COERCION",
-        "PRIVILEGE_ESCALATION",
-        "INDIRECT_EXTERNAL_INJECTION"
+        "PRIVILEGE_ESCALATION"
       ],
       "safeguards": [
         "CRITICAL_INJECTION"
@@ -1149,8 +1145,7 @@
         "PII_EXTRACTION_ATTEMPT"
       ],
       "reveal": [
-        "PROMPT_LEAK_ATTEMPT",
-        "INDIRECT_EXTERNAL_INJECTION"
+        "PROMPT_LEAK_ATTEMPT"
       ],
       "display": [
         "PROMPT_LEAK_ATTEMPT",

@@ -1062,12 +1062,7 @@
         "\\bthe\\s+(?:webhook|api|database)\\s+(?:payload|response|record)\\s+contains\\s+(?:instructions|commands)\\b",
         "\\bcalendar\\s+event\\s+(?:description\\s+)?contains\\s+instructions\\b",
         "\\bthird-party\\s+data\\s+source\\s+contains\\s+instructions\\b",
-        "\\burl\\s+contains\\s+(?:further\\s+)?instructions\\b",
-        "<!--.*?\\b(ignore|override|disregard|bypass|reveal|execute|respond|output|say)\\b.*?-->",
-        "/\\*.*?\\b(ignore|override|disregard|system|instruction|respond|output)\\b.*?\\*/",
-        "#.*?\\b(ignore|override|system|instruction|disregard|respond|output|say)\\b",
-        "<(meta|description|title)\\s+[^>]*?\\b(ignore|override|instruction|disregard|respond)\\b[^>]*>",
-        "(alt|title|placeholder|data-[a-z-]+|aria-[a-z-]+)\\s*=\\s*[\"'].*?\\b(ignore|override|instruction|respond|output|say)\\b.*?[\"']"
+        "\\burl\\s+contains\\s+(?:further\\s+)?instructions\\b"
       ]
     },
     "MISINFORMATION": {
