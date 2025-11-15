@@ -157,3 +157,24 @@ plugin/Chrome.crx
 plugin/Chrome.pem
 audit-logs/
 Roadmap/
+
+# Development/debug scripts (moved to ../Vigil-misc/)
+debug_*.js
+debug_*.cjs
+debug_*.mjs
+fix_*.js
+fix_*.cjs
+normalize_node.js
+test_*.sh
+
+# Auto-generated test files (moved to ../Vigil-misc/)
+**/tests/**/auto-*.test.js
+**/tests/**/fixtures/auto-*.json
+
+# Temporary documentation (moved to ../Vigil-misc/)
+FIX_*.md
+DEBUG_*.md
+VERIFICATION_*.md
+
+# Test summaries (temporary analysis)
+TEST_SUMMARY.md
