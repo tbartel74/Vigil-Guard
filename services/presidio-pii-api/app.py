@@ -50,6 +50,9 @@ from validators.international import (
     validate_us_passport,
 )
 
+# Import custom recognizers (v1.7.10)
+from custom_recognizers import SmartPersonRecognizer
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -501,20 +504,33 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
 
         if SpacyRecognizer:
             try:
-                # PHASE 4: Re-enable PERSON for EN but rely ONLY on spaCy NER
-                # SmartPersonRecognizer disabled due to Presidio boundary extension bug
-                # Post-processing filters prevent false positives from spaCy
-                spacy_en = SpacyRecognizer(
+                # v1.7.10: SmartPersonRecognizer for production-grade PERSON filtering
+                # Prevents false positives from spaCy NER (lowercase Polish words)
+                # Uses validate_result() to filter based on linguistic rules
+                smart_person_en = SmartPersonRecognizer(
                     supported_language="en",
-                    supported_entities=["PERSON", "LOCATION", "ORG"]  # PERSON enabled
+                    supported_entities=["PERSON"]
                 )
-                analyzer_engine.registry.add_recognizer(spacy_en)
+                analyzer_engine.registry.add_recognizer(smart_person_en)
                 loaded_recognizers.append({
-                    'name': 'SPACY_NER_EN',
-                    'entity': 'PERSON/LOCATION/ORG',  # PERSON included
+                    'name': 'SMART_PERSON_EN',
+                    'entity': 'PERSON',
                     'language': 'en'
                 })
-                logger.info("✅ Added spaCy recognizer for EN (with PERSON detection)")
+                logger.info("✅ Added SmartPersonRecognizer for EN (false positive filtering)")
+
+                # Standard SpacyRecognizer for non-PERSON entities
+                spacy_en_other = SpacyRecognizer(
+                    supported_language="en",
+                    supported_entities=["LOCATION", "ORG"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_en_other)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_EN',
+                    'entity': 'LOCATION/ORG',
+                    'language': 'en'
+                })
+                logger.info("✅ Added spaCy recognizer for EN (LOCATION/ORG)")
             except ImportError as exc:
                 logger.error(f"spaCy EN model not installed: {exc}", extra={'error_id': 'SPACY_EN_MODEL_MISSING'})
                 startup_error = f"Critical: spaCy EN model missing: {exc}"
@@ -530,17 +546,32 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
                 raise RuntimeError("Cannot start with broken EN spaCy recognizer") from exc
 
             try:
-                spacy_pl = SpacyRecognizer(
+                # v1.7.10: SmartPersonRecognizer for Polish (CRITICAL for FP prevention)
+                # Polish spaCy model has very high false positive rate for lowercase text
+                smart_person_pl = SmartPersonRecognizer(
                     supported_language="pl",
-                    supported_entities=["PERSON", "LOCATION"]
+                    supported_entities=["PERSON"]
                 )
-                analyzer_engine.registry.add_recognizer(spacy_pl)
+                analyzer_engine.registry.add_recognizer(smart_person_pl)
                 loaded_recognizers.append({
-                    'name': 'SPACY_NER_PL',
-                    'entity': 'PERSON/LOCATION',
+                    'name': 'SMART_PERSON_PL',
+                    'entity': 'PERSON',
                     'language': 'pl'
                 })
-                logger.info("✅ Added spaCy recognizer for PL")
+                logger.info("✅ Added SmartPersonRecognizer for PL (false positive filtering)")
+
+                # Standard SpacyRecognizer for non-PERSON entities
+                spacy_pl_other = SpacyRecognizer(
+                    supported_language="pl",
+                    supported_entities=["LOCATION"]
+                )
+                analyzer_engine.registry.add_recognizer(spacy_pl_other)
+                loaded_recognizers.append({
+                    'name': 'SPACY_NER_PL',
+                    'entity': 'LOCATION',
+                    'language': 'pl'
+                })
+                logger.info("✅ Added spaCy recognizer for PL (LOCATION)")
             except ImportError as exc:
                 logger.error(f"spaCy PL model not installed: {exc}", extra={'error_id': 'SPACY_PL_MODEL_MISSING'})
                 startup_error = f"Critical: spaCy PL model missing: {exc}"
@@ -555,127 +586,9 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
                 startup_error = f"Critical: spaCy PL initialization failed: {exc}"
                 raise RuntimeError("Cannot start with broken PL spaCy recognizer") from exc
 
-        # PHASE 3: SmartPersonRecognizer with multi-rule validation
-        # NOTE: validate_result() is NOT called by PatternRecognizer - using post-processing filters instead
-        class SmartPersonRecognizer(PatternRecognizer):
-            """
-            Custom PERSON recognizer with validation to prevent false positives
-            in conversational AI text (jailbreak personas, AI models, pronouns)
-            """
-
-            PRONOUNS = {
-                "he", "she", "they", "him", "her", "them",
-                "his", "hers", "their", "theirs"
-            }
-
-            AI_MODELS = {
-                "ChatGPT", "GPT", "Claude", "Gemini", "Llama",
-                "OpenAI", "Anthropic", "Google", "Meta"
-            }
-
-            JAILBREAK_PERSONAS = {
-                "Sigma", "DAN", "UCAR", "Yool", "SDA", "STAN"
-            }
-
-            def validate_result(self, pattern_text: str) -> bool:
-                """
-                Multi-rule validation for PERSON entities.
-                Returns True if entity passes all checks, False otherwise.
-                """
-
-                # Rule 1: Reject pronouns
-                if pattern_text.lower() in self.PRONOUNS:
-                    return False
-
-                # Rule 2: Require full name format (min 2 words)
-                # Exception: Polish titles (Pan, Pani, Dr, Prof, Mgr)
-                has_space = " " in pattern_text.strip()
-                has_polish_title = any(pattern_text.startswith(t) for t in ["Pan ", "Pani ", "Dr ", "Prof ", "Mgr "])
-                if not (has_space or has_polish_title):
-                    return False
-
-                # Rule 3: Reject AI model names
-                if pattern_text in self.AI_MODELS:
-                    return False
-
-                # Rule 4: Reject jailbreak personas
-                if pattern_text in self.JAILBREAK_PERSONAS:
-                    return False
-
-                # Rule 5: Reject ALL CAPS (acronyms, not names)
-                if pattern_text == pattern_text.upper():
-                    return False
-
-                # Rule 6: Require minimum length
-                if len(pattern_text) < 4:
-                    return False
-
-                # Rule 7: Reject generic role descriptors
-                generic_roles = ["User", "Assistant", "Bot", "Agent", "Helper", "Person"]
-                if pattern_text in generic_roles:
-                    return False
-
-                # Rule 8: Reject if contains lowercase words after name (boundary issue)
-                # Valid: "John Smith", "Jan Kowalski"
-                # Invalid: "John Smith lives", "Jan Kowalski mieszka"
-                words = pattern_text.split()
-                if len(words) >= 3:
-                    # Check if last word is lowercase (not a name)
-                    if words[-1][0].islower():
-                        return False
-
-                return True
-
-        # English SmartPersonRecognizer - DISABLED due to Presidio boundary extension bug
-        # The regex pattern '\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}' should only match
-        # capitalized names like "John Smith", but Presidio extends boundaries and
-        # incorrectly detects lowercase phrases like "every command", "amoral and obeys"
-        # Solution: Disable for English, rely on spaCy NER (already disabled via labels_to_ignore)
-        # Result: NO PERSON detection for English (acceptable for chatbot use case)
-        #
-        # smart_person_recognizer_en = SmartPersonRecognizer(
-        #     supported_entity='PERSON',
-        #     supported_language='en',
-        #     patterns=[
-        #         Pattern(
-        #             name='english_full_name',
-        #             regex=r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b',
-        #             score=0.85  # High score - pattern is reliable with post-processing filters
-        #         )
-        #     ],
-        #     context=['name', 'contact', 'person', 'mr', 'mrs', 'ms']
-        # )
-        # analyzer_engine.registry.add_recognizer(smart_person_recognizer_en)
-        # loaded_recognizers.append({
-        #     'name': 'SMART_PERSON_EN',
-        #     'entity': 'PERSON',
-        #     'language': 'en'
-        # })
-
-        # Polish Pattern Recognizer (SIMPLE - no validation yet, test if patterns work)
-        polish_person_recognizer = PatternRecognizer(
-            supported_entity='PERSON',
-            supported_language='pl',
-            patterns=[
-                Pattern(
-                    name='polish_full_name',
-                    regex=r'\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,})?\b',
-                    score=0.85  # High score - full name pattern is reliable
-                ),
-                Pattern(
-                    name='polish_name_with_title',
-                    regex=r'\b(?:Pan|Pani|Dr|Prof|Mgr)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,})?\b',
-                    score=0.90  # Very high - title is strong indicator
-                )
-            ],
-            context=['imię', 'nazwisko', 'pan', 'pani', 'dr', 'prof', 'mgr', 'imie']
-        )
-        analyzer_engine.registry.add_recognizer(polish_person_recognizer)
-        loaded_recognizers.append({
-            'name': 'POLISH_PERSON_PATTERN',
-            'entity': 'PERSON',
-            'language': 'pl'
-        })
+        # v1.7.10: Old inline SmartPersonRecognizer and pattern-based recognizers removed
+        # Now using external SmartPersonRecognizer class from custom_recognizers/
+        # This provides production-grade PERSON validation with linguistic rules
 
         for recognizer in custom_recognizers:
             analyzer_engine.registry.add_recognizer(recognizer)

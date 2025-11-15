@@ -138,6 +138,8 @@ interface DualAnalyzeResult {
   redacted_text: string;
   language_stats: LanguageStats;
   regex_fallback?: RegexFallbackMeta;
+  detection_complete?: boolean;
+  warnings?: string[];
 }
 
 let cachedUnifiedConfig: { data: any; etag: string } | null = null;

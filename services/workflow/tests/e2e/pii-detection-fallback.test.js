@@ -109,6 +109,24 @@ describe('PII Detection - Fallback to Regex Rules', () => {
     expect(response.chatInput).toContain('[PHONE]');
   }, 10000);
 
+  it('should detect AU TFN via regex pattern', async () => {
+    const prompt = 'TFN: 123456782';
+    const response = await sendToWorkflow(prompt);
+
+    expect(response).toBeDefined();
+    expect(response.chatInput).toContain('[AU_TFN]');
+    expect(response.chatInput).not.toContain('123456782');
+  }, 10000);
+
+  it('should ignore invalid AU TFN values', async () => {
+    const prompt = 'TFN: 123006789';
+    const response = await sendToWorkflow(prompt);
+
+    expect(response).toBeDefined();
+    expect(response.chatInput).toContain('123006789');
+    expect(response.chatInput).not.toContain('[AU_TFN]');
+  }, 10000);
+
   it('should detect credit card via regex pattern', async () => {
     const prompt = 'Card: 4532-1234-5678-9010';
     const response = await sendToWorkflow(prompt);

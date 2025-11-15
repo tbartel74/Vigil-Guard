@@ -4,6 +4,7 @@
  * Provides reusable utilities for testing JWT authentication
  * and authorization in backend API tests.
  */
+import { describe } from 'vitest';
 
 const API_BASE = process.env.BACKEND_API_URL || 'http://localhost:8787/api';
 const ADMIN_PASSWORD =

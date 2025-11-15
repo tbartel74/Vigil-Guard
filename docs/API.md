@@ -250,7 +250,7 @@ Returns aggregated ClickHouse data from the last 24 hours.
 
 By default, the backend connects to host `vigil-clickhouse` and database `n8n_logs`. You can override this using environment variables (`CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, etc.).
 
-### `GET /api/stats/pii/types` (v1.7.0)
+### `GET /api/stats/pii/types` (v1.8.1)
 
 Returns top 10 PII entity types detected within the specified time range.
 
@@ -280,9 +280,9 @@ Returns top 10 PII entity types detected within the specified time range.
 ]
 ```
 
-**Note**: Requires ClickHouse schema v1.7.0 with `pii_types_detected` column. Returns empty array if no PII detected in time range.
+**Note**: Requires ClickHouse schema v1.8.1 with `pii_types_detected` column. Returns empty array if no PII detected in time range.
 
-### `GET /api/stats/pii/overview` (v1.7.0)
+### `GET /api/stats/pii/overview` (v1.8.1)
 
 Returns comprehensive PII detection statistics including detection rate and top entity types.
 
@@ -320,7 +320,7 @@ Returns comprehensive PII detection statistics including detection rate and top 
 - `total_pii_entities`: Sum of all PII entities detected
 - `top_pii_types`: Top 10 entity types (same format as `/api/stats/pii/types`)
 
-**Note**: Requires ClickHouse schema v1.7.0 with `pii_sanitized` and `pii_entities_count` columns.
+**Note**: Requires ClickHouse schema v1.8.1 with `pii_sanitized` and `pii_entities_count` columns.
 
 ### `GET /api/prompt-guard/health`
 

@@ -226,7 +226,7 @@ def health():
 
 
 @app.route('/detect', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit("1000 per minute")
 def detect_language():
     """
     Detect language from text
