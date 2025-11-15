@@ -102,7 +102,7 @@ Test the detection endpoint:
 ```bash
 # First, get the webhook URL from n8n:
 # 1. Open http://localhost:5678
-# 2. Open the "Vigil Guard v1.7.9" workflow
+# 2. Open the "Vigil Guard v1.8.1" workflow
 # 3. Click the "Chat Message" trigger node (first node)
 # 4. Copy the "Webhook URL" shown (e.g., http://localhost:5678/webhook/abc123...)
 

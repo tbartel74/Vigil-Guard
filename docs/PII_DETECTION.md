@@ -1,10 +1,10 @@
 # PII Detection with Microsoft Presidio
 
-**Version:** 1.7.9
-**Last Updated:** 2025-11-12
+**Version:** 1.8.1
+**Last Updated:** 2025-11-15
 **Status:** Production Ready
 
-**Performance** (v1.7.9): avg 18.5ms, P95 29ms (81.5% faster than baseline ~100ms)
+**Performance** (v1.8.1): avg 18.5ms, P95 29ms (81.5% faster than baseline ~100ms)
 
 ---
 
@@ -318,15 +318,15 @@ mask:    "Contact j***@example.com"
 
 ---
 
-## Web UI Dual-Language Detection (v1.7.0+)
+## Web UI Dual-Language Detection (v1.8.1)
 
 ### Overview
 
-Starting with v1.7.0, the Web UI backend implements comprehensive dual-language PII detection that achieves 100% feature parity with the n8n workflow detection capabilities.
+The Web UI backend implements comprehensive dual-language PII detection that achieves 100% feature parity with the n8n workflow detection capabilities (SmartPersonRecognizer, hybrid language detection, regex fallback).
 
 ### Problem Solved
 
-**Before v1.7.0:**
+**Before v1.6.0:**
 - Web UI Test Panel used simple Presidio proxy endpoint
 - Only called one language model (typically Polish)
 - Result: Only 1 entity detected (e.g., PL_PESEL)
@@ -334,7 +334,7 @@ Starting with v1.7.0, the Web UI backend implements comprehensive dual-language 
 - No regex fallback for entities missed by ML models
 - No entity deduplication
 
-**After v1.7.0:**
+**After v1.6.0 (enhanced in v1.8.1):**
 - Web UI uses comprehensive dual-language orchestrator
 - Parallel calls to Polish and English Presidio models
 - Regex fallback from pii.conf for 13 additional patterns
@@ -387,7 +387,7 @@ Starting with v1.7.0, the Web UI backend implements comprehensive dual-language 
 #### POST /api/pii-detection/analyze
 
 **Endpoint**: `http://localhost:8787/api/pii-detection/analyze`
-**Version**: v1.7.0+ (dual-language by default)
+**Version**: v1.8.1 (dual-language with SmartPersonRecognizer)
 **Backward Compatible**: Yes (legacy mode via `?mode=legacy` or `{"legacy": true}`)
 
 **Request**:
@@ -452,7 +452,7 @@ Starting with v1.7.0, the Web UI backend implements comprehensive dual-language 
 #### POST /api/pii-detection/analyze-full
 
 **Endpoint**: `http://localhost:8787/api/pii-detection/analyze-full`
-**Version**: v1.7.0+
+**Version**: v1.8.1
 **Purpose**: Explicit dual-language endpoint with detailed statistics (used by Test Panel)
 
 Same request/response format as `/analyze`, but always returns `language_stats` and `detection_method: "dual_language"`.
@@ -641,7 +641,7 @@ curl -X POST http://localhost:8787/api/pii-detection/analyze \
 
 ### Migration Notes
 
-**No Breaking Changes**: v1.7.0 is fully backward compatible
+**No Breaking Changes**: v1.8.1 is fully backward compatible with v1.7.9
 
 **What Changed**:
 - `/api/pii-detection/analyze` now uses dual-language by default
