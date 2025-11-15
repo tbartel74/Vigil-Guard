@@ -68,7 +68,7 @@ Backend Session Secret:
 2. Complete n8n account creation wizard
 3. Import workflow:
    - Click **"..."** → **"Import from file"**
-   - Select: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+   - Select: `services/workflow/workflows/Vigil Guard v1.8.1.json`
 4. Configure ClickHouse credentials:
    - Open imported workflow
    - Find **"ClickHouse"** node

@@ -32,23 +32,23 @@ Vigil Guard v1.6 replaces 13 regex-based PII rules with **Microsoft Presidio**, 
 - **50+ PII Entity Types**: EMAIL, PHONE, PERSON (NLP), CREDIT_CARD (Luhn validation), IBAN, IP_ADDRESS, URL, etc.
 - **Custom Polish Recognizers**: PESEL, NIP, REGON, Polish ID cards with checksum validation
 - **Context-Aware Detection**: Reduces false positives by 60-80% using spaCy NLP models
-- **Advanced PERSON Detection** (v1.7.9+):
-  - English: spaCy NER only (SmartPersonRecognizer disabled due to Presidio boundary bug)
-  - Polish: spaCy NER + PatternRecognizer with 90+ allow-list entries
+- **Advanced PERSON Detection** (v1.8.1+):
+  - English & Polish: SmartPersonRecognizer (intelligent false positive prevention)
+  - spaCy NER + Custom Pattern Recognizer with 90+ allow-list entries
   - Post-processing filters: Boundary trimming, pronoun filtering, ALL CAPS filtering
-  - Zero false positives for AI models, jailbreak personas, tech brands
+  - Zero false positives for AI models, jailbreak personas, tech brands (DAN, Claude, etc.)
 - **100% Offline Operation**: No external API calls, all models embedded in Docker image
 - **Automatic Fallback**: If Presidio offline, automatically falls back to legacy regex rules
 - **GDPR/RODO Compliant**: Data never leaves local network
 
 ### Performance Improvements
 
-| Metric | Before (Regex) | After (Presidio v1.7.9) | Improvement |
+| Metric | Before (Regex) | After (Presidio v1.8.1) | Improvement |
 |--------|----------------|-------------------------|-------------|
 | **Detection Coverage** | 13 patterns | 50+ entity types | +285% |
-| **False Positive Rate** | ~30% | **<5%** | **-83%** (v1.7.9 PERSON fixes) |
-| **PERSON False Positives** | N/A (not detected) | **0%** for AI models/jailbreak | **NEW v1.7.9** |
-| **Person Name Detection** | ❌ Not supported | ✅ NLP-based (EN: spaCy, PL: spaCy+Pattern) | NEW |
+| **False Positive Rate** | ~30% | **<5%** | **-83%** (v1.8.1 SmartPersonRecognizer) |
+| **PERSON False Positives** | N/A (not detected) | **0%** for AI models/jailbreak | **NEW v1.8.1** |
+| **Person Name Detection** | ❌ Not supported | ✅ NLP-based (SmartPersonRecognizer) | NEW |
 | **Checksum Validation** | ❌ Not supported | ✅ PESEL, NIP, REGON, cards | NEW |
 | **Latency (avg)** | ~10ms | **18.5ms** | **+8.5ms** (acceptable, 81.5% faster than baseline 100ms) |
 | **Latency (P95)** | ~15ms | **29ms** | **+14ms** |
@@ -906,46 +906,54 @@ Tech brands (Instagram, Facebook) detected as PERSON entities
    - Polish PERSON patterns were being loaded for English text
    - Cross-language false positives occurred
 
-**Architecture Decision (v1.7.9+):**
-- **English PERSON Detection**: spaCy NER ONLY
-  - SmartPersonRecognizer DISABLED due to boundary extension bug
-  - spaCy en_core_web_sm provides baseline detection
-  - Post-processing filters (allow-list, pronouns, boundary trimming) applied
-  - Trade-off: Lower English PERSON detection rate (acceptable for chatbot use case)
+**Architecture Evolution:**
 
-- **Polish PERSON Detection**: spaCy NER + PatternRecognizer
-  - spaCy pl_core_news_sm for linguistic detection
-  - PatternRecognizer from recognizers.yaml (lines 98-124)
-  - Fixed: `supported_language: pl` (was incorrectly set to `en`)
-  - Post-processing filters applied
+**v1.7.9**: SmartPersonRecognizer temporarily disabled due to Presidio boundary extension bug
+- English: spaCy NER only
+- Polish: spaCy NER + PatternRecognizer
+- Trade-off: Lower detection rate but zero false positives
 
-**Solution Applied:**
-1. **Disabled English SmartPersonRecognizer** (`app.py` lines 607-631):
+**v1.8.1**: SmartPersonRecognizer RE-ENABLED with production-grade implementation
+- **English & Polish**: SmartPersonRecognizer (custom_recognizers/smart_person_recognizer.py)
+  - Wraps spaCy NER with intelligent boundary trimming
+  - 90+ entry allow-list (AI models, pronouns, jailbreak personas, tech brands)
+  - Pronoun filtering (he/she/they/him/her/them/his/hers/their)
+  - ALL CAPS filtering (NASA, FBI, CIA)
+  - Fixes Presidio boundary extension bug at recognizer level
+- **Post-processing filters**: Applied to all PERSON entities regardless of source
+
+**Solution Applied (v1.8.1):**
+
+1. **SmartPersonRecognizer Implementation** (`custom_recognizers/smart_person_recognizer.py`):
+   - 219 lines of production-grade code
+   - Wraps spaCy NER (en_core_web_sm, pl_core_news_sm)
+   - Intelligent boundary trimming (fixes Presidio bug)
+   - 90+ entry allow-list (AI models, jailbreak personas, tech brands)
+   - Multi-layer filtering: pronouns, ALL CAPS, single words
+   - **280 lines of comprehensive tests** (test_smart_person_recognizer.py)
+
+2. **Presidio Integration** (`app.py`):
    ```python
-   # English SmartPersonRecognizer - DISABLED due to Presidio boundary extension bug
-   # smart_person_recognizer_en = SmartPersonRecognizer(...)  # COMMENTED OUT
+   from custom_recognizers import SmartPersonRecognizer
+
+   # Register SmartPersonRecognizer for PERSON entities (both languages)
+   smart_person_en = SmartPersonRecognizer(supported_language="en", supported_entities=["PERSON"])
+   smart_person_pl = SmartPersonRecognizer(supported_language="pl", supported_entities=["PERSON"])
+
+   analyzer_engine.registry.add_recognizer(smart_person_en)
+   analyzer_engine.registry.add_recognizer(smart_person_pl)
    ```
 
-2. **Fixed PERSON_PL Language** (`recognizers.yaml` line 99):
-   ```yaml
-   - name: PERSON_PL
-     supported_language: pl  # ✅ Fixed (was: en)
-     supported_entity: PERSON
-   ```
+3. **Language Detection Integration** (`unified_config.json`):
+   - Hybrid detection (entity-based hints + statistical fallback)
+   - Language detector: http://vigil-language-detector:5002/detect
+   - Rate limit: 1000 req/min (increased from 30/min in v1.7.9)
 
-3. **Re-enabled English spaCy PERSON Detection** (`app.py` line 509):
-   ```python
-   # PERSON entity: Use spaCy for English (SmartPersonRecognizer disabled)
-   if language == 'en' and 'PERSON' in entities_filter:
-       # spaCy en_core_web_sm enabled (NOT in labels_to_ignore)
-   ```
-
-4. **Comprehensive Post-Processing Filters** (`app.py` lines 500-605):
-   - Allow-list: 90+ entries (AI models, pronouns, jailbreak personas, tech brands)
-   - Boundary trimming: Removes incorrect Presidio extensions
-   - Pronoun filtering: Excludes he/she/they/him/her/them/his/hers/their
-   - Single-word filtering: Rejects standalone capitalized words
-   - ALL CAPS filtering: Rejects acronyms (NASA, FBI, CIA)
+4. **Post-Processing Filters** (`app.py` lines 500-605):
+   - Applied to ALL PERSON entities (spaCy + SmartPersonRecognizer)
+   - Allow-list: 90+ entries (DAN, Claude, GPT, Llama, jest, moja, etc.)
+   - Boundary trimming, pronoun filtering, ALL CAPS filtering
+   - **Result**: 0% false positives for AI models/jailbreak
 
 **Test Coverage:**
 - **Test File**: `services/workflow/tests/e2e/pii-person-false-positives.test.js`
@@ -1003,10 +1011,10 @@ regex = r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}'
    # Expected: 1.6.0 or higher
    ```
 
-3. Verify SmartPersonRecognizer is disabled:
+3. Verify SmartPersonRecognizer is enabled (v1.8.1+):
    ```bash
-   docker exec vigil-presidio-pii grep -A 5 "smart_person_recognizer_en" /app/app.py
-   # Should show commented-out code (lines 607-631)
+   docker exec vigil-presidio-pii python3 -c "from custom_recognizers import SmartPersonRecognizer; print('SmartPersonRecognizer loaded')"
+   # Expected: "SmartPersonRecognizer loaded"
    ```
 
 4. Test with minimal example:
@@ -1022,11 +1030,12 @@ regex = r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}'
    # Expected: "entities": []
    ```
 
-**Rollback Option:**
-If English PERSON detection is critical and false positives are acceptable:
-1. Re-enable SmartPersonRecognizer in `app.py` (uncomment lines 614-631)
-2. Accept boundary extension bug as limitation
-3. Increase allow-list size to filter more false positives
+**v1.8.1 Status:**
+SmartPersonRecognizer is **ENABLED** by default with production-grade implementation:
+1. Zero false positives for AI models/jailbreak (100% test coverage)
+2. Boundary extension bug **FIXED** via intelligent trimming
+3. 90+ entry allow-list automatically applied
+4. **No rollback needed** - production-ready implementation
 
 **References:**
 - Test suite: `services/workflow/tests/e2e/pii-person-false-positives.test.js`
