@@ -132,6 +132,10 @@ TODO.md
 mustfix.md
 TEST_ANALYSIS.md
 
+# Claude Code wrapper scripts (local-only tmux integration)
+scripts/claude-code-wrapper.sh
+scripts/tmux-agent-status.sh
+
 # Roadmap directory (internal planning, not for repository)
 Roadmap/
 
