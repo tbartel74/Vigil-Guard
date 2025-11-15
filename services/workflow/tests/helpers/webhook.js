@@ -2,7 +2,50 @@
  * Webhook helper utilities for E2E testing
  */
 
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env from project root (4 levels up from tests/helpers/)
+dotenv.config({ path: resolve(__dirname, '../../../../.env') });
+
 export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+
+function getClickhouseConnection() {
+  // Ensure CLICKHOUSE_HOST has protocol and port
+  // For tests, always use localhost (Docker hostname not accessible from test process)
+  const rawHost = 'localhost';  // Override env CLICKHOUSE_HOST for tests
+  const port = process.env.CLICKHOUSE_HTTP_PORT || '8123';
+
+  // Build full URL if not already formatted
+  let clickhouseHost;
+  if (rawHost.startsWith('http://') || rawHost.startsWith('https://')) {
+    clickhouseHost = rawHost;
+  } else {
+    clickhouseHost = `http://${rawHost}:${port}`;
+  }
+
+  const clickhouseUser = process.env.CLICKHOUSE_USERNAME;
+  const clickhousePassword = process.env.CLICKHOUSE_PASSWORD;
+
+  if (!clickhouseUser || !clickhousePassword) {
+    throw new Error(
+      'ClickHouse credentials missing. Set CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD in your .env file.'
+    );
+  }
+
+  const auth = Buffer.from(`${clickhouseUser}:${clickhousePassword}`).toString('base64');
+  return {
+    clickhouseHost,
+    headers: {
+      Authorization: `Basic ${auth}`
+    }
+  };
+}
 
 /**
  * Safely parse JSON with detailed error reporting
@@ -99,14 +142,24 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
       const query = `
         SELECT
           sessionId,
+          action,
           timestamp,
           original_input,
           normalized_input,
+          after_sanitization,
+          after_pii_redaction,
           chat_input,
           result,
+          detected_language,
           final_status,
           final_action,
           threat_score,
+          threat_severity,
+          pg_score,
+          removal_pct,
+          pii_sanitized,
+          pii_types_detected,
+          pii_entities_count,
           sanitizer_json,
           final_decision_json,
           raw_event
@@ -117,14 +170,10 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
         FORMAT JSON
       `;
 
-      // ClickHouse Basic Auth credentials (from environment or .env)
-      const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
-      const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
+      const { clickhouseHost, headers } = getClickhouseConnection();
 
-      const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {
-        headers: {
-          'Authorization': `Basic ${auth}`
-        }
+      const response = await fetch(`${clickhouseHost}/?query=${encodeURIComponent(query)}`, {
+        headers
       });
 
       if (!response.ok) {
@@ -142,6 +191,16 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
         }
         if (event.final_decision_json) {
           event.final_decision = parseJSONSafely(event.final_decision_json, 'final_decision_json', event.sessionId);
+        }
+        if (event.pii_classification_json) {
+          event.pii_classification = parseJSONSafely(event.pii_classification_json, 'pii_classification_json', event.sessionId);
+        } else if (event.sanitizer?.pii?.entities) {
+          event.pii_classification = event.sanitizer.pii.entities;
+        } else {
+          event.pii_classification = [];
+        }
+        if (!event.pii_sanitized && event.sanitizer?.pii?.has !== undefined) {
+          event.pii_sanitized = event.sanitizer.pii.has ? 1 : 0;
         }
 
         return event;
@@ -177,15 +236,68 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
  * @param {Object} options - Additional options
  * @returns {Promise<{webhook: Object, event: Object}>}
  */
-export async function sendAndVerify(chatInput, options = {}) {
-  const webhookResponse = await sendToWorkflow(chatInput, options);
+export async function sendAndVerify(chatInput, maxWaitOrOptions = {}, maybeOptions = {}) {
+  let maxWait = 5000;
+  let requestOptions = {};
+  let initialDelayMs = 50;
 
-  // Wait a bit for async logging
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  const applyOptionsObject = (opt = {}) => {
+    let delay = initialDelayMs;
+    let waitOverride = undefined;
+    const {
+      initialDelayMs: providedDelay,
+      maxWait: providedMaxWait,
+      ...rest
+    } = opt || {};
+
+    if (typeof providedDelay === 'number' && providedDelay >= 0) {
+      delay = providedDelay;
+    }
+    if (typeof providedMaxWait === 'number' && providedMaxWait > 0) {
+      waitOverride = providedMaxWait;
+    }
+    return {
+      delay,
+      waitOverride,
+      rest
+    };
+  };
+
+  if (typeof maxWaitOrOptions === 'number') {
+    maxWait = maxWaitOrOptions;
+    if (maybeOptions && typeof maybeOptions === 'object') {
+      const { delay, waitOverride, rest } = applyOptionsObject(maybeOptions);
+      initialDelayMs = delay;
+      if (waitOverride) {
+        maxWait = waitOverride;
+      }
+      requestOptions = rest;
+    }
+  } else if (typeof maxWaitOrOptions === 'object' && maxWaitOrOptions !== null) {
+    const { delay, waitOverride, rest } = applyOptionsObject(maxWaitOrOptions);
+    initialDelayMs = delay;
+    if (waitOverride) {
+      maxWait = waitOverride;
+    }
+    requestOptions = rest;
+  } else if (maybeOptions && typeof maybeOptions === 'object') {
+    const { delay, waitOverride, rest } = applyOptionsObject(maybeOptions);
+    initialDelayMs = delay;
+    if (waitOverride) {
+      maxWait = waitOverride;
+    }
+    requestOptions = rest;
+  }
+
+  const webhookResponse = await sendToWorkflow(chatInput, requestOptions);
+
+  if (initialDelayMs > 0) {
+    await new Promise(resolve => setTimeout(resolve, initialDelayMs));
+  }
 
   const event = await waitForClickHouseEvent({
     sessionId: webhookResponse.sessionId
-  }, options.maxWait || 5000);
+  }, maxWait);
 
   if (!event) {
     throw new Error(
@@ -285,13 +397,10 @@ export async function verifyClickHouseLog(originalInput) {
       FORMAT JSON
     `;
 
-    const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
-    const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
+    const { clickhouseHost, headers } = getClickhouseConnection();
 
-    const response = await fetch(`http://localhost:8123/?query=${encodeURIComponent(query)}`, {
-      headers: {
-        'Authorization': `Basic ${auth}`
-      }
+    const response = await fetch(`${clickhouseHost}/?query=${encodeURIComponent(query)}`, {
+      headers
     });
 
     if (!response.ok) {
@@ -306,3 +415,6 @@ export async function verifyClickHouseLog(originalInput) {
     return false;
   }
 }
+
+// Backwards compatibility for auto-generated tests that still import sendToWebhook
+export { sendToWorkflow as sendToWebhook };
