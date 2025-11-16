@@ -175,6 +175,7 @@ export interface LanguageStats {
   primary_language: string;  // Guaranteed non-null (fallback applied)
   detection_method: string;
   detection_confidence: number | null;
+  language_detection_degraded?: boolean;  // NEW v1.8.1: Flag when language detector service failed
   polish_entities: number;
   english_entities: number;
   regex_entities: number;

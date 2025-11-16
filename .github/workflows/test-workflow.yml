@@ -126,6 +126,11 @@ jobs:
 
       - name: Run tests (without webhook dependency)
         working-directory: services/workflow
+        env:
+          CLICKHOUSE_HOST: localhost
+          CLICKHOUSE_HTTP_PORT: 8123
+          CLICKHOUSE_USERNAME: admin
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
         run: |
           # Run only tests that don't require active n8n workflow
           # NOTE: Tests will fail until n8n workflow automation is implemented (see issue #XXX)
