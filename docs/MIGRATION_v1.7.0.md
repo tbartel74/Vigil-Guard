@@ -1,4 +1,4 @@
-# Migration Guide: v1.6.11 → v1.7.0
+# Migration Guide: v1.8.1 → v1.8.1
 
 **Release Date**: 2025-11-01
 **Estimated Migration Time**: 15-20 minutes
@@ -12,13 +12,13 @@ Version 1.7.0 introduces three major enhancements:
 2. **PII Classification** - Structured tracking with new ClickHouse columns
 3. **Client Identification** - Persistent browser tracking with metadata
 
-All changes are **backward compatible** - existing v1.6.11 deployments continue to work.
+All changes are **backward compatible** - existing v1.8.1 deployments continue to work.
 
 ---
 
 ## Prerequisites
 
-- Vigil Guard v1.6.11 installed and running
+- Vigil Guard v1.8.1 installed and running
 - Access to server with Docker permissions
 - Admin credentials for Web UI and n8n
 - Backup of current `.env` file (recommended)
@@ -34,8 +34,8 @@ All changes are **backward compatible** - existing v1.6.11 deployments continue 
 docker-compose down
 
 # Backup workflow
-cp services/workflow/workflows/Vigil-Guard-v1.6.11.json \
-   services/workflow/workflows/Vigil-Guard-v1.6.11.json.backup
+cp services/workflow/workflows/Vigil-Guard-v1.8.1.json \
+   services/workflow/workflows/Vigil-Guard-v1.8.1.json.backup
 
 # Backup .env file
 cp .env .env.backup.$(date +%Y%m%d)
@@ -50,9 +50,9 @@ echo "✅ Backup complete"
 ### Step 2: Pull Latest Code (2 min)
 
 ```bash
-# Pull v1.7.0 release
+# Pull v1.8.1 release
 git fetch --tags
-git checkout v1.7.0
+git checkout v1.8.1
 
 # Or if using main branch:
 git pull origin main
@@ -76,7 +76,7 @@ sleep 10
 # ✓ Views created
 # ✓ False positive reports table created
 # ✓ Retention config table created
-# ✓ Audit columns added successfully  ← NEW in v1.7.0
+# ✓ Audit columns added successfully  ← NEW in v1.8.1
 # ✓ ClickHouse initialized successfully!
 ```
 
@@ -103,13 +103,13 @@ docker exec vigil-clickhouse clickhouse-client \
 ### Step 4: Update n8n Workflow (5 min)
 
 1. **Login to n8n**: http://localhost:5678
-2. **Open** Vigil Guard v1.6.11 workflow
+2. **Open** Vigil Guard v1.8.1 workflow
 3. **Import** new workflow:
    - Click "..." menu → Import from File
-   - Select: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
+   - Select: `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
    - Click "Import"
-4. **Activate** v1.7.0 workflow
-5. **Deactivate** v1.6.11 workflow (keep as backup)
+4. **Activate** v1.8.1 workflow
+5. **Deactivate** v1.8.1 workflow (keep as backup)
 
 **Verify Workflow Changes:**
 - Check node count: Should still be ~40 nodes
@@ -223,26 +223,26 @@ curl -s "http://localhost/ui/api/stats/pii/overview?timeRange=24h" \
 If you encounter issues, rollback is safe and easy:
 
 ```bash
-# Step 1: Restore v1.6.11 workflow in n8n
-# - Deactivate v1.7.0 workflow
-# - Activate v1.6.11 workflow backup
+# Step 1: Restore v1.8.1 workflow in n8n
+# - Deactivate v1.8.1 workflow
+# - Activate v1.8.1 workflow backup
 
 # Step 2: Restart services (no code changes needed)
 docker-compose restart
 
 # Step 3: ClickHouse columns remain (backward compatible)
-# - v1.6.11 workflow uses DEFAULT values
+# - v1.8.1 workflow uses DEFAULT values
 # - No data loss
 ```
 
-**Note**: New ClickHouse columns are **optional** - v1.6.11 workflow continues to work without them.
+**Note**: New ClickHouse columns are **optional** - v1.8.1 workflow continues to work without them.
 
 ---
 
 ## Verification Checklist
 
 - [ ] ClickHouse has 9 new columns (pii_*, client_id, browser_*)
-- [ ] n8n workflow v1.7.0 is active and executing
+- [ ] n8n workflow v1.8.1 is active and executing
 - [ ] Browser extension shows clientId in console logs
 - [ ] PII stats API endpoints return valid data
 - [ ] Grafana shows 3 new alert rules
@@ -298,7 +298,7 @@ docker logs vigil-web-ui-backend --tail=50
 
 **Solution**:
 ```bash
-# 1. Verify workflow v1.7.0 is active in n8n
+# 1. Verify workflow v1.8.1 is active in n8n
 # 2. Clear n8n execution cache:
 docker-compose restart n8n
 
@@ -312,7 +312,7 @@ docker-compose restart n8n
 
 **Expected Metrics** (based on testing):
 
-| Metric | v1.6.11 | v1.7.0 | Change |
+| Metric | v1.8.1 | v1.8.1 | Change |
 |--------|---------|--------|--------|
 | Workflow Latency | 310ms | 320ms | +3% |
 | Memory Usage | 616MB | 630MB | +2% |
@@ -345,7 +345,7 @@ If you encounter issues during migration:
 
 1. Check logs: `docker-compose logs --tail=100`
 2. Review troubleshooting section above
-3. Rollback to v1.6.11 if needed (see Rollback Procedure)
+3. Rollback to v1.8.1 if needed (see Rollback Procedure)
 4. Report issues: https://github.com/vigil-guard/vigil-guard/issues
 
 ---
@@ -359,4 +359,4 @@ After successful migration:
 3. **Update Documentation** - Document any custom configuration changes
 4. **Test E2E** - Run full test suite: `cd services/workflow && npm test`
 
-**Congratulations! Your Vigil Guard installation is now running v1.7.0 🎉**
+**Congratulations! Your Vigil Guard installation is now running v1.8.1 🎉**

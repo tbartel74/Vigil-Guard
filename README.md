@@ -94,7 +94,7 @@ vigil-guard/
 │   │   ├── docker-compose.yml # Service orchestration
 │   │   ├── requirements.txt  # Python dependencies (presidio, spaCy)
 │   │   └── README.md         # Setup instructions
-│   └── language-detector/    # Language Detection Service (NEW v1.6.11)
+│   └── language-detector/    # Language Detection Service (NEW v1.8.1)
 │       ├── app.py            # Flask application
 │       ├── Dockerfile        # Container definition
 │       ├── requirements.txt  # Python dependencies (langdetect)
@@ -694,7 +694,7 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 
 ## 📋 Changelog
 
-### v1.6.11 - 2025-01-30
+### v1.8.1 - 2025-01-30
 
 #### Fixed
 - **CREDIT_CARD Polish Language Support**: Fixed recognizer registration to support Polish text (`supported_language: pl` instead of `en`)
@@ -709,7 +709,7 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 
 #### Performance
 - No latency impact (<1ms overhead for hybrid detection)
-- Fully backward compatible with v1.6.10 (no breaking changes)
+- Fully backward compatible with v1.8.1 (no breaking changes)
 
 ---
 

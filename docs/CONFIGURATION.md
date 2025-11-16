@@ -63,7 +63,7 @@ The system uses score-based decision making on a **0-100 scale**. Based on the t
 - **UI Name**: BLOCK_MIN / BLOCK_MAX
 - **Action**: Reject request with block message
 
-### Aho-Corasick Prefilter Configuration (v1.7.9)
+### Aho-Corasick Prefilter Configuration (v1.8.1)
 
 #### `aho_corasick.enabled`
 - **Type**: `boolean`
@@ -352,7 +352,7 @@ Vigil Guard stores configuration in the `services/workflow/config/` directory:
 | `normalize.conf` | Homoglyph and leet speak mappings | KEY=VALUE |
 | `pii.conf` | PII redaction patterns | SECTION/KEY |
 
-## 🔍 Language Detection (v1.6.11+)
+## 🔍 Language Detection (v1.8.1+)
 
 ### Hybrid Detection Algorithm
 

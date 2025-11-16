@@ -1,8 +1,8 @@
-# Vigil Guard Architecture v1.6.11 - Data Flow Documentation
+# Vigil Guard Architecture v1.8.1 - Data Flow Documentation
 
 **Purpose:** Safety net documentation for tracking data transformations across all layers.
 **Created:** 2025-11-01
-**Version:** 1.6.11 (pre-v1.7.0 enhancement baseline)
+**Version:** 1.6.11 (pre-v1.8.1 enhancement baseline)
 
 ---
 
@@ -140,7 +140,7 @@ Layer 5: n8n Workflow (40-node detection pipeline)
 │ (unchanged)                                                       │
 └──────────────────────────────────────────────────────────────────┘
                           ↓
-┌─ Node 3: Language_Detector (Hybrid v1.6.11) ─────────────────────┐
+┌─ Node 3: Language_Detector (Hybrid v1.8.1) ─────────────────────┐
 │ • Statistical analysis (langdetect library)                      │
 │ • Entity-based hints (Polish keywords, PESEL regex)             │
 │ • Detection: "PESEL" keyword found → Force Polish                │
@@ -153,7 +153,7 @@ Layer 5: n8n Workflow (40-node detection pipeline)
 │ }                                                                │
 └──────────────────────────────────────────────────────────────────┘
                           ↓
-┌─ Node 4: PII_Redactor_v2 (Dual-Language v1.6.10) ───────────────┐
+┌─ Node 4: PII_Redactor_v2 (Dual-Language v1.8.1) ───────────────┐
 │ • Parallel Presidio API calls (Polish + English)                │
 │ • Entity deduplication (remove overlaps)                         │
 │ • Redaction token replacement                                    │
@@ -987,13 +987,13 @@ WHERE JSONExtractBool(sanitizer_json, 'pii', 'has') = 1
 
 ## Version History
 
-- **v1.6.11** (2025-11-01): Current baseline before v1.7.0 enhancements
+- **v1.8.1** (2025-11-01): Current baseline before v1.8.1 enhancements
   - Hybrid language detection (entity-based hints + statistical)
   - Dual-language PII detection (Polish + English Presidio)
   - 40-node sequential pipeline
   - 829-line rules.config.json (34 categories)
 
-- **v1.7.0** (Planned): Enhancements tracked in this document
+- **v1.8.1** (Planned): Enhancements tracked in this document
   - Sanitized prompt integrity (guaranteed sanitizedBody usage)
   - PII classification markers (_pii_sanitized flag)
   - Persistent client identification (clientId tracking)
@@ -1010,6 +1010,6 @@ WHERE JSONExtractBool(sanitizer_json, 'pii', 'has') = 1
 
 ---
 
-**Document Status:** ✅ Baseline established for v1.7.0 enhancements
+**Document Status:** ✅ Baseline established for v1.8.1 enhancements
 **Last Updated:** 2025-11-01
 **Next Review:** After Task 1 completion (Sanitization Integrity)

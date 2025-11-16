@@ -426,7 +426,7 @@ docs/CONFIG_VARIABLES.md     # Variable reference
 
 ---
 
-## Language Detection Issues (v1.6.11+)
+## Language Detection Issues (v1.8.1+)
 
 ### Issue: Polish text detected as wrong language
 
@@ -460,7 +460,7 @@ docker-compose restart language-detector
 - Logs show correct language (`pl`)
 - Example: "Karta 4111111111111111" → no CREDIT_CARD entity
 
-**Root Cause:** Outdated recognizers.yaml (v1.6.10 had `supported_language: en`)
+**Root Cause:** Outdated recognizers.yaml (v1.8.1 had `supported_language: en`)
 
 **Solution:**
 ```bash

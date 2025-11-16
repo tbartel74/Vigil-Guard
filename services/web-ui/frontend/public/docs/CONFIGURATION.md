@@ -327,7 +327,7 @@ Vigil Guard stores configuration in the `services/workflow/config/` directory:
 | `normalize.conf` | Homoglyph and leet speak mappings | KEY=VALUE |
 | `pii.conf` | PII redaction patterns | SECTION/KEY |
 
-## 🔍 Language Detection (v1.6.11+)
+## 🔍 Language Detection (v1.8.1+)
 
 ### Hybrid Detection Algorithm
 

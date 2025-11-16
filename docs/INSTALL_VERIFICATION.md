@@ -1,10 +1,10 @@
 # Installation Verification Guide
 
-**Version:** v1.7.9
+**Version:** v1.8.1
 **Last Updated:** 2025-11-12
 **Branch:** fix/installation-consistency-improvements
 
-This document provides comprehensive verification checklists for Vigil Guard installation, covering both fresh installations and upgrades from v1.7.0.
+This document provides comprehensive verification checklists for Vigil Guard installation, covering both fresh installations and upgrades from v1.8.1.
 
 ---
 
@@ -13,7 +13,7 @@ This document provides comprehensive verification checklists for Vigil Guard ins
 1. [Pre-Installation Checks](#pre-installation-checks)
 2. [Post-Installation Checks](#post-installation-checks)
 3. [Fresh Install Verification](#fresh-install-verification)
-4. [Upgrade Verification (v1.7.0 → v1.7.9)](#upgrade-verification-v170--v179)
+4. [Upgrade Verification (v1.8.1 → v1.8.1)](#upgrade-verification-v170--v179)
 5. [Troubleshooting Failed Checks](#troubleshooting-failed-checks)
 
 ---
@@ -25,11 +25,11 @@ Run these checks **before** executing `./install.sh` to ensure the repository is
 ### 1. Workflow Version
 
 ```bash
-# Check workflow v1.7.9 exists
-[ -f "services/workflow/workflows/Vigil Guard v1.7.9.json" ] && echo "✅ Workflow v1.7.9" || echo "❌ Missing workflow"
+# Check workflow v1.8.1 exists
+[ -f "services/workflow/workflows/Vigil Guard v1.8.1.json" ] && echo "✅ Workflow v1.8.1" || echo "❌ Missing workflow"
 ```
 
-**Expected:** ✅ Workflow v1.7.9
+**Expected:** ✅ Workflow v1.8.1
 
 **If Failed:**
 - Ensure you're on `fix/installation-consistency-improvements` branch
@@ -60,8 +60,8 @@ SIZE=$(stat -f%z services/workflow/config/unified_config.json 2>/dev/null || sta
 **If Failed (Size Too Small):**
 - File may be corrupted or from older version
 - Expected size: ~88KB (4013 lines)
-- Baseline v1.7.0 was only ~10KB (246 lines)
-- AC keywords (993 entries) + AC literals (296 entries) added in v1.7.9
+- Baseline v1.8.1 was only ~10KB (246 lines)
+- AC keywords (993 entries) + AC literals (296 entries) added in v1.8.1
 
 ---
 
@@ -85,7 +85,7 @@ grep -q "aho_corasick" services/workflow/config/unified_config.json && echo "✅
 
 ```bash
 # Check for BLOCKED response data leakage vulnerability
-! grep -E "redactedPreviewForBlocked.*:.*\b(after_pii_redaction|after_sanitization|normalized_input)" "services/workflow/workflows/Vigil Guard v1.7.9.json" && echo "✅ Security fix" || echo "❌ VULNERABLE"
+! grep -E "redactedPreviewForBlocked.*:.*\b(after_pii_redaction|after_sanitization|normalized_input)" "services/workflow/workflows/Vigil Guard v1.8.1.json" && echo "✅ Security fix" || echo "❌ VULNERABLE"
 ```
 
 **Expected:** ✅ Security fix
@@ -118,11 +118,11 @@ grep -q "INDIRECT_EXTERNAL_INJECTION" services/workflow/config/rules.config.json
 ### 6. ClickHouse Migration SQL
 
 ```bash
-# Check for v1.7.0 audit columns migration
-[ -f "services/monitoring/sql/06-add-audit-columns-v1.7.0.sql" ] && echo "✅ v1.7.0 migration" || echo "❌ Missing SQL"
+# Check for v1.8.1 audit columns migration
+[ -f "services/monitoring/sql/06-add-audit-columns-v1.8.1.sql" ] && echo "✅ v1.8.1 migration" || echo "❌ Missing SQL"
 ```
 
-**Expected:** ✅ v1.7.0 migration
+**Expected:** ✅ v1.8.1 migration
 
 **If Failed:**
 - Migration file missing from `services/monitoring/sql/`
@@ -191,7 +191,7 @@ COLUMNS=$(docker exec vigil-clickhouse clickhouse-client --user admin --password
 **If Failed:**
 - Check migration logs during install
 - Manual fix: Re-run migration SQL (idempotent with IF NOT EXISTS)
-- Query: `docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD --database n8n_logs < services/monitoring/sql/06-add-audit-columns-v1.7.0.sql`
+- Query: `docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD --database n8n_logs < services/monitoring/sql/06-add-audit-columns-v1.8.1.sql`
 
 ---
 
@@ -205,10 +205,10 @@ curl -s http://localhost:5678/healthz | grep -q "ok" && echo "✅ n8n ready" || 
 **Expected:** ✅ n8n ready
 
 **⚠️ MANUAL STEP REQUIRED:**
-After installation, you **must manually import** workflow v1.7.9:
+After installation, you **must manually import** workflow v1.8.1:
 1. Open n8n GUI: http://localhost:5678
 2. Go to Workflows → Import from File
-3. Select: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+3. Select: `services/workflow/workflows/Vigil Guard v1.8.1.json`
 4. Activate the workflow
 
 **If Failed:**
@@ -281,7 +281,7 @@ echo "$RESULT" | jq -r '.client_id' | grep -q "vigil_test" && echo "✅ Fingerpr
 **Expected:** ✅ Fingerprinting
 
 **If Failed:**
-- Workflow v1.7.0+ required (browser fingerprinting added in commit `9615a8f`)
+- Workflow v1.8.1+ required (browser fingerprinting added in commit `9615a8f`)
 - Check ClickHouse columns: `client_id`, `browser_name`, `os_name`
 
 ---
@@ -308,7 +308,7 @@ RESULT=$(curl -s -X POST http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8
 **If Failed:**
 - Check Presidio service: `curl http://localhost:5001/health`
 - Check language detector: `curl http://localhost:5002/health`
-- Verify dual-language detection enabled (v1.6.10+)
+- Verify dual-language detection enabled (v1.8.1+)
 
 ---
 
@@ -349,7 +349,7 @@ Complete checklist for new installations.
    [28%] Creating Docker Network
    [35%] Starting All Services
    [42%] Initializing ClickHouse Database
-   [50%] Verifying n8n Workflow Version           ← NEW (v1.7.9)
+   [50%] Verifying n8n Workflow Version           ← NEW (v1.8.1)
    [57%] Validating AC Prefilter Configuration    ← NEW (v4.2.1)
    [64%] Checking for Known Security Vulnerabilities ← NEW (commit 5915344)
    [71%] Initializing Presidio PII Service
@@ -361,7 +361,7 @@ Complete checklist for new installations.
 
 5. **Manual Workflow Import**
    - Open http://localhost:5678
-   - Import: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+   - Import: `services/workflow/workflows/Vigil Guard v1.8.1.json`
    - Activate workflow
 
 6. **Post-Installation Checks**
@@ -374,17 +374,17 @@ Complete checklist for new installations.
 |-------|----------------|
 | Pre-Installation | 6/6 ✅ |
 | Installation Output | All steps complete without errors |
-| Workflow Import | Manually imported v1.7.9 |
+| Workflow Import | Manually imported v1.8.1 |
 | Post-Installation | 7/7 ✅ |
 | **Total** | **13/13 ✅** |
 
 ---
 
-## Upgrade Verification (v1.7.0 → v1.7.9)
+## Upgrade Verification (v1.8.1 → v1.8.1)
 
-Checklist for upgrading existing v1.7.0 installations to v1.7.9.
+Checklist for upgrading existing v1.8.1 installations to v1.8.1.
 
-### Scenario: Existing v1.7.0 Installation
+### Scenario: Existing v1.8.1 Installation
 
 **Important:** Upgrades preserve all data (ClickHouse logs, Grafana dashboards, Web UI users).
 
@@ -416,7 +416,7 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
    # Check unified_config.json changed from ~10KB to ~88KB
    ls -lh services/workflow/config/unified_config.json
 
-   # Expected: ~88KB (was ~10KB in v1.7.0)
+   # Expected: ~88KB (was ~10KB in v1.8.1)
    ```
 
 3. **Pre-Installation Checks**
@@ -437,13 +437,13 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
    - Detects existing installation
    - Prompts: "Continue with update? (y/N):"
    - Preserves all data volumes
-   - Applies new validations (workflow v1.7.9, AC prefilter, security check)
+   - Applies new validations (workflow v1.8.1, AC prefilter, security check)
    - Re-runs ClickHouse migrations (idempotent)
 
-6. **Import Workflow v1.7.9**
-   - **CRITICAL:** Old workflow v1.7.0 is outdated
+6. **Import Workflow v1.8.1**
+   - **CRITICAL:** Old workflow v1.8.1 is outdated
    - Open http://localhost:5678
-   - Import: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+   - Import: `services/workflow/workflows/Vigil Guard v1.8.1.json`
    - Activate new workflow
    - **Do NOT use old workflow** (missing AC prefilter, security fix)
 
@@ -458,7 +458,7 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
 | Backup Complete | Config + ClickHouse backed up |
 | Pre-Upgrade Checks | 6/6 ✅ |
 | Installation Output | Update mode detected, all validations pass |
-| Workflow v1.7.9 Import | Manually imported |
+| Workflow v1.8.1 Import | Manually imported |
 | Post-Upgrade Checks | 7/7 ✅ |
 | Data Preserved | ClickHouse logs retained, users retained |
 | **Total** | **15/15 ✅** |
@@ -470,7 +470,7 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
 docker-compose down
 
 # 2. Checkout previous version
-git checkout v1.7.0  # or commit hash
+git checkout v1.8.1  # or commit hash
 
 # 3. Restore config backup
 rm -rf services/workflow/config
@@ -480,14 +480,14 @@ mv services/workflow/config.backup-YYYYMMDD services/workflow/config
 ./install.sh
 
 # 5. Import old workflow
-# n8n GUI → Import → Vigil Guard v1.7.0.json
+# n8n GUI → Import → Vigil Guard v1.8.1.json
 ```
 
 ---
 
 ## Troubleshooting Failed Checks
 
-### Problem: Workflow v1.7.9 Missing
+### Problem: Workflow v1.8.1 Missing
 
 **Symptom:**
 ```
@@ -500,13 +500,13 @@ ls -la services/workflow/workflows/
 ```
 
 **Expected Files:**
-- `Vigil Guard v1.7.9.json` (latest, ~180KB)
+- `Vigil Guard v1.8.1.json` (latest, ~180KB)
 
 **Fix:**
 1. Verify you're on `fix/installation-consistency-improvements` branch: `git branch`
 2. Pull latest changes: `git pull`
 3. Check commit history: `git log --oneline -5 services/workflow/workflows/`
-4. Expected commits: `05ebbc1` (cleanup), `1d2d3cc` (v1.7.9 creation)
+4. Expected commits: `05ebbc1` (cleanup), `1d2d3cc` (v1.8.1 creation)
 
 ---
 
@@ -535,7 +535,7 @@ grep -c "aho_corasick" services/workflow/config/unified_config.json
 - AC section: 1 occurrence
 
 **Fix:**
-1. File may be from v1.7.0 (246 lines, ~10KB)
+1. File may be from v1.8.1 (246 lines, ~10KB)
 2. Checkout latest version: `git checkout HEAD -- services/workflow/config/unified_config.json`
 3. Verify size: `ls -lh services/workflow/config/unified_config.json`
 4. Expected: ~88KB
@@ -553,7 +553,7 @@ grep -c "aho_corasick" services/workflow/config/unified_config.json
 **Diagnosis:**
 ```bash
 # Check for dangerous fallback chain
-grep -E "redactedPreviewForBlocked" "services/workflow/workflows/Vigil Guard v1.7.9.json"
+grep -E "redactedPreviewForBlocked" "services/workflow/workflows/Vigil Guard v1.8.1.json"
 ```
 
 **Vulnerable Pattern:**
@@ -563,15 +563,15 @@ redactedPreviewForBlocked: ctxItem?.json?.after_pii_redaction ||
                             ctxItem?.json?.normalized_input
 ```
 
-**Secure Pattern (v1.7.9):**
+**Secure Pattern (v1.8.1):**
 ```javascript
 redactedPreviewForBlocked: null
 ```
 
 **Fix:**
 1. **DO NOT proceed with installation** - this is a critical security issue
-2. Workflow file may be corrupted or from v1.7.7
-3. Checkout latest workflow: `git checkout HEAD -- "services/workflow/workflows/Vigil Guard v1.7.9.json"`
+2. Workflow file may be corrupted or from v1.8.1
+3. Checkout latest workflow: `git checkout HEAD -- "services/workflow/workflows/Vigil Guard v1.8.1.json"`
 4. Verify fix applied: Re-run security check
 5. Expected commit: `5915344` (Phase 1.13 security fix)
 
@@ -598,7 +598,7 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
 **Fix (Manual Migration):**
 ```bash
 # Re-run migration SQL (idempotent with IF NOT EXISTS)
-cat services/monitoring/sql/06-add-audit-columns-v1.7.0.sql | \
+cat services/monitoring/sql/06-add-audit-columns-v1.8.1.sql | \
     docker exec -i vigil-clickhouse clickhouse-client \
     --user admin --password PASSWORD --multiquery
 
@@ -622,7 +622,7 @@ docker exec vigil-clickhouse clickhouse-client --user admin --password PASSWORD 
 
 **Diagnosis:**
 ```bash
-# 1. Verify workflow v1.7.9 imported
+# 1. Verify workflow v1.8.1 imported
 curl -s http://localhost:5678/api/v1/workflows | jq '.data[] | select(.name | contains("1.7.9"))'
 
 # 2. Check unified_config.json loaded
@@ -635,8 +635,8 @@ curl -s http://localhost:5678/api/v1/workflows | jq '.data[] | select(.name | co
 ```
 
 **Fix:**
-1. **Workflow not imported:** Import v1.7.9 manually via n8n GUI
-2. **Old workflow active:** Deactivate v1.7.0, activate v1.7.9
+1. **Workflow not imported:** Import v1.8.1 manually via n8n GUI
+2. **Old workflow active:** Deactivate v1.8.1, activate v1.8.1
 3. **Config Loader fails:** Check n8n logs for file read errors
 4. **AC keywords empty:** Verify unified_config.json has `aho_corasick` section
 
@@ -673,7 +673,7 @@ curl -X POST http://localhost:5001/analyze \
 1. **Presidio down:** Check container: `docker ps | grep presidio`
 2. **Service not ready:** Wait 30s after start, Presidio loads spaCy models
 3. **Language detector down:** Check container: `docker logs vigil-language-detector`
-4. **Workflow issue:** Verify workflow v1.6.10+ (dual-language PII added)
+4. **Workflow issue:** Verify workflow v1.8.1+ (dual-language PII added)
 
 ---
 
@@ -682,7 +682,7 @@ curl -X POST http://localhost:5001/analyze \
 ### Installation Checklist
 
 **Pre-Installation:**
-- [ ] Workflow v1.7.9 exists
+- [ ] Workflow v1.8.1 exists
 - [ ] unified_config.json v4.2.1 (~88KB)
 - [ ] AC prefilter structure present
 - [ ] Security vulnerability check passes
@@ -697,7 +697,7 @@ curl -X POST http://localhost:5001/analyze \
 **Post-Installation:**
 - [ ] All 9 services running
 - [ ] ClickHouse audit columns present (9/9)
-- [ ] n8n workflow v1.7.9 imported manually
+- [ ] n8n workflow v1.8.1 imported manually
 - [ ] Web UI accessible
 - [ ] AC prefilter functional test passes
 - [ ] Browser fingerprinting test passes

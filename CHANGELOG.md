@@ -13,7 +13,7 @@ All notable changes to Vigil Guard will be documented in this file.
 1. **SmartPersonRecognizer Implementation** (`services/presidio-pii-api/custom_recognizers/smart_person_recognizer.py`):
    - **219 lines** of production-grade code
    - Wraps spaCy NER (en_core_web_sm v3.7.1, pl_core_news_sm v3.7.0)
-   - Intelligent boundary trimming (fixes Presidio boundary extension bug from v1.7.9)
+   - Intelligent boundary trimming (fixes Presidio boundary extension bug from v1.8.1)
    - **90+ entry allow-list**: AI models (ChatGPT, Claude, Gemini, Llama), jailbreak personas (DAN, UCAR, Sigma), pronouns, tech brands
    - Multi-layer filtering: pronouns (he/she/they), ALL CAPS (NASA, FBI), single words
    - **280 lines** of comprehensive tests (`test_smart_person_recognizer.py`)
@@ -23,7 +23,7 @@ All notable changes to Vigil Guard will be documented in this file.
    - Entity-based hints (PESEL patterns → Polish)
    - Statistical fallback (langdetect library)
    - Endpoint: `http://vigil-language-detector:5002/detect`
-   - Rate limit: **1000 req/min** (increased from 30/min in v1.7.9)
+   - Rate limit: **1000 req/min** (increased from 30/min in v1.8.1)
    - Supports 55+ languages with high accuracy
 
 3. **Workflow v1.8.1** (`services/workflow/workflows/Vigil Guard v1.8.1.json`):
@@ -33,7 +33,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 #### Fixed Issues
 
-1. **PII Flags Lost in Pipeline** (v1.7.9 regression):
+1. **PII Flags Lost in Pipeline** (v1.8.1 regression):
    - **Problem**: `_pii_sanitized`, `pii_classification` fields created in PII_Redactor_v2 but lost in Finale Decision
    - **Symptom**: ClickHouse showed `pii_sanitized=0` despite PII being detected and redacted
    - **Root Cause**: Finale Decision node created new result object without copying PII flags from input
@@ -51,7 +51,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 #### Performance Improvements
 
-| Component | v1.7.9 | v1.8.1 | Change |
+| Component | v1.8.1 | v1.8.1 | Change |
 |-----------|--------|--------|--------|
 | **Language Detector Rate Limit** | 30 req/min | 1000 req/min | **+3233%** |
 | **PERSON False Positives** | 0% (disabled) | 0% (enabled with filters) | Production-ready |
@@ -60,7 +60,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 #### Migration Notes
 
-**From v1.7.9 to v1.8.1:**
+**From v1.8.1 to v1.8.1:**
 
 1. **Import new workflow**:
    ```bash
@@ -101,11 +101,11 @@ All notable changes to Vigil Guard will be documented in this file.
 
 #### Breaking Changes
 
-**None** - v1.8.1 is fully backward compatible with v1.7.9
+**None** - v1.8.1 is fully backward compatible with v1.8.1
 
 #### Contributors
 
-- Fixed SmartPersonRecognizer boundary extension bug (Presidio v1.7.9 workaround → v1.8.1 production implementation)
+- Fixed SmartPersonRecognizer boundary extension bug (Presidio v1.8.1 workaround → v1.8.1 production implementation)
 - Integrated hybrid language detection with workflow
 - Enhanced test suite coverage to 100%
 - Comprehensive documentation updates
@@ -246,7 +246,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 ### Fixed
 - **PII Regression T-02**: International entity detection now passes `tests/e2e/pii-detection-comprehensive.test.js` (63/63). Credit-card normalization and URL/IBAN/UK/AU/CA cases are validated via Presidio first, then checksum-aware regex fallback.
-- **Documentation drift**: prior guides still referenced v1.7.0 exports and default credentials; they now align with the current install script and workflow release.
+- **Documentation drift**: prior guides still referenced v1.8.1 exports and default credentials; they now align with the current install script and workflow release.
 
 ### Upgrade Notes
 1. Import `services/workflow/workflows/Vigil Guard v1.7.6.json` in n8n.
@@ -297,7 +297,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 ### Changed
 
-- **n8n Workflow**: v1.6.11 → v1.7.0
+- **n8n Workflow**: v1.8.1 → v1.8.1
   - Node "output to plugin": ALWAYS constructs sanitizedBody
   - Node "PII_Redactor_v2": Added `_pii_sanitized` flag + `pii_classification` object
   - Node "Build+Sanitize NDJSON": Populates 9 new ClickHouse audit columns
@@ -305,7 +305,7 @@ All notable changes to Vigil Guard will be documented in this file.
   - Added `getOrCreateClientId()` function
   - Added `collectBrowserMetadata()` function
   - Payload includes `clientId` and `browser_metadata`
-- **ClickHouse Schema**: Migration 06-add-audit-columns-v1.7.0.sql
+- **ClickHouse Schema**: Migration 06-add-audit-columns-v1.8.1.sql
   - Backward compatible (all columns have DEFAULT values)
   - No breaking changes for old workflow versions
 - **Backend API**: New PII statistics endpoints
@@ -321,19 +321,19 @@ All notable changes to Vigil Guard will be documented in this file.
 
 ### Compatibility
 
-- **Backward Compatible**: All changes maintain compatibility with v1.6.11
+- **Backward Compatible**: All changes maintain compatibility with v1.8.1
   - Old workflows continue to work (use DEFAULT column values)
   - New columns optional (won't break existing queries)
   - Service worker generates clientId on-demand (no migration needed)
 - **Migration Path**: Run `./scripts/init-clickhouse.sh` to add new columns
-- **Rollback Support**: Can revert to v1.6.11 workflow if needed (data remains intact)
+- **Rollback Support**: Can revert to v1.8.1 workflow if needed (data remains intact)
 
 ### Documentation
 
-- **ARCHITECTURE_v1.6.11.md**: 1800+ lines documenting complete data flow
+- **ARCHITECTURE_v1.8.1.md**: 1800+ lines documenting complete data flow
 - **sanitization-integrity.test.js**: 18 E2E test cases with documentation
 - **pii-leak-alert.yml**: Grafana alert rules with troubleshooting guides
-- **06-add-audit-columns-v1.7.0.sql**: Migration script with verification queries
+- **06-add-audit-columns-v1.8.1.sql**: Migration script with verification queries
 
 ### Fixed
 
@@ -342,14 +342,14 @@ All notable changes to Vigil Guard will be documented in this file.
   - **Root Cause**: `finalStatus` calculation in "Build+Sanitize NDJSON" node only checked threat patterns, not PII detection
   - **Fix**: Added `piiDetected` variable checking `j._pii_sanitized || pii_classification.count > 0`
   - **Impact**: Investigation Panel now correctly displays yellow "SANITIZED" status when PII is detected
-  - **Location**: `services/workflow/workflows/Vigil-Guard-v1.7.0.json` node "Build+Sanitize NDJSON"
+  - **Location**: `services/workflow/workflows/Vigil-Guard-v1.8.1.json` node "Build+Sanitize NDJSON"
 
 - **PERSON Recognizer False Positives**: Removed "pesel", "PESEL", "nip", "NIP" from PERSON_PL context keywords
   - **Problem**: Phrases like "moim pesel" were incorrectly detected as person names (score 0.85)
   - **Root Cause**: Context keywords for PII identifiers were boosting PERSON detection
   - **Fix**: Updated `services/presidio-pii-api/config/recognizers.yaml` to remove PII-related context
   - **Impact**: Eliminated false positives without affecting legitimate person name detection
-  - **Note**: This was a pre-existing bug, not introduced by v1.7.0
+  - **Note**: This was a pre-existing bug, not introduced by v1.8.1
 
 ---
 
@@ -371,7 +371,7 @@ All notable changes to Vigil Guard will be documented in this file.
 
 ### Changed
 
-- n8n Workflow: v1.6.9 → v1.6.10 (PII_Redactor_v2 dual-language implementation)
+- n8n Workflow: v1.6.9 → v1.8.1 (PII_Redactor_v2 dual-language implementation)
 - Presidio recognizers.yaml: Split language support (Polish: pl, International: en)
 - unified_config.json: Language configuration updated
 

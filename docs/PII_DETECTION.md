@@ -573,13 +573,13 @@ IP: 192.168.1.1, URL: https://example.com
 **Change**: Test Panel now uses `/api/pii-detection/analyze-full`
 
 ```typescript
-// Before v1.7.0
+// Before v1.8.1
 const response = await fetch('/ui/api/pii-detection/analyze', {
   method: 'POST',
   body: JSON.stringify(requestBody)
 });
 
-// After v1.7.0
+// After v1.8.1
 const response = await fetch('/ui/api/pii-detection/analyze-full', {
   method: 'POST',
   body: JSON.stringify(requestBody)
@@ -641,7 +641,7 @@ curl -X POST http://localhost:8787/api/pii-detection/analyze \
 
 ### Migration Notes
 
-**No Breaking Changes**: v1.8.1 is fully backward compatible with v1.7.9
+**No Breaking Changes**: v1.8.1 is fully backward compatible with v1.8.1
 
 **What Changed**:
 - `/api/pii-detection/analyze` now uses dual-language by default
@@ -885,7 +885,7 @@ If Presidio latency is unacceptable:
 
 ## Troubleshooting
 
-### Issue 0: PERSON Entity False Positives (Fixed in v1.7.9+)
+### Issue 0: PERSON Entity False Positives (Fixed in v1.8.1+)
 
 **Symptoms:**
 ```
@@ -908,7 +908,7 @@ Tech brands (Instagram, Facebook) detected as PERSON entities
 
 **Architecture Evolution:**
 
-**v1.7.9**: SmartPersonRecognizer temporarily disabled due to Presidio boundary extension bug
+**v1.8.1**: SmartPersonRecognizer temporarily disabled due to Presidio boundary extension bug
 - English: spaCy NER only
 - Polish: spaCy NER + PatternRecognizer
 - Trade-off: Lower detection rate but zero false positives
@@ -947,7 +947,7 @@ Tech brands (Instagram, Facebook) detected as PERSON entities
 3. **Language Detection Integration** (`unified_config.json`):
    - Hybrid detection (entity-based hints + statistical fallback)
    - Language detector: http://vigil-language-detector:5002/detect
-   - Rate limit: 1000 req/min (increased from 30/min in v1.7.9)
+   - Rate limit: 1000 req/min (increased from 30/min in v1.8.1)
 
 4. **Post-Processing Filters** (`app.py` lines 500-605):
    - Applied to ALL PERSON entities (spaCy + SmartPersonRecognizer)
@@ -1042,7 +1042,7 @@ SmartPersonRecognizer is **ENABLED** by default with production-grade implementa
 - Implementation: `services/presidio-pii-api/app.py` lines 500-650
 - Configuration: `services/presidio-pii-api/config/recognizers.yaml` lines 98-124
 - Presidio issue: Boundary extension in PatternRecognizer/SpacyRecognizer
-- Migration notes: v1.7.9 CHANGELOG
+- Migration notes: v1.8.1 CHANGELOG
 
 ---
 
@@ -1182,7 +1182,7 @@ cp -R "$BACKUP_DIR/docs/"* docs/
 
 # 3. Reimport old workflow
 # Open n8n: http://localhost:5678
-# Import: $BACKUP_DIR/services/workflow/workflows/Vigil-Guard-v1.7.0.json
+# Import: $BACKUP_DIR/services/workflow/workflows/Vigil-Guard-v1.8.1.json
 
 # 4. Verify
 curl http://localhost:8787/health
@@ -1252,11 +1252,11 @@ docker-compose up -d
 
 ---
 
-## Migration from v1.6.10 to v1.6.11
+## Migration from v1.8.1 to v1.8.1
 
 ### Changes
 
-**v1.6.11** includes two critical bug fixes:
+**v1.8.1** includes two critical bug fixes:
 
 1. **CREDIT_CARD Polish Language Support**:
    - **Before**: CREDIT_CARD recognizer only worked for English text (`supported_language: en`)
@@ -1270,7 +1270,7 @@ docker-compose up -d
 
 ### Breaking Changes
 
-**None** - fully backward compatible with v1.6.10.
+**None** - fully backward compatible with v1.8.1.
 
 ### Migration Steps
 
@@ -1307,11 +1307,11 @@ docker-compose up -d
 
 ### Compatibility
 
-| Component | v1.6.10 | v1.6.11 | Compatible? |
+| Component | v1.8.1 | v1.8.1 | Compatible? |
 |-----------|---------|---------|-------------|
 | Presidio API | CREDIT_CARD (EN only) | CREDIT_CARD (PL) | ✅ Backward compatible |
 | Language Detector | Statistical only | Hybrid (entity+stats) | ✅ Same API contract |
-| n8n Workflow | v1.6.10.json | v1.6.10.json | ✅ No changes needed |
+| n8n Workflow | v1.8.1.json | v1.8.1.json | ✅ No changes needed |
 | unified_config.json | Same | Same | ✅ No changes needed |
 
 ---
