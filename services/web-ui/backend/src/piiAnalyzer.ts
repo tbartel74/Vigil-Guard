@@ -109,6 +109,7 @@ interface LanguageStats {
   primary_language: string;
   detection_method: string;
   detection_confidence: number | null;
+  language_detection_degraded?: boolean;  // NEW v1.8.1: Flag when language detector service failed
   polish_entities: number;
   english_entities: number;
   regex_entities: number;
@@ -142,6 +143,7 @@ interface RegexFallbackMeta {
   regex_entities_attempted: number;
   regex_entities_added: number;
   regex_rule_failures: number;
+  failed_rule_details?: Array<{ name: string; presidio_type: string; error: string }>;  // NEW v1.8.1: Details of failed regex rules
   degraded: boolean;
 }
 
@@ -1119,7 +1121,7 @@ function buildLanguageStats(
   const countBySource = (source: string) =>
     dedupedEntities.filter(e => e.source_language === source).length;
 
-  return {
+  const stats: LanguageStats = {
     detected_language: languageResult?.language || "unknown",
     primary_language: detectedLanguage,
     detection_method: languageResult?.method || "unknown",
@@ -1132,4 +1134,12 @@ function buildLanguageStats(
     regex_entities_retained: countBySource("regex"),
     total_after_dedup: dedupedEntities.length
   };
+
+  // NEW v1.8.1: Flag language detection degradation for ClickHouse analytics
+  // This allows monitoring dashboard to track service health trends
+  if (languageResult?.is_service_error) {
+    stats.language_detection_degraded = true;
+  }
+
+  return stats;
 }

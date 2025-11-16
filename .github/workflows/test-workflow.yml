@@ -128,7 +128,12 @@ jobs:
         working-directory: services/workflow
         run: |
           # Run only tests that don't require active n8n workflow
-          npm test -- --reporter=verbose --reporter=json --outputFile=test-results.json || true
+          # NOTE: Tests will fail until n8n workflow automation is implemented (see issue #XXX)
+          npm test -- --reporter=verbose --reporter=json --outputFile=test-results.json
+        # TEMPORARY: Allow workflow tests to fail until n8n API automation is implemented
+        # This prevents blocking PRs while maintaining visibility of test failures
+        # TODO: Remove continue-on-error once workflow import is automated
+        continue-on-error: true
         if: steps.workflow_dir.outputs.exists == 'true'
 
       - name: Upload test results

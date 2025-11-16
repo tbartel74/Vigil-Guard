@@ -788,6 +788,7 @@ def analyze():
         # CRITICAL FIX: Merge DEFAULT_ALLOW_LIST with user-provided entries
         # This ensures ChatGPT, Claude, pronouns are ALWAYS filtered, even for direct API calls
         combined_allow_list = list(set(DEFAULT_ALLOW_LIST) | set(user_allow_list))
+        combined_allow_list_lower = [name.lower() for name in combined_allow_list]  # For case-insensitive checks
         logger.info(f"📋 Allow-list: {len(DEFAULT_ALLOW_LIST)} default + {len(user_allow_list)} custom = {len(combined_allow_list)} total")
 
         if language not in ['pl', 'en']:
@@ -927,7 +928,7 @@ def analyze():
 
                             # Re-check filters after trimming
                             # FILTER 0 (post-trim): Check allow-list
-                            if matched_text in allow_list or matched_text.lower() in allow_list_lower:
+                            if matched_text in combined_allow_list or matched_text.lower() in combined_allow_list_lower:
                                 should_keep = False
                                 rejection_reason = "allow_list_filter_post_trim"
                                 logger.info(f"❌ REJECTED (post-trim) - In allow-list: {matched_text}")

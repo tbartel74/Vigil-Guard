@@ -299,7 +299,8 @@ def detect_language():
             'error': 'LANG_DETECTION_UNAVAILABLE',
             'error_id': 'LANG_001',
             'message': f'Language detection library error: {str(e)}',
-            'service_error': True
+            'is_service_error': True,  # Standardized flag for backend (v1.8.1+)
+            'service_error': True  # Kept for backward compatibility with docs
         }), 200  # Return 200 since we provide usable fallback
 
     except Exception as e:
