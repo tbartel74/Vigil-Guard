@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=13
+TOTAL_STEPS=14
 CURRENT_STEP=0
 
 print_header() {
@@ -1345,6 +1345,47 @@ initialize_language_detector() {
     echo ""
 }
 
+# Install Test Dependencies
+install_test_dependencies() {
+    print_header "Installing Test Dependencies"
+
+    log_info "Installing Vitest and test dependencies for services/workflow..."
+
+    # Check if we're in the correct directory
+    if [ ! -f "services/workflow/package.json" ]; then
+        log_error "services/workflow/package.json not found"
+        log_error "Please run this script from the Vigil Guard root directory"
+        exit 1
+    fi
+
+    # Install dependencies in services/workflow
+    cd services/workflow
+
+    # Clean install to ensure all devDependencies are installed
+    log_info "Running npm install with devDependencies..."
+    if npm install --include=dev; then
+        log_success "Test dependencies installed successfully"
+
+        # Verify vitest is installed
+        if [ -d "node_modules/vitest" ]; then
+            VITEST_VERSION=$(npx vitest --version 2>/dev/null | head -1 || echo "unknown")
+            log_success "Vitest installed: $VITEST_VERSION"
+        else
+            log_warning "Vitest package not found after installation"
+            log_info "This may cause test failures. Try: cd services/workflow && npm install"
+        fi
+    else
+        log_error "Failed to install test dependencies"
+        log_info "You can install manually later with:"
+        log_info "  cd services/workflow && npm install"
+    fi
+
+    # Return to root directory
+    cd ../..
+
+    echo ""
+}
+
 # Verify services
 verify_services() {
     print_header "Verifying Services"
@@ -1729,6 +1770,7 @@ main() {
     initialize_presidio
     initialize_language_detector
     initialize_grafana
+    install_test_dependencies
     verify_services
     show_summary
 
