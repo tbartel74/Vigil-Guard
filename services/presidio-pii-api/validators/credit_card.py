@@ -1,6 +1,6 @@
 """
 Credit Card Validators for Presidio PII Detection
-Version: 1.7.0
+Version: 1.8.1
 
 Implements Luhn algorithm (modulo-10) checksum validation for credit card numbers.
 Supports: Visa, Mastercard, American Express, Discover, JCB, Diners Club

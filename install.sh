@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=13
+TOTAL_STEPS=15
 CURRENT_STEP=0
 
 print_header() {
@@ -92,7 +92,7 @@ check_existing_installation() {
         return 0
     else
         # Return 1 = fresh installation (no existing state, normal install proceeds)
-        exit 1
+        return 1
     fi
 }
 
@@ -338,6 +338,17 @@ generate_secure_passwords() {
 # Setup environment
 setup_environment() {
     print_header "Setting Up Environment"
+
+    # CRITICAL: Unset any existing password ENV variables to ensure .env takes priority
+    # Docker Compose prioritizes: Shell ENV > .env file
+    # Without this, old passwords from previous sessions would override new .env values
+    unset WEB_UI_ADMIN_PASSWORD 2>/dev/null || true
+    unset CLICKHOUSE_PASSWORD 2>/dev/null || true
+    unset GF_SECURITY_ADMIN_PASSWORD 2>/dev/null || true
+    unset SESSION_SECRET 2>/dev/null || true
+    unset JWT_SECRET 2>/dev/null || true
+    log_info "Cleared environment variables (ensures .env takes priority)"
+    echo ""
 
     # Check if .env exists
     if [ ! -f .env ]; then
@@ -638,6 +649,15 @@ setup_environment() {
 create_data_directories() {
     print_header "Creating Data Directories"
 
+    # CRITICAL: Clean stale databases on fresh installation
+    # Prevents old credentials from persisting across reinstalls
+    if [ ! -f "$INSTALL_STATE_FILE" ]; then
+        log_info "Fresh installation detected: Cleaning stale databases..."
+        rm -f vigil_data/web-ui/users.db* 2>/dev/null || true
+        log_success "Stale databases removed"
+        echo ""
+    fi
+
     log_info "Creating vigil_data directory structure..."
 
     mkdir -p vigil_data/clickhouse
@@ -737,6 +757,38 @@ create_docker_network() {
     # Let Docker Compose create the network with proper labels during 'up' phase
     log_success "Network will be created by Docker Compose"
 
+    echo ""
+}
+# Clean Docker cache and old images
+cleanup_docker_cache() {
+    print_header "Cleaning Docker Cache and Old Images"
+    
+    log_info "Checking for existing Vigil Guard images..."
+    
+    # Check if any Vigil images exist
+    if docker images | grep -q "vigil-"; then
+        log_warning "Found existing Vigil Guard Docker images"
+        log_info "Removing old images to prevent cache issues..."
+        
+        # Stop and remove containers first (if running)
+        if docker ps -a | grep -q "vigil-"; then
+            log_info "Stopping existing containers..."
+            docker-compose down 2>/dev/null || true
+        fi
+        
+        # Remove Vigil Guard images
+        docker images | grep "vigil-" | awk '{print $1":"$2}' | xargs -r docker rmi -f 2>/dev/null || true
+        
+        log_success "Old images removed"
+    else
+        log_info "No existing Vigil Guard images found (fresh installation)"
+    fi
+    
+    # Prune build cache to ensure fresh build
+    log_info "Pruning Docker build cache..."
+    docker builder prune -f >/dev/null 2>&1 || true
+    
+    log_success "Docker cache cleaned"
     echo ""
 }
 
@@ -957,6 +1009,35 @@ EOF
         log_info "  2. Common issues:"
         log_info "     - Columns already exist (migration idempotent with IF NOT EXISTS)"
         log_info "     - Syntax errors in ALTER TABLE statements"
+        log_info "     - Target table does not exist"
+        echo ""
+        exit 1
+    fi
+
+    # Execute v1.8.1 language detection migration
+    SQL_FILE="services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
+    if [ ! -f "$SQL_FILE" ]; then
+        log_error "SQL migration file not found: $SQL_FILE"
+        log_info "This file is required for v1.8.1 language detection feature"
+        exit 1
+    fi
+
+    log_info "Adding v1.8.1 language detection column..."
+    LANG_OUTPUT=$(cat "$SQL_FILE" | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    LANG_STATUS=$?
+
+    if [ $LANG_STATUS -eq 0 ]; then
+        log_success "Language detection column added successfully"
+    else
+        log_error "Failed to add language detection column"
+        log_error "ClickHouse error output:"
+        echo "$LANG_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Column already exists (migration idempotent with IF NOT EXISTS)"
+        log_info "     - Syntax errors in ALTER TABLE statement"
         log_info "     - Target table does not exist"
         echo ""
         exit 1
@@ -1325,6 +1406,47 @@ initialize_language_detector() {
     echo ""
 }
 
+# Install Test Dependencies
+install_test_dependencies() {
+    print_header "Installing Test Dependencies"
+
+    log_info "Installing Vitest and test dependencies for services/workflow..."
+
+    # Check if we're in the correct directory
+    if [ ! -f "services/workflow/package.json" ]; then
+        log_error "services/workflow/package.json not found"
+        log_error "Please run this script from the Vigil Guard root directory"
+        exit 1
+    fi
+
+    # Install dependencies in services/workflow
+    cd services/workflow
+
+    # Clean install to ensure all devDependencies are installed
+    log_info "Running npm install with devDependencies..."
+    if npm install --include=dev; then
+        log_success "Test dependencies installed successfully"
+
+        # Verify vitest is installed
+        if [ -d "node_modules/vitest" ]; then
+            VITEST_VERSION=$(npx vitest --version 2>/dev/null | head -1 || echo "unknown")
+            log_success "Vitest installed: $VITEST_VERSION"
+        else
+            log_warning "Vitest package not found after installation"
+            log_info "This may cause test failures. Try: cd services/workflow && npm install"
+        fi
+    else
+        log_error "Failed to install test dependencies"
+        log_info "You can install manually later with:"
+        log_info "  cd services/workflow && npm install"
+    fi
+
+    # Return to root directory
+    cd ../..
+
+    echo ""
+}
+
 # Verify services
 verify_services() {
     print_header "Verifying Services"
@@ -1558,6 +1680,21 @@ show_summary() {
     echo -e "  ${BLUE}•${NC} Authentication:        ${YELLOW}docs/AUTHENTICATION.md${NC}"
     echo -e "  ${BLUE}•${NC} Full Documentation:    ${YELLOW}docs/README.md${NC}"
     echo ""
+
+    # VERIFICATION: Ensure passwords match between .env and containers
+    log_info "Verifying password synchronization..."
+    CONTAINER_PASSWORD=$(docker exec vigil-web-ui-backend printenv WEB_UI_ADMIN_PASSWORD 2>/dev/null || echo "")
+    ENV_PASSWORD=$(grep "^WEB_UI_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+
+    if [ "$CONTAINER_PASSWORD" = "$ENV_PASSWORD" ]; then
+        log_success "Password verification: .env and container match ✓"
+    else
+        log_warning "Password mismatch detected:"
+        log_warning "  .env file: ${ENV_PASSWORD}"
+        log_warning "  Container: ${CONTAINER_PASSWORD}"
+        log_warning "  Run: docker-compose restart web-ui-backend"
+    fi
+    echo ""
 }
 
 # Check Llama model BEFORE anything else
@@ -1689,11 +1826,13 @@ main() {
     setup_environment
     create_data_directories
     create_docker_network
+    cleanup_docker_cache
     start_all_services
     initialize_clickhouse
     initialize_presidio
     initialize_language_detector
     initialize_grafana
+    install_test_dependencies
     verify_services
     show_summary
 
