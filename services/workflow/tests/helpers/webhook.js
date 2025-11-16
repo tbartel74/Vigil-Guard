@@ -29,12 +29,12 @@ function getClickhouseConnection() {
     clickhouseHost = `http://${rawHost}:${port}`;
   }
 
-  const clickhouseUser = process.env.CLICKHOUSE_USERNAME;
+  const clickhouseUser = process.env.CLICKHOUSE_USER;
   const clickhousePassword = process.env.CLICKHOUSE_PASSWORD;
 
   if (!clickhouseUser || !clickhousePassword) {
     throw new Error(
-      'ClickHouse credentials missing. Set CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD in your .env file.'
+      'ClickHouse credentials missing. Set CLICKHOUSE_USER and CLICKHOUSE_PASSWORD in your .env file.'
     );
   }
 
