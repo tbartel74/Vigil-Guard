@@ -226,7 +226,7 @@ def health():
 
 
 @app.route('/detect', methods=['POST'])
-@limiter.limit("30 per minute")
+@limiter.limit("1000 per minute")
 def detect_language():
     """
     Detect language from text
@@ -289,15 +289,19 @@ def detect_language():
 
     except LangDetectException as e:
         logger.error(f"Language detection failed: {e}", exc_info=True)
+        # FIXED: Return 200 with actual fallback language (not 503)
+        # Caller can use fallback instead of failing entire request
         return jsonify({
+            'language': 'pl',  # Provide actual fallback language
+            'confidence': 0.0,  # Indicate no confidence (fallback)
+            'method': 'fallback_on_error',
+            'fallback_applied': True,
             'error': 'LANG_DETECTION_UNAVAILABLE',
             'error_id': 'LANG_001',
             'message': f'Language detection library error: {str(e)}',
-            'service_error': True,
-            'fallback_applied': True,
-            'fallback_language': 'pl',
-            'recommended_action': 'Use default language for dual-language detection'
-        }), 503  # Service unavailable signals workflow to fail-secure
+            'is_service_error': True,  # Standardized flag for backend (v1.8.1+)
+            'service_error': True  # Kept for backward compatibility with docs
+        }), 200  # Return 200 since we provide usable fallback
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

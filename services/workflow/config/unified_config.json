@@ -101,6 +101,10 @@
     "provider": "presidio",
     "api_url": "http://vigil-presidio-pii:5001/analyze",
     "api_timeout_ms": 3000,
+    "language_detection": true,
+    "language_detection_enabled": true,
+    "language_detector_url": "http://vigil-language-detector:5002/detect",
+    "language_detector_timeout_ms": 1500,
     "detection_mode": "balanced",
     "entities": [
       "EMAIL_ADDRESS",

@@ -14,7 +14,7 @@
 
 2. **n8n Workflow Active:**
    - Open: http://localhost:5678
-   - Import: `services/workflow/workflows/Vigil-Guard-v1.6.11.json`
+   - Import: `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
    - **Activate workflow** (toggle ON)
 
 3. **ClickHouse Password Set:**

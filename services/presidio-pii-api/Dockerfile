@@ -61,6 +61,7 @@ WORKDIR /app
 COPY app.py /app/
 COPY config/ /app/config/
 COPY validators/ /app/validators/
+COPY custom_recognizers/ /app/custom_recognizers/
 COPY docs/ /app/docs/
 
 # Security: Create non-root user

@@ -738,11 +738,11 @@ docker-compose up -d
 
 ---
 
-## Migration from v1.6.10 to v1.6.11
+## Migration from v1.8.1 to v1.8.1
 
 ### Changes
 
-**v1.6.11** includes two critical bug fixes:
+**v1.8.1** includes two critical bug fixes:
 
 1. **CREDIT_CARD Polish Language Support**:
    - **Before**: CREDIT_CARD recognizer only worked for English text (`supported_language: en`)
@@ -756,7 +756,7 @@ docker-compose up -d
 
 ### Breaking Changes
 
-**None** - fully backward compatible with v1.6.10.
+**None** - fully backward compatible with v1.8.1.
 
 ### Migration Steps
 
@@ -793,11 +793,11 @@ docker-compose up -d
 
 ### Compatibility
 
-| Component | v1.6.10 | v1.6.11 | Compatible? |
+| Component | v1.8.1 | v1.8.1 | Compatible? |
 |-----------|---------|---------|-------------|
 | Presidio API | CREDIT_CARD (EN only) | CREDIT_CARD (PL) | ✅ Backward compatible |
 | Language Detector | Statistical only | Hybrid (entity+stats) | ✅ Same API contract |
-| n8n Workflow | v1.6.10.json | v1.6.10.json | ✅ No changes needed |
+| n8n Workflow | v1.8.1.json | v1.8.1.json | ✅ No changes needed |
 | unified_config.json | Same | Same | ✅ No changes needed |
 
 ---

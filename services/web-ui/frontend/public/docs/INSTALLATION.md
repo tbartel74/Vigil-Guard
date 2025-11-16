@@ -533,7 +533,7 @@ Grafana: 200
 === Health Check Complete ===
 ```
 
-### Language Detection Service Verification (v1.6.11+)
+### Language Detection Service Verification (v1.8.1+)
 
 **Health Check**:
 ```bash

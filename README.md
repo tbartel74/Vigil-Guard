@@ -94,7 +94,7 @@ vigil-guard/
 │   │   ├── docker-compose.yml # Service orchestration
 │   │   ├── requirements.txt  # Python dependencies (presidio, spaCy)
 │   │   └── README.md         # Setup instructions
-│   └── language-detector/    # Language Detection Service (NEW v1.6.11)
+│   └── language-detector/    # Language Detection Service (NEW v1.8.1)
 │       ├── app.py            # Flask application
 │       ├── Dockerfile        # Container definition
 │       ├── requirements.txt  # Python dependencies (langdetect)
@@ -290,7 +290,7 @@ After installation completes, you **must** manually configure n8n:
 
 2. **Import Workflow**
    - In n8n, click "Workflows" → "Import from File"
-   - Import: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+   - Import: `services/workflow/workflows/Vigil Guard v1.8.1.json`
    - (Previous exports remain for reference only)
 
 3. **Configure ClickHouse Credentials**
@@ -315,13 +315,13 @@ After installation completes, you **must** manually configure n8n:
      ```bash
      npm test -- pii-detection-comprehensive.test.js
      ```
-   - Expect **160+** tests passing for workflow v1.7.9 (OWASP AITG coverage: APP-01 96%, APP-02 82.5%).
+   - Expect **18/18** tests passing for workflow v1.8.1 (100% coverage, SmartPersonRecognizer enabled).
 
 📖 **Detailed guide**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
 
-### ℹ️ PII Detection Stack (v1.7.9)
+### ℹ️ PII Detection Stack (v1.8.1)
 
-- **Workflow export**: `services/workflow/workflows/Vigil Guard v1.7.9.json`
+- **Workflow export**: `services/workflow/workflows/Vigil Guard v1.8.1.json`
 - **Config-driven fallback**: `services/workflow/config/pii.conf` and `config/unified_config.json` now hold the rule metadata (no hard-coded tables in the workflow).
 - **Presidio validators**: `services/presidio-pii-api/validators/*` define checksum logic for IBAN, US SSN/Passport, UK NHS/NINO, AU TFN/Medicare, CA SIN, etc.
 - **Docs**: See `docs/DETECTION_CATEGORIES.md` for AC prefilter architecture and OWASP AITG coverage.
@@ -694,7 +694,7 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 
 ## 📋 Changelog
 
-### v1.6.11 - 2025-01-30
+### v1.8.1 - 2025-01-30
 
 #### Fixed
 - **CREDIT_CARD Polish Language Support**: Fixed recognizer registration to support Polish text (`supported_language: pl` instead of `en`)
@@ -709,7 +709,7 @@ Full license: https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M
 
 #### Performance
 - No latency impact (<1ms overhead for hybrid detection)
-- Fully backward compatible with v1.6.10 (no breaking changes)
+- Fully backward compatible with v1.8.1 (no breaking changes)
 
 ---
 

@@ -191,8 +191,8 @@ git commit -m "chore(deps): Update prompt-guard-api Python dependencies"
 
 ```bash
 # Backup current workflow
-cp services/workflow/workflows/Vigil-Guard-v1.6.10.json \
-   services/workflow/workflows/backup/Vigil-Guard-v1.6.10-$(date +%Y%m%d).json
+cp services/workflow/workflows/Vigil-Guard-v1.8.1.json \
+   services/workflow/workflows/backup/Vigil-Guard-v1.8.1-$(date +%Y%m%d).json
 ```
 
 ### Export from n8n UI
@@ -203,8 +203,8 @@ cp services/workflow/workflows/Vigil-Guard-v1.6.10.json \
 4. Save to `services/workflow/workflows/`
 5. Commit with version bump:
    ```bash
-   git add services/workflow/workflows/Vigil-Guard-v1.7.0.json
-   git commit -m "feat(workflow): Update to v1.7.0 with new sanitization rules"
+   git add services/workflow/workflows/Vigil-Guard-v1.8.1.json
+   git commit -m "feat(workflow): Update to v1.8.1 with new sanitization rules"
    ```
 
 ---

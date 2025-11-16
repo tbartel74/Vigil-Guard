@@ -388,7 +388,7 @@ Expected: Service works without internet access ✅
 
 ## Troubleshooting
 
-### Problem: PERSON Entity False Positives (Fixed in v1.7.9+)
+### Problem: PERSON Entity False Positives (Fixed in v1.8.1+)
 
 **Issue**: AI model names, jailbreak personas, pronouns, or tech brands detected as PERSON entities
 
@@ -398,7 +398,7 @@ Expected: Service works without internet access ✅
 - Example: Regex should match "John Smith" but Presidio returns "John Smith lives"
 - Result: False positives for lowercase phrases like "every command", "amoral and obeys"
 
-**Architecture Decision (v1.7.9+)**:
+**Architecture Decision (v1.8.1+)**:
 - **English PERSON Detection**: spaCy NER ONLY
   - SmartPersonRecognizer DISABLED due to boundary extension bug (app.py lines 607-631)
   - spaCy en_core_web_sm provides baseline detection

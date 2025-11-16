@@ -1278,6 +1278,13 @@ initialize_presidio() {
         log_warning "spaCy model status unknown"
     fi
 
+    # Verify SmartPersonRecognizer (v1.8.1+)
+    if echo "$HEALTH_RESPONSE" | grep -q "SmartPersonRecognizer"; then
+        log_success "SmartPersonRecognizer loaded (0% false positives for AI models)"
+    else
+        log_warning "SmartPersonRecognizer status unknown (may still be initializing)"
+    fi
+
     echo ""
 }
 

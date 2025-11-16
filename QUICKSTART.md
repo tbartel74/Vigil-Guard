@@ -223,7 +223,7 @@ lsof -i :3001  # Grafana (proxied via Caddy)
 
 1. **✅ Complete n8n Setup** (REQUIRED - see Step 4 above)
    - Create n8n account
-   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
+   - Import workflow from `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
    - Configure ClickHouse credentials (admin/[password from .env])
 
 2. **Configure Security Rules**
@@ -232,7 +232,7 @@ lsof -i :3001  # Grafana (proxied via Caddy)
    - Navigate to Configuration
    - Adjust detection thresholds
 
-3. **Monitor System & New v1.7.0 Features**
+3. **Monitor System & New v1.8.1 Features**
    - View real-time stats in Web UI Monitoring dashboard
    - Open Grafana at http://localhost/grafana for detailed analytics
    - Check Investigation Panel for PII classification tracking
@@ -278,4 +278,4 @@ For detailed documentation, see [README.md](README.md) and [docs/](docs/)
 ---
 **Document Version:** 1.7.0
 **Last Updated:** 2025-11-02
-**Installation Script:** install.sh v1.7.0
+**Installation Script:** install.sh v1.8.1

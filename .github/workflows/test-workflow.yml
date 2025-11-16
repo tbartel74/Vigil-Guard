@@ -126,9 +126,15 @@ jobs:
 
       - name: Run tests (without webhook dependency)
         working-directory: services/workflow
+        env:
+          CLICKHOUSE_HOST: localhost
+          CLICKHOUSE_HTTP_PORT: 8123
+          CLICKHOUSE_USERNAME: admin
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-min-32-chars' }}
+          RUN_LANGUAGE_DETECTOR_FALLBACK_TESTS: "false"
         run: |
           # Run only tests that don't require active n8n workflow
-          npm test -- --reporter=verbose --reporter=json --outputFile=test-results.json || true
+          npm test -- --reporter=verbose --reporter=json --outputFile=test-results.json
         if: steps.workflow_dir.outputs.exists == 'true'
 
       - name: Upload test results

@@ -1,4 +1,18 @@
 import { parseFile } from "./fileOps.js";
+import type {
+  PresidioEntity as TypedPresidioEntity,
+  PresidioEntityType as BrandedPresidioEntityType,
+  LanguageStats as TypedLanguageStats,
+  LanguageDetectionResult as TypedLanguageDetectionResult,
+  DualAnalyzeResult as TypedDualAnalyzeResult,
+  PiiConfig as TypedPiiConfig,
+  AnalyzeOptions as TypedAnalyzeOptions,
+  RegexFallbackMeta as TypedRegexFallbackMeta,
+  isPresidioEntity,
+  isRegexEntity,
+  isFallbackEntity,
+  KNOWN_ENTITY_TYPES as TYPED_KNOWN_ENTITY_TYPES
+} from "./types/pii.js";
 
 const DEFAULT_PRESIDIO_URL = process.env.PRESIDIO_URL || "http://vigil-presidio-pii:5001";
 const DEFAULT_LANGUAGE_DETECTOR_URL = process.env.LANGUAGE_DETECTOR_URL || "http://vigil-language-detector:5002/detect";
@@ -95,6 +109,7 @@ interface LanguageStats {
   primary_language: string;
   detection_method: string;
   detection_confidence: number | null;
+  language_detection_degraded?: boolean;  // NEW v1.8.1: Flag when language detector service failed
   polish_entities: number;
   english_entities: number;
   regex_entities: number;
@@ -128,6 +143,7 @@ interface RegexFallbackMeta {
   regex_entities_attempted: number;
   regex_entities_added: number;
   regex_rule_failures: number;
+  failed_rule_details?: Array<{ name: string; presidio_type: string; error: string }>;  // NEW v1.8.1: Details of failed regex rules
   degraded: boolean;
 }
 
@@ -138,6 +154,8 @@ interface DualAnalyzeResult {
   redacted_text: string;
   language_stats: LanguageStats;
   regex_fallback?: RegexFallbackMeta;
+  detection_complete?: boolean;
+  warnings?: string[];
 }
 
 let cachedUnifiedConfig: { data: any; etag: string } | null = null;
@@ -163,12 +181,118 @@ async function loadUnifiedConfig() {
   );
 }
 
+/**
+ * Validates pii.conf structure and regex patterns
+ *
+ * Validation philosophy:
+ * - **Fail-fast**: Invalid config should prevent server startup (not runtime errors)
+ * - **Comprehensive**: Check both structure (schema) and content (regex validity)
+ * - **User-friendly**: Clear error messages with specific failure details
+ *
+ * Validation layers:
+ * 1. **Schema validation**: Ensure required fields exist, types are correct
+ * 2. **Regex compilation**: Test all patterns can be compiled (no syntax errors)
+ * 3. **Entity type mapping**: Verify target_entity values are valid Presidio types
+ *
+ * Error handling:
+ * - Invalid structure → Throw with schema path (e.g., "rules[3].pattern missing")
+ * - Invalid regex → Throw with pattern snippet + error message
+ * - Unknown entity type → Warn but allow (forward compatibility)
+ *
+ * @param config - Parsed pii.conf object
+ * @throws Error if validation fails (with detailed message)
+ */
+function validatePiiConf(config: any): void {
+  // 1. Schema validation - basic structure
+  if (!config || typeof config !== 'object') {
+    throw new Error('pii.conf must be a JSON object');
+  }
+
+  if (!Array.isArray(config.rules)) {
+    throw new Error('pii.conf must have "rules" array');
+  }
+
+  // 2. Validate each rule
+  config.rules.forEach((rule: any, index: number) => {
+    const ruleContext = `rules[${index}]`;
+
+    // Required fields
+    if (!rule.name || typeof rule.name !== 'string') {
+      throw new Error(`${ruleContext}: "name" is required and must be a string`);
+    }
+
+    if (!rule.pattern || typeof rule.pattern !== 'string') {
+      throw new Error(`${ruleContext} (${rule.name}): "pattern" is required and must be a string`);
+    }
+
+    if (!rule.target_entity || typeof rule.target_entity !== 'string') {
+      throw new Error(`${ruleContext} (${rule.name}): "target_entity" is required and must be a string`);
+    }
+
+    // Validate regex flags if present
+    if (rule.flags && typeof rule.flags === 'string') {
+      if (!/^[gimu]*$/.test(rule.flags)) {
+        throw new Error(`${ruleContext} (${rule.name}): Invalid regex flags "${rule.flags}" (allowed: g, i, m, u)`);
+      }
+    }
+
+    // 3. Regex compilation test - CRITICAL for preventing runtime crashes
+    try {
+      new RegExp(rule.pattern, rule.flags || 'giu');
+    } catch (error: any) {
+      const patternSnippet = rule.pattern.length > 100
+        ? rule.pattern.substring(0, 100) + '...'
+        : rule.pattern;
+
+      throw new Error(
+        `${ruleContext} (${rule.name}): Invalid regex pattern - ${error.message}\n` +
+        `Pattern: ${patternSnippet}\n` +
+        `Flags: ${rule.flags || 'giu'}`
+      );
+    }
+
+    // 4. Entity type validation (permissive - warn only)
+    if (!KNOWN_ENTITY_TYPES.has(rule.target_entity as PresidioEntityType)) {
+      console.warn(
+        `⚠️  ${ruleContext} (${rule.name}): Unknown target_entity "${rule.target_entity}" ` +
+        `(not in KNOWN_ENTITY_TYPES set). This may be a new Presidio recognizer.`
+      );
+    }
+  });
+
+  // 5. Validate order array if present
+  if (config.order) {
+    if (!Array.isArray(config.order)) {
+      throw new Error('pii.conf "order" must be an array');
+    }
+
+    // Check all order entries reference existing rules
+    const ruleNames = new Set(config.rules.map((r: any) => r.name));
+    config.order.forEach((orderName: string, index: number) => {
+      if (!ruleNames.has(orderName)) {
+        throw new Error(
+          `order[${index}]: Rule "${orderName}" not found in rules array. ` +
+          `Available rules: ${Array.from(ruleNames).join(', ')}`
+        );
+      }
+    });
+  }
+
+  console.log(`✅ pii.conf validation passed: ${config.rules.length} rules, all regex patterns compiled successfully`);
+}
+
 async function loadPiiConf() {
-  return loadCachedConfig(
+  const config = await loadCachedConfig(
     "pii.conf",
     cachedPiiConf,
     (value) => { cachedPiiConf = value; }
   );
+
+  // Validate on every cache refresh (not just first load)
+  // Reason: Config might be edited between refreshes
+  validatePiiConf(config);
+
+  return config;
 }
 
 function getRedactionToken(entityType: string, originalText: string, piiConfig: PiiConfig): string {
@@ -528,7 +652,7 @@ function findRegexEntities(
   piiConf: any,
   piiConfig: PiiConfig,
   requestedEntities?: PresidioEntityType[]
-): { entities: PresidioEntity[]; failedRules: number } {
+): { entities: PresidioEntity[]; failedRules: number; failedRuleDetails?: Array<{ name: string; presidio_type: string; error: string }> } {
   if (!piiConf || !Array.isArray(piiConf.rules)) {
     return { entities: [], failedRules: 0 };
   }
@@ -536,6 +660,7 @@ function findRegexEntities(
   const order = piiConf.order || piiConf.rules.map((r: any) => r.name);
   const results: PresidioEntity[] = [];
   let failedRulesCount = 0;
+  const failedRuleDetails: Array<{ name: string; presidio_type: string; error: string }> = [];
 
   for (const ruleName of order) {
     const rule = piiConf.rules.find((r: any) => r.name === ruleName);
@@ -565,26 +690,34 @@ function findRegexEntities(
         });
       }
     } catch (error: any) {
-      // Log with full context for debugging malformed patterns
+      // CRITICAL: Track WHICH rules failed for user transparency
       failedRulesCount++;
-      console.error(`❌ Regex pattern compilation/execution failed for rule "${ruleName}":`, {
-        error: error.message,
-        pattern: rule.pattern?.substring(0, 100) + (rule.pattern?.length > 100 ? '...' : ''),  // Truncate long patterns
-        flags: rule.flags || "giu",
+      failedRuleDetails.push({
+        name: ruleName,
         presidio_type: presidioType,
-        error_type: error.name
+        error: error.message
+      });
+
+      console.error(`❌ Regex rule "${ruleName}" (${presidioType}) FAILED:`, {
+        error: error.message,
+        pattern: rule.pattern?.substring(0, 100) + (rule.pattern?.length > 100 ? '...' : ''),
+        flags: rule.flags || "giu",
+        error_type: error.name,
+        error_id: 'REGEX_COMPILATION_ERROR'
       });
       // Continue processing other rules (already happens via try-catch)
     }
   }
 
   if (failedRulesCount > 0) {
-    console.warn(`⚠️  ${failedRulesCount} regex rule(s) failed to compile/execute`);
+    console.warn(`⚠️  ${failedRulesCount} regex rule(s) failed to compile/execute:`,
+      failedRuleDetails.map(f => f.presidio_type).join(', '));
   }
 
   return {
     entities: results,
-    failedRules: failedRulesCount
+    failedRules: failedRulesCount,
+    failedRuleDetails  // NEW: Return details of which rules failed
   };
 }
 
@@ -768,7 +901,7 @@ function integrateRegexEntities(
   let dedupedEntities = deduplicateEntities(combinedEntities);
 
   const requestedEntities = reqBody.entities?.length ? reqBody.entities : undefined;
-  const { entities: regexEntities, failedRules } = findRegexEntities(
+  const { entities: regexEntities, failedRules, failedRuleDetails } = findRegexEntities(
     reqBody.text,
     piiConf,
     piiConfig,
@@ -788,6 +921,7 @@ function integrateRegexEntities(
     regex_entities_attempted: regexEntities.length,
     regex_entities_added: nonOverlappingRegexEntities.length,
     regex_rule_failures: failedRules,
+    failed_rule_details: failedRuleDetails,  // NEW: Include which rules failed
     degraded: failedRules > 0
   };
 
@@ -987,7 +1121,7 @@ function buildLanguageStats(
   const countBySource = (source: string) =>
     dedupedEntities.filter(e => e.source_language === source).length;
 
-  return {
+  const stats: LanguageStats = {
     detected_language: languageResult?.language || "unknown",
     primary_language: detectedLanguage,
     detection_method: languageResult?.method || "unknown",
@@ -1000,4 +1134,12 @@ function buildLanguageStats(
     regex_entities_retained: countBySource("regex"),
     total_after_dedup: dedupedEntities.length
   };
+
+  // NEW v1.8.1: Flag language detection degradation for ClickHouse analytics
+  // This allows monitoring dashboard to track service health trends
+  if (languageResult?.is_service_error) {
+    stats.language_detection_degraded = true;
+  }
+
+  return stats;
 }

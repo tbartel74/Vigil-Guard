@@ -1,8 +1,8 @@
 # TESTING_CLEAN_INSTALL.md
 
-**Vigil Guard v1.7.0 - Clean Installation Testing Guide**
+**Vigil Guard v1.8.1 - Clean Installation Testing Guide**
 
-This document provides comprehensive procedures for testing clean installations and upgrades of Vigil Guard v1.7.0, focusing on verification of browser fingerprinting and PII classification infrastructure.
+This document provides comprehensive procedures for testing clean installations and upgrades of Vigil Guard v1.8.1, focusing on verification of browser fingerprinting and PII classification infrastructure.
 
 ---
 
@@ -10,7 +10,7 @@ This document provides comprehensive procedures for testing clean installations 
 
 1. [Prerequisites](#prerequisites)
 2. [Scenario 1: Clean Installation Test](#scenario-1-clean-installation-test)
-3. [Scenario 2: Upgrade from v1.6.11](#scenario-2-upgrade-from-v16.11)
+3. [Scenario 2: Upgrade from v1.8.1](#scenario-2-upgrade-from-v16.11)
 4. [Verification Checklist](#verification-checklist)
 5. [Common Issues](#common-issues)
 6. [Rollback Procedure](#rollback-procedure)
@@ -58,7 +58,7 @@ tar -czf vigil_data_backup_$(date +%Y%m%d).tar.gz vigil_data/
 
 ## Scenario 1: Clean Installation Test
 
-**Objective**: Verify that `./install.sh` on a clean system creates all v1.7.0 infrastructure correctly.
+**Objective**: Verify that `./install.sh` on a clean system creates all v1.8.1 infrastructure correctly.
 
 ### Step 1: Complete System Cleanup
 
@@ -100,7 +100,7 @@ ls -la | grep -E "vigil_data|\.env"
    ✓ Tables created
    ℹ Creating retention config table...
    ✓ Retention config table created
-   ℹ Adding v1.7.0 audit columns (PII classification + browser fingerprinting)...
+   ℹ Adding v1.8.1 audit columns (PII classification + browser fingerprinting)...
    ✓ Audit columns added successfully
    ✓ ClickHouse initialized successfully (7 tables/views)
    ```
@@ -176,12 +176,12 @@ last_modified_by:             system
 
 ---
 
-### Step 5: Test Workflow v1.7.0
+### Step 5: Test Workflow v1.8.1
 
 ```bash
 # Load workflow in n8n
 echo "1. Open http://localhost:5678"
-echo "2. Import workflow: services/workflow/workflows/Vigil-Guard-v1.7.0.json"
+echo "2. Import workflow: services/workflow/workflows/Vigil-Guard-v1.8.1.json"
 echo "3. Activate workflow"
 echo "4. Send test request:"
 
@@ -314,20 +314,20 @@ pii_types_detected     Array(String)
 pii_entities_count     UInt16
 ```
 
-**Validation**: View contains all v1.7.0 columns.
+**Validation**: View contains all v1.8.1 columns.
 
 ---
 
-## Scenario 2: Upgrade from v1.6.11
+## Scenario 2: Upgrade from v1.8.1
 
-**Objective**: Verify that existing v1.6.11 installation upgrades correctly to v1.7.0.
+**Objective**: Verify that existing v1.8.1 installation upgrades correctly to v1.8.1.
 
 ### Step 1: Prepare Test Environment
 
 ```bash
-# Assume you have v1.6.11 running with data
+# Assume you have v1.8.1 running with data
 # Backup current state
-cp .env .env.v1.6.11.backup
+cp .env .env.v1.8.1.backup
 docker exec vigil-clickhouse clickhouse-client \
   --user admin \
   --password <your_password> \
@@ -337,10 +337,10 @@ docker exec vigil-clickhouse clickhouse-client \
 
 ---
 
-### Step 2: Pull v1.7.0 Code
+### Step 2: Pull v1.8.1 Code
 
 ```bash
-# Checkout v1.7.0 branch
+# Checkout v1.8.1 branch
 git fetch origin
 git checkout security-audit-remediation-phases-3-4
 git pull origin security-audit-remediation-phases-3-4
@@ -360,7 +360,7 @@ git pull origin security-audit-remediation-phases-3-4
 ℹ Initializing ClickHouse database...
 ✓ Tables verified
 ✓ Views verified
-ℹ Adding v1.7.0 audit columns (PII classification + browser fingerprinting)...
+ℹ Adding v1.8.1 audit columns (PII classification + browser fingerprinting)...
 ✓ Audit columns added successfully
 ℹ Retention config already exists
 ✓ ClickHouse initialized successfully!
@@ -390,13 +390,13 @@ WHERE client_id = ''
 
 ---
 
-### Step 5: Import v1.7.0 Workflow
+### Step 5: Import v1.8.1 Workflow
 
 ```bash
 echo "1. Open http://localhost:5678"
-echo "2. Import: services/workflow/workflows/Vigil-Guard-v1.7.0.json"
+echo "2. Import: services/workflow/workflows/Vigil-Guard-v1.8.1.json"
 echo "3. Deactivate old workflow"
-echo "4. Activate v1.7.0 workflow"
+echo "4. Activate v1.8.1 workflow"
 ```
 
 ---
@@ -404,11 +404,11 @@ echo "4. Activate v1.7.0 workflow"
 ### Step 6: Test New Data with Metadata
 
 ```bash
-# Send test request with v1.7.0 payload
+# Send test request with v1.8.1 payload
 curl -X POST http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1 \
   -H "Content-Type: application/json" \
   -d '{
-    "chatInput": "Upgrade test from v1.6.11 to v1.7.0",
+    "chatInput": "Upgrade test from v1.8.1 to v1.8.1",
     "sessionId": "test_upgrade_'$(date +%s)'",
     "clientId": "vigil_upgrade_test",
     "browser_metadata": {
@@ -472,12 +472,12 @@ Use this checklist for both clean install and upgrade scenarios:
 
 - [ ] `events_processed` table has 9 new columns (client_id, browser_*, pii_*)
 - [ ] `retention_config` table exists
-- [ ] View `v_grafana_prompts_table` includes v1.7.0 columns
+- [ ] View `v_grafana_prompts_table` includes v1.8.1 columns
 - [ ] No errors in ClickHouse logs: `docker logs vigil-clickhouse | grep -i error`
 
 ### Workflow
 
-- [ ] Vigil-Guard-v1.7.0.json successfully imported to n8n
+- [ ] Vigil-Guard-v1.8.1.json successfully imported to n8n
 - [ ] Workflow activates without errors
 - [ ] Webhook accepts payloads with `clientId` and `browser_metadata`
 - [ ] No errors in n8n logs: `docker logs vigil-n8n | grep -i error`
@@ -511,13 +511,13 @@ Use this checklist for both clean install and upgrade scenarios:
 
 **Symptom**: Installation completes but message missing.
 
-**Cause**: `install.sh` not executing `06-add-audit-columns-v1.7.0.sql`.
+**Cause**: `install.sh` not executing `06-add-audit-columns-v1.8.1.sql`.
 
 **Fix**:
 ```bash
 # Manual migration
 CLICKHOUSE_PASSWORD=$(grep "^CLICKHOUSE_PASSWORD=" .env | cut -d'=' -f2)
-cat services/monitoring/sql/06-add-audit-columns-v1.7.0.sql | \
+cat services/monitoring/sql/06-add-audit-columns-v1.8.1.sql | \
   docker exec -i vigil-clickhouse clickhouse-client \
     --user admin \
     --password "$CLICKHOUSE_PASSWORD" \
@@ -537,12 +537,12 @@ docker exec vigil-clickhouse clickhouse-client \
 
 **Symptom**: New records have `client_id = ''`.
 
-**Cause**: Workflow v1.7.0 not imported or old workflow still active.
+**Cause**: Workflow v1.8.1 not imported or old workflow still active.
 
 **Fix**:
 ```bash
 echo "1. Verify active workflow in n8n (http://localhost:5678)"
-echo "2. Check workflow name ends with 'v1.7.0'"
+echo "2. Check workflow name ends with 'v1.8.1'"
 echo "3. Deactivate old workflows"
 echo "4. Re-send test request"
 ```
@@ -618,7 +618,7 @@ docker-compose up --force-recreate -d grafana
 
 ## Rollback Procedure
 
-If testing reveals critical issues, rollback to v1.6.11:
+If testing reveals critical issues, rollback to v1.8.1:
 
 ### Step 1: Stop Services
 
@@ -628,10 +628,10 @@ docker-compose down
 
 ---
 
-### Step 2: Restore v1.6.11 Code
+### Step 2: Restore v1.8.1 Code
 
 ```bash
-git checkout main  # or v1.6.11 tag
+git checkout main  # or v1.8.1 tag
 ```
 
 ---
@@ -639,7 +639,7 @@ git checkout main  # or v1.6.11 tag
 ### Step 3: Restore .env
 
 ```bash
-cp .env.v1.6.11.backup .env
+cp .env.v1.8.1.backup .env
 ```
 
 ---
@@ -662,7 +662,7 @@ docker-compose up -d
 
 ---
 
-### Step 6: Verify v1.6.11 Functionality
+### Step 6: Verify v1.8.1 Functionality
 
 ```bash
 # Check version in workflow
@@ -705,5 +705,5 @@ If you encounter issues not covered in this guide:
 
 **Document Version**: 1.0.0
 **Last Updated**: 2025-11-02
-**Compatible with**: Vigil Guard v1.7.0
+**Compatible with**: Vigil Guard v1.8.1
 **Maintained by**: Vigil Guard Team

@@ -69,6 +69,7 @@ docker-compose.override.yml
 *.backup
 *__*
 backup/
+.version-sweep-backup-*/
 
 # PII Modernization - Never sync to repo
 vigil-guard-pii-rollback-*/
@@ -108,8 +109,8 @@ CLAUDE.md
 CHANGELOG.md
 
 # Claude Code UI state (runtime-generated, not for repository)
-.claude-code/ui-state.json
-# Keep prompt.txt and agent-manifest.json (static configuration)
+.claude-code/
+# Note: Entire .claude-code/ directory is IDE-specific and should not be synced
 
 # Codex tooling (local-only)
 .codex/
@@ -132,6 +133,10 @@ TODO.md
 mustfix.md
 TEST_ANALYSIS.md
 
+# Claude Code wrapper scripts (local-only tmux integration)
+scripts/claude-code-wrapper.sh
+scripts/tmux-agent-status.sh
+
 # Roadmap directory (internal planning, not for repository)
 Roadmap/
 
@@ -141,6 +146,10 @@ Roadmap/
 # Study documents (not for repository)
 clickhouse_retention_study.md
 
+# Operational/monitoring documentation (user-specific, not product docs)
+docs/PII_MONITORING_QUERIES.md
+docs/TMUX_STATUS_BAR.md
+
 # Grafana datasource with secrets (generated from .example by install.sh)
 services/monitoring/grafana/provisioning/datasources/clickhouse.yml
 
@@ -149,3 +158,24 @@ plugin/Chrome.crx
 plugin/Chrome.pem
 audit-logs/
 Roadmap/
+
+# Development/debug scripts (moved to ../Vigil-misc/)
+debug_*.js
+debug_*.cjs
+debug_*.mjs
+fix_*.js
+fix_*.cjs
+normalize_node.js
+test_*.sh
+
+# Auto-generated test files (moved to ../Vigil-misc/)
+**/tests/**/auto-*.test.js
+**/tests/**/fixtures/auto-*.json
+
+# Temporary documentation (moved to ../Vigil-misc/)
+FIX_*.md
+DEBUG_*.md
+VERIFICATION_*.md
+
+# Test summaries (temporary analysis)
+TEST_SUMMARY.md

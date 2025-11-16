@@ -92,49 +92,54 @@ recognizers:
   # Strategy: HIGH threshold (0.60) to prevent false positives
   # Problem: Context enhancer adds unpredictable +0.05-0.15 boost
   # Solution: Require explicit context keywords (pacjent, imię, nazwisko, etc.)
+  # v1.7.10: PERSON_PL pattern recognizer DISABLED
+  # Replaced by SmartPersonRecognizer (custom_recognizers/smart_person_recognizer.py)
+  # SmartPersonRecognizer extends SpacyRecognizer with validate_result() filtering
+  # This prevents false positives from Polish lowercase words
+
   # - WITHOUT context: 0.45 + 0.05 = 0.50 < 0.60 → REJECTED ❌
   # - WITH context keywords: 0.45 + 0.35 = 0.80 >= 0.60 → ACCEPTED ✅
   # Trade-off: Names without context (e.g., "Jan Kowalski" alone) won't be detected
-  - name: PERSON_PL
-    supported_language: pl
-    supported_entity: PERSON
-    patterns:
-      # Polish name pattern: Capitalized words (2 words, min 3 chars each)
-      - name: person_full_name
-        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
-        score: 0.45  # Standard score (requires context to pass 0.60 threshold)
-
-      # Name with title (higher confidence due to context)
-      - name: person_with_title
-        regex: '\b(Pan|Pani|Dr|Prof|Mgr)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
-        score: 0.75  # High confidence - title indicates name
-
-      # Name with multiple parts (e.g., Jan Kowalski-Nowak)
-      - name: person_compound_name
-        regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}){1,2}\b'
-        score: 0.50  # Medium confidence
-    context:
-      - "imię"
-      - "imie"
-      - "nazwisko"
-      - "pacjent"
-      - "patient"
-      - "klient"
-      - "użytkownik"
-      - "user"
-      - "pan"
-      - "pani"
-      - "osoba"
-      - "person"
-      # REMOVED: "pesel", "PESEL", "nip", "NIP" - these are PII identifiers, not person name context
-      # These keywords were causing false positives (e.g., "moim pesel" detected as [PERSON])
-      - "email"
-      - "e-mail"
-      - "telefon"
-      - "phone"
-      - "dowód"
-      - "dowod"
-    validators: []
+  # - name: PERSON_PL
+  #   supported_language: pl
+  #   supported_entity: PERSON
+  #   patterns:
+  #     # Polish name pattern: Capitalized words (2 words, min 3 chars each)
+  #     - name: person_full_name
+  #       regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
+  #       score: 0.45  # Standard score (requires context to pass 0.60 threshold)
+  #
+  #     # Name with title (higher confidence due to context)
+  #     - name: person_with_title
+  #       regex: '\b(Pan|Pani|Dr|Prof|Mgr)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\b'
+  #       score: 0.75  # High confidence - title indicates name
+  #
+  #     # Name with multiple parts (e.g., Jan Kowalski-Nowak)
+  #     - name: person_compound_name
+  #       regex: '\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}){1,2}\b'
+  #       score: 0.50  # Medium confidence
+  #   context:
+  #     - "imię"
+  #     - "imie"
+  #     - "nazwisko"
+  #     - "pacjent"
+  #     - "patient"
+  #     - "klient"
+  #     - "użytkownik"
+  #     - "user"
+  #     - "pan"
+  #     - "pani"
+  #     - "osoba"
+  #     - "person"
+  #     # REMOVED: "pesel", "PESEL", "nip", "NIP" - these are PII identifiers, not person name context
+  #     # These keywords were causing false positives (e.g., "moim pesel" detected as [PERSON])
+  #     - "email"
+  #     - "e-mail"
+  #     - "telefon"
+  #     - "phone"
+  #     - "dowód"
+  #     - "dowod"
+  #   validators: []
 
   # ============================================================================
   # PL_REGON - Polish Business ID (9 or 14 digits)
