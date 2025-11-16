@@ -92,7 +92,7 @@ check_existing_installation() {
         return 0
     else
         # Return 1 = fresh installation (no existing state, normal install proceeds)
-        exit 1
+        return 1
     fi
 }
 
@@ -338,6 +338,17 @@ generate_secure_passwords() {
 # Setup environment
 setup_environment() {
     print_header "Setting Up Environment"
+
+    # CRITICAL: Unset any existing password ENV variables to ensure .env takes priority
+    # Docker Compose prioritizes: Shell ENV > .env file
+    # Without this, old passwords from previous sessions would override new .env values
+    unset WEB_UI_ADMIN_PASSWORD 2>/dev/null || true
+    unset CLICKHOUSE_PASSWORD 2>/dev/null || true
+    unset GF_SECURITY_ADMIN_PASSWORD 2>/dev/null || true
+    unset SESSION_SECRET 2>/dev/null || true
+    unset JWT_SECRET 2>/dev/null || true
+    log_info "Cleared environment variables (ensures .env takes priority)"
+    echo ""
 
     # Check if .env exists
     if [ ! -f .env ]; then
@@ -637,6 +648,15 @@ setup_environment() {
 # Create data directories
 create_data_directories() {
     print_header "Creating Data Directories"
+
+    # CRITICAL: Clean stale databases on fresh installation
+    # Prevents old credentials from persisting across reinstalls
+    if [ ! -f "$INSTALL_STATE_FILE" ]; then
+        log_info "Fresh installation detected: Cleaning stale databases..."
+        rm -f vigil_data/web-ui/users.db* 2>/dev/null || true
+        log_success "Stale databases removed"
+        echo ""
+    fi
 
     log_info "Creating vigil_data directory structure..."
 
@@ -1557,6 +1577,21 @@ show_summary() {
     echo -e "  ${BLUE}•${NC} Docker Guide:          ${YELLOW}DOCKER.md${NC}"
     echo -e "  ${BLUE}•${NC} Authentication:        ${YELLOW}docs/AUTHENTICATION.md${NC}"
     echo -e "  ${BLUE}•${NC} Full Documentation:    ${YELLOW}docs/README.md${NC}"
+    echo ""
+
+    # VERIFICATION: Ensure passwords match between .env and containers
+    log_info "Verifying password synchronization..."
+    CONTAINER_PASSWORD=$(docker exec vigil-web-ui-backend printenv WEB_UI_ADMIN_PASSWORD 2>/dev/null || echo "")
+    ENV_PASSWORD=$(grep "^WEB_UI_ADMIN_PASSWORD=" .env | cut -d'=' -f2)
+
+    if [ "$CONTAINER_PASSWORD" = "$ENV_PASSWORD" ]; then
+        log_success "Password verification: .env and container match ✓"
+    else
+        log_warning "Password mismatch detected:"
+        log_warning "  .env file: ${ENV_PASSWORD}"
+        log_warning "  Container: ${CONTAINER_PASSWORD}"
+        log_warning "  Run: docker-compose restart web-ui-backend"
+    fi
     echo ""
 }
 
