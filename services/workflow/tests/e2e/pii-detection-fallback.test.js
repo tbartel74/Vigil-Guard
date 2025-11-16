@@ -3,10 +3,10 @@
  *
  * Tests graceful degradation when language-detector service is unavailable.
  *
- * IMPORTANT: These tests verify REAL fallback behavior by:
- * 1. Stopping the language-detector service
- * 2. Verifying PII detection continues working
- * 3. Restarting the service after tests
+ * IMPORTANT:
+ * - These tests are OPTIONAL and run only when
+ *   RUN_LANGUAGE_DETECTOR_FALLBACK_TESTS=true
+ * - This prevents CI/local runs from stopping Docker services unintentionally.
  */
 
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
@@ -16,7 +16,15 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-describe('Language Detection Fallback Behavior', () => {
+const shouldRunFallbackSuite = process.env.RUN_LANGUAGE_DETECTOR_FALLBACK_TESTS === 'true';
+
+const describeFn = shouldRunFallbackSuite ? describe : describe.skip;
+
+if (!shouldRunFallbackSuite) {
+  console.warn('⚠️  Skipping language-detector fallback suite (set RUN_LANGUAGE_DETECTOR_FALLBACK_TESTS=true to enable).');
+}
+
+describeFn('Language Detection Fallback Behavior', () => {
   let languageDetectorWasRunning = false;
 
   beforeAll(async () => {

@@ -69,6 +69,7 @@ docker-compose.override.yml
 *.backup
 *__*
 backup/
+.version-sweep-backup-*/
 
 # PII Modernization - Never sync to repo
 vigil-guard-pii-rollback-*/
@@ -108,8 +109,8 @@ CLAUDE.md
 CHANGELOG.md
 
 # Claude Code UI state (runtime-generated, not for repository)
-.claude-code/ui-state.json
-# Keep prompt.txt and agent-manifest.json (static configuration)
+.claude-code/
+# Note: Entire .claude-code/ directory is IDE-specific and should not be synced
 
 # Codex tooling (local-only)
 .codex/
