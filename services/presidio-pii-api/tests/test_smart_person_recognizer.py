@@ -256,24 +256,143 @@ class TestSmartPersonRecognizerStatistics:
     def recognizer_pl(self):
         return SmartPersonRecognizer(supported_language="pl")
 
-    def test_statistics_tracking(self, recognizer_pl):
-        """Verify statistics are tracked correctly"""
-        # Initial state
-        stats = recognizer_pl.get_stats()
-        assert stats['total_analyzed'] == 0
+    def test_statistics_tracking_with_validate(self, recognizer_pl):
+        """
+        NEW v1.8.1: Verify statistics increment correctly during validation
 
-        # Process some entities (would need full analyze() call with spaCy)
-        # For now, just verify stats structure
-        assert 'rejected_lowercase_multiword' in stats
-        assert 'rejected_lowercase_single' in stats
-        assert 'accepted_capitalized' in stats
-        assert 'accepted_uppercase' in stats
+        Tests that rejection/acceptance counters update when validate_result() is called.
+        """
+        # Reset to clean state
+        recognizer_pl.reset_stats()
+        initial_stats = recognizer_pl.get_stats()
+        assert initial_stats['total_analyzed'] == 0
+
+        # Test lowercase multiword rejection (2 cases)
+        recognizer_pl.validate_result("powiedziec zbys")
+        recognizer_pl.validate_result("mam rodzina")
+
+        # Test capitalized acceptance (2 cases)
+        recognizer_pl.validate_result("Jan Kowalski")
+        recognizer_pl.validate_result("Maria")
+
+        # Test uppercase acceptance (1 case)
+        recognizer_pl.validate_result("JOHN SMITH")
+
+        # Verify counters
+        stats = recognizer_pl.get_stats()
+        assert stats['total_analyzed'] == 5, "Should have analyzed 5 entities"
+        assert stats['rejected_lowercase_multiword'] == 2, "Should reject 2 lowercase multiword"
+        assert stats['accepted_capitalized'] >= 2, "Should accept at least 2 capitalized"
+        assert stats['accepted_uppercase'] >= 1, "Should accept at least 1 uppercase"
 
     def test_statistics_reset(self, recognizer_pl):
         """Verify statistics can be reset"""
+        # Add some data
+        recognizer_pl.validate_result("test data")
+        assert recognizer_pl.get_stats()['total_analyzed'] > 0
+
+        # Reset
         recognizer_pl.reset_stats()
         stats = recognizer_pl.get_stats()
-        assert all(count == 0 for count in stats.values())
+        assert all(count == 0 for count in stats.values()), "All counters should be 0 after reset"
+
+
+class TestSmartPersonRecognizerWithAllowList:
+    """
+    NEW v1.8.1: Integration tests with allow-list filtering
+
+    Tests that SmartPersonRecognizer properly filters AI model names
+    using the DEFAULT_ALLOW_LIST (ChatGPT, Claude, Gemini, etc.)
+    """
+
+    @pytest.fixture
+    def recognizer_en(self):
+        return SmartPersonRecognizer(supported_language="en")
+
+    def test_allow_list_blocks_ai_models(self, recognizer_en):
+        """
+        CRITICAL: Verify AI model names are blocked by allow-list
+
+        Even if spaCy detects "ChatGPT" or "Claude" as PERSON entities,
+        SmartPersonRecognizer should reject them via DEFAULT_ALLOW_LIST.
+        """
+        ai_models = [
+            "ChatGPT",
+            "Claude",
+            "Gemini",
+            "GPT",
+            "Bard",
+            "DALL-E"
+        ]
+
+        for model in ai_models:
+            result = recognizer_en.validate_result(model)
+            assert result is False, (
+                f"AI model '{model}' should be rejected by allow-list, "
+                f"even if capitalized (looks like a name)"
+            )
+
+    def test_allow_list_blocks_pronouns(self, recognizer_en):
+        """
+        Verify pronouns are blocked by Phase 2 filters
+
+        spaCy sometimes detects pronouns as PERSON entities.
+        SmartPersonRecognizer should reject them.
+        """
+        pronouns = [
+            "He",
+            "She",
+            "They",
+            "Him",
+            "Her",
+            "Them"
+        ]
+
+        for pronoun in pronouns:
+            result = recognizer_en.validate_result(pronoun)
+            assert result is False, (
+                f"Pronoun '{pronoun}' should be rejected, "
+                f"even if capitalized"
+            )
+
+    def test_real_names_pass_despite_allow_list(self, recognizer_en):
+        """
+        Verify real names are NOT blocked by allow-list
+
+        Names like "John Smith" should pass through,
+        while "ChatGPT" and "Claude" should be blocked.
+        """
+        real_names = [
+            "John Smith",
+            "Mary Johnson",
+            "Robert Williams",
+            "Jane Doe"
+        ]
+
+        for name in real_names:
+            result = recognizer_en.validate_result(name)
+            assert result is True, (
+                f"Real name '{name}' should pass allow-list check"
+            )
+
+    def test_allow_list_case_insensitive(self, recognizer_en):
+        """
+        Verify allow-list matching is case-insensitive
+
+        "chatgpt", "CHATGPT", "ChatGPT" should all be blocked.
+        """
+        case_variants = [
+            "chatgpt",
+            "CHATGPT",
+            "ChatGPT",
+            "chAtGpT"
+        ]
+
+        for variant in case_variants:
+            result = recognizer_en.validate_result(variant)
+            assert result is False, (
+                f"Allow-list should be case-insensitive: '{variant}'"
+            )
 
 
 if __name__ == '__main__':

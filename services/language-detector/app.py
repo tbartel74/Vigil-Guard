@@ -289,15 +289,18 @@ def detect_language():
 
     except LangDetectException as e:
         logger.error(f"Language detection failed: {e}", exc_info=True)
+        # FIXED: Return 200 with actual fallback language (not 503)
+        # Caller can use fallback instead of failing entire request
         return jsonify({
+            'language': 'pl',  # Provide actual fallback language
+            'confidence': 0.0,  # Indicate no confidence (fallback)
+            'method': 'fallback_on_error',
+            'fallback_applied': True,
             'error': 'LANG_DETECTION_UNAVAILABLE',
             'error_id': 'LANG_001',
             'message': f'Language detection library error: {str(e)}',
-            'service_error': True,
-            'fallback_applied': True,
-            'fallback_language': 'pl',
-            'recommended_action': 'Use default language for dual-language detection'
-        }), 503  # Service unavailable signals workflow to fail-secure
+            'service_error': True
+        }), 200  # Return 200 since we provide usable fallback
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

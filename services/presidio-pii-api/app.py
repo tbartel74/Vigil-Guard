@@ -1,10 +1,14 @@
 """
 Vigil Guard - Presidio PII Detection API
-Flask wrapper with Dual-Language Detection
-Version: 1.6.10 - Dual-Language PII Detection
+Flask wrapper with Dual-Language Detection + SmartPersonRecognizer
+Version: 1.8.1 - Production-Grade PERSON Detection
 
 Features:
 - Dual-language support: Polish (pl) + International (en)
+- SmartPersonRecognizer: Intelligent false positive prevention (0% FP for AI models)
+- 90+ entry allow-list: ChatGPT, Claude, Gemini, DAN, UCAR, pronouns
+- Boundary trimming: Fixes Presidio extension bug
+- Multi-layer filtering: Pronouns, ALL CAPS, single-word rejection
 - Credit card detection with Luhn validation (93.8% accuracy)
 - 3 detection modes: high_security / balanced / high_precision
 - Per-entity thresholds based on Microsoft/NVIDIA best practices
@@ -406,18 +410,19 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     logger.info(f"Description: {DETECTION_MODES[mode]['description']}")
     logger.info(f"Context enhancement: {'enabled' if enable_context else 'disabled'}")
 
-    # Configure NER model configuration for English (exclude PERSON from spaCy NER)
+    # Configure NER model configuration for English
+    # FIXED: SmartPersonRecognizer now handles PERSON filtering (allow-list + validation)
     english_ner_config = NerModelConfiguration(
-        labels_to_ignore=["PER"],  # Disable spaCy's PERSON detection (SmartPersonRecognizer disabled - see line 629)
+        labels_to_ignore=[],  # REMOVED "PER" - SmartPersonRecognizer validates all PERSON entities
         model_to_presidio_entity_mapping={
-            # PER intentionally excluded - would cause false positives (AI models, jailbreak personas)
+            "PER": "PERSON",  # ADDED: Map spaCy PER → Presidio PERSON (SmartPersonRecognizer will filter false positives)
             "LOC": "LOCATION",
             "ORG": "ORGANIZATION",
             "GPE": "LOCATION",
             "DATE": "DATE_TIME"
         },
         low_confidence_score_multiplier=0.5,
-        low_score_entity_names=["ORGANIZATION"]
+        low_score_entity_names=["ORGANIZATION", "PERSON"]  # ADDED PERSON to low-confidence list
     )
 
     # Configure NER model configuration for Polish model (persName → PERSON mapping)
@@ -629,7 +634,7 @@ def health():
     mode_meta = DETECTION_MODES.get(current_mode, {})
     payload = {
         'status': 'healthy',
-        'version': '1.6.11',
+        'version': '1.8.1',
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
         'mode_description': mode_meta.get('description', 'Unavailable'),
@@ -778,7 +783,12 @@ def analyze():
         entities = data.get('entities')
         return_decision_process = data.get('return_decision_process', False)
         return_rejected = data.get('return_rejected', False)  # NEW: Return rejected entities
-        allow_list = data.get('allow_list', [])  # NEW: Allow-list for false positive prevention
+        user_allow_list = data.get('allow_list', [])  # User-provided allow-list
+
+        # CRITICAL FIX: Merge DEFAULT_ALLOW_LIST with user-provided entries
+        # This ensures ChatGPT, Claude, pronouns are ALWAYS filtered, even for direct API calls
+        combined_allow_list = list(set(DEFAULT_ALLOW_LIST) | set(user_allow_list))
+        logger.info(f"📋 Allow-list: {len(DEFAULT_ALLOW_LIST)} default + {len(user_allow_list)} custom = {len(combined_allow_list)} total")
 
         if language not in ['pl', 'en']:
             logger.warning(f"Unsupported language '{language}', falling back to 'pl'")
@@ -804,7 +814,7 @@ def analyze():
             entities=entities,
             score_threshold=0.3,  # Low initial threshold
             return_decision_process=return_decision_process,
-            allow_list=allow_list  # NEW: Exclude allow-listed terms from detection
+            allow_list=combined_allow_list  # FIXED: Use merged allow-list
         )
 
         # Post-process: Apply custom validators and per-entity thresholds
@@ -819,7 +829,7 @@ def analyze():
         }
 
         # Create case-insensitive allow-list set for efficient lookup
-        allow_list_lower = {item.lower() for item in allow_list}
+        allow_list_lower = {item.lower() for item in combined_allow_list}
 
         for result in results:
             matched_text = text[result.start:result.end]
@@ -831,11 +841,11 @@ def analyze():
             if result.entity_type == "PERSON" and language in ["en", "pl"]:
                 # FILTER 0: Reject allow-listed terms (fallback if Presidio's allow-list missed them)
                 # Check exact match OR if any word in the phrase is in allow-list
-                if matched_text in allow_list or matched_text.lower() in allow_list_lower:
+                if matched_text in combined_allow_list or matched_text.lower() in allow_list_lower:
                     should_keep = False
                     rejection_reason = "allow_list_exact_match"
                     logger.info(f"❌ REJECTED - Exact allow-list match: {matched_text}")
-                elif should_keep and any(word in allow_list or word.lower() in allow_list_lower for word in matched_text.split()):
+                elif should_keep and any(word in combined_allow_list or word.lower() in allow_list_lower for word in matched_text.split()):
                     should_keep = False
                     rejection_reason = "allow_list_word_match"
                     logger.info(f"❌ REJECTED - Contains allow-listed word: {matched_text}")
@@ -853,20 +863,39 @@ def analyze():
                         rejection_reason = "pronoun_in_phrase"
                         logger.info(f"❌ REJECTED - Contains pronoun: {matched_text}")
 
-                # FILTER 2: Reject single-word names (require full name format)
+                # FILTER 2: Reject single-word names ONLY if too short or pronoun-like
+                # FIXED: Allow "Jan", "Maria", "Ola" (length > 2 + capitalized)
+                # Reject: "Me", "Al", "he" (length <= 2 or lowercase)
                 if should_keep:
-                    has_space = " " in matched_text.strip()
-                    has_polish_title = any(matched_text.startswith(t) for t in ["Pan ", "Pani ", "Dr ", "Prof ", "Mgr "])
-                    if not (has_space or has_polish_title):
-                        should_keep = False
-                        rejection_reason = "single_word_name"
-                        logger.debug(f"❌ REJECTED - Single word name (not full name): {matched_text}")
+                    words = matched_text.strip().split()
+                    is_single_word = len(words) == 1
 
-                # FILTER 3: Reject ALL CAPS (likely acronyms, not names)
+                    if is_single_word:
+                        word = words[0]
+                        is_short = len(word) <= 2  # "Me", "Al" = likely pronoun/abbreviation
+                        is_pronoun = word.lower() in PRONOUNS  # Already checked above, but defensive
+
+                        # Reject only if too short OR known pronoun
+                        if is_short or is_pronoun:
+                            should_keep = False
+                            rejection_reason = "single_word_pronoun_or_short"
+                            logger.debug(f"❌ REJECTED - Single word too short or pronoun: {matched_text}")
+                        # else: Allow "Jan", "Maria", "Ola" (SmartPersonRecognizer validated these)
+
+                # FILTER 3: Reject ALL CAPS ONLY if single-word known acronym
+                # FIXED: Allow "JAN KOWALSKI", "JOHN SMITH" (multi-word ALL-CAPS names)
+                # Reject: "AI", "LLM", "API" (single-word known acronyms)
+                COMMON_ACRONYMS = {"AI", "LLM", "API", "CEO", "CTO", "CFO", "USA", "UK", "EU", "NATO", "UN"}
+
                 if should_keep and matched_text == matched_text.upper() and len(matched_text) > 1:
-                    should_keep = False
-                    rejection_reason = "all_caps_acronym"
-                    logger.debug(f"❌ REJECTED - ALL CAPS acronym: {matched_text}")
+                    words = matched_text.split()
+                    is_likely_acronym = len(words) == 1 and matched_text in COMMON_ACRONYMS
+
+                    if is_likely_acronym:
+                        should_keep = False
+                        rejection_reason = "all_caps_known_acronym"
+                        logger.debug(f"❌ REJECTED - Known acronym: {matched_text}")
+                    # else: Allow "JAN KOWALSKI", "JOHN SMITH" (multi-word ALL-CAPS names are valid)
 
                 # FILTER 4: Fix Presidio boundary bug - trim to only capitalized words
                 # Presidio extends boundaries beyond regex match

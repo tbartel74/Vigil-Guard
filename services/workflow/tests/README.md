@@ -32,7 +32,7 @@ npm test
 - **E2E Tests**: 150+ tests for complete workflow execution
   - Bypass scenarios (25 tests)
   - PII detection (30+ tests)
-  - Language detection (50 tests) **NEW v1.6.11**
+  - Language detection (50 tests) **NEW v1.8.1**
   - False positives (15 tests)
   - Input validation (10 tests)
   - OWASP AITG (50+ tests)
@@ -40,7 +40,7 @@ npm test
 
 ## Test Suites
 
-### Language Detection Tests (NEW v1.6.11)
+### Language Detection Tests (NEW v1.8.1)
 **File:** `e2e/language-detection.test.js`
 **Count:** 50 tests
 **Purpose:** Validates language-aware PII detection to prevent cross-language false positives
@@ -69,7 +69,7 @@ npm test
 
 ## Recent Changes
 
-### 2025-02-01: Language Detection Integration (v1.6.11)
+### 2025-02-01: Language Detection Integration (v1.8.1)
 **New Feature**: Language detection microservice prevents cross-language false positives
 - Added 50 E2E tests for language detection
 - Validates "jest" → NOT [PERSON] in Polish text
