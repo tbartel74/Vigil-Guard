@@ -982,6 +982,35 @@ EOF
         exit 1
     fi
 
+    # Execute v1.8.1 language detection migration
+    SQL_FILE="services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
+    if [ ! -f "$SQL_FILE" ]; then
+        log_error "SQL migration file not found: $SQL_FILE"
+        log_info "This file is required for v1.8.1 language detection feature"
+        exit 1
+    fi
+
+    log_info "Adding v1.8.1 language detection column..."
+    LANG_OUTPUT=$(cat "$SQL_FILE" | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
+    LANG_STATUS=$?
+
+    if [ $LANG_STATUS -eq 0 ]; then
+        log_success "Language detection column added successfully"
+    else
+        log_error "Failed to add language detection column"
+        log_error "ClickHouse error output:"
+        echo "$LANG_OUTPUT" | sed 's/^/    /'
+        echo ""
+        log_info "Troubleshooting:"
+        log_info "  1. Check SQL file: services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
+        log_info "  2. Common issues:"
+        log_info "     - Column already exists (migration idempotent with IF NOT EXISTS)"
+        log_info "     - Syntax errors in ALTER TABLE statement"
+        log_info "     - Target table does not exist"
+        echo ""
+        exit 1
+    fi
+
     # Check if views already exist (created by Docker entrypoint)
     log_info "Checking views..."
     VIEW_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SELECT COUNT(*) FROM system.tables WHERE database = '${CLICKHOUSE_DB}' AND name LIKE 'v_%'" 2>/dev/null | tr -d ' ')
