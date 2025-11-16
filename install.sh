@@ -793,7 +793,6 @@ cleanup_docker_cache() {
 }
 
 # Build and start all services
-    cleanup_docker_cache
 start_all_services() {
     print_header "Building and Starting All Services"
 
