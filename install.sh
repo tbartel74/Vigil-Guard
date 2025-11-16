@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=14
+TOTAL_STEPS=15
 CURRENT_STEP=0
 
 print_header() {
@@ -759,8 +759,41 @@ create_docker_network() {
 
     echo ""
 }
+# Clean Docker cache and old images
+cleanup_docker_cache() {
+    print_header "Cleaning Docker Cache and Old Images"
+    
+    log_info "Checking for existing Vigil Guard images..."
+    
+    # Check if any Vigil images exist
+    if docker images | grep -q "vigil-"; then
+        log_warning "Found existing Vigil Guard Docker images"
+        log_info "Removing old images to prevent cache issues..."
+        
+        # Stop and remove containers first (if running)
+        if docker ps -a | grep -q "vigil-"; then
+            log_info "Stopping existing containers..."
+            docker-compose down 2>/dev/null || true
+        fi
+        
+        # Remove Vigil Guard images
+        docker images | grep "vigil-" | awk '{print $1":"$2}' | xargs -r docker rmi -f 2>/dev/null || true
+        
+        log_success "Old images removed"
+    else
+        log_info "No existing Vigil Guard images found (fresh installation)"
+    fi
+    
+    # Prune build cache to ensure fresh build
+    log_info "Pruning Docker build cache..."
+    docker builder prune -f >/dev/null 2>&1 || true
+    
+    log_success "Docker cache cleaned"
+    echo ""
+}
 
 # Build and start all services
+    cleanup_docker_cache
 start_all_services() {
     print_header "Building and Starting All Services"
 
@@ -1794,6 +1827,7 @@ main() {
     setup_environment
     create_data_directories
     create_docker_network
+    cleanup_docker_cache
     start_all_services
     initialize_clickhouse
     initialize_presidio
