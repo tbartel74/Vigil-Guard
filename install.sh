@@ -31,7 +31,7 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=15
+TOTAL_STEPS=16
 CURRENT_STEP=0
 
 print_header() {
@@ -261,6 +261,56 @@ check_prerequisites() {
         exit 1
     fi
 
+    echo ""
+}
+
+# Check available disk space
+check_disk_space() {
+    print_header "Step 3: Disk Space Check"
+
+    local required_gb=30
+    local current_dir="$PWD"
+
+    log_info "Checking available disk space..."
+    echo ""
+
+    # Get available space based on OS
+    local available_gb
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: use df with -g flag for GB
+        available_gb=$(df -g "$current_dir" | awk 'NR==2 {print $4}')
+    else
+        # Linux: use df with --output and convert from KB to GB
+        available_gb=$(df --output=avail "$current_dir" | awk 'NR==2 {print int($1/1024/1024)}')
+    fi
+
+    log_info "Required disk space: ${required_gb} GB"
+    log_info "Available disk space: ${available_gb} GB"
+    echo ""
+
+    if [ "$available_gb" -lt "$required_gb" ]; then
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "  ⚠️  INSUFFICIENT DISK SPACE ⚠️"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_error "You have ${available_gb} GB available, but ${required_gb} GB is required."
+        echo ""
+        log_info "Disk space breakdown:"
+        echo "  • Docker images: ~2.7 GB (was 1.8 GB with small spaCy models)"
+        echo "  • vigil_data volumes: 10-20 GB (logs, databases)"
+        echo "  • Build cache: 3-5 GB (temporary)"
+        echo "  • Reserved safety margin: 5 GB"
+        echo ""
+        log_info "To free up space:"
+        echo "  • Remove unused Docker images: docker system prune -a"
+        echo "  • Clean up old logs/data from other projects"
+        echo "  • Move installation to a different disk/partition"
+        echo ""
+        log_error "Installation cannot continue. Please free up space and try again."
+        exit 1
+    fi
+
+    log_success "Sufficient disk space available (${available_gb} GB)"
     echo ""
 }
 
@@ -1823,6 +1873,7 @@ main() {
 
     # Run installation steps
     check_prerequisites
+    check_disk_space
     setup_environment
     create_data_directories
     create_docker_network

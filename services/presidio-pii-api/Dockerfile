@@ -37,7 +37,7 @@ RUN shasum -a 256 -c checksums.sha256 || \
 RUN pip install --no-cache-dir *.whl
 
 # Verify models are installed
-RUN python3 -c "import spacy; spacy.load('en_core_web_sm'); spacy.load('pl_core_news_sm')" || \
+RUN python3 -c "import spacy; spacy.load('en_core_web_lg'); spacy.load('pl_core_news_lg')" || \
     (echo "❌ ERROR: Failed to load spaCy models" && exit 1)
 
 # ============================================================================
@@ -85,7 +85,7 @@ LABEL org.opencontainers.image.title="Vigil Guard PII Detection API" \
       org.opencontainers.image.vendor="Vigil Guard" \
       com.vigil-guard.service="presidio-pii-api" \
       com.vigil-guard.offline="true" \
-      com.vigil-guard.models="en_core_web_sm-3.7.1,pl_core_news_sm-3.7.0"
+      com.vigil-guard.models="en_core_web_lg-3.8.0,pl_core_news_lg-3.8.0"
 
 # Start Presidio Analyzer API via Flask wrapper
 CMD ["python3", "/app/app.py"]

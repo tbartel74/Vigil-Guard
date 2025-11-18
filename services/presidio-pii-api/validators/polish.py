@@ -31,7 +31,11 @@ def extract_digits(text: str) -> List[int]:
         text: Input string (may contain hyphens, spaces, etc.)
 
     Returns:
-        List of integers (digits only), or empty list if extraction fails
+        List of integers (digits only), or empty list if validation fails
+
+    Raises:
+        TypeError: If text is not a string (e.g., None, int, list)
+        ValueError: If text is too long (> 100 chars, prevents DoS)
 
     Example:
         >>> extract_digits("123-456-78-90")
@@ -39,17 +43,18 @@ def extract_digits(text: str) -> List[int]:
         >>> extract_digits("ABC123")
         [1, 2, 3]
     """
-    try:
-        return [int(d) for d in text if d.isdigit()]
-    except (TypeError, AttributeError) as e:
-        # TypeError: text is not iterable (e.g., None, int)
-        # AttributeError: text has no .isdigit() method
-        logger.error(f"extract_digits failed - invalid input type {type(text).__name__}: {e}")
-        return []  # Return empty list to indicate extraction failure
-    except MemoryError as e:
-        # Extremely rare - text is massive string causing memory exhaustion
-        logger.error(f"extract_digits failed - MemoryError for text length {len(text)}: {e}")
-        return []
+    # Type validation FIRST - fail fast on invalid input
+    if not isinstance(text, str):
+        logger.warning(f"extract_digits called with invalid type {type(text).__name__}")
+        raise TypeError(f"Expected str, got {type(text).__name__}")
+
+    # Length validation - prevent DoS on massive strings
+    if len(text) > 100:
+        logger.warning(f"extract_digits called with excessive length {len(text)}")
+        raise ValueError(f"Text too long ({len(text)} chars), max 100 chars allowed")
+
+    # Extract digits - no exception handling needed (type/length validated above)
+    return [int(d) for d in text if d.isdigit()]
 
 
 def validate_nip(nip: str) -> bool:
@@ -80,9 +85,15 @@ def validate_nip(nip: str) -> bool:
     References:
         https://www.gov.pl/web/kas/numery-identyfikacyjne
     """
-    digits = extract_digits(nip)
+    try:
+        digits = extract_digits(nip)
+    except (TypeError, ValueError) as e:
+        # Invalid input type or excessive length
+        logger.debug(f"validate_nip rejected invalid input: {e}")
+        return False
 
     if len(digits) != 10:
+        logger.debug(f"validate_nip rejected wrong length: {len(digits)} digits")
         return False
 
     # Weights for first 9 digits
@@ -94,10 +105,14 @@ def validate_nip(nip: str) -> bool:
     # Handle special case: if checksum is 10, it's invalid
     # (some implementations use 10 → 0, but officially it's invalid)
     if checksum == 10:
+        logger.debug("validate_nip rejected checksum=10 (administratively invalid)")
         return False
 
     # Compare with last digit
-    return checksum == digits[9]
+    is_valid = checksum == digits[9]
+    if not is_valid:
+        logger.debug(f"validate_nip checksum mismatch: expected {checksum}, got {digits[9]}")
+    return is_valid
 
 
 def validate_regon_9(regon: str) -> bool:
@@ -128,9 +143,14 @@ def validate_regon_9(regon: str) -> bool:
     References:
         https://www.gov.pl/web/kas/regon
     """
-    digits = extract_digits(regon)
+    try:
+        digits = extract_digits(regon)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_regon_9 rejected invalid input: {e}")
+        return False
 
     if len(digits) != 9:
+        logger.debug(f"validate_regon_9 rejected wrong length: {len(digits)} digits")
         return False
 
     # Weights for first 8 digits
@@ -141,10 +161,14 @@ def validate_regon_9(regon: str) -> bool:
 
     # If checksum is 10, REGON is invalid
     if checksum == 10:
+        logger.debug("validate_regon_9 rejected checksum=10 (administratively invalid)")
         return False
 
     # Compare with last digit
-    return checksum == digits[8]
+    is_valid = checksum == digits[8]
+    if not is_valid:
+        logger.debug(f"validate_regon_9 checksum mismatch: expected {checksum}, got {digits[8]}")
+    return is_valid
 
 
 def validate_regon_14(regon: str) -> bool:
@@ -212,19 +236,27 @@ def validate_regon(regon: str) -> bool:
         >>> validate_regon("12345")
         False  # Wrong length
     """
-    digits = extract_digits(regon)
+    try:
+        digits = extract_digits(regon)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_regon rejected invalid input: {e}")
+        return False
 
     if len(digits) == 9:
         return validate_regon_9(regon)
     elif len(digits) == 14:
         return validate_regon_14(regon)
     else:
+        logger.debug(f"validate_regon rejected wrong length: {len(digits)} digits (expected 9 or 14)")
         return False
 
 
 def validate_pesel(pesel: str) -> bool:
     """
-    Validate Polish PESEL (National Identification Number) checksum.
+    Validate Polish PESEL (Powszechny Elektroniczny System Ewidencji Ludności -
+    Universal Electronic System for Registration of the Population) checksum.
+
+    PESEL is Poland's national identification number assigned to every citizen.
 
     PESEL format: YYMMDDXXXXC (11 digits)
     - YY: Year of birth (last 2 digits)
@@ -257,9 +289,14 @@ def validate_pesel(pesel: str) -> bool:
     References:
         https://www.gov.pl/web/gov/czym-jest-numer-pesel
     """
-    digits = extract_digits(pesel)
+    try:
+        digits = extract_digits(pesel)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_pesel rejected invalid input: {e}")
+        return False
 
     if len(digits) != 11:
+        logger.debug(f"validate_pesel rejected wrong length: {len(digits)} digits")
         return False
 
     # Weights for first 10 digits
@@ -272,7 +309,10 @@ def validate_pesel(pesel: str) -> bool:
     checksum = (10 - (weighted_sum % 10)) % 10
 
     # Compare with last digit
-    return checksum == digits[10]
+    is_valid = checksum == digits[10]
+    if not is_valid:
+        logger.debug(f"validate_pesel checksum mismatch: expected {checksum}, got {digits[10]}")
+    return is_valid
 
 
 def validate_pesel_date(pesel: str) -> Optional[dict]:

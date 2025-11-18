@@ -411,11 +411,13 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
     logger.info(f"Context enhancement: {'enabled' if enable_context else 'disabled'}")
 
     # Configure NER model configuration for English
-    # FIXED: SmartPersonRecognizer now handles PERSON filtering (allow-list + validation)
+    # CRITICAL: lg models use full words ('PERSON'), sm models use 3-letter codes ('PER')
+    # SmartPersonRecognizer handles PERSON filtering (allow-list + validation)
     english_ner_config = NerModelConfiguration(
         labels_to_ignore=[],  # REMOVED "PER" - SmartPersonRecognizer validates all PERSON entities
         model_to_presidio_entity_mapping={
-            "PER": "PERSON",  # ADDED: Map spaCy PER → Presidio PERSON (SmartPersonRecognizer will filter false positives)
+            "PERSON": "PERSON",  # lg model: en_core_web_lg uses 'PERSON' (not 'PER')
+            "PER": "PERSON",  # sm model: en_core_web_sm uses 'PER' (backward compatibility)
             "LOC": "LOCATION",
             "ORG": "ORGANIZATION",
             "GPE": "LOCATION",
@@ -446,12 +448,12 @@ def initialize_analyzer(mode: str = "balanced", languages: List[str] = ["pl", "e
         "models": [
             {
                 "lang_code": "en",
-                "model_name": "en_core_web_sm",
+                "model_name": "en_core_web_lg",
                 "model_config": {"ner_model_configuration": english_ner_config}
             },
             {
                 "lang_code": "pl",
-                "model_name": "pl_core_news_sm",
+                "model_name": "pl_core_news_lg",
                 "model_config": {"ner_model_configuration": polish_ner_config}
             }
         ]
@@ -638,7 +640,7 @@ def health():
         'service': 'presidio-pii-api',
         'current_mode': current_mode,
         'mode_description': mode_meta.get('description', 'Unavailable'),
-        'spacy_models': ['en_core_web_sm', 'pl_core_news_sm'],
+        'spacy_models': ['en_core_web_lg', 'pl_core_news_lg'],
         'custom_recognizers': loaded_recognizers,
         'recognizers_loaded': len(loaded_recognizers),
         'offline_capable': True

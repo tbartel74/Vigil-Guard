@@ -97,7 +97,7 @@ Vigil Guard v1.6 replaces 13 regex-based PII rules with **Microsoft Presidio**, 
    - If `enabled=true` AND Presidio online → Call Presidio API
    - If Presidio offline OR `fallback_to_regex=true` → Use legacy regex
 3. **Presidio API** (`http://vigil-presidio-pii:5001/analyze`):
-   - Loads spaCy models (en_core_web_sm, pl_core_news_sm)
+   - Loads spaCy models (en_core_web_lg, pl_core_news_lg)
    - Applies custom recognizers (PESEL, NIP, REGON, ID card)
    - Returns entities with scores (0.0-1.0)
 4. **PII_Redactor_v2 redacts** based on `redaction_mode`:
@@ -131,8 +131,8 @@ cd /Users/tomaszbartel/Documents/Projects/Vigil-Guard
 ```
 
 Models downloaded:
-- `en_core_web_sm==3.7.1` (12 MB)
-- `pl_core_news_sm==3.7.0` (19 MB)
+- `en_core_web_lg==3.8.0` (382 MB)
+- `pl_core_news_lg==3.8.0` (547 MB)
 
 Checksums verified in `services/presidio-pii-api/models/checksums.sha256`.
 
@@ -165,7 +165,7 @@ curl http://localhost:5001/health
   "status": "healthy",
   "version": "1.6.0",
   "recognizers_loaded": 7,
-  "spacy_models": ["en_core_web_sm", "pl_core_news_sm"],
+  "spacy_models": ["en_core_web_lg", "pl_core_news_lg"],
   "uptime_seconds": 42
 }
 ```
@@ -788,7 +788,7 @@ valid = checksum == digit[8]
   "detection_method": "presidio",
   "processing_time_ms": 124,
   "decision_process": {
-    "recognizers_used": ["pl_core_news_sm", "PL_PESEL_ENHANCED", "PL_NIP"],
+    "recognizers_used": ["pl_core_news_lg", "PL_PESEL_ENHANCED", "PL_NIP"],
     "total_entities_found": 3,
     "entities_above_threshold": 3
   }
@@ -805,7 +805,7 @@ valid = checksum == digit[8]
   "status": "healthy",
   "version": "1.6.0",
   "recognizers_loaded": 7,
-  "spacy_models": ["en_core_web_sm", "pl_core_news_sm"],
+  "spacy_models": ["en_core_web_lg", "pl_core_news_lg"],
   "uptime_seconds": 3600
 }
 ```
@@ -926,7 +926,7 @@ Tech brands (Instagram, Facebook) detected as PERSON entities
 
 1. **SmartPersonRecognizer Implementation** (`custom_recognizers/smart_person_recognizer.py`):
    - 219 lines of production-grade code
-   - Wraps spaCy NER (en_core_web_sm, pl_core_news_sm)
+   - Wraps spaCy NER (en_core_web_lg, pl_core_news_lg)
    - Intelligent boundary trimming (fixes Presidio bug)
    - 90+ entry allow-list (AI models, jailbreak personas, tech brands)
    - Multi-layer filtering: pronouns, ALL CAPS, single words

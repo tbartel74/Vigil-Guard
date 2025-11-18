@@ -6,7 +6,7 @@
 
 - Docker & Docker Compose
 - 4 GB RAM minimum
-- 10 GB disk space
+- 30 GB disk space
 
 ## Installation
 
@@ -237,7 +237,7 @@ cat .env | grep CLICKHOUSE_PASSWORD
 
 - **CPU**: 2 cores
 - **RAM**: 4 GB
-- **Disk**: 10 GB
+- **Disk**: 30 GB
 - **OS**: Linux, macOS, Windows (with Docker Desktop)
 
 ### Recommended

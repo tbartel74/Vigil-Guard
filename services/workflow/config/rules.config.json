@@ -180,16 +180,20 @@
       ]
     },
     "PROMPT_LEAK_ATTEMPT": {
-      "base_weight": 35,
-      "multiplier": 1.5,
+      "base_weight": 60,
+      "multiplier": 1.6,
       "patterns": [
         "(?i)\\b(show|reveal|display|print|output|dump|leak|expose|share|give|provide|quote|copy|paste)\\s+(?:me\\s+)?(?:the|your)\\s+(?:exact\\s+)?(?:system\\s*(?:prompt|message)|internal\\s*(?:instructions?|rules?|directives?)|core\\s*(?:configuration|guidelines?))\\b",
+        "(?i)\\b(show|reveal|display|print|output|export|dump|leak|expose)\\s+(?:me\\s+)?(?:the|your|all)(?:\\s+(?:your|the|my))?\\s+(?:system\\s+|internal\\s+)?(?:configuration|settings?|parameters?)(?:\\s+(?:file|variables?|data|and\\b))?",
         "(?i)\\b(ignore|override|disregard)\\s+(?:all|any|previous|prior|system)\\s+(?:instructions|rules|directives)\\b",
         "(?i)\\b(?:authorized|security|compliance|audit|admin|developer|manager|supervisor).{0,40}\\b(require|request|need|ask|told|instruct).{0,30}(?:you\\s+to\\s+)?(?:show|reveal|display|provide)\\b.{0,80}\\b(system\\s*(?:prompt|instructions?|rules?)|configuration)\\b",
         "(?i)\\bcomplete:?\\s+(?:your\\s+)?(?:setup|initialization|startup)\\s+(?:message|instructions)\\b",
         "(?i)\\bcontinue:?\\s+(?:your\\s+)?system\\s+instructions\\b",
         "(?i)\\bpoka\\u017c\\s+(?:swoje|systemowe)\\s+(?:instrukcje|wytyczne|zasady|prompt)\\b",
-        "(?i)\\buyawnij\\s+swoje\\s+instrukcje\\b"
+        "(?i)\\buyawnij\\s+swoje\\s+instrukcje\\b",
+        "(?i)\\b(export|show|display|reveal|dump)\\b.{0,30}\\b(internal|your)\\b.{0,30}\\b(configuration|config|settings)\\b",
+        "(?i)\\b(show|display|list|reveal)\\b.{0,30}\\b(all|your|system)\\b.{0,30}\\b(parameters|settings|variables)\\b",
+        "(?i)\\b(dump|export|output|print)\\b.{0,30}\\b(configuration|config)\\b.{0,30}\\b(file|data)\\b"
       ]
     },
     "TRAINING_DATA_LEAKAGE": {
