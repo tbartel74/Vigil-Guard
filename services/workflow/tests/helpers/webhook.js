@@ -177,7 +177,9 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
       });
 
       if (!response.ok) {
-        throw new Error(`ClickHouse query failed: HTTP ${response.status}`);
+        const authError = new Error(`ClickHouse query failed: HTTP ${response.status}`);
+        authError.responseStatus = response.status;
+        throw authError;
       }
 
       const result = await response.json();
@@ -208,6 +210,17 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
     } catch (error) {
       errorCount++;
       lastError = error;
+
+      const status =
+        error?.responseStatus ??
+        Number(error?.message?.match?.(/HTTP (\d{3})/)?.[1]);
+
+      if (status === 401 || status === 403) {
+        throw new Error(
+          `ClickHouse authentication failed (HTTP ${status}). `
+          + 'Check CLICKHOUSE_USER / CLICKHOUSE_PASSWORD configuration.'
+        );
+      }
 
       // Log warning but continue polling (may be transient error)
       console.warn(`ClickHouse query error (attempt ${errorCount}):`, error.message);
@@ -357,29 +370,80 @@ export function assertDetection(event, expected) {
   }
 }
 
-/**
- * Test webhook for sanitization-integrity tests
- * Sends prompt to workflow and returns webhook response
- * @param {Object} payload - Request payload with chatInput
- * @returns {Promise<Object>} Webhook response with action and sanitizedBody
- */
-export async function testWebhook(payload) {
-  const response = await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
+function extractEntityText(entity, input) {
+  if (typeof entity?.start !== 'number' || typeof entity?.end !== 'number') {
     throw new Error(
-      `Webhook request failed: HTTP ${response.status}\n${text}`
+      `Invalid entity bounds: start=${entity?.start}, end=${entity?.end}`
     );
   }
 
-  return response.json();
+  if (
+    entity.start < 0 ||
+    entity.end < 0 ||
+    entity.end > input.length ||
+    entity.start > entity.end
+  ) {
+    throw new Error(
+      `Entity bounds out of range: start=${entity.start}, end=${entity.end}, `
+      + `input length=${input.length}`
+    );
+  }
+
+  return input.substring(entity.start, entity.end);
+}
+
+/**
+ * Test webhook for PII tests (returns full event with ClickHouse data)
+ * Sends prompt to workflow and returns ClickHouse event with PII details
+ * @param {string|Object} payloadOrString - Request payload with chatInput or just the string
+ * @returns {Promise<Object>} ClickHouse event with pii field populated
+ */
+export async function testWebhook(payloadOrString) {
+  // Handle both string and object inputs for backward compatibility
+  const chatInput = typeof payloadOrString === 'string'
+    ? payloadOrString
+    : (payloadOrString.chatInput || payloadOrString);
+
+  // Use sendAndVerify to get full ClickHouse event with PII details
+  const event = await sendAndVerify(chatInput);
+
+  // Add pii field from sanitizer for backward compatibility
+  if (event.sanitizer?.pii) {
+    event.pii = event.sanitizer.pii;
+  }
+
+  // CRITICAL: Enrich entities with text field extracted from ORIGINAL UNREDACTED INPUT
+  // Workflow stores minimal entity format (type, start, end, score) to minimize ClickHouse storage
+  // Tests expect full format with text and entity_type fields
+  // IMPORTANT: Use the chatInput we sent (original unredacted), NOT event.chat_input (ClickHouse redacted)
+  if (event.pii?.entities && Array.isArray(event.pii.entities)) {
+    event.pii.entities = event.pii.entities.map(e => ({
+      ...e,
+      text: extractEntityText(e, chatInput),  // Use ORIGINAL chatInput, not ClickHouse data
+      entity_type: e.type  // Map type to entity_type for test compatibility
+    }));
+  }
+
+  // BACKWARD COMPATIBILITY: Map v1.8.1 ClickHouse fields to old test field names
+  // v1.8.1 renamed fields: final_action, final_status, after_sanitization
+  // Legacy tests expect: action, status, sanitizedBody
+  if (!event.action && event.final_action !== undefined && event.final_action !== null) {
+    if (typeof event.final_action !== 'string') {
+      throw new Error(
+        `Invalid final_action type: expected string, got ${typeof event.final_action}. `
+        + `SessionId: ${event.sessionId || 'unknown'}`
+      );
+    }
+    event.action = event.final_action.toLowerCase();
+  }
+  if (!event.status && event.final_status) {
+    event.status = event.final_status;
+  }
+  if (!event.sanitizedBody && event.after_sanitization) {
+    event.sanitizedBody = event.after_sanitization;
+  }
+
+  return event;
 }
 
 /**

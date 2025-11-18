@@ -490,4 +490,90 @@ describe('PII Detection - Comprehensive Test Suite', () => {
       console.log(`   ✅ Normalized form preserved: "${event.normalized_input}"`);
     }, 15000);
   });
+
+  /**
+   * AU_TFN Validator Tests (PR #50)
+   *
+   * Tests for Australian Tax File Number validator with ATO checksum algorithm.
+   * Added to verify validate_au_tfn() implementation (international.py:104-119)
+   */
+  describe('AU_TFN Validator - ATO Checksum Algorithm', () => {
+    test('should detect valid AU_TFN with correct checksum', async () => {
+      // Valid TFN: 123456782 (checksum passes modulo-11)
+      const response = await sendToWorkflow('Tax File Number: 123 456 782');
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 15000);
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+
+      expect(sanitized.pii.entities.length).toBeGreaterThan(0);
+      const entityTypes = sanitized.pii.entities.map(e => e.type);
+      expect(entityTypes).toContain('AU_TFN');
+
+      console.log(`   ✅ Valid TFN detected (checksum valid)`);
+      console.log(`   Entities: ${entityTypes.join(', ')}`);
+    }, 15000);
+
+    test('should REJECT invalid AU_TFN with wrong checksum', async () => {
+      // Invalid TFN: 123456789 (checksum fails - sum % 11 != 0)
+      const response = await sendToWorkflow('TFN: 123 456 789');
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 15000);
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+
+      // Should NOT detect AU_TFN (invalid checksum rejected by validator)
+      const entityTypes = sanitized.pii.entities?.map(e => e.type) || [];
+      const hasTFN = entityTypes.includes('AU_TFN');
+      expect(hasTFN).toBeFalsy();
+
+      console.log(`   ✅ Invalid TFN checksum rejected`);
+      console.log(`   Detected entities: ${sanitized.pii.entities.length}`);
+    }, 15000);
+
+    test('should REJECT all-identical digits (dummy TFN)', async () => {
+      // Dummy TFN: 111111111 (all digits same - administratively invalid)
+      const response = await sendToWorkflow('TFN: 111 111 111');
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 15000);
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+
+      const entityTypes = sanitized.pii.entities?.map(e => e.type) || [];
+      const hasTFN = entityTypes.includes('AU_TFN');
+      expect(hasTFN).toBeFalsy();
+
+      console.log(`   ✅ Dummy TFN (all digits identical) rejected`);
+    }, 15000);
+
+    test('should handle AU_TFN in various formats', async () => {
+      // Test format variations: spaces, hyphens, bare digits
+      const formats = [
+        'My TFN is 123 456 782',     // Grouped with spaces
+        'TFN: 123-456-782',           // Grouped with hyphens
+        'Australian TFN 123456782'    // Bare digits
+      ];
+
+      for (const text of formats) {
+        const response = await sendToWorkflow(text);
+        const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 15000);
+        const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+
+        expect(sanitized.pii.entities.length).toBeGreaterThan(0);
+        const entityTypes = sanitized.pii.entities.map(e => e.type);
+        expect(entityTypes).toContain('AU_TFN');
+
+        console.log(`   ✅ Format accepted: "${text}"`);
+      }
+    }, 30000);
+
+    test('should require context for detection (score 0.80 + context boost)', async () => {
+      // Without strong context, base score 0.80 may not pass threshold in all modes
+      // WITH context "TFN", should definitely detect
+      const response = await sendToWorkflow('TFN: 123 456 782');
+      const event = await waitForClickHouseEvent({ sessionId: response.sessionId }, 15000);
+      const sanitized = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+
+      expect(sanitized.pii.entities.length).toBeGreaterThan(0);
+      const entityTypes = sanitized.pii.entities.map(e => e.type);
+      expect(entityTypes).toContain('AU_TFN');
+
+      console.log(`   ✅ TFN detected with context keyword`);
+      console.log(`   Context enhancement: ${sanitized.pii.context_enhancement || 'unknown'}`);
+    }, 15000);
+  });
 });
