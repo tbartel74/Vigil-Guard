@@ -237,8 +237,20 @@ curl http://localhost:5001/health
       "PL_ID_CARD",
       "CREDIT_CARD",
       "IBAN_CODE",
+      "US_SSN",
+      "UK_NHS",
+      "CA_SIN",
+      "AU_MEDICARE",
+      "AU_TFN",
+      "UK_NINO",
+      "US_PASSPORT",
+      "US_DRIVER_LICENSE",
+      "PASSPORT",
+      "DATE_TIME",
       "IP_ADDRESS",
-      "URL"
+      "URL",
+      "LOCATION",
+      "ORGANIZATION"
     ]
   }
 }
@@ -246,12 +258,14 @@ curl http://localhost:5001/health
 
 **Categories**:
 - **Contact**: EMAIL_ADDRESS, PHONE_NUMBER
-- **Identity**: PERSON, PL_PESEL, PL_ID_CARD
-- **Business**: PL_NIP, PL_REGON
+- **Identity - Polish**: PERSON, PL_PESEL, PL_ID_CARD
+- **Business - Polish**: PL_NIP, PL_REGON
 - **Financial**: CREDIT_CARD, IBAN_CODE
+- **Identity - International**: US_SSN, UK_NHS, CA_SIN, AU_MEDICARE, AU_TFN, UK_NINO, US_PASSPORT, US_DRIVER_LICENSE, PASSPORT
+- **Other**: DATE_TIME, LOCATION, ORGANIZATION
 - **Technical**: IP_ADDRESS, URL
 
-**Note**: `PERSON` requires NLP (spaCy) and may have lower confidence.
+**Note**: `PERSON`, `LOCATION`, `ORGANIZATION` require NLP (spaCy) and may have lower confidence.
 
 #### 4. Redaction Mode
 

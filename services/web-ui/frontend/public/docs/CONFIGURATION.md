@@ -63,6 +63,31 @@ The system uses score-based decision making on a **0-100 scale**. Based on the t
 - **UI Name**: BLOCK_MIN / BLOCK_MAX
 - **Action**: Reject request with block message
 
+### Aho-Corasick Prefilter Configuration (v1.8.1)
+
+#### `aho_corasick.enabled`
+- **Type**: `boolean`
+- **Default**: `true`
+- **Purpose**: Enable/disable AC prefilter for fast pattern matching
+- **File**: `unified_config.json`
+- **Path**: `aho_corasick.enabled`
+- **Performance**: 993 keywords, 77% single-category hits, O(n+m) time complexity
+
+#### `aho_corasick.patterns.keywords`
+- **Type**: `array`
+- **Count**: 993 entries
+- **Purpose**: Lowercase-normalized keyword patterns for AC matching
+- **File**: `unified_config.json`
+- **Path**: `aho_corasick.patterns.keywords`
+- **Note**: Automatically generated from detection categories
+
+#### `aho_corasick.patterns.literals`
+- **Type**: `array`
+- **Count**: 296 entries
+- **Purpose**: Exact-match literal strings for AC matching
+- **File**: `unified_config.json`
+- **Path**: `aho_corasick.patterns.literals`
+
 ### Bloom Filter & Prefiltering (unified_config.json)
 
 #### `bloom_decisions.route_to_ac_threshold`
@@ -71,7 +96,7 @@ The system uses score-based decision making on a **0-100 scale**. Based on the t
 - **Purpose**: Bloom filter score threshold to trigger full Aho-Corasick pattern matching
 - **File**: `unified_config.json`
 - **Path**: `bloom_decisions.route_to_ac_threshold`
-- **Usage**: If bloom score ≥ 15, route to full pattern matching engine
+- **Usage**: If bloom score ≥ 15, route to full pattern matching engine (deprecated in favor of AC prefilter)
 
 #### `bloom_decisions.hard_block_threshold`
 - **Type**: `number`
@@ -198,7 +223,7 @@ The system uses score-based decision making on a **0-100 scale**. Based on the t
 
 #### `performance.max_input_length`
 - **Type**: `number`
-- **Default**: `10000`
+- **Default**: `20000`
 - **Purpose**: Maximum input length in characters
 - **File**: `unified_config.json`
 - **Path**: `performance.max_input_length`

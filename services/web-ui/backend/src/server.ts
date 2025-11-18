@@ -12,6 +12,7 @@ import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
 import { analyzeDualLanguage } from "./piiAnalyzer.js";
+import { syncPiiConfig } from "./piiConfigSync.js";
 
 const app = express();
 const PORT = 8787;
@@ -432,6 +433,34 @@ app.post("/api/pii-detection/analyze-full", authenticate, async (req, res) => {
     res.status(status).json({
       error: isInputError ? "Invalid input" : "Dual-language PII analysis failed",
       message: error.message || "Unknown error"
+    });
+  }
+});
+
+app.post("/api/pii-detection/save-config", authenticate, requireConfigurationAccess, async (req, res) => {
+  try {
+    const { etags, ...configPayload } = req.body || {};
+    const author = (req as any).user?.username || "unknown";
+    const result = await syncPiiConfig(configPayload, author, etags);
+    res.json({
+      success: true,
+      etags: result.etags
+    });
+  } catch (e: any) {
+    if (e.code === "ETAG_MISMATCH") {
+      return res.status(412).json({
+        error: "ETAG_MISMATCH",
+        expected: e.expected,
+        actual: e.actual
+      });
+    }
+    if (e.code === "VALIDATION") {
+      return res.status(400).json({ error: e.message });
+    }
+    console.error("PII config sync failed:", e);
+    res.status(500).json({
+      error: "Failed to synchronize PII configuration",
+      message: e.message
     });
   }
 });

@@ -354,7 +354,7 @@ curl -X POST http://localhost:8787/api/config \
 
 ```bash
 # Open browser to frontend
-open http://localhost:5173
+open http://localhost/ui
 
 # Navigate to Configuration tab
 # Try updating a configuration value

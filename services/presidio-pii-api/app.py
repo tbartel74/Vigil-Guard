@@ -70,6 +70,8 @@ app = Flask(__name__)
 
 # Store loaded recognizers for health endpoint
 loaded_recognizers = []
+context_requirement_rules: Dict[str, Dict[str, Any]] = {}
+CONTEXT_DEFAULT_WINDOW = 30
 
 # Global analyzer instance (will be reinitialized on mode change)
 analyzer_engine = None
@@ -269,6 +271,8 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             logger.warning("No recognizers found in YAML config")
             return recognizers
 
+        context_requirement_rules = {}
+
         validator_map = {
             'checksum_nip': checksum_nip,
             'checksum_regon': checksum_regon,
@@ -300,6 +304,11 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             supported_language = rec_config.get('supported_language', 'en')
             supported_entity = rec_config.get('supported_entity', name)
             context = rec_config.get('context', [])
+            context_required = bool(rec_config.get('context_required'))
+            try:
+                context_window = int(rec_config.get('context_window', CONTEXT_DEFAULT_WINDOW))
+            except (TypeError, ValueError):
+                context_window = CONTEXT_DEFAULT_WINDOW
 
             # Build patterns list
             patterns = []
@@ -383,6 +392,20 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
 
             recognizers.append(recognizer)
             logger.info(f"✅ Loaded custom recognizer: {name} ({supported_entity})")
+
+            if context_required:
+                keywords = [kw.lower() for kw in context if isinstance(kw, str) and kw.strip()]
+                if not keywords:
+                    logger.warning(
+                        f"Context requirement enabled for {name} but no keywords defined; requirement skipped."
+                    )
+                context_requirement_rules[supported_entity] = {
+                    "keywords": keywords,
+                    "window": context_window or CONTEXT_DEFAULT_WINDOW,
+                }
+                logger.info(
+                    f"  📏 Context required within ±{context_requirement_rules[supported_entity]['window']} chars for {supported_entity}"
+                )
 
         return recognizers
 
@@ -960,6 +983,26 @@ def analyze():
                                 should_keep = False
                                 rejection_reason = "all_caps_acronym_post_trim"
                                 logger.info(f"❌ REJECTED (post-trim) - ALL CAPS: {matched_text}")
+
+            if should_keep:
+                context_rule = context_requirement_rules.get(result.entity_type)
+                if context_rule:
+                    keywords = context_rule.get("keywords", [])
+                    window = context_rule.get("window", CONTEXT_DEFAULT_WINDOW)
+                    if keywords:
+                        window_start = max(0, result.start - window)
+                        window_end = min(len(text), result.end + window)
+                        window_text = text[window_start:window_end].lower()
+                        if not any(keyword in window_text for keyword in keywords):
+                            should_keep = False
+                            rejection_reason = "context_required"
+                            logger.info(
+                                f"❌ REJECTED - Missing required context for {result.entity_type}: '{matched_text}'"
+                            )
+                    else:
+                        logger.warning(
+                            f"Context requirement configured for {result.entity_type} but no keywords defined"
+                        )
 
             # Check custom validator (checksum validation)
             validator_found = False

@@ -197,7 +197,11 @@ def validate_regon_14(regon: str) -> bool:
     References:
         https://www.gov.pl/web/kas/regon
     """
-    digits = extract_digits(regon)
+    try:
+        digits = extract_digits(regon)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_regon_14 rejected invalid input: {e}")
+        return False
 
     if len(digits) != 14:
         return False
@@ -341,7 +345,11 @@ def validate_pesel_date(pesel: str) -> Optional[dict]:
         >>> validate_pesel_date("99139912345")
         None  # Invalid date (month 99)
     """
-    digits = extract_digits(pesel)
+    try:
+        digits = extract_digits(pesel)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_pesel_date rejected invalid input: {e}")
+        return None
 
     if len(digits) != 11:
         return None

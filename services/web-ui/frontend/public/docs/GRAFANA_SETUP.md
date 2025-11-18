@@ -752,4 +752,4 @@ docker run -d \
 
 ---
 
-**Next Steps**: After completing Grafana setup, verify the integration by accessing http://localhost:5173 and checking that all dashboard panels load correctly with real-time data.
+**Next Steps**: After completing Grafana setup, verify the integration by accessing http://localhost/ui and checking that all dashboard panels load correctly with real-time data.

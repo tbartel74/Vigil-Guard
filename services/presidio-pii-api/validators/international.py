@@ -20,7 +20,12 @@ logger = logging.getLogger(__name__)
 def validate_us_ssn(text: str) -> bool:
     """Validate US Social Security Number (SSN) with area/group/serial rules."""
 
-    digits = extract_digits(text)
+    try:
+        digits = extract_digits(text)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_us_ssn rejected invalid input: {e}")
+        return False
+
     if len(digits) != 9:
         return False
 
@@ -49,7 +54,12 @@ def validate_us_ssn(text: str) -> bool:
 def validate_uk_nhs(text: str) -> bool:
     """Validate UK NHS number (10 digits, mod-11 checksum with zero fallback)."""
 
-    digits = extract_digits(text)
+    try:
+        digits = extract_digits(text)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_uk_nhs rejected invalid input: {e}")
+        return False
+
     if len(digits) != 10:
         return False
 
@@ -130,7 +140,12 @@ def validate_ca_sin(text: str) -> bool:
 def validate_au_medicare(text: str) -> bool:
     """Validate Australian Medicare checksum (digit 10 must match modulo check)."""
 
-    digits = extract_digits(text)
+    try:
+        digits = extract_digits(text)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_au_medicare rejected invalid input: {e}")
+        return False
+
     if len(digits) != 10:
         return False
 

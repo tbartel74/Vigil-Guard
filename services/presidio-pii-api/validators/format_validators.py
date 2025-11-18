@@ -19,7 +19,16 @@ MIN_PHONE_LENGTH = 3
 
 
 def validate_phone_format(text: str) -> bool:
-    """Reject repeated or sequential phone numbers (e.g., 1111111111 or 1234567890)."""
+    """
+    Validate phone number format by rejecting obvious fake patterns.
+
+    Args:
+        text: Phone number string (formatted or bare digits)
+
+    Returns:
+        True if the phone format looks realistic (accepted)
+        False if the phone is sequential/repeated or malformed (rejected)
+    """
     try:
         digits = extract_digits(text)
     except (TypeError, ValueError) as exc:
@@ -58,9 +67,13 @@ def validate_date_format(text: str) -> bool:
     if not match:
         return True  # Non-ISO formats are allowed
 
-    _, month_str, day_str = match.groups()
-    month = int(month_str)
-    day = int(day_str)
+    try:
+        _, month_str, day_str = match.groups()
+        month = int(month_str)
+        day = int(day_str)
+    except (TypeError, ValueError) as exc:
+        logger.debug("validate_date_format rejected invalid date input: %s", exc)
+        return False
 
     # Validate month range
     if not 1 <= month <= 12:

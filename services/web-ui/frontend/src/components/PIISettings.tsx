@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { parseFile, saveChanges, resolveSpec } from '../lib/api';
-import spec from '../spec/variables.json';
+import { parseFile, syncPiiConfig } from '../lib/api';
 
 interface ServiceStatus {
   status: 'online' | 'offline';
@@ -27,6 +26,9 @@ interface PiiConfig {
   redaction_mode: 'replace' | 'hash' | 'mask';
   fallback_to_regex: boolean;
   languages: string[];
+  detection_mode: 'balanced' | 'high_security' | 'high_precision';
+  context_enhancement: boolean;
+  redaction_tokens: Record<string, string>;
 }
 
 export function PIISettings() {
@@ -41,8 +43,12 @@ export function PIISettings() {
     entities: [],
     redaction_mode: 'replace',
     fallback_to_regex: true,
-    languages: ['pl', 'en']
+    languages: ['pl', 'en'],
+    detection_mode: 'balanced',
+    context_enhancement: true,
+    redaction_tokens: {}
   });
+  const [fileEtags, setFileEtags] = useState<Record<string, string>>({});
 
   // Test panel state
   const [testText, setTestText] = useState('');
@@ -134,6 +140,9 @@ export function PIISettings() {
   const fetchConfig = async () => {
     const file = await parseFile('unified_config.json');
     const piiConfig = file.parsed?.pii_detection;
+    if (file?.etag) {
+      setFileEtags(prev => ({ ...prev, 'unified_config.json': file.etag }));
+    }
 
     if (piiConfig) {
       setConfig({
@@ -142,8 +151,16 @@ export function PIISettings() {
         entities: piiConfig.entities || [],
         redaction_mode: piiConfig.redaction_mode || 'replace',
         fallback_to_regex: piiConfig.fallback_to_regex !== false,
-        languages: piiConfig.languages || ['pl', 'en']
+        languages: piiConfig.languages || ['pl', 'en'],
+        detection_mode: piiConfig.detection_mode || 'balanced',
+        context_enhancement: piiConfig.context_enhancement !== false,
+        redaction_tokens: piiConfig.redaction_tokens || {}
       });
+    }
+
+    const piiFallback = await parseFile('pii.conf');
+    if (piiFallback?.etag) {
+      setFileEtags(prev => ({ ...prev, 'pii.conf': piiFallback.etag }));
     }
   };
 
@@ -158,31 +175,30 @@ export function PIISettings() {
     setSaving(true);
 
     try {
-      // Build updates for unified_config.json
-      const updates = [
-        { path: 'pii_detection.enabled', value: config.enabled },
-        { path: 'pii_detection.confidence_threshold', value: config.confidence_threshold },
-        { path: 'pii_detection.entities', value: config.entities },
-        { path: 'pii_detection.redaction_mode', value: config.redaction_mode },
-        { path: 'pii_detection.fallback_to_regex', value: config.fallback_to_regex },
-        { path: 'pii_detection.languages', value: config.languages }
-      ];
+      const payload = {
+        enabled: config.enabled,
+        confidenceThreshold: config.confidence_threshold,
+        enabledEntities: config.entities,
+        redactionMode: config.redaction_mode,
+        fallbackToRegex: config.fallback_to_regex,
+        languages: config.languages,
+        detectionMode: config.detection_mode,
+        contextEnhancement: config.context_enhancement,
+        redactionTokens: config.redaction_tokens || {},
+        etags: fileEtags
+      };
 
-      const changes = [{
-        file: 'unified_config.json',
-        payloadType: 'json' as const,
-        updates
-      }];
+      const result = await syncPiiConfig(payload);
+      if (result?.etags) {
+        setFileEtags(result.etags);
+      }
 
-      const changeTag = user.username;
-      const result = await saveChanges({ changes, spec, changeTag });
-
-      toast.success('PII configuration saved successfully');
-      await fetchConfig(); // Refresh to confirm
+      toast.success('PII configuration synchronized successfully');
+      await fetchConfig();
     } catch (error: any) {
       console.error('Save error:', error);
       const errorMsg = error.conflict
-        ? 'File changed on disk — reload or force save.'
+        ? 'Configuration changed by another user — reload and try again.'
         : `Error: ${error.message}`;
       toast.error(errorMsg);
     } finally {

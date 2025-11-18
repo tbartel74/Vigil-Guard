@@ -1,0 +1,69 @@
+# Dependencies
+node_modules
+**/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist
+build
+.next
+out
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation (will be copied explicitly in Dockerfile)
+# Don't exclude docs/ - we need it for frontend
+
+# Test files
+coverage
+*.test.js
+*.spec.js
+**/__tests__
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Claude Code (NEVER commit this directory)
+.claude
+CLAUDE.md
+
+# Docker
+.dockerignore
+docker-compose*.yml
+Dockerfile*
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Vigil Guard specific
+vigil_data
+config/.backups
+services/workflow/tests
+services/presidio-pii-api/tests

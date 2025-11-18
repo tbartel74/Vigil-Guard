@@ -65,7 +65,7 @@ export async function resolveSpec(spec: any) {
   return r.json();
 }
 
-export async function saveChanges(payload: { changes: any[]; spec: any; changeTag: string; ifMatch?: string; }) {
+export async function saveChanges(payload: { changes: any[]; spec: any; changeTag: string; ifMatch?: string | Record<string, string>; }) {
   const r = await authenticatedFetch(`${API}/save`, {
     method: "POST",
     body: JSON.stringify(payload)
@@ -445,6 +445,45 @@ export async function forceRetentionCleanup(table: 'events_raw' | 'events_proces
  */
 export async function getRetentionPartitions(table: 'events_raw' | 'events_processed'): Promise<{ success: boolean; table: string; partitions: any[] }> {
   const r = await authenticatedFetch(`${API}/retention/partitions/${table}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ============================================================================
+// PII CONFIGURATION SYNC API
+// ============================================================================
+
+export interface SyncPiiConfigPayload {
+  enabled?: boolean;
+  confidenceThreshold?: number;
+  enabledEntities?: string[];
+  redactionMode?: 'replace' | 'hash' | 'mask';
+  fallbackToRegex?: boolean;
+  languages?: string[];
+  detectionMode?: 'balanced' | 'high_security' | 'high_precision';
+  contextEnhancement?: boolean;
+  redactionTokens?: Record<string, string>;
+  etags?: Record<string, string>;
+}
+
+export interface SyncPiiConfigResponse {
+  success: boolean;
+  etags: Record<string, string>;
+}
+
+export async function syncPiiConfig(payload: SyncPiiConfigPayload): Promise<SyncPiiConfigResponse> {
+  const r = await authenticatedFetch(`${API}/pii-detection/save-config`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (r.status === 412) {
+    const data = await r.json();
+    const err = new Error("PII configuration out of date");
+    (err as any).conflict = data;
+    throw err;
+  }
+
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
