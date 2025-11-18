@@ -53,6 +53,10 @@ from validators.international import (
     validate_iban,
     validate_us_passport,
 )
+from validators.format_validators import (
+    validate_phone_format,
+    validate_date_format,
+)
 
 # Import custom recognizers (v1.7.10)
 from custom_recognizers import SmartPersonRecognizer
@@ -281,6 +285,8 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             'validate_uk_nino': validate_uk_nino,
             'validate_iban': validate_iban,
             'validate_us_passport': validate_us_passport,
+            'validate_phone_format': validate_phone_format,
+            'validate_date_format': validate_date_format,
             'checksum_us_ssn': validate_us_ssn,
             'checksum_uk_nhs': validate_uk_nhs,
             'checksum_ca_sin': validate_ca_sin,
