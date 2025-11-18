@@ -18,27 +18,31 @@ logger = logging.getLogger(__name__)
 
 
 def validate_us_ssn(text: str) -> bool:
-    """Validate US Social Security Number (supports bare and dashed formats).
-
-    Rules implemented to satisfy workflow expectations:
-    - Must contain exactly 9 digits
-    - Reject obvious dummy values (all digits identical)
-    - Group number (digits 4-5) cannot be 00
-    - Serial number (last four digits) cannot be 0000
-    """
+    """Validate US Social Security Number (SSN) with area/group/serial rules."""
 
     digits = extract_digits(text)
     if len(digits) != 9:
         return False
 
+    # Reject obvious dummy values such as 111-11-1111
     if len(set(digits)) == 1:
         return False
 
-    group = digits[3] * 10 + digits[4]
-    serial = digits[5] * 1000 + digits[6] * 100 + digits[7] * 10 + digits[8]
-
-    if group == 0 or serial == 0:
+    # Area number (first three digits) cannot be 000, 666, or 900+
+    area = digits[0] * 100 + digits[1] * 10 + digits[2]
+    if area == 0 or area == 666 or area >= 900:
         return False
+
+    # Group number (digits 4-5) cannot be 00
+    group = digits[3] * 10 + digits[4]
+    if group == 0:
+        return False
+
+    # Serial number (digits 6-9) cannot be 0000
+    serial = digits[5] * 1000 + digits[6] * 100 + digits[7] * 10 + digits[8]
+    if serial == 0:
+        return False
+
     return True
 
 
@@ -124,17 +128,17 @@ def validate_ca_sin(text: str) -> bool:
 
 
 def validate_au_medicare(text: str) -> bool:
-    """Validate Australian Medicare number (lenient structural check)."""
+    """Validate Australian Medicare checksum (digit 10 must match modulo check)."""
 
     digits = extract_digits(text)
     if len(digits) != 10:
         return False
 
-    # Ensure the final digit (issue number) is present and at least one non-zero digit exists
-    if digits[8] == digits[9] == 0:
-        return False
-
-    return True
+    # First 8 digits participate in checksum, 9th is issue number, 10th = check digit
+    weights = [1, 3, 7, 9, 1, 3, 7, 9]
+    total = sum(d * w for d, w in zip(digits[:8], weights))
+    check_digit = total % 10
+    return check_digit == digits[9]
 
 
 def validate_au_tfn(text: str) -> bool:

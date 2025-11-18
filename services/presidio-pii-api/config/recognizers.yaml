@@ -42,6 +42,8 @@ recognizers:
   - name: PHONE_NUMBER_PL
     supported_language: en
     supported_entity: PHONE_NUMBER
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_phone_format
     patterns:
       # Polish phone with +48 prefix
       - name: phone_intl_pl
@@ -85,7 +87,8 @@ recognizers:
       - "komórka"
       - "kontakt"
       - "numer"
-    validators: []
+    validators:
+      - validate_phone_format
 
   # ============================================================================
   # PERSON - Names (Polish context)
@@ -509,7 +512,7 @@ recognizers:
     patterns:
       - name: nhs_grouped
         regex: '\b\d{3}\s?\d{3}\s?\d{4}\b'
-        score: 0.60  # Raised from 0.40 to pass 0.55 balanced threshold without context
+        score: 0.50  # Lowered to stay below balanced threshold without context
     context:
       - "nhs"
       - "health"
@@ -551,7 +554,7 @@ recognizers:
     patterns:
       - name: sin_grouped
         regex: '\b\d{3}[-\s]?\d{3}[-\s]?\d{3}\b'
-        score: 0.85
+        score: 0.60
     context:
       - "sin"
       - "canada"
@@ -572,7 +575,7 @@ recognizers:
     patterns:
       - name: medicare_grouped
         regex: '\b\d{4}\s?\d{5}\s?\d\b'
-        score: 0.60  # Raised from 0.40 to pass 0.55 balanced threshold without context
+        score: 0.45  # Lowered to reduce FP without explicit context
     context:
       - "medicare"
       - "australia"
@@ -593,7 +596,7 @@ recognizers:
     patterns:
       - name: tfn_grouped
         regex: '\b\d{3}\s?\d{3}\s?\d{3}\b'
-        score: 0.80
+        score: 0.40
     context:
       - "tfn"
       - "tax file"
@@ -693,6 +696,8 @@ recognizers:
   - name: DATE_TIME_ISO
     supported_language: en
     supported_entity: DATE_TIME
+    validator_class: ValidatedPatternRecognizer
+    validator_func: validate_date_format
     patterns:
       - name: date_iso
         regex: '\b\d{4}-\d{2}-\d{2}\b'
@@ -708,7 +713,8 @@ recognizers:
       - "urodzenia"
       - "data"
       - "deadline"
-    validators: []
+    validators:
+      - validate_date_format
 
 # ============================================================================
 # Configuration Notes
