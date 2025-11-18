@@ -443,6 +443,31 @@ class ValidatedPatternRecognizer(PatternRecognizer):
         super().__init__(**kwargs)
         self.validator_func = validator_func
 
+    def _execute_validator(self, pattern_text, context="VALIDATE"):
+        """
+        Common validation logic extracted from both validate_result and invalidate_result.
+
+        Args:
+            pattern_text: The text matched by the regex pattern
+            context: Logging context (VALIDATE or INVALIDATE)
+
+        Returns:
+            bool: True if valid, False if invalid
+        """
+        # Date validators need original text (with dashes), phone validators need cleaned text
+        if 'date' in self.validator_func.__name__.lower():
+            validation_text = pattern_text  # Keep dashes for ISO date parsing
+        else:
+            validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
+
+        is_valid = self.validator_func(validation_text)
+        logger.info(f"[{context}] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' result={is_valid}")
+
+        if not is_valid:
+            logger.info(f"[REJECTED] {self.name}: '{pattern_text}' failed validation")
+
+        return is_valid
+
     def validate_result(self, pattern_text):
         """
         Override base class method - called BEFORE scoring.
@@ -455,17 +480,7 @@ class ValidatedPatternRecognizer(PatternRecognizer):
             Optional[bool]: None (use pattern score), True (boost to 1.0), or False (set to 0.0)
         """
         if self.validator_func:
-            # Date validators need original text (with dashes), phone validators need cleaned text
-            if 'date' in self.validator_func.__name__.lower():
-                validation_text = pattern_text  # Keep dashes for ISO date parsing
-            else:
-                validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
-
-            is_valid = self.validator_func(validation_text)
-            logger.info(f"[VALIDATE] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' result={is_valid}")
-            if not is_valid:
-                logger.info(f"[REJECTED] {self.name}: '{pattern_text}' failed validation")
-            return is_valid
+            return self._execute_validator(pattern_text, "VALIDATE")
         return None  # No validator = use pattern score
 
     def invalidate_result(self, pattern_text):
@@ -480,14 +495,7 @@ class ValidatedPatternRecognizer(PatternRecognizer):
             Optional[bool]: True to invalidate (reject), False/None to keep
         """
         if self.validator_func:
-            # Date validators need original text (with dashes), phone validators need cleaned text
-            if 'date' in self.validator_func.__name__.lower():
-                validation_text = pattern_text  # Keep dashes for ISO date parsing
-            else:
-                validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
-
-            is_valid = self.validator_func(validation_text)
-            logger.info(f"[INVALIDATE] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' is_valid={is_valid}")
+            is_valid = self._execute_validator(pattern_text, "INVALIDATE")
             # Return True if INVALID (to invalidate the result)
             should_invalidate = not is_valid
             if should_invalidate:
