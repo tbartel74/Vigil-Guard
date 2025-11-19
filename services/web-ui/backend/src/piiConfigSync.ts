@@ -55,6 +55,91 @@ const KNOWN_ENTITIES = [
   'DATE_TIME', 'URL', 'IP_ADDRESS', 'LOCATION', 'ORGANIZATION'
 ];
 
+/**
+ * XSS protection via whitelist for redaction tokens (allows Polish diacritics)
+ * Allowed: letters (including ąćęłńóśźż), digits, space, _-()[]*, .
+ * Polish chars: ó/Ó (\u00D3, \u00F3) + rest (\u0104-\u017C)
+ *
+ * @param token - Redaction token string to validate
+ * @returns true if token contains only safe characters, false otherwise
+ */
+export function isValidRedactionToken(token: string): boolean {
+  const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u00D3\u00F3\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
+  return SAFE_TOKEN_REGEX.test(token);
+}
+
+/**
+ * Validates PII configuration update payload
+ *
+ * @param payload - Configuration update payload
+ * @returns Array of validation error messages (empty if valid)
+ */
+export function validatePayload(payload: PiiConfigUpdatePayload): string[] {
+  const errors: string[] = [];
+
+  // Validate enabledEntities type
+  if (payload.enabledEntities && !Array.isArray(payload.enabledEntities)) {
+    errors.push("enabledEntities must be an array");
+  }
+
+  // Validate enabledEntities values (security: prevent unknown entity injection)
+  if (payload.enabledEntities && Array.isArray(payload.enabledEntities)) {
+    const unknownEntities = payload.enabledEntities.filter(e => !KNOWN_ENTITIES.includes(e));
+    if (unknownEntities.length > 0) {
+      errors.push(`Unknown entity types: ${unknownEntities.join(', ')}`);
+    }
+  }
+
+  // Validate confidenceThreshold range
+  if (payload.confidenceThreshold !== undefined) {
+    if (typeof payload.confidenceThreshold !== "number" || payload.confidenceThreshold < 0 || payload.confidenceThreshold > 1) {
+      errors.push("confidenceThreshold must be between 0 and 1");
+    }
+  }
+
+  // Validate languages array
+  if (payload.languages && (!Array.isArray(payload.languages) || payload.languages.some((l) => typeof l !== "string"))) {
+    errors.push("languages must be an array of strings");
+  }
+
+  // Validate redactionTokens type
+  if (payload.redactionTokens && typeof payload.redactionTokens !== "object") {
+    errors.push("redactionTokens must be an object");
+  }
+
+  // Validate redactionTokens values (security: prevent XSS/injection)
+  if (payload.redactionTokens && typeof payload.redactionTokens === "object") {
+    for (const [entity, token] of Object.entries(payload.redactionTokens)) {
+      if (typeof token !== "string") {
+        errors.push(`Redaction token for ${entity} must be a string`);
+        continue;
+      }
+
+      // Length check (reasonable token size)
+      if (token.length > 50) {
+        errors.push(`Redaction token for ${entity} is too long (max 50 characters)`);
+      }
+
+      // Security check: XSS protection via whitelist (allows Polish diacritics)
+      if (!isValidRedactionToken(token)) {
+        errors.push(
+          `Redaction token for ${entity} contains unsafe characters. ` +
+          `Allowed: letters (including Polish), digits, space, _-()[]*, . ` +
+          `Found: "${token.substring(0, 30)}${token.length > 30 ? '...' : ''}"`
+        );
+      }
+    }
+  }
+
+  // Validate detection mode enum
+  const allowedModes: DetectionMode[] = ["balanced", "high_security", "high_precision"];
+  if (payload.detectionMode && !allowedModes.includes(payload.detectionMode)) {
+    errors.push(`Invalid detection mode: ${payload.detectionMode}. Must be one of: ${allowedModes.join(', ')}`);
+  }
+
+  return errors;
+}
+
 export async function syncPiiConfig(
   payload: PiiConfigUpdatePayload,
   author: string,
@@ -159,75 +244,6 @@ export async function syncPiiConfig(
   const responseEtags = Object.fromEntries(result.results.map((r) => [r.file, r.etag]));
 
   return { etags: responseEtags };
-}
-
-function validatePayload(payload: PiiConfigUpdatePayload): string[] {
-  const errors: string[] = [];
-
-  // Validate enabledEntities type
-  if (payload.enabledEntities && !Array.isArray(payload.enabledEntities)) {
-    errors.push("enabledEntities must be an array");
-  }
-
-  // Validate enabledEntities values (security: prevent unknown entity injection)
-  if (payload.enabledEntities && Array.isArray(payload.enabledEntities)) {
-    const unknownEntities = payload.enabledEntities.filter(e => !KNOWN_ENTITIES.includes(e));
-    if (unknownEntities.length > 0) {
-      errors.push(`Unknown entity types: ${unknownEntities.join(', ')}`);
-    }
-  }
-
-  // Validate confidenceThreshold range
-  if (payload.confidenceThreshold !== undefined) {
-    if (typeof payload.confidenceThreshold !== "number" || payload.confidenceThreshold < 0 || payload.confidenceThreshold > 1) {
-      errors.push("confidenceThreshold must be between 0 and 1");
-    }
-  }
-
-  // Validate languages array
-  if (payload.languages && (!Array.isArray(payload.languages) || payload.languages.some((l) => typeof l !== "string"))) {
-    errors.push("languages must be an array of strings");
-  }
-
-  // Validate redactionTokens type
-  if (payload.redactionTokens && typeof payload.redactionTokens !== "object") {
-    errors.push("redactionTokens must be an object");
-  }
-
-  // Validate redactionTokens values (security: prevent XSS/injection)
-  if (payload.redactionTokens && typeof payload.redactionTokens === "object") {
-    for (const [entity, token] of Object.entries(payload.redactionTokens)) {
-      if (typeof token !== "string") {
-        errors.push(`Redaction token for ${entity} must be a string`);
-        continue;
-      }
-
-      // Length check (reasonable token size)
-      if (token.length > 50) {
-        errors.push(`Redaction token for ${entity} is too long (max 50 characters)`);
-      }
-
-      // Security check: XSS protection via whitelist (allows Polish diacritics)
-      // Allowed: letters (including ąćęłńóśźż), digits, space, _-()[]*, .
-      // Polish chars: ó/Ó (\u00D3, \u00F3) + rest (\u0104-\u017C)
-      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u00D3\u00F3\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
-      if (!SAFE_TOKEN_REGEX.test(token)) {
-        errors.push(
-          `Redaction token for ${entity} contains unsafe characters. ` +
-          `Allowed: letters (including Polish), digits, space, _-()[]*, . ` +
-          `Found: "${token.substring(0, 30)}${token.length > 30 ? '...' : ''}"`
-        );
-      }
-    }
-  }
-
-  // Validate detection mode enum
-  const allowedModes: DetectionMode[] = ["balanced", "high_security", "high_precision"];
-  if (payload.detectionMode && !allowedModes.includes(payload.detectionMode)) {
-    errors.push(`Invalid detection mode: ${payload.detectionMode}. Must be one of: ${allowedModes.join(', ')}`);
-  }
-
-  return errors;
 }
 
 function buildPiiConfUpdates(currentPiiConf: any, enabledSet: Set<string>) {
