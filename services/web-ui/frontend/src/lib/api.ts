@@ -235,6 +235,125 @@ export async function fetchFPStats() {
   return r.json();
 }
 
+// ============================================================================
+// FALSE POSITIVE DETAILED REPORTING API
+// ============================================================================
+
+export interface FPReportDetailed {
+  report_id: string;
+  event_id: string;
+  reported_by: string;
+  reason: string;
+  comment: string;
+  report_timestamp: string;
+  event_timestamp: string;
+  original_input: string;
+  final_status: string;
+  threat_score: number;
+  detected_categories: string[];
+  sanitizer_score: number;
+  pg_score_percent: number;
+  decision_reason: string; // internal_note from final_decision_json
+}
+
+export interface FPReportListParams {
+  startDate?: string;
+  endDate?: string;
+  reason?: string;
+  reportedBy?: string;
+  minScore?: number;
+  maxScore?: number;
+  sortBy?: 'report_timestamp' | 'event_timestamp' | 'threat_score';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  pageSize: number;
+}
+
+export interface FPReportListResponse {
+  rows: FPReportDetailed[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+export async function getFPReportList(params: FPReportListParams): Promise<FPReportListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params.startDate) queryParams.set('startDate', params.startDate);
+  if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.reason) queryParams.set('reason', params.reason);
+  if (params.reportedBy) queryParams.set('reportedBy', params.reportedBy);
+  if (params.minScore !== undefined) queryParams.set('minScore', String(params.minScore));
+  if (params.maxScore !== undefined) queryParams.set('maxScore', String(params.maxScore));
+  if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+  queryParams.set('page', String(params.page));
+  queryParams.set('pageSize', String(params.pageSize));
+
+  const r = await authenticatedFetch(`${API}/feedback/reports?${queryParams.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPReasonStats {
+  reason: string;
+  count: number;
+  percentage: number;
+  avg_threat_score: number;
+}
+
+export async function getFPStatsByReason(timeRange: string = '30 DAY'): Promise<FPReasonStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-reason?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPReporterStats {
+  reported_by: string;
+  count: number;
+  recent_reports: number;
+}
+
+export async function getFPStatsByReporter(timeRange: string = '30 DAY'): Promise<FPReporterStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-reporter?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPCategoryStats {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export async function getFPStatsByCategory(timeRange: string = '30 DAY'): Promise<FPCategoryStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-category?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPTrendData {
+  date: string;
+  count: number;
+}
+
+export async function getFPTrend(timeRange: string = '30 DAY', interval: 'day' | 'week' = 'day'): Promise<FPTrendData[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/trend?timeRange=${encodeURIComponent(timeRange)}&interval=${interval}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed & {
+  scoring_breakdown: any;
+  pattern_matches: any[];
+  pipeline_flow: any;
+}> {
+  const r = await authenticatedFetch(`${API}/feedback/reports/${encodeURIComponent(reportId)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 // Configuration Version History API
 export interface ConfigVersion {
   tag: string;

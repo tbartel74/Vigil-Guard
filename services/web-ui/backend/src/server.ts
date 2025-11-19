@@ -7,7 +7,7 @@ import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getV
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams, getPIITypeStats, getPIIOverview } from "./clickhouse.js";
+import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams, getPIITypeStats, getPIIOverview, getFPReportList, FPReportListParams, getFPReportDetails, getFPStatsByReason, getFPStatsByCategory, getFPStatsByReporter, getFPTrend } from "./clickhouse.js";
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
@@ -749,6 +749,156 @@ app.get("/api/feedback/stats", authenticate, async (req, res) => {
   } catch (e: any) {
     console.error("Error fetching FP stats from ClickHouse:", e);
     res.status(500).json({ error: "Failed to fetch FP statistics", details: e.message });
+  }
+});
+
+// ============================================================================
+// FP DETAILED REPORTING ENDPOINTS
+// ============================================================================
+
+/**
+ * Get paginated, filterable list of FP reports
+ * Query params: startDate, endDate, reason, reportedBy, minScore, maxScore, sortBy, sortOrder, page, pageSize
+ */
+app.get("/api/feedback/reports", authenticate, async (req, res) => {
+  try {
+    const params: FPReportListParams = {
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+      reason: req.query.reason as string | undefined,
+      reportedBy: req.query.reportedBy as string | undefined,
+      minScore: req.query.minScore ? parseFloat(req.query.minScore as string) : undefined,
+      maxScore: req.query.maxScore ? parseFloat(req.query.maxScore as string) : undefined,
+      sortBy: (req.query.sortBy as 'report_timestamp' | 'event_timestamp' | 'threat_score') || 'report_timestamp',
+      sortOrder: (req.query.sortOrder as 'ASC' | 'DESC') || 'DESC',
+      page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+      pageSize: req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : 50,
+    };
+
+    // Validate pagination params
+    if (params.page < 1) params.page = 1;
+    if (params.pageSize < 1 || params.pageSize > 100) params.pageSize = 50;
+
+    const result = await getFPReportList(params);
+    res.json(result);
+  } catch (e: any) {
+    console.error("Error fetching FP report list:", e);
+    res.status(500).json({ error: "Failed to fetch FP reports", details: e.message });
+  }
+});
+
+/**
+ * Get single FP report with full event context
+ * Params: reportId (UUID)
+ */
+app.get("/api/feedback/reports/:reportId", authenticate, async (req, res) => {
+  try {
+    const reportId = req.params.reportId;
+
+    if (!reportId) {
+      return res.status(400).json({ error: "Missing reportId parameter" });
+    }
+
+    const report = await getFPReportDetails(reportId);
+
+    if (!report) {
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    res.json(report);
+  } catch (e: any) {
+    console.error("Error fetching FP report details:", e);
+    res.status(500).json({ error: "Failed to fetch report details", details: e.message });
+  }
+});
+
+/**
+ * Get FP statistics grouped by reason
+ * Query params: timeRange (e.g., "7 DAY", "30 DAY", "90 DAY")
+ */
+app.get("/api/feedback/stats/by-reason", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '30 DAY';
+
+    // Validate timeRange format (prevent SQL injection)
+    const validRanges = ['7 DAY', '30 DAY', '90 DAY', '365 DAY'];
+    if (!validRanges.includes(timeRange)) {
+      return res.status(400).json({ error: "Invalid timeRange parameter. Use: 7 DAY, 30 DAY, 90 DAY, or 365 DAY" });
+    }
+
+    const stats = await getFPStatsByReason(timeRange);
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching FP stats by reason:", e);
+    res.status(500).json({ error: "Failed to fetch FP statistics by reason", details: e.message });
+  }
+});
+
+/**
+ * Get FP statistics grouped by detected category
+ * Query params: timeRange (e.g., "7 DAY", "30 DAY", "90 DAY")
+ */
+app.get("/api/feedback/stats/by-category", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '30 DAY';
+
+    const validRanges = ['7 DAY', '30 DAY', '90 DAY', '365 DAY'];
+    if (!validRanges.includes(timeRange)) {
+      return res.status(400).json({ error: "Invalid timeRange parameter. Use: 7 DAY, 30 DAY, 90 DAY, or 365 DAY" });
+    }
+
+    const stats = await getFPStatsByCategory(timeRange);
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching FP stats by category:", e);
+    res.status(500).json({ error: "Failed to fetch FP statistics by category", details: e.message });
+  }
+});
+
+/**
+ * Get FP statistics grouped by reporter
+ * Query params: timeRange (e.g., "7 DAY", "30 DAY", "90 DAY")
+ */
+app.get("/api/feedback/stats/by-reporter", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '30 DAY';
+
+    const validRanges = ['7 DAY', '30 DAY', '90 DAY', '365 DAY'];
+    if (!validRanges.includes(timeRange)) {
+      return res.status(400).json({ error: "Invalid timeRange parameter. Use: 7 DAY, 30 DAY, 90 DAY, or 365 DAY" });
+    }
+
+    const stats = await getFPStatsByReporter(timeRange);
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching FP stats by reporter:", e);
+    res.status(500).json({ error: "Failed to fetch FP statistics by reporter", details: e.message });
+  }
+});
+
+/**
+ * Get FP trend over time
+ * Query params: timeRange (e.g., "7 DAY", "30 DAY"), interval ("day" or "week")
+ */
+app.get("/api/feedback/stats/trend", authenticate, async (req, res) => {
+  try {
+    const timeRange = (req.query.timeRange as string) || '30 DAY';
+    const interval = (req.query.interval as 'day' | 'week') || 'day';
+
+    const validRanges = ['7 DAY', '30 DAY', '90 DAY', '365 DAY'];
+    if (!validRanges.includes(timeRange)) {
+      return res.status(400).json({ error: "Invalid timeRange parameter. Use: 7 DAY, 30 DAY, 90 DAY, or 365 DAY" });
+    }
+
+    if (interval !== 'day' && interval !== 'week') {
+      return res.status(400).json({ error: "Invalid interval parameter. Use: day or week" });
+    }
+
+    const trend = await getFPTrend(timeRange, interval);
+    res.json(trend);
+  } catch (e: any) {
+    console.error("Error fetching FP trend:", e);
+    res.status(500).json({ error: "Failed to fetch FP trend", details: e.message });
   }
 });
 

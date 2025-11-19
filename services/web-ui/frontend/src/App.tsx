@@ -17,6 +17,7 @@ export default function App() {
           <nav className="flex flex-col gap-2 p-4">
             <NavLink to="/" className={({ isActive }) => `px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Monitoring</NavLink>
             <NavLink to="/investigation" className={({ isActive }) => `px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Investigation</NavLink>
+            <NavLink to="/fp-reporting" className={({ isActive }) => `px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>FP Reporting</NavLink>
             <NavLink to="/config" className={({ isActive }) => `px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Configuration</NavLink>
             {user?.can_manage_users && (
               <NavLink to="/administration" className={({ isActive }) => `px-3 py-2 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive ? "bg-slate-800 text-white" : "text-slate-400 hover:text-white"}`}>Administration</NavLink>
