@@ -480,11 +480,34 @@ export async function verifyClickHouseLog(originalInput) {
   }
 }
 
+// JWT token cache to avoid rate limiting (HTTP 429)
+// Backend tokens are valid for 24 hours, but we cache for only 23 hours
+// to provide a 1-hour safety margin and avoid edge cases where token
+// expires between validation check and actual use
+let cachedToken = null;
+let tokenExpiryTime = 0;
+
 /**
- * Login to Web UI backend and get JWT token
+ * Login to Web UI backend and get JWT token (with caching)
+ *
+ * CACHING BEHAVIOR:
+ * - Tokens valid for 24 hours (backend JWT_SECRET configuration)
+ * - Cached for 23 hours (1-hour safety margin)
+ * - Safety margin accounts for:
+ *   1. Clock skew between test runner and backend (max 60s expected)
+ *   2. Test execution time (avoid mid-test expiration)
+ *   3. Token validation race conditions
+ *
+ * @param {boolean} forceRefresh - Force new login even if cached token exists
  * @returns {Promise<string>} JWT token
+ * @throws {Error} If login fails (wrong password, backend down, rate limited)
  */
-export async function loginToBackend() {
+export async function loginToBackend(forceRefresh = false) {
+  // Return cached token if still valid (23-hour safety margin)
+  if (!forceRefresh && cachedToken && Date.now() < tokenExpiryTime) {
+    return cachedToken;
+  }
+
   const password = process.env.WEB_UI_ADMIN_PASSWORD;
   if (!password) {
     throw new Error('WEB_UI_ADMIN_PASSWORD not set in .env file');
@@ -502,16 +525,26 @@ export async function loginToBackend() {
   }
 
   const data = await response.json();
+
+  // Cache token for 23 hours (tokens valid for 24h)
+  cachedToken = data.token;
+  tokenExpiryTime = Date.now() + (23 * 60 * 60 * 1000);
+
   return data.token;
 }
 
 /**
  * Get current PII configuration from backend
+ *
+ * Reads unified_config.json via /api/parse to get actual entity list and ETag
+ * for optimistic locking. This is CRITICAL for tests to capture and restore
+ * the user's original configuration.
+ *
  * @param {string} token - JWT token
- * @returns {Promise<{entities: string[], etags: Object}>}
+ * @returns {Promise<{entities: string[], etag: string}>}
  */
 export async function getPiiConfig(token) {
-  const response = await fetch('http://localhost:8787/api/pii-detection/status', {
+  const response = await fetch('http://localhost:8787/api/parse/unified_config.json', {
     headers: { Authorization: `Bearer ${token}` }
   });
 
@@ -520,20 +553,29 @@ export async function getPiiConfig(token) {
   }
 
   const data = await response.json();
-  return {
-    entities: data.config?.entities || [],
-    etags: data.etags || {}
-  };
+
+  // Extract PII entities from unified_config.json structure
+  const entities = data.parsed?.pii_detection?.entities || [];
+  const etag = data.etag || '';
+
+  return { entities, etag };
 }
 
 /**
  * Update PII entity configuration via backend API
+ *
+ * CRITICAL: Uses optimistic locking with ETags to prevent race conditions.
+ * Tests MUST capture and restore the original config to avoid data loss.
+ *
  * @param {string} token - JWT token
  * @param {string[]} entities - List of enabled entity types
- * @param {Object} etags - Current etags for optimistic locking
- * @returns {Promise<Object>} Updated configuration
+ * @param {string} etag - Current unified_config.json ETag for optimistic locking
+ * @returns {Promise<{success: boolean, etags: Record<string, string>}>} Updated configuration with new ETags
  */
-export async function updatePiiEntities(token, entities, etags) {
+export async function updatePiiEntities(token, entities, etag) {
+  // Backend expects etags as {filename: etag} object
+  const etags = { 'unified_config.json': etag };
+
   const response = await fetch('http://localhost:8787/api/pii-detection/save-config', {
     method: 'POST',
     headers: {
@@ -558,7 +600,7 @@ export async function updatePiiEntities(token, entities, etags) {
  */
 export async function disablePiiEntity(entityType) {
   const token = await loginToBackend();
-  const { entities, etags } = await getPiiConfig(token);
+  const { entities, etag } = await getPiiConfig(token);
 
   // Remove entity if present
   const updatedEntities = entities.filter(e => e !== entityType);
@@ -568,7 +610,7 @@ export async function disablePiiEntity(entityType) {
     return;
   }
 
-  await updatePiiEntities(token, updatedEntities, etags);
+  await updatePiiEntities(token, updatedEntities, etag);
   console.log(`✅ Disabled PII entity: ${entityType}`);
 }
 
@@ -579,7 +621,7 @@ export async function disablePiiEntity(entityType) {
  */
 export async function enablePiiEntity(entityType) {
   const token = await loginToBackend();
-  const { entities, etags } = await getPiiConfig(token);
+  const { entities, etag } = await getPiiConfig(token);
 
   // Add entity if not present
   if (entities.includes(entityType)) {
@@ -588,8 +630,119 @@ export async function enablePiiEntity(entityType) {
   }
 
   const updatedEntities = [...entities, entityType];
-  await updatePiiEntities(token, updatedEntities, etags);
+  await updatePiiEntities(token, updatedEntities, etag);
   console.log(`✅ Enabled PII entity: ${entityType}`);
+}
+
+/**
+ * Set PII configuration to exact entity list (deterministic setup)
+ * This replaces the entity list entirely, ensuring tests start from known state
+ * @param {string[]} entities - Exact list of enabled entities
+ * @returns {Promise<void>}
+ */
+export async function setPiiConfig(entities) {
+  const token = await loginToBackend();
+  const { etag } = await getPiiConfig(token);
+
+  await updatePiiEntities(token, entities, etag);
+  console.log(`✅ Set PII config to: ${entities.join(', ')}`);
+}
+
+/**
+ * Wait for PII configuration to sync across all services
+ *
+ * ARCHITECTURE: PII config is stored in unified_config.json and read by:
+ * 1. Web UI backend (immediate)
+ * 2. n8n workflow Code nodes (cached, ~500ms to reload)
+ * 3. Presidio API service (file watcher, ~1-2s delay)
+ *
+ * This function polls /api/pii-detection/validate-config which checks
+ * MD5 hashes across all three services until they match.
+ *
+ * Polling interval: 500ms (balances responsiveness vs API load)
+ * Default timeout: 5000ms (covers worst-case Presidio file watcher delay)
+ *
+ * @param {number} maxWaitMs - Maximum time to wait (default: 5000ms)
+ * @returns {Promise<boolean>} True if consistent, throws on timeout or errors
+ * @throws {Error} On timeout, authentication failure, or service unavailable
+ *
+ * IMPORTANT: This function THROWS on failure to prevent tests from running
+ * with stale configuration which would cause flaky failures.
+ */
+export async function waitForPiiConfigSync(maxWaitMs = 5000) {
+  const token = await loginToBackend();
+  const startTime = Date.now();
+  const pollInterval = 500;
+  let lastError = null;
+  let errorCount = 0;
+  const MAX_TRANSIENT_ERRORS = 3;
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const response = await fetch('http://localhost:8787/api/pii-detection/validate-config', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        // CRITICAL: Don't swallow HTTP errors
+        const text = await response.text();
+        const error = new Error(
+          `Config validation failed: HTTP ${response.status}\n${text}`
+        );
+        error.responseStatus = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      if (data.consistent) {
+        console.log('✅ PII config synced across all services');
+        return true;
+      }
+      console.log(`⏳ Config not synced yet (${Date.now() - startTime}ms elapsed)`);
+
+      // Reset error count on successful poll
+      errorCount = 0;
+
+    } catch (error) {
+      errorCount++;
+      lastError = error;
+
+      const status = error?.responseStatus ??
+        Number(error?.message?.match?.(/HTTP (\d{3})/)?.[1]);
+
+      // CRITICAL: Authentication/authorization errors should fail immediately
+      if (status === 401 || status === 403) {
+        throw new Error(
+          `Config sync authentication failed: ${error.message}. ` +
+          `Check JWT token validity and user permissions.`
+        );
+      }
+
+      console.error(
+        `Config sync check failed (attempt ${errorCount}/${MAX_TRANSIENT_ERRORS}): ${error.message}`
+      );
+
+      // CRITICAL: Too many transient errors indicate real problem
+      if (errorCount > MAX_TRANSIENT_ERRORS) {
+        throw new Error(
+          `Config sync check failed ${errorCount} times. ` +
+          `Last error: ${lastError.message}. ` +
+          `Backend service may be down or unreachable. ` +
+          `Check: docker ps | grep web-ui-backend`
+        );
+      }
+    }
+
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  // CRITICAL: Timeout without sync is a FAILURE, not a warning
+  throw new Error(
+    `Config sync timeout after ${maxWaitMs}ms. ` +
+    `Configuration may be inconsistent across services. ` +
+    `Last error: ${lastError?.message || 'none'}. ` +
+    `This will cause test failures - cannot proceed with stale config.`
+  );
 }
 
 // Backwards compatibility for auto-generated tests that still import sendToWebhook

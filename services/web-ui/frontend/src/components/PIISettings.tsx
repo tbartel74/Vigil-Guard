@@ -362,51 +362,6 @@ export function PIISettings() {
           </div>
         )}
 
-        {validationState && !validationState.consistent && (
-          <div className="rounded-lg border border-amber-500 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold text-amber-200">Workflow configuration out of sync</div>
-                <p className="text-xs text-amber-100/80">
-                  Presidio uses {validationState.unified_config.count} entities but regex fallback has {validationState.pii_conf.count}. Toggle updates will not apply until the files match.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={runValidation}
-                className="px-3 py-1 text-xs font-medium rounded bg-amber-500/20 border border-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
-                disabled={validatingConfig}
-              >
-                {validatingConfig ? 'Checking…' : 'Re-check'}
-              </button>
-            </div>
-            {validationState.discrepancies && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-amber-200/80 mb-1">Missing in regex fallback</div>
-                  {validationState.discrepancies.in_unified_only.length === 0 ? (
-                    <div className="text-amber-100/60 text-xs">None</div>
-                  ) : (
-                    <div className="text-amber-100 text-xs">
-                      {validationState.discrepancies.in_unified_only.join(', ')}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-amber-200/80 mb-1">Extra in regex fallback</div>
-                  {validationState.discrepancies.in_pii_conf_only.length === 0 ? (
-                    <div className="text-amber-100/60 text-xs">None</div>
-                  ) : (
-                    <div className="text-amber-100 text-xs">
-                      {validationState.discrepancies.in_pii_conf_only.join(', ')}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Configuration Form */}
         <form onSubmit={handleSave} className="bg-slate-800/50 rounded-lg border border-slate-700 p-6 space-y-6">
           {/* Enable Toggle */}
@@ -516,12 +471,26 @@ export function PIISettings() {
                   onChange={(e) => setConfig({ ...config, fallback_to_regex: e.target.checked })}
                   className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                 />
-                <label htmlFor="fallback" className="text-slate-300">
+                <label htmlFor="fallback" className="text-slate-300 flex items-center gap-2">
                   Fallback to Regex Rules
+                  <span className="relative group cursor-help">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 p-3 bg-slate-700 border border-slate-600 rounded-lg text-xs text-slate-200 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
+                      <div className="font-semibold mb-1">⚠️ Limited Entity Detection in Fallback Mode</div>
+                      <div className="space-y-1 text-slate-300">
+                        <div>Without Presidio, only 13 regex patterns are available:</div>
+                        <div className="font-mono text-[10px] text-amber-200">EMAIL, PHONE, CREDIT_CARD, PESEL, NIP, REGON, IP_ADDRESS, URL, IBAN, SSN, etc.</div>
+                        <div className="mt-2 text-amber-200">Not available in fallback mode:</div>
+                        <div className="font-mono text-[10px]">PERSON, LOCATION, DATE_TIME, ORGANIZATION, MEDICAL_LICENSE, CRYPTO, AU_ABN, AU_ACN, AU_TFN, AU_MEDICARE, ES_NIF, FI_NIF, FR_NIR, IN_PAN, IT_CF, IT_IVA, SG_NRIC_FIN, UK_NHS, and 30+ other ML-based entities</div>
+                      </div>
+                    </div>
+                  </span>
                 </label>
               </div>
               <p className="text-xs text-text-secondary ml-8">
-                If Presidio API is offline, automatically use legacy regex patterns (13 rules)
+                If Presidio API is offline, automatically use legacy regex patterns (13 basic rules only)
               </p>
 
               <div>
@@ -550,25 +519,7 @@ export function PIISettings() {
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col md:flex-row gap-3 md:justify-between">
-            <div className="text-xs text-text-secondary flex items-center gap-2">
-              <span>
-                Sync status:{' '}
-                {validationState
-                  ? validationState.consistent
-                    ? <span className="text-green-400 font-medium">In sync</span>
-                    : <span className="text-amber-400 font-medium">Mismatch detected</span>
-                  : 'Unknown'}
-              </span>
-              <button
-                type="button"
-                onClick={runValidation}
-                disabled={validatingConfig}
-                className="px-3 py-1 border border-slate-600 rounded text-xs hover:bg-slate-700 disabled:opacity-50"
-              >
-                {validatingConfig ? 'Checking…' : 'Re-run validation'}
-              </button>
-            </div>
+          <div className="flex justify-end">
             <button
               type="submit"
               disabled={saving}
