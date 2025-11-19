@@ -471,6 +471,14 @@ export interface SyncPiiConfigResponse {
   etags: Record<string, string>;
 }
 
+export interface PiiConfigValidationResult {
+  consistent: boolean;
+  unified_config: { count: number; entities: string[] };
+  pii_conf: { count: number; entities: string[] };
+  discrepancies: null | { in_unified_only: string[]; in_pii_conf_only: string[] };
+  presidio_only_entities?: string[];
+}
+
 export async function syncPiiConfig(payload: SyncPiiConfigPayload): Promise<SyncPiiConfigResponse> {
   const r = await authenticatedFetch(`${API}/pii-detection/save-config`, {
     method: "POST",
@@ -484,6 +492,12 @@ export async function syncPiiConfig(payload: SyncPiiConfigPayload): Promise<Sync
     throw err;
   }
 
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function validatePiiConfig(): Promise<PiiConfigValidationResult> {
+  const r = await authenticatedFetch(`${API}/pii-detection/validate-config`);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

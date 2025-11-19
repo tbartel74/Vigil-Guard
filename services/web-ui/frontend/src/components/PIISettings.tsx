@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { parseFile, syncPiiConfig } from '../lib/api';
+import { parseFile, syncPiiConfig, validatePiiConfig, PiiConfigValidationResult } from '../lib/api';
 
 interface ServiceStatus {
   status: 'online' | 'offline';
@@ -54,6 +54,9 @@ export function PIISettings() {
   const [testText, setTestText] = useState('');
   const [testResults, setTestResults] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [validationState, setValidationState] = useState<PiiConfigValidationResult | null>(null);
+  const [validatingConfig, setValidatingConfig] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -68,6 +71,7 @@ export function PIISettings() {
         fetchEntityTypes(),
         fetchConfig()
       ]);
+      await runValidation();
 
       // Success - enable form editing
       setLoading(false);
@@ -164,6 +168,21 @@ export function PIISettings() {
     }
   };
 
+  const runValidation = async () => {
+    setValidatingConfig(true);
+    setValidationError(null);
+    try {
+      const result = await validatePiiConfig();
+      setValidationState(result);
+    } catch (error: any) {
+      console.error('Config validation failed:', error);
+      setValidationError(error.message || 'Validation failed');
+      setValidationState(null);
+    } finally {
+      setValidatingConfig(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -195,6 +214,7 @@ export function PIISettings() {
 
       toast.success('PII configuration synchronized successfully');
       await fetchConfig();
+      await runValidation();
     } catch (error: any) {
       console.error('Save error:', error);
       const errorMsg = error.conflict
@@ -324,6 +344,68 @@ export function PIISettings() {
             )}
           </div>
         </div>
+
+        {/* Validation alerts */}
+        {validationError && (
+          <div className="rounded-lg border border-red-500 bg-red-900/30 p-4 text-sm text-red-100">
+            <div className="font-semibold mb-1">Configuration validation failed</div>
+            <div className="flex items-center justify-between">
+              <span>{validationError}</span>
+              <button
+                type="button"
+                onClick={runValidation}
+                className="px-3 py-1 text-xs font-medium rounded bg-red-500/20 border border-red-400 hover:bg-red-500/30"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
+        {validationState && !validationState.consistent && (
+          <div className="rounded-lg border border-amber-500 bg-amber-500/10 p-4 text-sm text-amber-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-amber-200">Workflow configuration out of sync</div>
+                <p className="text-xs text-amber-100/80">
+                  Presidio uses {validationState.unified_config.count} entities but regex fallback has {validationState.pii_conf.count}. Toggle updates will not apply until the files match.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={runValidation}
+                className="px-3 py-1 text-xs font-medium rounded bg-amber-500/20 border border-amber-300 hover:bg-amber-500/30 disabled:opacity-50"
+                disabled={validatingConfig}
+              >
+                {validatingConfig ? 'Checking…' : 'Re-check'}
+              </button>
+            </div>
+            {validationState.discrepancies && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-amber-200/80 mb-1">Missing in regex fallback</div>
+                  {validationState.discrepancies.in_unified_only.length === 0 ? (
+                    <div className="text-amber-100/60 text-xs">None</div>
+                  ) : (
+                    <div className="text-amber-100 text-xs">
+                      {validationState.discrepancies.in_unified_only.join(', ')}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-amber-200/80 mb-1">Extra in regex fallback</div>
+                  {validationState.discrepancies.in_pii_conf_only.length === 0 ? (
+                    <div className="text-amber-100/60 text-xs">None</div>
+                  ) : (
+                    <div className="text-amber-100 text-xs">
+                      {validationState.discrepancies.in_pii_conf_only.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Configuration Form */}
         <form onSubmit={handleSave} className="bg-slate-800/50 rounded-lg border border-slate-700 p-6 space-y-6">
@@ -468,7 +550,25 @@ export function PIISettings() {
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end">
+          <div className="flex flex-col md:flex-row gap-3 md:justify-between">
+            <div className="text-xs text-text-secondary flex items-center gap-2">
+              <span>
+                Sync status:{' '}
+                {validationState
+                  ? validationState.consistent
+                    ? <span className="text-green-400 font-medium">In sync</span>
+                    : <span className="text-amber-400 font-medium">Mismatch detected</span>
+                  : 'Unknown'}
+              </span>
+              <button
+                type="button"
+                onClick={runValidation}
+                disabled={validatingConfig}
+                className="px-3 py-1 border border-slate-600 rounded text-xs hover:bg-slate-700 disabled:opacity-50"
+              >
+                {validatingConfig ? 'Checking…' : 'Re-run validation'}
+              </button>
+            </div>
             <button
               type="submit"
               disabled={saving}

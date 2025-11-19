@@ -22,6 +22,14 @@ const DEFAULT_LANGUAGES = ["pl", "en"];
 const DEFAULT_DETECTION_MODE: DetectionMode = "balanced";
 const PRESIDIO_URL = process.env.PRESIDIO_URL || "http://vigil-presidio-pii:5001";
 
+function summarizeEntities(entities?: string[] | null) {
+  if (!Array.isArray(entities) || entities.length === 0) {
+    return "∅ (0)";
+  }
+  const preview = entities.slice(0, 6).join(", ");
+  return entities.length > 6 ? `${preview} … (${entities.length})` : `${preview} (${entities.length})`;
+}
+
 // Known PII entity types - synchronized with Presidio recognizers and pii.conf
 // This whitelist is derived from:
 // - services/presidio-pii-api/config/recognizers.yaml (supported_entity)
@@ -91,6 +99,10 @@ export async function syncPiiConfig(
     { path: "pii_detection.context_enhancement", value: contextEnhancement }
   ];
 
+  console.log(
+    `[PII Config Sync] Requested entities: ${summarizeEntities(enabledEntities)} | detection_mode=${detectionMode} context=${contextEnhancement}`
+  );
+
   const piiConfUpdates = buildPiiConfUpdates(currentPiiConf, enabledSet);
 
   const changes = [
@@ -118,11 +130,17 @@ export async function syncPiiConfig(
     author
   });
 
-  try {
-    await notifyPresidio(detectionMode, contextEnhancement);
-  } catch (error) {
-    await rollbackFiles(result.results);
-    throw error;
+  const skipPresidioNotify = process.env.SKIP_PRESIDIO_NOTIFY === "1";
+
+  if (skipPresidioNotify) {
+    console.warn("[PII Config Sync] SKIPPING Presidio hot reload (SKIP_PRESIDIO_NOTIFY=1)");
+  } else {
+    try {
+      await notifyPresidio(detectionMode, contextEnhancement);
+    } catch (error) {
+      await rollbackFiles(result.results);
+      throw error;
+    }
   }
 
   const responseEtags = Object.fromEntries(result.results.map((r) => [r.file, r.etag]));
@@ -242,6 +260,10 @@ function buildPiiConfUpdates(currentPiiConf: any, enabledSet: Set<string>) {
       filteredOrder.push(rule.name);
     }
   }
+
+  console.log(
+    `[PII Config Sync] Canonical rules=${canonicalRules.length} → active=${filteredRules.length} (enabled_set=${enabledSet.size})`
+  );
 
   // Return updates for ALL four fields:
   // - Canonical storage (preserved across enable/disable cycles)

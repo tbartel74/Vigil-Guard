@@ -465,6 +465,55 @@ app.post("/api/pii-detection/save-config", authenticate, requireConfigurationAcc
   }
 });
 
+const PRESIDIO_ONLY_ENTITIES = new Set(['PERSON', 'IP_ADDRESS']);
+
+app.get("/api/pii-detection/validate-config", authenticate, requireConfigurationAccess, async (_req, res) => {
+  try {
+    const unifiedFile = await parseFile("unified_config.json");
+    const unifiedEntities: string[] = unifiedFile.parsed?.pii_detection?.entities || [];
+
+    const piiConfFile = await parseFile("pii.conf");
+    const piiConfRules: any[] = Array.isArray(piiConfFile.parsed?.rules) ? piiConfFile.parsed.rules : [];
+    const piiConfEntities = [...new Set(piiConfRules.map((rule) => rule?.target_entity).filter(Boolean))];
+
+    const unifiedSet = new Set(unifiedEntities);
+    const piiConfSet = new Set(piiConfEntities);
+
+    const rawUnifiedOnly = unifiedEntities.filter((entity) => !piiConfSet.has(entity));
+    const rawPiiConfOnly = piiConfEntities.filter((entity) => !unifiedSet.has(entity));
+
+    const presidioOnly = rawUnifiedOnly.filter((entity) => PRESIDIO_ONLY_ENTITIES.has(entity));
+    const inUnifiedOnly = rawUnifiedOnly.filter((entity) => !PRESIDIO_ONLY_ENTITIES.has(entity));
+    const inPiiConfOnly = rawPiiConfOnly.filter((entity) => !PRESIDIO_ONLY_ENTITIES.has(entity));
+    const consistent = inUnifiedOnly.length === 0 && inPiiConfOnly.length === 0;
+
+    res.json({
+      consistent,
+      unified_config: {
+        count: unifiedEntities.length,
+        entities: unifiedEntities
+      },
+      pii_conf: {
+        count: piiConfEntities.length,
+        entities: piiConfEntities
+      },
+      discrepancies: consistent
+        ? null
+        : {
+            in_unified_only: inUnifiedOnly,
+            in_pii_conf_only: inPiiConfOnly
+          },
+      presidio_only_entities: presidioOnly
+    });
+  } catch (error: any) {
+    console.error("[PII Config Validation] Failed:", error);
+    res.status(500).json({
+      error: "Failed to validate PII configuration",
+      message: error.message
+    });
+  }
+});
+
 // Helper function to convert frontend timeRange to ClickHouse INTERVAL format
 function convertTimeRangeToInterval(timeRange: string): string {
   const mapping: Record<string, string> = {
