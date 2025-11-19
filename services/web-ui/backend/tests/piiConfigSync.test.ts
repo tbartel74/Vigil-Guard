@@ -26,7 +26,7 @@ describe('Redaction Token XSS Protection', () => {
 
     validTokens.forEach(token => {
       it(`should accept valid token: "${token}"`, () => {
-        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
         expect(SAFE_TOKEN_REGEX.test(token)).toBe(true);
       });
     });
@@ -48,7 +48,7 @@ describe('Redaction Token XSS Protection', () => {
 
     xssVectors.forEach(token => {
       it(`should reject XSS vector: "${token.substring(0, 30)}..."`, () => {
-        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
         expect(SAFE_TOKEN_REGEX.test(token)).toBe(false);
       });
     });
@@ -64,7 +64,7 @@ describe('Redaction Token XSS Protection', () => {
 
     unicodeExploits.forEach(token => {
       it(`should reject Unicode exploit: ${token.charCodeAt(0).toString(16)}`, () => {
-        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+        const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
         expect(SAFE_TOKEN_REGEX.test(token)).toBe(false);
       });
     });
@@ -86,18 +86,25 @@ describe('Redaction Token XSS Protection', () => {
 
   describe('Edge cases', () => {
     it('should reject empty string', () => {
-      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
       expect(SAFE_TOKEN_REGEX.test('')).toBe(false);
     });
 
     it('should accept single character', () => {
-      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
       expect(SAFE_TOKEN_REGEX.test('X')).toBe(true);
     });
 
+    it('should accept asterisk and period', () => {
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
+      expect(SAFE_TOKEN_REGEX.test('***')).toBe(true);
+      expect(SAFE_TOKEN_REGEX.test('...')).toBe(true);
+      expect(SAFE_TOKEN_REGEX.test('*.*')).toBe(true);
+    });
+
     it('should reject special characters not in whitelist', () => {
-      const specialChars = ['@', '#', '$', '%', '^', '&', '*', '!', '~', '`', '{', '}', '|', '\\', '/', '?', '<', '>', ',', '.', ':', ';', '"', "'"];
-      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)]+$/;
+      const specialChars = ['@', '#', '$', '%', '^', '&', '!', '~', '`', '{', '}', '|', '\\', '/', '?', '<', '>', ',', ':', ';', '"', "'"];
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
 
       specialChars.forEach(char => {
         expect(SAFE_TOKEN_REGEX.test(char)).toBe(false);
