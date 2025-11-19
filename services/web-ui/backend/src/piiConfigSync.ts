@@ -207,10 +207,15 @@ function validatePayload(payload: PiiConfigUpdatePayload): string[] {
         errors.push(`Redaction token for ${entity} is too long (max 50 characters)`);
       }
 
-      // Security check: prevent HTML/script injection
-      const unsafeCharsRegex = /<|>|;|'|"|\\|script|eval|function/i;
-      if (unsafeCharsRegex.test(token)) {
-        errors.push(`Redaction token for ${entity} contains unsafe characters (HTML/script injection risk)`);
+      // Security check: XSS protection via whitelist (allows Polish diacritics)
+      // Allowed: letters (including ąćęłńóśźż), digits, space, _-()[]*, .
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
+      if (!SAFE_TOKEN_REGEX.test(token)) {
+        errors.push(
+          `Redaction token for ${entity} contains unsafe characters. ` +
+          `Allowed: letters (including Polish), digits, space, _-()[]*, . ` +
+          `Found: "${token.substring(0, 30)}${token.length > 30 ? '...' : ''}"`
+        );
       }
     }
   }
