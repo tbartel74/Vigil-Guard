@@ -271,6 +271,11 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
             logger.warning("No recognizers found in YAML config")
             return recognizers
 
+        # CRITICAL: Update global context_requirement_rules from YAML config
+        # Context rules are rebuilt from scratch on each recognizer reload to ensure
+        # consistency with recognizers.yaml. This is intentional - any previous rules
+        # are discarded and replaced with fresh config from YAML file.
+        global context_requirement_rules
         context_requirement_rules = {}
 
         validator_map = {

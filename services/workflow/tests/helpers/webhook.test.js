@@ -120,8 +120,58 @@ describe('loginToBackend() JWT Caching (Design Tests)', () => {
 describe('waitForPiiConfigSync() Error Handling', () => {
   /**
    * Tests for waitForPiiConfigSync() error handling improvements
-   * implemented in PR review fix #2
+   * implemented in PR review fix #4 (config sync timeout recovery)
    */
+
+  it('should restore original config when sync times out', async () => {
+    // CRITICAL TEST: Verify config is restored if waitForPiiConfigSync() times out
+    // This prevents test failures from corrupting production config
+
+    const { waitForPiiConfigSync, setPiiConfig, getPiiConfig, loginToBackend } = await import('./webhook.js');
+
+    const token = await loginToBackend();
+
+    // Get original config before test
+    const originalResponse = await getPiiConfig(token);
+    const originalEntities = originalResponse.entities;
+
+    // Mock validate-config endpoint to always return inconsistent
+    // This will cause waitForPiiConfigSync to timeout
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation((url, options) => {
+      if (url.includes('/api/pii-detection/validate-config')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ consistent: false })
+        });
+      }
+      // Pass through other requests (login, getPiiConfig, etc.)
+      return originalFetch(url, options);
+    });
+
+    try {
+      // Try to set new config (will timeout during sync wait)
+      await setPiiConfig(['URL']);
+
+      // Wait for sync with short timeout (1000ms)
+      await expect(waitForPiiConfigSync(1000)).rejects.toThrow(/timeout/i);
+
+      // CRITICAL: Verify original config was restored
+      const { entities: currentEntities } = await getPiiConfig(token);
+      expect(currentEntities).toEqual(originalEntities);
+    } finally {
+      // Restore original fetch
+      global.fetch = originalFetch;
+
+      // Cleanup: restore original config if test failed
+      try {
+        await setPiiConfig(originalEntities);
+        await waitForPiiConfigSync(5000);
+      } catch (e) {
+        console.warn('Cleanup failed:', e.message);
+      }
+    }
+  });
 
   it.skip('should throw on authentication failure (HTTP 401)', async () => {
     // EXPECTED BEHAVIOR:

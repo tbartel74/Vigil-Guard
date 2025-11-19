@@ -350,27 +350,35 @@ async function notifyPresidio(mode: DetectionMode, contextEnhancement: boolean) 
 }
 
 async function rollbackFiles(results: Array<{ file: string; backupPath: string }>) {
-  const errors: string[] = [];
+  const restored: string[] = [];
 
-  // Sequential rollback to handle failures gracefully
+  // Sequential rollback - STOP immediately on first failure to prevent inconsistent state
+  // CRITICAL: If rollback fails partially, system is in inconsistent state requiring manual recovery
   for (const entry of results) {
     try {
       await restoreFileFromBackup(entry.file, entry.backupPath);
+      restored.push(entry.file);
       console.log(`[PII Config Sync] Rollback successful: ${entry.file} restored from ${entry.backupPath}`);
     } catch (error: any) {
-      const errorMsg = `Failed to restore ${entry.file}: ${error.message}`;
-      console.error(`[PII Config Sync] Rollback error: ${errorMsg}`);
-      errors.push(errorMsg);
-    }
-  }
+      // CRITICAL FAILURE: Stop rollback immediately, log partial state for manual recovery
+      const errorMsg = `[PII Config Sync] CRITICAL ROLLBACK FAILURE: Cannot restore ${entry.file}`;
+      console.error(errorMsg);
+      console.error(`[PII Config Sync] Partial restore state - Restored: [${restored.join(', ') || 'none'}], Failed: [${entry.file}]`);
+      console.error(`[PII Config Sync] MANUAL INTERVENTION REQUIRED: System may be in inconsistent state!`);
+      console.error(`[PII Config Sync] Recovery: Check ${entry.file} vs backup ${entry.backupPath}, restore manually if needed`);
 
-  // If any rollback failed, throw aggregated error
-  if (errors.length > 0) {
-    const rollbackError = new Error(
-      `Partial rollback failure (${errors.length}/${results.length} files failed): ${errors.join('; ')}`
-    );
-    (rollbackError as any).code = "ROLLBACK_FAILED";
-    (rollbackError as any).failures = errors;
-    throw rollbackError;
+      const rollbackError = new Error(
+        `CRITICAL: Rollback failed for ${entry.file}. ` +
+        `Previously restored: ${restored.join(', ') || 'none'}. ` +
+        `System is in INCONSISTENT state. MANUAL RECOVERY REQUIRED. ` +
+        `Check config file vs backup: ${entry.backupPath}. ` +
+        `Error: ${error.message}`
+      );
+      (rollbackError as any).code = "ROLLBACK_FAILED";
+      (rollbackError as any).partiallyRestored = restored;
+      (rollbackError as any).failedFile = entry.file;
+      (rollbackError as any).backupPath = entry.backupPath;
+      throw rollbackError;  // ← STOP immediately, don't continue rollback
+    }
   }
 }

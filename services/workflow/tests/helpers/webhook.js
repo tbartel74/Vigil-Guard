@@ -13,6 +13,10 @@ const __dirname = dirname(__filename);
 // Load .env from project root (4 levels up from tests/helpers/)
 dotenv.config({ path: resolve(__dirname, '../../../../.env') });
 
+// CRITICAL: Store original PII config for rollback on timeout
+// This prevents test failures from corrupting production config
+let originalPiiConfig = null;
+
 export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
 
 function getClickhouseConnection() {
@@ -637,14 +641,24 @@ export async function enablePiiEntity(entityType) {
 /**
  * Set PII configuration to exact entity list (deterministic setup)
  * This replaces the entity list entirely, ensuring tests start from known state
+ *
+ * CRITICAL: Stores original config before first change for rollback on timeout.
+ * This prevents test failures from corrupting production config.
+ *
  * @param {string[]} entities - Exact list of enabled entities
  * @returns {Promise<void>}
  */
 export async function setPiiConfig(entities) {
   const token = await loginToBackend();
-  const { etag } = await getPiiConfig(token);
+  const currentConfig = await getPiiConfig(token);
 
-  await updatePiiEntities(token, entities, etag);
+  // CRITICAL: Store original config on first change (for rollback)
+  if (originalPiiConfig === null) {
+    originalPiiConfig = { entities: currentConfig.entities };
+    console.log(`📋 Stored original PII config: ${originalPiiConfig.entities.join(', ')}`);
+  }
+
+  await updatePiiEntities(token, entities, currentConfig.etag);
   console.log(`✅ Set PII config to: ${entities.join(', ')}`);
 }
 
@@ -736,13 +750,55 @@ export async function waitForPiiConfigSync(maxWaitMs = 5000) {
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
-  // CRITICAL: Timeout without sync is a FAILURE, not a warning
+  // CRITICAL: Timeout without sync is a FAILURE - attempt rollback
+  console.error(`❌ Config sync timeout after ${maxWaitMs}ms`);
+
+  // Attempt to restore original config to prevent production corruption
+  if (originalPiiConfig !== null) {
+    console.log(`🔄 Attempting to restore original config: ${originalPiiConfig.entities.join(', ')}`);
+    try {
+      const token = await loginToBackend();
+      const { etag } = await getPiiConfig(token);
+      await updatePiiEntities(token, originalPiiConfig.entities, etag);
+      console.log(`✅ Original config restored successfully`);
+      originalPiiConfig = null; // Clear stored config
+    } catch (rollbackError) {
+      console.error(`❌ CRITICAL: Failed to restore original config: ${rollbackError.message}`);
+      console.error(`⚠️  Manual recovery required - check unified_config.json`);
+    }
+  }
+
   throw new Error(
     `Config sync timeout after ${maxWaitMs}ms. ` +
     `Configuration may be inconsistent across services. ` +
     `Last error: ${lastError?.message || 'none'}. ` +
-    `This will cause test failures - cannot proceed with stale config.`
+    `Original config ${originalPiiConfig ? 'NOT restored - manual recovery needed' : 'restored successfully'}.`
   );
+}
+
+/**
+ * Restore original PII configuration (for cleanup in test teardown)
+ * Call this in afterAll() to ensure config is restored even if tests fail
+ *
+ * @returns {Promise<void>}
+ */
+export async function restoreOriginalPiiConfig() {
+  if (originalPiiConfig === null) {
+    console.log('ℹ️  No original config to restore (setPiiConfig was never called)');
+    return;
+  }
+
+  console.log(`🔄 Restoring original PII config: ${originalPiiConfig.entities.join(', ')}`);
+  try {
+    const token = await loginToBackend();
+    const { etag } = await getPiiConfig(token);
+    await updatePiiEntities(token, originalPiiConfig.entities, etag);
+    console.log(`✅ Original config restored`);
+    originalPiiConfig = null; // Clear stored config
+  } catch (error) {
+    console.error(`❌ Failed to restore original config: ${error.message}`);
+    throw error;
+  }
 }
 
 // Backwards compatibility for auto-generated tests that still import sendToWebhook
