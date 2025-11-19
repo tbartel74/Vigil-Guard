@@ -12,6 +12,7 @@ import pluginConfigRoutes from "./pluginConfigRoutes.js";
 import { initPluginConfigTable } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
 import { analyzeDualLanguage } from "./piiAnalyzer.js";
+import { syncPiiConfig } from "./piiConfigSync.js";
 
 const app = express();
 const PORT = 8787;
@@ -432,6 +433,101 @@ app.post("/api/pii-detection/analyze-full", authenticate, async (req, res) => {
     res.status(status).json({
       error: isInputError ? "Invalid input" : "Dual-language PII analysis failed",
       message: error.message || "Unknown error"
+    });
+  }
+});
+
+app.post("/api/pii-detection/save-config", authenticate, requireConfigurationAccess, async (req, res) => {
+  try {
+    const { etags, ...configPayload } = req.body || {};
+    const author = (req as any).user?.username || "unknown";
+    const result = await syncPiiConfig(configPayload, author, etags);
+    res.json({
+      success: true,
+      etags: result.etags
+    });
+  } catch (e: any) {
+    if (e.code === "ETAG_MISMATCH") {
+      return res.status(412).json({
+        error: "ETAG_MISMATCH",
+        expected: e.expected,
+        actual: e.actual
+      });
+    }
+    if (e.code === "VALIDATION") {
+      return res.status(400).json({ error: e.message });
+    }
+    console.error("PII config sync failed:", e);
+    res.status(500).json({
+      error: "Failed to synchronize PII configuration",
+      message: e.message
+    });
+  }
+});
+
+/**
+ * Extract Presidio-only entities from pii.conf
+ * These are entities marked with presidio_only: true flag in __all_rules
+ * Dynamically derived from config file to avoid hardcoded duplication
+ */
+function getPresidioOnlyEntities(piiConfData: any): Set<string> {
+  const allRules: any[] = Array.isArray(piiConfData?.__all_rules) ? piiConfData.__all_rules : [];
+  const presidioOnlyEntities = allRules
+    .filter(rule => rule?.presidio_only === true)
+    .map(rule => rule?.target_entity)
+    .filter(Boolean);
+
+  return new Set(presidioOnlyEntities);
+}
+
+app.get("/api/pii-detection/validate-config", authenticate, requireConfigurationAccess, async (_req, res) => {
+  try {
+    const unifiedFile = await parseFile("unified_config.json");
+    const unifiedEntities: string[] = unifiedFile.parsed?.pii_detection?.entities || [];
+
+    const piiConfFile = await parseFile("pii.conf");
+    const piiConfRules: any[] = Array.isArray(piiConfFile.parsed?.rules) ? piiConfFile.parsed.rules : [];
+    const piiConfEntities = [...new Set(piiConfRules.map((rule) => rule?.target_entity).filter(Boolean))];
+
+    // CRITICAL: Derive Presidio-only entities from pii.conf instead of hardcoding
+    // This eliminates duplication between backend validation and workflow logic
+    // Single source of truth: pii.conf.__all_rules[].presidio_only flag
+    const PRESIDIO_ONLY_ENTITIES = getPresidioOnlyEntities(piiConfFile.parsed);
+
+    const unifiedSet = new Set(unifiedEntities);
+    const piiConfSet = new Set(piiConfEntities);
+
+    const rawUnifiedOnly = unifiedEntities.filter((entity) => !piiConfSet.has(entity));
+    const rawPiiConfOnly = piiConfEntities.filter((entity) => !unifiedSet.has(entity));
+
+    const presidioOnly = rawUnifiedOnly.filter((entity) => PRESIDIO_ONLY_ENTITIES.has(entity));
+    const inUnifiedOnly = rawUnifiedOnly.filter((entity) => !PRESIDIO_ONLY_ENTITIES.has(entity));
+    const inPiiConfOnly = rawPiiConfOnly.filter((entity) => !PRESIDIO_ONLY_ENTITIES.has(entity));
+    const consistent = inUnifiedOnly.length === 0 && inPiiConfOnly.length === 0;
+
+    res.json({
+      consistent,
+      unified_config: {
+        count: unifiedEntities.length,
+        entities: unifiedEntities
+      },
+      pii_conf: {
+        count: piiConfEntities.length,
+        entities: piiConfEntities
+      },
+      discrepancies: consistent
+        ? null
+        : {
+            in_unified_only: inUnifiedOnly,
+            in_pii_conf_only: inPiiConfOnly
+          },
+      presidio_only_entities: presidioOnly
+    });
+  } catch (error: any) {
+    console.error("[PII Config Validation] Failed:", error);
+    res.status(500).json({
+      error: "Failed to validate PII configuration",
+      message: error.message
     });
   }
 });

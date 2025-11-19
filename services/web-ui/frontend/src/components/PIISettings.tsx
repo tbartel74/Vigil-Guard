@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { parseFile, saveChanges, resolveSpec } from '../lib/api';
-import spec from '../spec/variables.json';
+import { parseFile, syncPiiConfig, validatePiiConfig, PiiConfigValidationResult } from '../lib/api';
 
 interface ServiceStatus {
   status: 'online' | 'offline';
@@ -27,6 +26,9 @@ interface PiiConfig {
   redaction_mode: 'replace' | 'hash' | 'mask';
   fallback_to_regex: boolean;
   languages: string[];
+  detection_mode: 'balanced' | 'high_security' | 'high_precision';
+  context_enhancement: boolean;
+  redaction_tokens: Record<string, string>;
 }
 
 export function PIISettings() {
@@ -41,13 +43,20 @@ export function PIISettings() {
     entities: [],
     redaction_mode: 'replace',
     fallback_to_regex: true,
-    languages: ['pl', 'en']
+    languages: ['pl', 'en'],
+    detection_mode: 'balanced',
+    context_enhancement: true,
+    redaction_tokens: {}
   });
+  const [fileEtags, setFileEtags] = useState<Record<string, string>>({});
 
   // Test panel state
   const [testText, setTestText] = useState('');
   const [testResults, setTestResults] = useState<any>(null);
   const [testing, setTesting] = useState(false);
+  const [validationState, setValidationState] = useState<PiiConfigValidationResult | null>(null);
+  const [validatingConfig, setValidatingConfig] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -62,6 +71,7 @@ export function PIISettings() {
         fetchEntityTypes(),
         fetchConfig()
       ]);
+      await runValidation();
 
       // Success - enable form editing
       setLoading(false);
@@ -134,6 +144,9 @@ export function PIISettings() {
   const fetchConfig = async () => {
     const file = await parseFile('unified_config.json');
     const piiConfig = file.parsed?.pii_detection;
+    if (file?.etag) {
+      setFileEtags(prev => ({ ...prev, 'unified_config.json': file.etag }));
+    }
 
     if (piiConfig) {
       setConfig({
@@ -142,8 +155,31 @@ export function PIISettings() {
         entities: piiConfig.entities || [],
         redaction_mode: piiConfig.redaction_mode || 'replace',
         fallback_to_regex: piiConfig.fallback_to_regex !== false,
-        languages: piiConfig.languages || ['pl', 'en']
+        languages: piiConfig.languages || ['pl', 'en'],
+        detection_mode: piiConfig.detection_mode || 'balanced',
+        context_enhancement: piiConfig.context_enhancement !== false,
+        redaction_tokens: piiConfig.redaction_tokens || {}
       });
+    }
+
+    const piiFallback = await parseFile('pii.conf');
+    if (piiFallback?.etag) {
+      setFileEtags(prev => ({ ...prev, 'pii.conf': piiFallback.etag }));
+    }
+  };
+
+  const runValidation = async () => {
+    setValidatingConfig(true);
+    setValidationError(null);
+    try {
+      const result = await validatePiiConfig();
+      setValidationState(result);
+    } catch (error: any) {
+      console.error('Config validation failed:', error);
+      setValidationError(error.message || 'Validation failed');
+      setValidationState(null);
+    } finally {
+      setValidatingConfig(false);
     }
   };
 
@@ -158,31 +194,31 @@ export function PIISettings() {
     setSaving(true);
 
     try {
-      // Build updates for unified_config.json
-      const updates = [
-        { path: 'pii_detection.enabled', value: config.enabled },
-        { path: 'pii_detection.confidence_threshold', value: config.confidence_threshold },
-        { path: 'pii_detection.entities', value: config.entities },
-        { path: 'pii_detection.redaction_mode', value: config.redaction_mode },
-        { path: 'pii_detection.fallback_to_regex', value: config.fallback_to_regex },
-        { path: 'pii_detection.languages', value: config.languages }
-      ];
+      const payload = {
+        enabled: config.enabled,
+        confidenceThreshold: config.confidence_threshold,
+        enabledEntities: config.entities,
+        redactionMode: config.redaction_mode,
+        fallbackToRegex: config.fallback_to_regex,
+        languages: config.languages,
+        detectionMode: config.detection_mode,
+        contextEnhancement: config.context_enhancement,
+        redactionTokens: config.redaction_tokens || {},
+        etags: fileEtags
+      };
 
-      const changes = [{
-        file: 'unified_config.json',
-        payloadType: 'json' as const,
-        updates
-      }];
+      const result = await syncPiiConfig(payload);
+      if (result?.etags) {
+        setFileEtags(result.etags);
+      }
 
-      const changeTag = user.username;
-      const result = await saveChanges({ changes, spec, changeTag });
-
-      toast.success('PII configuration saved successfully');
-      await fetchConfig(); // Refresh to confirm
+      toast.success('PII configuration synchronized successfully');
+      await fetchConfig();
+      await runValidation();
     } catch (error: any) {
       console.error('Save error:', error);
       const errorMsg = error.conflict
-        ? 'File changed on disk — reload or force save.'
+        ? 'Configuration changed by another user — reload and try again.'
         : `Error: ${error.message}`;
       toast.error(errorMsg);
     } finally {
@@ -309,6 +345,23 @@ export function PIISettings() {
           </div>
         </div>
 
+        {/* Validation alerts */}
+        {validationError && (
+          <div className="rounded-lg border border-red-500 bg-red-900/30 p-4 text-sm text-red-100">
+            <div className="font-semibold mb-1">Configuration validation failed</div>
+            <div className="flex items-center justify-between">
+              <span>{validationError}</span>
+              <button
+                type="button"
+                onClick={runValidation}
+                className="px-3 py-1 text-xs font-medium rounded bg-red-500/20 border border-red-400 hover:bg-red-500/30"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Configuration Form */}
         <form onSubmit={handleSave} className="bg-slate-800/50 rounded-lg border border-slate-700 p-6 space-y-6">
           {/* Enable Toggle */}
@@ -418,12 +471,26 @@ export function PIISettings() {
                   onChange={(e) => setConfig({ ...config, fallback_to_regex: e.target.checked })}
                   className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                 />
-                <label htmlFor="fallback" className="text-slate-300">
+                <label htmlFor="fallback" className="text-slate-300 flex items-center gap-2">
                   Fallback to Regex Rules
+                  <span className="relative group cursor-help">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 p-3 bg-slate-700 border border-slate-600 rounded-lg text-xs text-slate-200 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
+                      <div className="font-semibold mb-1">⚠️ Limited Entity Detection in Fallback Mode</div>
+                      <div className="space-y-1 text-slate-300">
+                        <div>Without Presidio, only 13 regex patterns are available:</div>
+                        <div className="font-mono text-[10px] text-amber-200">EMAIL, PHONE, CREDIT_CARD, PESEL, NIP, REGON, IP_ADDRESS, URL, IBAN, SSN, etc.</div>
+                        <div className="mt-2 text-amber-200">Not available in fallback mode:</div>
+                        <div className="font-mono text-[10px]">PERSON, LOCATION, DATE_TIME, ORGANIZATION, MEDICAL_LICENSE, CRYPTO, AU_ABN, AU_ACN, AU_TFN, AU_MEDICARE, ES_NIF, FI_NIF, FR_NIR, IN_PAN, IT_CF, IT_IVA, SG_NRIC_FIN, UK_NHS, and 30+ other ML-based entities</div>
+                      </div>
+                    </div>
+                  </span>
                 </label>
               </div>
               <p className="text-xs text-text-secondary ml-8">
-                If Presidio API is offline, automatically use legacy regex patterns (13 rules)
+                If Presidio API is offline, automatically use legacy regex patterns (13 basic rules only)
               </p>
 
               <div>

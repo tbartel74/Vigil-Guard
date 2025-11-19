@@ -55,7 +55,7 @@ After installation completes:
 
 1. **Detection Phase**: `install.sh` detects if:
    - `.env` file doesn't exist (fresh install)
-   - Default passwords detected (`admin123`)
+   - Auto-generated passwords validation
    - Missing `SESSION_SECRET`
 
 2. **Password Generation Phase**:

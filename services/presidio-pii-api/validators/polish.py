@@ -17,7 +17,7 @@ References:
 """
 
 from typing import List, Optional
-import re
+import regex as re  # Use regex module for timeout support (ReDoS protection)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,11 @@ def validate_regon_14(regon: str) -> bool:
     References:
         https://www.gov.pl/web/kas/regon
     """
-    digits = extract_digits(regon)
+    try:
+        digits = extract_digits(regon)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_regon_14 rejected invalid input: {e}")
+        return False
 
     if len(digits) != 14:
         return False
@@ -341,7 +345,11 @@ def validate_pesel_date(pesel: str) -> Optional[dict]:
         >>> validate_pesel_date("99139912345")
         None  # Invalid date (month 99)
     """
-    digits = extract_digits(pesel)
+    try:
+        digits = extract_digits(pesel)
+    except (TypeError, ValueError) as e:
+        logger.debug(f"validate_pesel_date rejected invalid input: {e}")
+        return None
 
     if len(digits) != 11:
         return None
@@ -443,6 +451,31 @@ class ValidatedPatternRecognizer(PatternRecognizer):
         super().__init__(**kwargs)
         self.validator_func = validator_func
 
+    def _execute_validator(self, pattern_text, context="VALIDATE"):
+        """
+        Common validation logic extracted from both validate_result and invalidate_result.
+
+        Args:
+            pattern_text: The text matched by the regex pattern
+            context: Logging context (VALIDATE or INVALIDATE)
+
+        Returns:
+            bool: True if valid, False if invalid
+        """
+        # Date validators need original text (with dashes), phone validators need cleaned text
+        if 'date' in self.validator_func.__name__.lower():
+            validation_text = pattern_text  # Keep dashes for ISO date parsing
+        else:
+            validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
+
+        is_valid = self.validator_func(validation_text)
+        logger.info(f"[{context}] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' result={is_valid}")
+
+        if not is_valid:
+            logger.info(f"[REJECTED] {self.name}: '{pattern_text}' failed validation")
+
+        return is_valid
+
     def validate_result(self, pattern_text):
         """
         Override base class method - called BEFORE scoring.
@@ -455,17 +488,7 @@ class ValidatedPatternRecognizer(PatternRecognizer):
             Optional[bool]: None (use pattern score), True (boost to 1.0), or False (set to 0.0)
         """
         if self.validator_func:
-            # Date validators need original text (with dashes), phone validators need cleaned text
-            if 'date' in self.validator_func.__name__.lower():
-                validation_text = pattern_text  # Keep dashes for ISO date parsing
-            else:
-                validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
-
-            is_valid = self.validator_func(validation_text)
-            logger.info(f"[VALIDATE] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' result={is_valid}")
-            if not is_valid:
-                logger.info(f"[REJECTED] {self.name}: '{pattern_text}' failed validation")
-            return is_valid
+            return self._execute_validator(pattern_text, "VALIDATE")
         return None  # No validator = use pattern score
 
     def invalidate_result(self, pattern_text):
@@ -480,14 +503,7 @@ class ValidatedPatternRecognizer(PatternRecognizer):
             Optional[bool]: True to invalidate (reject), False/None to keep
         """
         if self.validator_func:
-            # Date validators need original text (with dashes), phone validators need cleaned text
-            if 'date' in self.validator_func.__name__.lower():
-                validation_text = pattern_text  # Keep dashes for ISO date parsing
-            else:
-                validation_text = pattern_text.replace('-', '').replace(' ', '')  # Clean for phone/numeric
-
-            is_valid = self.validator_func(validation_text)
-            logger.info(f"[INVALIDATE] {self.name}: pattern='{pattern_text}' validation_text='{validation_text}' is_valid={is_valid}")
+            is_valid = self._execute_validator(pattern_text, "INVALIDATE")
             # Return True if INVALID (to invalidate the result)
             should_invalidate = not is_valid
             if should_invalidate:

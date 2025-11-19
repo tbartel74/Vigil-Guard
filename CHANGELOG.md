@@ -2,6 +2,88 @@
 
 All notable changes to Vigil Guard will be documented in this file.
 
+## [1.8.1] - 2025-11-19
+
+### Fixed - PII Entity Disable Regression (CRITICAL)
+
+**REGRESSION #3**: Workflow entity filtering was incomplete - GUI disable/enable functionality completely non-functional
+
+#### Root Cause (Two-Phase Bug)
+
+1. **Phase 1 Bug** (Initial v3 fix): Created filtered entity lists but never assigned to API variables
+   - Workflow PII_Redactor_v2 node created `generalEntities` and `polishSpecificEntities` variables
+   - BUT never assigned them to `polishEntities`/`englishEntities` sent to Presidio API
+   - Result: Empty arrays `[]` sent to Presidio → Presidio used ALL entities as default
+
+2. **User Impact**:
+   - Disabling URL entity in GUI appeared to work (no detection) ✅
+   - Re-enabling URL entity didn't restore detection ❌
+   - Workflow sent empty arrays to Presidio regardless of GUI settings
+   - Privacy violation risk (PII leaked when user thought filtering was working)
+
+#### Fix Applied
+
+**File**: `services/workflow/workflows/Vigil Guard v1.8.1.json`
+**Node**: `PII_Redactor_v2` (jsCode lines 596-607)
+
+```javascript
+// Phase 2 Fix: Assign filtered entities to API call variables
+polishEntities = [...polishSpecificEntities, ...generalEntities];
+englishEntities = [...generalEntities, 'PERSON'];
+
+console.log(`📤 Entities to Presidio → Polish: ${polishEntities.length} types, English: ${englishEntities.length} types`);
+```
+
+#### Related Fixes
+
+1. **Backend Two-Tier Storage** (REGRESSION #2 fix):
+   - File: `services/web-ui/backend/src/piiConfigSync.ts` (lines 196-255)
+   - Function: `buildPiiConfUpdates()` now preserves disabled rules in `__all_rules`
+   - Docker backend rebuild required (was using cached image without new code)
+
+2. **Complete Fix Chain**:
+   - ✅ Backend: Two-tier storage preserves disabled rules in `pii.conf`
+   - ✅ Config files: Filtering works correctly (`unified_config.json`, `pii.conf`)
+   - ✅ Workflow: Entity filtering reads config AND assigns to API variables
+   - 🎯 Result: GUI disable/enable button now FULLY FUNCTIONAL
+
+#### Deployment Requirements
+
+**CRITICAL: Manual workflow re-import required**
+
+1. **Rebuild backend** (if not already done):
+   ```bash
+   docker-compose build --no-cache web-ui-backend
+   docker-compose up -d web-ui-backend
+   ```
+
+2. **Import updated workflow to n8n** (CRITICAL!):
+   - Open: http://localhost:5678
+   - Menu (≡) → "Import from File"
+   - Select: `services/workflow/workflows/Vigil Guard v1.8.1.json`
+   - Activate workflow (toggle ON)
+
+3. **Verify entity filtering**:
+   ```bash
+   # Disable URL in GUI: http://localhost/ui/config/pii
+   # Test via n8n Chat: "Visit www.example.com"
+
+   # Check ClickHouse logs
+   docker exec vigil-clickhouse clickhouse-client --query="
+     SELECT pii_types_detected, original_input
+     FROM n8n_logs.events_processed
+     ORDER BY timestamp DESC LIMIT 1
+   "
+   # Expected: pii_types_detected=[] (empty, URL NOT detected)
+   ```
+
+#### Documentation
+
+- **REGRESSION_FIXES_v3_WORKFLOW.md** - Complete analysis and verification steps
+- **REGRESSION_FIXES_v2.md** - Two-tier storage background (REGRESSION #2)
+
+---
+
 ## [1.8.1] - 2025-11-15
 
 ### Added - Production-Grade PII Detection

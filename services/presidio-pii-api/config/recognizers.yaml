@@ -481,6 +481,8 @@ recognizers:
   - name: US_SSN_STRICT
     supported_language: en
     supported_entity: US_SSN
+    context_required: true
+    context_window: 30
     validator_class: ValidatedPatternRecognizer
     validator_func: validate_us_ssn
     patterns:
@@ -507,6 +509,8 @@ recognizers:
   - name: UK_NHS_ENHANCED
     supported_language: en
     supported_entity: UK_NHS
+    context_required: true
+    context_window: 30
     validator_class: ValidatedPatternRecognizer
     validator_func: validate_uk_nhs
     patterns:
@@ -549,12 +553,14 @@ recognizers:
   - name: CA_SIN_ENHANCED
     supported_language: en
     supported_entity: CA_SIN
+    context_required: true
+    context_window: 30
     validator_class: ValidatedPatternRecognizer
     validator_func: validate_ca_sin
     patterns:
       - name: sin_grouped
         regex: '\b\d{3}[-\s]?\d{3}[-\s]?\d{3}\b'
-        score: 0.60
+        score: 0.45
     context:
       - "sin"
       - "canada"
@@ -570,6 +576,8 @@ recognizers:
   - name: AU_MEDICARE_NUMBER
     supported_language: en
     supported_entity: AU_MEDICARE
+    context_required: true
+    context_window: 30
     validator_class: ValidatedPatternRecognizer
     validator_func: validate_au_medicare
     patterns:
@@ -591,6 +599,8 @@ recognizers:
   - name: AU_TFN_NUMBER
     supported_language: en
     supported_entity: AU_TFN
+    context_required: true
+    context_window: 30
     validator_class: ValidatedPatternRecognizer
     validator_func: validate_au_tfn
     patterns:

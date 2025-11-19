@@ -237,8 +237,20 @@ curl http://localhost:5001/health
       "PL_ID_CARD",
       "CREDIT_CARD",
       "IBAN_CODE",
+      "US_SSN",
+      "UK_NHS",
+      "CA_SIN",
+      "AU_MEDICARE",
+      "AU_TFN",
+      "UK_NINO",
+      "US_PASSPORT",
+      "US_DRIVER_LICENSE",
+      "PASSPORT",
+      "DATE_TIME",
       "IP_ADDRESS",
-      "URL"
+      "URL",
+      "LOCATION",
+      "ORGANIZATION"
     ]
   }
 }
@@ -246,12 +258,58 @@ curl http://localhost:5001/health
 
 **Categories**:
 - **Contact**: EMAIL_ADDRESS, PHONE_NUMBER
-- **Identity**: PERSON, PL_PESEL, PL_ID_CARD
-- **Business**: PL_NIP, PL_REGON
+- **Identity - Polish**: PERSON, PL_PESEL, PL_ID_CARD
+- **Business - Polish**: PL_NIP, PL_REGON
 - **Financial**: CREDIT_CARD, IBAN_CODE
+- **Identity - International**: US_SSN, UK_NHS, CA_SIN, AU_MEDICARE, AU_TFN, UK_NINO, US_PASSPORT, US_DRIVER_LICENSE, PASSPORT
+- **Other**: DATE_TIME, LOCATION, ORGANIZATION
 - **Technical**: IP_ADDRESS, URL
 
-**Note**: `PERSON` requires NLP (spaCy) and may have lower confidence.
+**Note**: `PERSON`, `LOCATION`, `ORGANIZATION` require NLP (spaCy) and may have lower confidence.
+
+#### 3.1. Presidio-Only Entities (No Regex Fallback)
+
+Some entity types work **exclusively with Presidio ML models** and do not have regex fallback patterns in `pii.conf`:
+
+- **PERSON**: Detected using spaCy NER models (SmartPersonRecognizer in v1.8.1+)
+- **IP_ADDRESS**: Detected using Presidio's built-in IP address recognizer
+
+**Key Characteristics**:
+- These entities are stored in `pii.conf.__all_rules` as placeholders with pattern `(?!)` (never matches)
+- They will **never** appear in `pii.conf.rules` (active regex rules used by workflow)
+- They are enabled/disabled through the GUI like other entities
+- When Presidio is offline, these entities will **not be detected** (no fallback)
+- The validation endpoint filters them out when checking for configuration desync
+
+**Why This Design?**:
+- PERSON detection requires NLP context awareness (spaCy models) - impossible with regex
+- IP_ADDRESS has complex validation logic better handled by Presidio's built-in recognizer
+- Regex fallbacks for these would have high false positive rates (>30%)
+
+**Configuration Example**:
+```json
+// unified_config.json
+{
+  "pii_detection": {
+    "entities": ["EMAIL_ADDRESS", "PERSON", "IP_ADDRESS"]
+  }
+}
+
+// pii.conf (automatic sync)
+{
+  "rules": [
+    // EMAIL_ADDRESS has regex fallback
+    {"name": "EMAIL", "target_entity": "EMAIL_ADDRESS", "pattern": "..."}
+    // PERSON and IP_ADDRESS are NOT here (Presidio-only)
+  ],
+  "__all_rules": [
+    // All entities stored here (including Presidio-only)
+    {"name": "EMAIL", "target_entity": "EMAIL_ADDRESS", ...},
+    {"name": "PERSON_PRESIDIO", "target_entity": "PERSON", "pattern": "(?!)", "presidio_only": true},
+    {"name": "IP_ADDRESS_PRESIDIO", "target_entity": "IP_ADDRESS", "pattern": "(?!)", "presidio_only": true}
+  ]
+}
+```
 
 #### 4. Redaction Mode
 

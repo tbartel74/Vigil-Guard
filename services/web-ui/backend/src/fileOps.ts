@@ -185,7 +185,7 @@ export async function saveChanges(args: {
     | { file: string; payloadType: "conf"; updates: Array<{ section: string | null; key: string; value: string }> }
   >;
   changeTag: string;
-  ifMatch?: string;
+  ifMatch?: string | Record<string, string>;
   validate?: (file: string, updates: any[]) => { ok: boolean; errors?: string[] };
   author?: string;
 }): Promise<{ results: Array<{ file: string; backupPath: string; etag: string }> }> {
@@ -198,9 +198,13 @@ export async function saveChanges(args: {
 
   for (const change of args.changes) {
     const file = await readFileRaw(change.file);
-    if (args.ifMatch && args.ifMatch !== file.etag) {
+    const expectedEtag =
+      typeof args.ifMatch === "object"
+        ? args.ifMatch?.[change.file]
+        : args.ifMatch;
+    if (expectedEtag && expectedEtag !== file.etag) {
       const err = new Error(`ETag mismatch for ${change.file}`) as any;
-      err.code = "ETAG_MISMATCH"; err.expected = args.ifMatch; err.actual = file.etag; throw err;
+      err.code = "ETAG_MISMATCH"; err.expected = expectedEtag; err.actual = file.etag; throw err;
     }
     if (args.validate) {
       const v = args.validate(change.file, (change as any).updates);
@@ -252,6 +256,11 @@ export async function saveChanges(args: {
   });
 
   return { results };
+}
+
+export async function restoreFileFromBackup(file: string, backupPath: string): Promise<void> {
+  const targetPath = resolveSafe(file);
+  await fs.copyFile(backupPath, targetPath);
 }
 
 async function appendAudit(entry: { file: string; backup: string; tag: string; result: string }) {
