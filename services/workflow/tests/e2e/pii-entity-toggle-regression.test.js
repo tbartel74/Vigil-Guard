@@ -12,15 +12,42 @@
  * @see https://github.com/tbartel74/Vigil-Guard/pull/53
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import { sendAndVerify, waitForClickHouseEvent } from '../helpers/webhook.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { sendAndVerify, disablePiiEntity, enablePiiEntity } from '../helpers/webhook.js';
 
 describe('PII Entity Toggle Regression (CRITICAL)', () => {
   const sessionId = `pii-toggle-test-${Date.now()}`;
+  let urlWasEnabled = false;
 
   beforeAll(async () => {
     // Wait for services to be ready
     await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // CRITICAL: Disable URL entity via API to set known state
+    // This ensures test works on clean environments where URL is enabled by default
+    try {
+      await disablePiiEntity('URL');
+      urlWasEnabled = true; // Remember to restore later
+      console.log('✅ Test setup: URL entity disabled via API');
+    } catch (error) {
+      console.warn(`⚠️  Failed to disable URL entity: ${error.message}`);
+      throw new Error('Cannot set test preconditions - backend API unavailable');
+    }
+
+    // Wait for config sync to take effect
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  });
+
+  afterAll(async () => {
+    // Restore URL entity if we disabled it
+    if (urlWasEnabled) {
+      try {
+        await enablePiiEntity('URL');
+        console.log('✅ Test cleanup: URL entity restored');
+      } catch (error) {
+        console.warn(`⚠️  Failed to restore URL entity: ${error.message}`);
+      }
+    }
   });
 
   /**
@@ -53,18 +80,22 @@ describe('PII Entity Toggle Regression (CRITICAL)', () => {
   /**
    * Test Case 2: URL entity RE-ENABLED
    *
-   * Expected behavior (after user enables URL in GUI):
+   * Expected behavior (after re-enabling URL):
    * - Presidio SHOULD detect URL
    * - Regex fallback SHOULD detect URL
    * - Output should have [URL] redaction token
    *
-   * NOTE: This test requires MANUAL GUI action:
-   * 1. Navigate to http://localhost/ui/config/pii
-   * 2. Check "URL" checkbox
-   * 3. Click "Save Configuration"
-   * 4. Run this test
+   * This test programmatically enables URL via API, verifies detection,
+   * then disables it again for subsequent tests. No manual GUI action needed.
    */
-  it.skip('should DETECT URL when entity is re-enabled in GUI (MANUAL: enable URL first)', async () => {
+  it('should DETECT URL when entity is re-enabled via API', async () => {
+    // Re-enable URL entity
+    await enablePiiEntity('URL');
+    console.log('✅ URL entity re-enabled via API');
+
+    // Wait for config sync
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     const testMessage = 'Visit https://another-example.com for details';
     const testSessionId = `${sessionId}-enabled`;
 
@@ -85,6 +116,10 @@ describe('PII Entity Toggle Regression (CRITICAL)', () => {
     expect(event.final_status).toBe('SANITIZED');
 
     console.log(`✅ URL entity enabled: ${event.after_pii_redaction}`);
+
+    // Disable again for subsequent tests
+    await disablePiiEntity('URL');
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }, 30000);
 
   /**

@@ -134,6 +134,19 @@ export async function syncPiiConfig(
 
   if (skipPresidioNotify) {
     console.warn("[PII Config Sync] SKIPPING Presidio hot reload (SKIP_PRESIDIO_NOTIFY=1)");
+
+    // CRITICAL: Fail hard when Presidio notify is skipped
+    // Without this, GUI shows "Configuration synchronized successfully" while Presidio
+    // stays stuck on previous mode/context forever. Operators must know sync is incomplete.
+    await rollbackFiles(result.results);
+
+    const skipError = new Error(
+      'Presidio configuration update skipped (SKIP_PRESIDIO_NOTIFY=1 is set). ' +
+      'This setting is for local testing only and should NEVER be enabled in production. ' +
+      'Configuration files have been rolled back. Remove SKIP_PRESIDIO_NOTIFY to sync.'
+    );
+    (skipError as any).code = "PRESIDIO_NOTIFY_SKIPPED";
+    throw skipError;
   } else {
     try {
       await notifyPresidio(detectionMode, contextEnhancement);

@@ -480,5 +480,117 @@ export async function verifyClickHouseLog(originalInput) {
   }
 }
 
+/**
+ * Login to Web UI backend and get JWT token
+ * @returns {Promise<string>} JWT token
+ */
+export async function loginToBackend() {
+  const password = process.env.WEB_UI_ADMIN_PASSWORD;
+  if (!password) {
+    throw new Error('WEB_UI_ADMIN_PASSWORD not set in .env file');
+  }
+
+  const response = await fetch('http://localhost:8787/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Login failed: HTTP ${response.status}\n${text}`);
+  }
+
+  const data = await response.json();
+  return data.token;
+}
+
+/**
+ * Get current PII configuration from backend
+ * @param {string} token - JWT token
+ * @returns {Promise<{entities: string[], etags: Object}>}
+ */
+export async function getPiiConfig(token) {
+  const response = await fetch('http://localhost:8787/api/pii-detection/status', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get PII config: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    entities: data.config?.entities || [],
+    etags: data.etags || {}
+  };
+}
+
+/**
+ * Update PII entity configuration via backend API
+ * @param {string} token - JWT token
+ * @param {string[]} entities - List of enabled entity types
+ * @param {Object} etags - Current etags for optimistic locking
+ * @returns {Promise<Object>} Updated configuration
+ */
+export async function updatePiiEntities(token, entities, etags) {
+  const response = await fetch('http://localhost:8787/api/pii-detection/save-config', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ enabledEntities: entities, etags })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to update PII entities: HTTP ${response.status}\n${text}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Disable a specific PII entity type
+ * @param {string} entityType - Entity type to disable (e.g., 'URL', 'EMAIL_ADDRESS')
+ * @returns {Promise<void>}
+ */
+export async function disablePiiEntity(entityType) {
+  const token = await loginToBackend();
+  const { entities, etags } = await getPiiConfig(token);
+
+  // Remove entity if present
+  const updatedEntities = entities.filter(e => e !== entityType);
+
+  if (updatedEntities.length === entities.length) {
+    console.log(`Entity ${entityType} was already disabled`);
+    return;
+  }
+
+  await updatePiiEntities(token, updatedEntities, etags);
+  console.log(`✅ Disabled PII entity: ${entityType}`);
+}
+
+/**
+ * Enable a specific PII entity type
+ * @param {string} entityType - Entity type to enable (e.g., 'URL', 'EMAIL_ADDRESS')
+ * @returns {Promise<void>}
+ */
+export async function enablePiiEntity(entityType) {
+  const token = await loginToBackend();
+  const { entities, etags } = await getPiiConfig(token);
+
+  // Add entity if not present
+  if (entities.includes(entityType)) {
+    console.log(`Entity ${entityType} was already enabled`);
+    return;
+  }
+
+  const updatedEntities = [...entities, entityType];
+  await updatePiiEntities(token, updatedEntities, etags);
+  console.log(`✅ Enabled PII entity: ${entityType}`);
+}
+
 // Backwards compatibility for auto-generated tests that still import sendToWebhook
 export { sendToWorkflow as sendToWebhook };

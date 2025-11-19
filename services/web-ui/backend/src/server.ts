@@ -465,7 +465,20 @@ app.post("/api/pii-detection/save-config", authenticate, requireConfigurationAcc
   }
 });
 
-const PRESIDIO_ONLY_ENTITIES = new Set(['PERSON', 'IP_ADDRESS']);
+/**
+ * Extract Presidio-only entities from pii.conf
+ * These are entities marked with presidio_only: true flag in __all_rules
+ * Dynamically derived from config file to avoid hardcoded duplication
+ */
+function getPresidioOnlyEntities(piiConfData: any): Set<string> {
+  const allRules: any[] = Array.isArray(piiConfData?.__all_rules) ? piiConfData.__all_rules : [];
+  const presidioOnlyEntities = allRules
+    .filter(rule => rule?.presidio_only === true)
+    .map(rule => rule?.target_entity)
+    .filter(Boolean);
+
+  return new Set(presidioOnlyEntities);
+}
 
 app.get("/api/pii-detection/validate-config", authenticate, requireConfigurationAccess, async (_req, res) => {
   try {
@@ -475,6 +488,11 @@ app.get("/api/pii-detection/validate-config", authenticate, requireConfiguration
     const piiConfFile = await parseFile("pii.conf");
     const piiConfRules: any[] = Array.isArray(piiConfFile.parsed?.rules) ? piiConfFile.parsed.rules : [];
     const piiConfEntities = [...new Set(piiConfRules.map((rule) => rule?.target_entity).filter(Boolean))];
+
+    // CRITICAL: Derive Presidio-only entities from pii.conf instead of hardcoding
+    // This eliminates duplication between backend validation and workflow logic
+    // Single source of truth: pii.conf.__all_rules[].presidio_only flag
+    const PRESIDIO_ONLY_ENTITIES = getPresidioOnlyEntities(piiConfFile.parsed);
 
     const unifiedSet = new Set(unifiedEntities);
     const piiConfSet = new Set(piiConfEntities);
