@@ -5,7 +5,7 @@ Generic format validators used to cut obvious false positives.
 from __future__ import annotations
 
 import logging
-import re
+import regex as re  # Use regex module for timeout support (ReDoS protection)
 
 from .polish import extract_digits
 

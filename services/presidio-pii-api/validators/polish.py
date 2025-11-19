@@ -17,7 +17,7 @@ References:
 """
 
 from typing import List, Optional
-import re
+import regex as re  # Use regex module for timeout support (ReDoS protection)
 import logging
 
 logger = logging.getLogger(__name__)

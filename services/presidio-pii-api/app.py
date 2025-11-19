@@ -321,17 +321,23 @@ def load_custom_recognizers(yaml_path: str) -> List[PatternRecognizer]:
                     raise ValueError(f"Regex pattern exceeds maximum length of 500 characters")
 
                 # Check for dangerous nested quantifiers (ReDoS risk)
-                import re as regex_module
-                if regex_module.search(r'\([^)]*[*+]\)[*+]', regex_str):
+                import regex as regex_module
+                if regex_module.search(r'\([^)]*[*+]\)[*+]', regex_str, timeout=0.1):
                     logger.warning(f"Potentially dangerous nested quantifiers in {name}: {regex_str}")
                     raise ValueError(f"Regex contains nested quantifiers which may cause ReDoS")
 
-                # Test regex compilation with timeout
+                # Test regex compilation and execution with timeout (200ms ReDoS protection)
                 try:
-                    regex_module.compile(regex_str)
+                    test_pattern = regex_module.compile(regex_str)
+                    # Test execution with pathological input to detect ReDoS
+                    test_input = 'a' * 100 + '!'
+                    test_pattern.search(test_input, timeout=0.2)
                 except regex_module.error as e:
                     logger.error(f"Invalid regex in {name}: {e}")
                     raise ValueError(f"Invalid regex pattern: {e}")
+                except TimeoutError:
+                    logger.error(f"Regex execution timeout in {name} (>200ms): {regex_str[:100]}...")
+                    raise ValueError(f"Regex pattern causes timeout (potential ReDoS)")
 
                 pattern = Pattern(
                     name=pattern_config['name'],
