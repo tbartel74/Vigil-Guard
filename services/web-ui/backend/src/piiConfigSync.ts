@@ -209,7 +209,8 @@ function validatePayload(payload: PiiConfigUpdatePayload): string[] {
 
       // Security check: XSS protection via whitelist (allows Polish diacritics)
       // Allowed: letters (including ąćęłńóśźż), digits, space, _-()[]*, .
-      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
+      // Polish chars: ó/Ó (\u00D3, \u00F3) + rest (\u0104-\u017C)
+      const SAFE_TOKEN_REGEX = /^[A-Za-z0-9\u00D3\u00F3\u0104-\u017C _\-\[\]\(\)\*\.]+$/;
       if (!SAFE_TOKEN_REGEX.test(token)) {
         errors.push(
           `Redaction token for ${entity} contains unsafe characters. ` +
