@@ -116,7 +116,8 @@
       "CREDIT_CARD",
       "PL_REGON",
       "PL_PESEL",
-      "PHONE_NUMBER"
+      "PHONE_NUMBER",
+      "URL"
     ],
     "languages": [
       "pl",

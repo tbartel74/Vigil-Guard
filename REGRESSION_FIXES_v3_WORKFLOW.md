@@ -58,43 +58,75 @@ Row 1:
 
 ---
 
-### Root Cause Analysis
+### Root Cause Analysis (UPDATED - Nov 19, 2025)
 
 **File:** `services/workflow/workflows/Vigil Guard v1.8.1.json`
-**Node:** `PII_Redactor_v2` (Code node, line 571-647 in jsCode)
+**Node:** `PII_Redactor_v2` (Code node, lines 558-595 in jsCode)
 
-**Buggy Code:**
+**Initial Buggy Code (v3 first attempt):**
 ```javascript
-// Line 571-572: HARDCODED entity lists
-const generalEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', 'PHONE_NUMBER',
-                        'IBAN_CODE', 'IP_ADDRESS', 'URL', ...];  // ← URL always included!
-const polishSpecificEntities = ['PL_PESEL', 'PL_NIP', 'PL_REGON', ...];
+// Lines 558-559: Empty arrays initialized
+let polishEntities = [];
+let englishEntities = [];
 
-// Lines 633-646: Build Presidio entity lists from hardcoded arrays
-if (shouldCallPolish) {
-  polishEntities = [...polishSpecificEntities, ...generalEntities];  // ← Uses hardcoded list
-}
+// Lines 577-591: Filter entity lists from config
+const enabledEntities = Array.isArray(piiConfig.entities) && piiConfig.entities.length > 0
+  ? piiConfig.entities
+  : null;
 
-if (shouldCallEnglish) {
-  englishEntities = [...generalEntities, 'PERSON'];  // ← Uses hardcoded list
-}
+const generalEntities = enabledEntities
+  ? availableGeneralEntities.filter(e => enabledEntities.includes(e))
+  : availableGeneralEntities;
+
+const polishSpecificEntities = enabledEntities
+  ? availablePolishSpecificEntities.filter(e => enabledEntities.includes(e))
+  : availablePolishSpecificEntities;
+
+// ❌ BUG: Variables created but NEVER ASSIGNED to polishEntities/englishEntities!
+// Lines 631-652: Presidio API calls use EMPTY ARRAYS
+polishEntities = [];  // ← Still empty!
+englishEntities = [];  // ← Still empty!
 ```
 
-**What Should Happen:**
-```javascript
-// Read from config (line 529):
-const piiConfig = j.config?.pii_detection || {};
+**Why Empty Arrays Cause Detection:**
+When Presidio receives `entities: []` (empty array), it interprets this as **"use ALL available entities"** (default behavior). This is why URL was still detected even when disabled in GUI.
 
-// Filter based on piiConfig.entities (unified_config.json):
-const enabledEntities = piiConfig.entities;  // ["EMAIL_ADDRESS", "PERSON", ...]
-const filteredEntities = availableEntities.filter(e => enabledEntities.includes(e));
+**Correct Implementation (v3 final):**
+```javascript
+// Lines 558-559: Initialize empty arrays
+let polishEntities = [];
+let englishEntities = [];
+
+// Lines 577-595: Filter entity lists from unified_config.json
+const enabledEntities = Array.isArray(piiConfig.entities) && piiConfig.entities.length > 0
+  ? piiConfig.entities
+  : null;
+
+const availableGeneralEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', ..., 'URL', ...];
+const availablePolishSpecificEntities = ['PL_PESEL', 'PL_NIP', ...];
+
+const generalEntities = enabledEntities
+  ? availableGeneralEntities.filter(e => enabledEntities.includes(e))
+  : availableGeneralEntities;
+
+const polishSpecificEntities = enabledEntities
+  ? availablePolishSpecificEntities.filter(e => enabledEntities.includes(e))
+  : availablePolishSpecificEntities;
+
+// ✅ FIX: ASSIGN filtered entities to API call variables
+polishEntities = [...polishSpecificEntities, ...generalEntities];
+englishEntities = [...generalEntities, 'PERSON'];
+
+console.log(`📤 Entities to Presidio → Polish: ${polishEntities.length} types, English: ${englishEntities.length} types`);
 ```
 
 **Why This Matters:**
-- Backend PII config sync works correctly (writes to unified_config.json, pii.conf)
-- Two-tier storage (REGRESSION #2 fix) works correctly (preserves disabled rules)
-- **BUT workflow never reads the config!** (uses hardcoded list instead)
-- Result: GUI disable button is **cosmetic** (no effect on actual detection)
+- ✅ Backend PII config sync works correctly (writes to unified_config.json, pii.conf)
+- ✅ Two-tier storage (REGRESSION #2 fix) works correctly (preserves disabled rules)
+- ✅ Workflow reads config and creates filtered entity lists
+- ❌ **BUT v3 first attempt forgot to ASSIGN filtered lists to API variables!**
+- ❌ Result: Empty arrays sent to Presidio → Presidio used ALL entities as default
+- ✅ **v3 final fix:** Assign filtered lists to `polishEntities`/`englishEntities`
 
 ---
 
@@ -122,53 +154,61 @@ const filteredEntities = availableEntities.filter(e => enabledEntities.includes(
 
 ---
 
-### Fix Applied (v1.8.1)
+### Fix Applied (v1.8.1 - Two-Phase Fix)
 
-**Commit:** `fix(workflow): read enabled entities from unified_config.json`
+**Commits:**
+1. `fix(workflow): read enabled entities from unified_config.json` (Phase 1 - INCOMPLETE)
+2. `fix(workflow): assign filtered entities to Presidio API variables` (Phase 2 - COMPLETE)
 
 **Changes:**
 
 **File:** `services/workflow/workflows/Vigil Guard v1.8.1.json`
-**Node:** `PII_Redactor_v2` (jsCode lines 571-597)
+**Node:** `PII_Redactor_v2` (jsCode lines 558-607)
 
-**Before:**
+**Phase 1 - Create Filtered Lists (INCOMPLETE):**
 ```javascript
-const generalEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', ...];  // Hardcoded
-const polishSpecificEntities = ['PL_PESEL', ...];  // Hardcoded
-```
-
-**After:**
-```javascript
-// Read enabled entities from unified_config.json
+// Lines 577-595: Filter entity lists from config
 const enabledEntities = Array.isArray(piiConfig.entities) && piiConfig.entities.length > 0
   ? piiConfig.entities
-  : null;  // null = all entities enabled (backward compatibility)
+  : null;
 
-// Define available entity types (superset)
-const availableGeneralEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', ...];
-const availablePolishSpecificEntities = ['PL_PESEL', ...];
+const availableGeneralEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', ..., 'URL', ...];
+const availablePolishSpecificEntities = ['PL_PESEL', 'PL_NIP', ...];
 
-// Filter based on enabled entities
 const generalEntities = enabledEntities
   ? availableGeneralEntities.filter(e => enabledEntities.includes(e))
-  : availableGeneralEntities;  // No filter if null
+  : availableGeneralEntities;
 
 const polishSpecificEntities = enabledEntities
   ? availablePolishSpecificEntities.filter(e => enabledEntities.includes(e))
   : availablePolishSpecificEntities;
 
-// Debug logging (visible in n8n execution logs)
 console.log(`✅ Entity filtering: ${enabledEntities ? JSON.stringify({enabled: enabledEntities.slice(0, 5), total: enabledEntities.length}) : 'all entities (no filter)'}`);
 console.log(`   → General entities: ${generalEntities.length}/${availableGeneralEntities.length} types`);
 console.log(`   → Polish-specific: ${polishSpecificEntities.length}/${availablePolishSpecificEntities.length} types`);
 ```
 
+**Phase 2 - Assign to API Variables (COMPLETE FIX):**
+```javascript
+// Lines 596-607: ASSIGN filtered entities to API call variables
+// BUG FIX: Previous code created generalEntities and polishSpecificEntities
+// but never assigned them to polishEntities/englishEntities variables!
+// Result: Empty arrays sent to Presidio → Presidio used ALL entities as default
+
+// Build entity lists for each language based on filtered sets
+polishEntities = [...polishSpecificEntities, ...generalEntities];
+englishEntities = [...generalEntities, 'PERSON'];  // PERSON routed based on language
+
+console.log(`📤 Entities to Presidio → Polish: ${polishEntities.length} types, English: ${englishEntities.length} types`);
+```
+
 **Key Features:**
 1. ✅ Reads from `piiConfig.entities` (unified_config.json)
 2. ✅ Filters both `generalEntities` and `polishSpecificEntities`
-3. ✅ Backward compatibility (null = all entities, for old configs)
-4. ✅ Debug logging (shows filtered entity counts in n8n logs)
-5. ✅ Preserves existing logic (language detection, PERSON routing)
+3. ✅ **Assigns filtered lists to `polishEntities`/`englishEntities`** (Phase 2 fix)
+4. ✅ Backward compatibility (null = all entities, for old configs)
+5. ✅ Debug logging (shows filtered entity counts + entities sent to Presidio)
+6. ✅ Preserves existing logic (language detection, PERSON routing)
 
 ---
 
