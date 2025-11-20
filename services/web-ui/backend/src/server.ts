@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import session from "express-session";
+import rateLimit from "express-rate-limit";
 import fs from "fs";
 import path from "path";
 import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getVersionDetails, rollbackToVersion } from "./fileOps.js";
@@ -19,6 +20,15 @@ const PORT = 8787;
 
 // Trust first proxy (Caddy) for correct client IP detection
 app.set('trust proxy', 1);
+
+// Rate limiting to protect feedback endpoints from abuse
+const qualityFeedbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 20, // max reports per IP in window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many feedback reports, please try again later" },
+});
 
 // Validate SESSION_SECRET is set (CRITICAL SECURITY REQUIREMENT)
 if (!process.env.SESSION_SECRET) {
@@ -709,7 +719,7 @@ app.get("/api/prompts/:id", authenticate, async (req, res) => {
 });
 
 // Quality Feedback endpoints (FP & TP) - requires authentication
-app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
+app.post("/api/feedback/false-positive", authenticate, qualityFeedbackLimiter, async (req, res) => {
   try {
     const { event_id, report_type, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
     const reported_by = (req as any).user?.username || 'unknown';
@@ -724,6 +734,12 @@ app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Invalid report_type. Must be 'FP' or 'TP'" });
     }
 
+    // Validate threat_score type when provided
+    const parsedThreatScore = threat_score === undefined ? undefined : Number(threat_score);
+    if (parsedThreatScore !== undefined && Number.isNaN(parsedThreatScore)) {
+      return res.status(400).json({ error: "Invalid threat_score. Must be a number" });
+    }
+
     // Submit the report (defaults to 'FP' if report_type not provided)
     const success = await submitFalsePositiveReport({
       event_id,
@@ -734,7 +750,7 @@ app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
       event_timestamp,
       original_input,
       final_status,
-      threat_score
+      threat_score: parsedThreatScore
     });
 
     if (success) {
@@ -750,7 +766,7 @@ app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
 });
 
 // True Positive endpoint (alias for backward compatibility and clarity)
-app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
+app.post("/api/feedback/true-positive", authenticate, qualityFeedbackLimiter, async (req, res) => {
   try {
     const { event_id, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
     const reported_by = (req as any).user?.username || 'unknown';
@@ -758,6 +774,12 @@ app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
     // Validate required fields
     if (!event_id || !reason) {
       return res.status(400).json({ error: "Missing required fields: event_id, reason" });
+    }
+
+    // Validate threat_score type when provided
+    const parsedThreatScore = threat_score === undefined ? undefined : Number(threat_score);
+    if (parsedThreatScore !== undefined && Number.isNaN(parsedThreatScore)) {
+      return res.status(400).json({ error: "Invalid threat_score. Must be a number" });
     }
 
     // Submit the report with report_type = 'TP'
@@ -770,7 +792,7 @@ app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
       event_timestamp,
       original_input,
       final_status,
-      threat_score
+      threat_score: parsedThreatScore
     });
 
     if (success) {
@@ -785,7 +807,7 @@ app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
 });
 
 // Unified quality report endpoint (FP & TP) - NEW for PromptAnalyzer
-app.post("/api/feedback/submit", authenticate, async (req, res) => {
+app.post("/api/feedback/submit", authenticate, qualityFeedbackLimiter, async (req, res) => {
   try {
     const { event_id, report_type, reason, comment, report_id: providedReportId } = req.body;
     const reported_by = (req as any).user?.username || 'unknown';
