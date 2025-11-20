@@ -19,9 +19,8 @@ RUN npm install
 # Copy source files
 COPY ./services/web-ui/frontend .
 
-# Copy documentation from repository root to public directory
-# This ensures docs are always up-to-date in the container
-COPY ./docs ./public/docs
+# Documentation is synced separately via prepare-docs script during build
+# The docs are already in public/docs from the source copy
 
 # Build for production
 RUN npm run build

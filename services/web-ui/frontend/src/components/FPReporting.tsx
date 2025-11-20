@@ -22,6 +22,7 @@ export default function FPReporting() {
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   // Search filters
+  const [filterReportType, setFilterReportType] = useState<'FP' | 'TP' | 'ALL'>('ALL');
   const [filterReason, setFilterReason] = useState<string>('');
   const [filterReporter, setFilterReporter] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
@@ -42,7 +43,7 @@ export default function FPReporting() {
     } else if (activeTab === 'analytics') {
       loadAnalyticsData();
     }
-  }, [activeTab, timeRange, currentPage, filterReason, filterReporter, filterStartDate, filterEndDate, filterMinScore, filterMaxScore]);
+  }, [activeTab, timeRange, currentPage, filterReportType, filterReason, filterReporter, filterStartDate, filterEndDate, filterMinScore, filterMaxScore]);
 
   const loadOverviewData = async () => {
     setIsLoading(true);
@@ -70,6 +71,7 @@ export default function FPReporting() {
       const params: api.FPReportListParams = {
         page: currentPage,
         pageSize,
+        reportType: filterReportType,
         sortBy: 'report_timestamp',
         sortOrder: 'DESC',
       };
@@ -117,64 +119,150 @@ export default function FPReporting() {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToCSV = async () => {
     if (reports.length === 0) return;
 
-    // CSV Header
-    const headers = [
-      'Report ID',
-      'Event ID',
-      'Reported By',
-      'Reason',
-      'Comment',
-      'Report Timestamp',
-      'Event Timestamp',
-      'Final Status',
-      'Threat Score',
-      'Decision Reason',
-      'Detected Categories',
-      'Sanitizer Score',
-      'PG Score %'
-    ];
+    // Show loading state (optional - could add a loading indicator)
+    const originalText = 'Generating CSV with full decision analysis...';
 
-    // CSV Rows
-    const rows = reports.map(report => [
-      report.report_id,
-      report.event_id,
-      report.reported_by,
-      report.reason,
-      `"${(report.comment || '').replace(/"/g, '""')}"`, // Escape quotes
-      new Date(report.report_timestamp).toISOString(),
-      new Date(report.event_timestamp).toISOString(),
-      report.final_status,
-      report.threat_score.toFixed(2),
-      `"${(report.decision_reason || '').replace(/"/g, '""')}"`,
-      `"${report.detected_categories.join(', ')}"`,
-      report.sanitizer_score,
-      report.pg_score_percent.toFixed(2)
-    ]);
+    try {
+      // Fetch detailed data for all reports
+      const detailedReports = await Promise.all(
+        reports.map(report => api.getFPReportDetails(report.report_id))
+      );
 
-    // Combine into CSV string
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+      // CSV Header (comprehensive with all decision analysis fields)
+      const headers = [
+        // Basic Info
+        'Report ID',
+        'Event ID',
+        'Report Type',
+        'Reported By',
+        'Reason',
+        'Comment',
+        'Report Timestamp',
+        'Event Timestamp',
 
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
+        // Decision Metrics
+        'Final Status',
+        'Threat Score',
+        'Sanitizer Score',
+        'PG Score %',
+        'Final Action',
+        'Decision Source',
+        'Decision Reason',
 
-    link.setAttribute('href', url);
-    link.setAttribute('download', `fp-reports-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+        // Processing Metrics
+        'Processing Time (ms)',
+        'Content Removed (%)',
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        // PII Detection
+        'PII Sanitized',
+        'PII Entities Count',
+        'PII Types Detected',
+        'Detected Language',
+        'Language Confidence',
+        'Language Method',
+        'Polish Entities',
+        'English Entities',
+        'Regex Entities',
+
+        // Categories
+        'Detected Categories',
+        'Pattern Match Count',
+
+        // Original Content
+        'Original Input',
+
+        // Pipeline Transformations
+        'After Normalization',
+        'After PII Redaction',
+        'After Sanitization',
+        'Final Output'
+      ];
+
+      // CSV Rows with all fields
+      const rows = detailedReports.filter(r => r !== null).map(report => {
+        const languageStats = report.sanitizer_breakdown?.pii?.language_stats;
+        const matchCount = report.scoring_breakdown?.match_details?.reduce((sum: number, d: any) => sum + d.matchCount, 0) || 0;
+
+        return [
+          // Basic Info
+          report.report_id,
+          report.event_id,
+          report.report_type,
+          report.reported_by,
+          report.reason,
+          `"${(report.comment || '').replace(/"/g, '""')}"`,
+          new Date(report.report_timestamp).toISOString(),
+          new Date(report.event_timestamp).toISOString(),
+
+          // Decision Metrics
+          report.final_status,
+          report.threat_score.toFixed(2),
+          report.sanitizer_score,
+          report.pg_score_percent.toFixed(2),
+          report.final_action || '',
+          report.decision_source || '',
+          `"${(report.decision_reason || '').replace(/"/g, '""')}"`,
+
+          // Processing Metrics
+          report.processing_time_ms,
+          report.removal_pct.toFixed(2),
+
+          // PII Detection
+          report.pii_sanitized,
+          report.pii_entities_count,
+          `"${(report.pii_types_detected || []).join(', ')}"`,
+          report.detected_language || '',
+          languageStats ? (languageStats.detection_confidence * 100).toFixed(1) : '',
+          languageStats ? languageStats.detection_method : '',
+          languageStats ? languageStats.polish_entities : '',
+          languageStats ? languageStats.english_entities : '',
+          languageStats ? languageStats.regex_entities : '',
+
+          // Categories
+          `"${report.detected_categories.join(', ')}"`,
+          matchCount,
+
+          // Original Content (escape and limit length for CSV)
+          `"${(report.original_input || '').replace(/"/g, '""').substring(0, 500)}"`,
+
+          // Pipeline Transformations
+          `"${(report.pipeline_flow?.input_normalized || '').replace(/"/g, '""').substring(0, 500)}"`,
+          `"${(report.pipeline_flow?.after_pii_redaction || '').replace(/"/g, '""').substring(0, 500)}"`,
+          `"${(report.pipeline_flow?.after_sanitization || '').replace(/"/g, '""').substring(0, 500)}"`,
+          `"${(report.pipeline_flow?.output_final || '').replace(/"/g, '""').substring(0, 500)}"`
+        ];
+      });
+
+      // Combine into CSV string
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', `fp-reports-detailed-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate CSV export');
+    }
   };
 
   const clearFilters = () => {
+    setFilterReportType('ALL');
     setFilterReason('');
     setFilterReporter('');
     setFilterStartDate('');
@@ -266,6 +354,8 @@ export default function FPReporting() {
           onReportClick={handleReportClick}
           onExportCSV={exportToCSV}
           isLoading={isLoading}
+          filterReportType={filterReportType}
+          setFilterReportType={setFilterReportType}
           filterReason={filterReason}
           setFilterReason={setFilterReason}
           filterReporter={filterReporter}
@@ -394,6 +484,8 @@ interface ReportsTabProps {
   onReportClick: (reportId: string) => void;
   onExportCSV: () => void;
   isLoading: boolean;
+  filterReportType: 'FP' | 'TP' | 'ALL';
+  setFilterReportType: (value: 'FP' | 'TP' | 'ALL') => void;
   filterReason: string;
   setFilterReason: (value: string) => void;
   filterReporter: string;
@@ -418,6 +510,8 @@ function ReportsTab({
   onReportClick,
   onExportCSV,
   isLoading,
+  filterReportType,
+  setFilterReportType,
   filterReason,
   setFilterReason,
   filterReporter,
@@ -438,6 +532,20 @@ function ReportsTab({
       <div className="mb-6 rounded-2xl border border-slate-700 p-6 bg-surface-dark">
         <h3 className="text-lg font-semibold text-white mb-4">Search Filters</h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          {/* Report Type Filter */}
+          <div>
+            <label className="block text-text-secondary text-sm mb-2">Report Type</label>
+            <select
+              value={filterReportType}
+              onChange={(e) => setFilterReportType(e.target.value as 'FP' | 'TP' | 'ALL')}
+              className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">All Types</option>
+              <option value="FP">False Positive (FP)</option>
+              <option value="TP">True Positive (TP)</option>
+            </select>
+          </div>
+
           {/* Reason Filter */}
           <div>
             <label className="block text-text-secondary text-sm mb-2">Reason</label>
@@ -447,10 +555,30 @@ function ReportsTab({
               className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Reasons</option>
-              <option value="over_blocking">Over Blocking</option>
-              <option value="over_sanitization">Over Sanitization</option>
-              <option value="false_detection">False Detection</option>
-              <option value="business_logic">Business Logic</option>
+              <optgroup label="False Positive (Blocked/Sanitized)">
+                <option value="over_blocking">Over Blocking</option>
+                <option value="over_sanitization">Over Sanitization</option>
+                <option value="false_detection">False Detection</option>
+                <option value="business_logic">Business Logic</option>
+              </optgroup>
+              <optgroup label="True Positive (Blocked/Sanitized)">
+                <option value="correctly_blocked">Correctly Blocked</option>
+                <option value="pattern_improvement">Pattern Improvement</option>
+                <option value="threshold_tuning">Threshold Tuning</option>
+                <option value="edge_case">Edge Case</option>
+              </optgroup>
+              <optgroup label="False Positive (Allowed - Missed Attack)">
+                <option value="missed_attack">Missed Attack</option>
+                <option value="prompt_injection">Prompt Injection</option>
+                <option value="jailbreak_attempt">Jailbreak Attempt</option>
+                <option value="malicious_content">Malicious Content</option>
+              </optgroup>
+              <optgroup label="True Positive (Allowed - Correct)">
+                <option value="correctly_allowed">Correctly Allowed</option>
+                <option value="benign_content">Benign Content</option>
+                <option value="false_alarm_avoided">False Alarm Avoided</option>
+                <option value="good_threshold">Good Threshold</option>
+              </optgroup>
               <option value="other">Other</option>
             </select>
           </div>
@@ -553,6 +681,7 @@ function ReportsTab({
                 <thead>
                   <tr className="border-b border-border-subtle">
                     <th className="text-left py-2 text-text-secondary text-sm font-medium">Report ID</th>
+                    <th className="text-left py-2 text-text-secondary text-sm font-medium">Type</th>
                     <th className="text-left py-2 text-text-secondary text-sm font-medium">Reporter</th>
                     <th className="text-left py-2 text-text-secondary text-sm font-medium">Reason</th>
                     <th className="text-left py-2 text-text-secondary text-sm font-medium">Timestamp</th>
@@ -570,8 +699,17 @@ function ReportsTab({
                       <td className="py-3 text-text-primary font-mono text-xs">
                         {report.report_id.substring(0, 8)}...
                       </td>
+                      <td className="py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          report.report_type === 'TP'
+                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                            : 'bg-orange-500/10 text-orange-400 border border-orange-500/30'
+                        }`}>
+                          {report.report_type}
+                        </span>
+                      </td>
                       <td className="py-3 text-text-primary">{report.reported_by}</td>
-                      <td className="py-3 text-text-primary">{report.reason}</td>
+                      <td className="py-3 text-text-primary">{formatReason(report.reason)}</td>
                       <td className="py-3 text-text-secondary text-sm">
                         {new Date(report.report_timestamp).toLocaleString()}
                       </td>
@@ -719,7 +857,46 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function formatReason(reason: string): string {
+  const reasonMap: Record<string, string> = {
+    // FP reasons for blocked/sanitized
+    'over_blocking': 'Over Blocking',
+    'over_sanitization': 'Over Sanitization',
+    'false_detection': 'False Detection',
+    'business_logic': 'Business Logic',
+    // TP reasons for blocked/sanitized
+    'correctly_blocked': 'Correctly Blocked',
+    'pattern_improvement': 'Pattern Improvement',
+    'threshold_tuning': 'Threshold Tuning',
+    'edge_case': 'Edge Case',
+    // FP reasons for allowed (missed attacks)
+    'missed_attack': 'Missed Attack',
+    'prompt_injection': 'Prompt Injection',
+    'jailbreak_attempt': 'Jailbreak Attempt',
+    'malicious_content': 'Malicious Content',
+    // TP reasons for allowed (correct allows)
+    'correctly_allowed': 'Correctly Allowed',
+    'benign_content': 'Benign Content',
+    'false_alarm_avoided': 'False Alarm Avoided',
+    'good_threshold': 'Good Threshold',
+    'other': 'Other'
+  };
+  return reasonMap[reason] || reason;
+}
+
 function ReportDetailModal({ report, onClose }: { report: any; onClose: () => void }) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    const newSet = new Set(expandedCategories);
+    if (newSet.has(category)) {
+      newSet.delete(category);
+    } else {
+      newSet.add(category);
+    }
+    setExpandedCategories(newSet);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 rounded-2xl border border-slate-600 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -730,7 +907,7 @@ function ReportDetailModal({ report, onClose }: { report: any; onClose: () => vo
               <p className="text-sm text-slate-400 mt-1">Report ID: {report.report_id}</p>
               <p className="text-sm text-slate-400">Event ID: {report.event_id}</p>
               <p className="text-sm text-slate-400">
-                {new Date(report.timestamp).toLocaleString()}
+                {new Date(report.report_timestamp).toLocaleString()}
               </p>
             </div>
             <button
@@ -752,7 +929,7 @@ function ReportDetailModal({ report, onClose }: { report: any; onClose: () => vo
               </div>
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-slate-300 mb-2">Reason</h3>
-                <p className="text-white text-sm">{report.reason}</p>
+                <p className="text-white text-sm">{formatReason(report.reason)}</p>
               </div>
             </div>
 
@@ -767,6 +944,274 @@ function ReportDetailModal({ report, onClose }: { report: any; onClose: () => vo
                 <p className="text-white text-lg font-mono">{report.threat_score.toFixed(1)}</p>
               </div>
             </div>
+
+            {/* Decision Analysis */}
+            {report.final_decision && (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-white mb-3">Decision Analysis</h3>
+                <div className="space-y-3">
+                  {/* Decision Flow */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-slate-400">Sanitizer Score:</span>
+                    <span className="font-mono text-yellow-400">{report.sanitizer_score}</span>
+                    <span className="text-slate-500">→</span>
+                    <span className="text-slate-400">PG Score:</span>
+                    <span className="font-mono text-orange-400">{report.pg_score_percent.toFixed(1)}%</span>
+                    <span className="text-slate-500">→</span>
+                    <span className="text-slate-400">Action:</span>
+                    <span className="font-semibold text-white">{report.final_action || report.final_decision.action_taken}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-slate-400">Decision Source:</span>
+                      <span className="ml-2 text-blue-400">{report.decision_source || report.final_decision.source}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Processing Time:</span>
+                      <span className="ml-2 text-emerald-400 font-mono">{report.processing_time_ms}ms</span>
+                    </div>
+                    {report.removal_pct > 0 && (
+                      <div>
+                        <span className="text-slate-400">Content Removed:</span>
+                        <span className="ml-2 text-red-400 font-mono">{report.removal_pct.toFixed(1)}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {report.decision_reason && (
+                    <div className="pt-2 border-t border-slate-700">
+                      <p className="text-slate-400 text-xs mb-1">Internal Note:</p>
+                      <p className="text-slate-300 text-sm">{report.decision_reason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Pipeline Transformations */}
+            {report.pipeline_flow && (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-white mb-3">Pipeline Transformations</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-slate-400 font-medium">1. Original Input</span>
+                      <span className="text-xs text-slate-500">({report.pipeline_flow.input_raw?.length || 0} chars)</span>
+                    </div>
+                    <div className="bg-slate-900 border border-slate-700 rounded p-2 font-mono text-xs text-slate-300 overflow-x-auto">
+                      {report.pipeline_flow.input_raw}
+                    </div>
+                  </div>
+
+                  <div className="text-slate-500 text-center">↓</div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-slate-400 font-medium">2. After Normalization</span>
+                      <span className="text-xs text-slate-500">({report.pipeline_flow.input_normalized?.length || 0} chars)</span>
+                    </div>
+                    <div className="bg-slate-900 border border-slate-700 rounded p-2 font-mono text-xs text-slate-300 overflow-x-auto">
+                      {report.pipeline_flow.input_normalized}
+                    </div>
+                  </div>
+
+                  {report.pii_sanitized === 1 && report.pipeline_flow.after_pii_redaction && (
+                    <>
+                      <div className="text-slate-500 text-center">↓</div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-slate-400 font-medium">3. After PII Redaction</span>
+                          <span className="text-xs text-blue-400">({report.pii_entities_count} entities removed)</span>
+                        </div>
+                        <div className="bg-slate-900 border border-blue-900 rounded p-2 font-mono text-xs text-slate-300 overflow-x-auto">
+                          {report.pipeline_flow.after_pii_redaction}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {report.removal_pct > 0 && report.pipeline_flow.after_sanitization && (
+                    <>
+                      <div className="text-slate-500 text-center">↓</div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-slate-400 font-medium">4. After Sanitization</span>
+                          <span className="text-xs text-yellow-400">({report.removal_pct.toFixed(1)}% removed)</span>
+                        </div>
+                        <div className="bg-slate-900 border border-yellow-900 rounded p-2 font-mono text-xs text-slate-300 overflow-x-auto">
+                          {report.pipeline_flow.after_sanitization}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="text-slate-500 text-center">↓</div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-slate-400 font-medium">5. Final Output</span>
+                      <StatusBadge status={report.pipeline_flow.output_status || report.final_status} />
+                    </div>
+                    <div className="bg-slate-900 border border-emerald-900 rounded p-2 font-mono text-xs text-slate-300 overflow-x-auto">
+                      {report.pipeline_flow.output_final}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PII Detection Details */}
+            {report.pii_sanitized === 1 && report.sanitizer_breakdown?.pii && (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-white mb-3">PII Detection Details</h3>
+                <div className="space-y-3">
+                  {/* Language Detection */}
+                  {report.sanitizer_breakdown.pii.language_stats && (
+                    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                      <h4 className="text-xs font-medium text-slate-400 mb-2">Language Detection</h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-slate-400">Detected:</span>
+                          <span className="ml-2 text-blue-400 font-medium">{report.detected_language || report.sanitizer_breakdown.pii.language_stats.detected_language}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Confidence:</span>
+                          <span className="ml-2 text-emerald-400 font-mono">{(report.sanitizer_breakdown.pii.language_stats.detection_confidence * 100).toFixed(1)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Method:</span>
+                          <span className="ml-2 text-slate-300">{report.sanitizer_breakdown.pii.language_stats.detection_method}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Processing Time:</span>
+                          <span className="ml-2 text-slate-300 font-mono">{report.sanitizer_breakdown.pii.processing_time_ms}ms</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Entity Sources */}
+                  {report.sanitizer_breakdown.pii.language_stats && (
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-center">
+                        <div className="text-slate-400 text-xs mb-1">Polish Model</div>
+                        <div className="text-blue-400 font-mono text-lg">{report.sanitizer_breakdown.pii.language_stats.polish_entities}</div>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-center">
+                        <div className="text-slate-400 text-xs mb-1">English Model</div>
+                        <div className="text-emerald-400 font-mono text-lg">{report.sanitizer_breakdown.pii.language_stats.english_entities}</div>
+                      </div>
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-center">
+                        <div className="text-slate-400 text-xs mb-1">Regex Fallback</div>
+                        <div className="text-yellow-400 font-mono text-lg">{report.sanitizer_breakdown.pii.language_stats.regex_entities}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detected Entities Table */}
+                  {report.sanitizer_breakdown.pii.entities && report.sanitizer_breakdown.pii.entities.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-slate-400 mb-2">Detected Entities ({report.sanitizer_breakdown.pii.entities.length})</h4>
+                      <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-slate-800 border-b border-slate-700">
+                            <tr>
+                              <th className="text-left py-2 px-3 text-slate-400 font-medium text-xs">Type</th>
+                              <th className="text-left py-2 px-3 text-slate-400 font-medium text-xs">Position</th>
+                              <th className="text-right py-2 px-3 text-slate-400 font-medium text-xs">Confidence</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {report.sanitizer_breakdown.pii.entities.map((entity: any, idx: number) => (
+                              <tr key={idx} className="border-b border-slate-700/50 last:border-0">
+                                <td className="py-2 px-3 text-blue-400 font-medium">{entity.type}</td>
+                                <td className="py-2 px-3 text-slate-300 font-mono text-xs">{entity.start}-{entity.end}</td>
+                                <td className="py-2 px-3 text-right text-emerald-400 font-mono">{(entity.score * 100).toFixed(0)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PII Types Summary */}
+                  {report.pii_types_detected && report.pii_types_detected.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-slate-400 mb-2">PII Types Detected</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {report.pii_types_detected.map((type: string) => (
+                          <span key={type} className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
+                            {type}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Enhanced Score Breakdown */}
+            {report.scoring_breakdown && report.scoring_breakdown.match_details && report.scoring_breakdown.match_details.length > 0 && (
+              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-white mb-3">Enhanced Score Breakdown</h3>
+                <div className="space-y-2">
+                  {report.scoring_breakdown.match_details.map((detail: any) => (
+                    <div key={detail.category} className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => toggleCategory(detail.category)}
+                        className="w-full flex items-center justify-between p-3 hover:bg-slate-800/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-medium">
+                            {detail.category}
+                          </span>
+                          <span className="text-slate-400 text-sm">
+                            {detail.matchCount} match{detail.matchCount !== 1 ? 'es' : ''}
+                          </span>
+                          <span className="text-yellow-400 font-mono text-sm">
+                            Score: {detail.score}
+                          </span>
+                        </div>
+                        <svg
+                          className={`w-5 h-5 text-slate-400 transition-transform ${expandedCategories.has(detail.category) ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {expandedCategories.has(detail.category) && detail.matches && (
+                        <div className="border-t border-slate-700 p-3 space-y-2">
+                          {detail.matches.map((match: any, idx: number) => (
+                            <div key={idx} className="bg-slate-800 rounded p-2">
+                              <div className="text-xs text-slate-400 mb-1">Pattern:</div>
+                              <div className="font-mono text-xs text-blue-400 mb-2 overflow-x-auto">{match.pattern}</div>
+                              {match.samples && match.samples.length > 0 && (
+                                <>
+                                  <div className="text-xs text-slate-400 mb-1">Matched Samples:</div>
+                                  <div className="space-y-1">
+                                    {match.samples.map((sample: string, sIdx: number) => (
+                                      <div key={sIdx} className="bg-red-500/10 border border-red-500/30 rounded px-2 py-1 font-mono text-xs text-red-300">
+                                        {sample}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Comment */}
             {report.comment && (
@@ -784,8 +1229,8 @@ function ReportDetailModal({ report, onClose }: { report: any; onClose: () => vo
               </p>
             </div>
 
-            {/* Detected Categories */}
-            {report.detected_categories && report.detected_categories.length > 0 && (
+            {/* Detected Categories (Legacy - kept for backward compatibility) */}
+            {report.detected_categories && report.detected_categories.length > 0 && !report.scoring_breakdown && (
               <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-slate-300 mb-2">Detected Categories</h3>
                 <div className="flex flex-wrap gap-2">
@@ -795,14 +1240,6 @@ function ReportDetailModal({ report, onClose }: { report: any; onClose: () => vo
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Pattern Matches */}
-            {report.pattern_matches && report.pattern_matches.length > 0 && (
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-slate-300 mb-2">Pattern Matches</h3>
-                <pre className="text-slate-300 text-xs overflow-x-auto">{JSON.stringify(report.pattern_matches, null, 2)}</pre>
               </div>
             )}
           </div>

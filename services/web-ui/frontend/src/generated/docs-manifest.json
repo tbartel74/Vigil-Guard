@@ -1,5 +1,5 @@
 {
-  "generated": "2025-11-18T20:18:45.933Z",
+  "generated": "2025-11-20T15:14:16.450Z",
   "count": 31,
   "documents": [
     {
@@ -169,8 +169,8 @@
       "url": "/ui/docs/PII_DETECTION.md",
       "title": "PII Detection with Microsoft Presidio",
       "category": "root",
-      "size": 41079,
-      "modified": "2025-11-18T19:31:27.021Z"
+      "size": 42859,
+      "modified": "2025-11-19T19:43:16.083Z"
     },
     {
       "path": "PII_MONITORING_QUERIES.md",

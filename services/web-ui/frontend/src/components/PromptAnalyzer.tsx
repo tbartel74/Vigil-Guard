@@ -38,13 +38,14 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
   const [listError, setListError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
 
-  // False Positive reporting state
-  const [showFPModal, setShowFPModal] = useState(false);
-  const [fpReason, setFpReason] = useState('over_blocking');
-  const [fpComment, setFpComment] = useState('');
-  const [fpSubmitting, setFpSubmitting] = useState(false);
-  const [fpSuccess, setFpSuccess] = useState(false);
-  const [fpError, setFpError] = useState<string | null>(null);
+  // Quality reporting state (FP & TP)
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState<'FP' | 'TP'>('FP');
+  const [reportReason, setReportReason] = useState('over_blocking');
+  const [reportComment, setReportComment] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   // Get user's timezone preference, default to UTC
   const userTimezone = user?.timezone || 'UTC';
@@ -131,42 +132,45 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
     }
   };
 
-  const handleOpenFPModal = () => {
-    setShowFPModal(true);
-    setFpReason('over_blocking');
-    setFpComment('');
-    setFpSuccess(false);
-    setFpError(null);
+  const handleOpenReportModal = (type: 'FP' | 'TP') => {
+    setReportType(type);
+    setShowReportModal(true);
+    // Set default reason based on type and current status
+    if (promptDetails?.final_status === 'ALLOWED') {
+      setReportReason(type === 'FP' ? 'missed_attack' : 'correctly_allowed');
+    } else {
+      setReportReason(type === 'FP' ? 'over_blocking' : 'correctly_blocked');
+    }
+    setReportComment('');
+    setReportSuccess(false);
+    setReportError(null);
   };
 
-  const handleSubmitFP = async () => {
+  const handleSubmitReport = async () => {
     if (!promptDetails) return;
 
-    setFpSubmitting(true);
-    setFpError(null);
+    setReportSubmitting(true);
+    setReportError(null);
 
     try {
-      const maxScore = Math.max(promptDetails.pg_score_percent, promptDetails.sanitizer_score);
-
-      await api.submitFalsePositiveReport({
+      // Use the new unified submitQualityReport function
+      const response = await api.submitQualityReport({
         event_id: promptDetails.id,
-        reason: fpReason,
-        comment: fpComment,
-        event_timestamp: promptDetails.timestamp,
-        original_input: promptDetails.input_raw,
-        final_status: promptDetails.final_status,
-        threat_score: maxScore
+        report_type: reportType,
+        reason: reportReason,
+        comment: reportComment
       });
 
-      setFpSuccess(true);
+      console.log('Quality report submitted:', response);
+      setReportSuccess(true);
       setTimeout(() => {
-        setShowFPModal(false);
-        setFpSuccess(false);
+        setShowReportModal(false);
+        setReportSuccess(false);
       }, 2000);
     } catch (err: any) {
-      setFpError('Failed to submit report: ' + err.message);
+      setReportError('Failed to submit report: ' + err.message);
     } finally {
-      setFpSubmitting(false);
+      setReportSubmitting(false);
     }
   };
 
@@ -178,18 +182,47 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
           <p className="text-sm text-text-secondary">Detailed inspection of security decisions</p>
         </div>
 
-        {/* Status indicator and FP button in top-right */}
+        {/* Status indicator and reporting buttons in top-right */}
         {promptDetails && (
           <div className="flex items-center gap-3">
-            {/* Show FP button for BLOCKED/SANITIZED only */}
+            {/* Show FP/TP buttons for BLOCKED/SANITIZED */}
             {(promptDetails.final_status === 'BLOCKED' || promptDetails.final_status === 'SANITIZED') && (
-              <button
-                onClick={handleOpenFPModal}
-                className="px-3 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 text-sm font-medium transition-colors"
-                title="Report this decision as a false positive"
-              >
-                Report False Positive
-              </button>
+              <>
+                <button
+                  onClick={() => handleOpenReportModal('FP')}
+                  className="px-3 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 text-sm font-medium transition-colors"
+                  title="Report this decision as a false positive (incorrectly blocked)"
+                >
+                  Report FP
+                </button>
+                <button
+                  onClick={() => handleOpenReportModal('TP')}
+                  className="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg text-blue-400 text-sm font-medium transition-colors"
+                  title="Report as correctly blocked (worth analyzing)"
+                >
+                  Report TP
+                </button>
+              </>
+            )}
+
+            {/* Show FP/TP buttons for ALLOWED - these are critical for security analysis */}
+            {promptDetails.final_status === 'ALLOWED' && (
+              <>
+                <button
+                  onClick={() => handleOpenReportModal('FP')}
+                  className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm font-medium transition-colors"
+                  title="Report as missed attack (should have been blocked)"
+                >
+                  Report Missed Attack
+                </button>
+                <button
+                  onClick={() => handleOpenReportModal('TP')}
+                  className="px-3 py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm font-medium transition-colors"
+                  title="Mark as correctly allowed (legitimate traffic)"
+                >
+                  Mark Correct
+                </button>
+              </>
             )}
 
             <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
@@ -353,25 +386,50 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
         </div>
       )}
 
-      {/* False Positive Report Modal */}
-      {showFPModal && (
+      {/* Quality Report Modal (FP & TP) */}
+      {showReportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <FocusTrap>
             <div
               className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="fp-modal-title"
+              aria-labelledby="report-modal-title"
             >
-              <h3 id="fp-modal-title" className="text-xl font-semibold text-white mb-4">Report False Positive</h3>
+              <h3 id="report-modal-title" className="text-xl font-semibold text-white mb-4">
+                {promptDetails?.final_status === 'ALLOWED'
+                  ? (reportType === 'FP' ? 'Report Missed Attack' : 'Confirm Correct Allow')
+                  : (reportType === 'FP' ? 'Report False Positive' : 'Report True Positive')
+                }
+              </h3>
 
-            {fpSuccess ? (
+            {reportSuccess ? (
               <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-center">
                 ✓ Report submitted successfully!
               </div>
             ) : (
               <>
                 <div className="space-y-4">
+                  {/* Report Type Badge */}
+                  <div>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                      promptDetails?.final_status === 'ALLOWED'
+                        ? (reportType === 'FP' ? 'bg-red-500/10 border border-red-500/30' : 'bg-green-500/10 border border-green-500/30')
+                        : (reportType === 'FP' ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-blue-500/10 border border-blue-500/30')
+                    }`}>
+                      <span className={`text-sm font-medium ${
+                        promptDetails?.final_status === 'ALLOWED'
+                          ? (reportType === 'FP' ? 'text-red-400' : 'text-green-400')
+                          : (reportType === 'FP' ? 'text-orange-400' : 'text-blue-400')
+                      }`}>
+                        {promptDetails?.final_status === 'ALLOWED'
+                          ? (reportType === 'FP' ? '🚨 Missed Attack' : '✅ Correctly Allowed')
+                          : (reportType === 'FP' ? '⚠ Incorrectly Blocked' : '✓ Correctly Blocked')
+                        }
+                      </span>
+                    </div>
+                  </div>
+
                   {/* Event ID display */}
                   <div>
                     <label className="text-xs text-text-secondary block mb-1">Event ID</label>
@@ -384,16 +442,51 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                   <div>
                     <label className="text-xs text-text-secondary block mb-1">Reason</label>
                     <select
-                      value={fpReason}
-                      onChange={(e) => setFpReason(e.target.value)}
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white"
-                      disabled={fpSubmitting}
+                      disabled={reportSubmitting}
                     >
-                      <option value="over_blocking">Over-blocking (legitimate content blocked)</option>
-                      <option value="over_sanitization">Over-sanitization (too aggressive)</option>
-                      <option value="false_detection">False detection (pattern mismatch)</option>
-                      <option value="business_logic">Business logic issue</option>
-                      <option value="other">Other</option>
+                      {/* Different options based on status and report type */}
+                      {promptDetails?.final_status === 'ALLOWED' ? (
+                        // Options for ALLOWED prompts
+                        reportType === 'FP' ? (
+                          <>
+                            <option value="missed_attack">Missed attack (should have been blocked)</option>
+                            <option value="prompt_injection">Contained prompt injection</option>
+                            <option value="jailbreak_attempt">Jailbreak attempt passed through</option>
+                            <option value="malicious_content">Malicious content not detected</option>
+                            <option value="other">Other security concern</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="correctly_allowed">Correctly allowed (legitimate)</option>
+                            <option value="benign_content">Confirmed benign content</option>
+                            <option value="false_alarm_avoided">False alarm avoided</option>
+                            <option value="good_threshold">Good threshold calibration</option>
+                            <option value="other">Other confirmation</option>
+                          </>
+                        )
+                      ) : (
+                        // Options for BLOCKED/SANITIZED prompts
+                        reportType === 'FP' ? (
+                          <>
+                            <option value="over_blocking">Over-blocking (legitimate content blocked)</option>
+                            <option value="over_sanitization">Over-sanitization (too aggressive)</option>
+                            <option value="false_detection">False detection (pattern mismatch)</option>
+                            <option value="business_logic">Business logic issue</option>
+                            <option value="other">Other</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="correctly_blocked">Correctly blocked (worth analyzing)</option>
+                            <option value="pattern_improvement">Pattern improvement opportunity</option>
+                            <option value="threshold_tuning">Threshold tuning needed</option>
+                            <option value="edge_case">Interesting edge case</option>
+                            <option value="other">Other</option>
+                          </>
+                        )
+                      )}
                     </select>
                   </div>
 
@@ -403,19 +496,22 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                       Comment <span className="text-text-secondary">(optional)</span>
                     </label>
                     <textarea
-                      value={fpComment}
-                      onChange={(e) => setFpComment(e.target.value)}
+                      value={reportComment}
+                      onChange={(e) => setReportComment(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-sm text-white resize-none"
                       rows={4}
-                      placeholder="Provide additional context about why this is a false positive..."
-                      disabled={fpSubmitting}
+                      placeholder={reportType === 'FP'
+                        ? "Provide additional context about why this is a false positive..."
+                        : "Explain why this is worth analyzing or what insights it provides..."
+                      }
+                      disabled={reportSubmitting}
                     />
                   </div>
 
                   {/* Error message */}
-                  {fpError && (
+                  {reportError && (
                     <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
-                      {fpError}
+                      {reportError}
                     </div>
                   )}
                 </div>
@@ -423,18 +519,20 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                 {/* Buttons */}
                 <div className="flex gap-3 mt-6">
                   <button
-                    onClick={() => setShowFPModal(false)}
+                    onClick={() => setShowReportModal(false)}
                     className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-white text-sm transition-colors"
-                    disabled={fpSubmitting}
+                    disabled={reportSubmitting}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleSubmitFP}
-                    className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={fpSubmitting}
+                    onClick={handleSubmitReport}
+                    className={`flex-1 px-4 py-2 rounded text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      reportType === 'FP' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'
+                    }`}
+                    disabled={reportSubmitting}
                   >
-                    {fpSubmitting ? 'Submitting...' : 'Submit Report'}
+                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
                   </button>
                 </div>
               </>

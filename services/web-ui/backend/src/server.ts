@@ -708,10 +708,10 @@ app.get("/api/prompts/:id", authenticate, async (req, res) => {
   }
 });
 
-// False Positive Feedback endpoints - requires authentication
+// Quality Feedback endpoints (FP & TP) - requires authentication
 app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
   try {
-    const { event_id, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
+    const { event_id, report_type, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
     const reported_by = (req as any).user?.username || 'unknown';
 
     // Validate required fields
@@ -719,10 +719,16 @@ app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Missing required fields: event_id, reason" });
     }
 
-    // Submit the report
+    // Validate report_type if provided
+    if (report_type && !['FP', 'TP'].includes(report_type)) {
+      return res.status(400).json({ error: "Invalid report_type. Must be 'FP' or 'TP'" });
+    }
+
+    // Submit the report (defaults to 'FP' if report_type not provided)
     const success = await submitFalsePositiveReport({
       event_id,
       reported_by,
+      report_type: report_type || 'FP',
       reason,
       comment: comment || '',
       event_timestamp,
@@ -732,12 +738,101 @@ app.post("/api/feedback/false-positive", authenticate, async (req, res) => {
     });
 
     if (success) {
-      res.json({ success: true, message: "False positive report submitted successfully" });
+      const reportTypeLabel = report_type === 'TP' ? 'true positive' : 'false positive';
+      res.json({ success: true, message: `${reportTypeLabel} report submitted successfully` });
     } else {
-      res.status(500).json({ error: "Failed to submit false positive report" });
+      res.status(500).json({ error: "Failed to submit report" });
     }
   } catch (e: any) {
-    console.error("Error submitting false positive report:", e);
+    console.error("Error submitting quality report:", e);
+    res.status(500).json({ error: "Failed to submit report", details: e.message });
+  }
+});
+
+// True Positive endpoint (alias for backward compatibility and clarity)
+app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
+  try {
+    const { event_id, reason, comment, event_timestamp, original_input, final_status, threat_score } = req.body;
+    const reported_by = (req as any).user?.username || 'unknown';
+
+    // Validate required fields
+    if (!event_id || !reason) {
+      return res.status(400).json({ error: "Missing required fields: event_id, reason" });
+    }
+
+    // Submit the report with report_type = 'TP'
+    const success = await submitFalsePositiveReport({
+      event_id,
+      reported_by,
+      report_type: 'TP',
+      reason,
+      comment: comment || '',
+      event_timestamp,
+      original_input,
+      final_status,
+      threat_score
+    });
+
+    if (success) {
+      res.json({ success: true, message: "True positive report submitted successfully" });
+    } else {
+      res.status(500).json({ error: "Failed to submit true positive report" });
+    }
+  } catch (e: any) {
+    console.error("Error submitting true positive report:", e);
+    res.status(500).json({ error: "Failed to submit report", details: e.message });
+  }
+});
+
+// Unified quality report endpoint (FP & TP) - NEW for PromptAnalyzer
+app.post("/api/feedback/submit", authenticate, async (req, res) => {
+  try {
+    const { event_id, report_type, reason, comment } = req.body;
+    const reported_by = (req as any).user?.username || 'unknown';
+
+    // Validate required fields
+    if (!event_id || !report_type || !reason) {
+      return res.status(400).json({ error: "Missing required fields: event_id, report_type, reason" });
+    }
+
+    // Validate report_type
+    if (!['FP', 'TP'].includes(report_type)) {
+      return res.status(400).json({ error: "Invalid report_type. Must be 'FP' or 'TP'" });
+    }
+
+    // Fetch event details from ClickHouse
+    const eventDetails = await getPromptDetails(event_id);
+    if (!eventDetails) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // Submit the report with full event context
+    const success = await submitFalsePositiveReport({
+      event_id,
+      reported_by,
+      report_type,
+      reason,
+      comment: comment || '',
+      event_timestamp: eventDetails.timestamp,
+      original_input: eventDetails.input_raw,
+      final_status: eventDetails.final_status,
+      threat_score: eventDetails.sanitizer_score
+    });
+
+    if (success) {
+      // Generate unique report ID
+      const report_id = `${report_type}-${event_id}-${Date.now()}`;
+      const reportTypeLabel = report_type === 'TP' ? 'True positive' : 'False positive';
+      res.json({
+        success: true,
+        report_id,
+        message: `${reportTypeLabel} report submitted successfully`
+      });
+    } else {
+      res.status(500).json({ error: "Failed to submit report" });
+    }
+  } catch (e: any) {
+    console.error("Error submitting quality report:", e);
     res.status(500).json({ error: "Failed to submit report", details: e.message });
   }
 });
@@ -757,14 +852,15 @@ app.get("/api/feedback/stats", authenticate, async (req, res) => {
 // ============================================================================
 
 /**
- * Get paginated, filterable list of FP reports
- * Query params: startDate, endDate, reason, reportedBy, minScore, maxScore, sortBy, sortOrder, page, pageSize
+ * Get paginated, filterable list of FP/TP reports
+ * Query params: startDate, endDate, reportType, reason, reportedBy, minScore, maxScore, sortBy, sortOrder, page, pageSize
  */
 app.get("/api/feedback/reports", authenticate, async (req, res) => {
   try {
     const params: FPReportListParams = {
       startDate: req.query.startDate as string | undefined,
       endDate: req.query.endDate as string | undefined,
+      reportType: (req.query.reportType as 'FP' | 'TP' | 'ALL') || 'ALL',
       reason: req.query.reason as string | undefined,
       reportedBy: req.query.reportedBy as string | undefined,
       minScore: req.query.minScore ? parseFloat(req.query.minScore as string) : undefined,

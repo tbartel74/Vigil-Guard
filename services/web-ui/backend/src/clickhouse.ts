@@ -225,6 +225,7 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
 export interface FalsePositiveReport {
   event_id: string;
   reported_by: string;
+  report_type?: 'FP' | 'TP';  // Default: 'FP'
   reason: string;
   comment: string;
   event_timestamp?: string;
@@ -234,15 +235,16 @@ export interface FalsePositiveReport {
 }
 
 /**
- * Submit a false positive report
+ * Submit a false positive or true positive report
  */
 export async function submitFalsePositiveReport(report: FalsePositiveReport): Promise<boolean> {
   const client = getClickHouseClient();
 
   try {
-    // Prepare report data with timestamp conversion
+    // Prepare report data with timestamp conversion and default report_type
     const reportData = {
       ...report,
+      report_type: report.report_type || 'FP',  // Default to 'FP' if not specified
       // Convert ISO8601 timestamp to ClickHouse-compatible format
       event_timestamp: report.event_timestamp
         ? report.event_timestamp.replace('T', ' ').replace('Z', '').substring(0, 23)
@@ -256,10 +258,11 @@ export async function submitFalsePositiveReport(report: FalsePositiveReport): Pr
       format: 'JSONEachRow',
     });
 
-    console.log(`FP report submitted: event=${report.event_id}, by=${report.reported_by}, reason=${report.reason}`);
+    const reportType = reportData.report_type === 'TP' ? 'TP' : 'FP';
+    console.log(`${reportType} report submitted: event=${report.event_id}, by=${report.reported_by}, reason=${report.reason}`);
     return true;
   } catch (error) {
-    console.error('ClickHouse insert error (FP report):', error);
+    console.error('ClickHouse insert error (quality report):', error);
     return false;
   }
 }
@@ -325,6 +328,7 @@ export async function getFPStats(): Promise<FPStats> {
 export interface FPReportListParams {
   startDate?: string;
   endDate?: string;
+  reportType?: 'FP' | 'TP' | 'ALL';  // Filter by report type (default: ALL)
   reason?: string;
   reportedBy?: string;
   minScore?: number;
@@ -342,6 +346,7 @@ export interface FPReportDetailed {
   report_id: string;
   event_id: string;
   reported_by: string;
+  report_type: 'FP' | 'TP';  // Report type: False Positive or True Positive
   reason: string;
   comment: string;
   report_timestamp: string;
@@ -400,6 +405,11 @@ export async function getFPReportList(params: FPReportListParams): Promise<FPRep
       queryParams.reportedBy = params.reportedBy;
     }
 
+    if (params.reportType && params.reportType !== 'ALL') {
+      whereConditions.push('fp.report_type = {reportType:String}');
+      queryParams.reportType = params.reportType;
+    }
+
     if (params.minScore !== undefined) {
       whereConditions.push('fp.threat_score >= {minScore:Float64}');
       queryParams.minScore = params.minScore;
@@ -448,6 +458,7 @@ export async function getFPReportList(params: FPReportListParams): Promise<FPRep
         fp.report_id,
         fp.event_id,
         fp.reported_by,
+        fp.report_type,
         fp.reason,
         fp.comment,
         formatDateTime(fp.timestamp, '%Y-%m-%dT%H:%i:%SZ') AS report_timestamp,
@@ -671,12 +682,22 @@ export async function getFPTrend(timeRange: string = '30 DAY', interval: 'day' |
 }
 
 /**
- * Get single FP report with full event context
+ * Get single FP report with full event context including decision analysis
  */
 export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed & {
   scoring_breakdown: any;
+  sanitizer_breakdown: any;
+  final_decision: any;
   pattern_matches: any[];
   pipeline_flow: any;
+  final_action: string;
+  removal_pct: number;
+  processing_time_ms: number;
+  pii_sanitized: number;
+  pii_types_detected: string[];
+  pii_entities_count: number;
+  detected_language: string;
+  decision_source: string;
 } | null> {
   const client = getClickHouseClient();
 
@@ -686,6 +707,7 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
         fp.report_id,
         fp.event_id,
         fp.reported_by,
+        fp.report_type,
         fp.reason,
         fp.comment,
         formatDateTime(fp.timestamp, '%Y-%m-%dT%H:%i:%SZ') AS report_timestamp,
@@ -693,6 +715,15 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
         fp.original_input,
         fp.final_status,
         fp.threat_score,
+
+        -- NEW: Additional metadata for decision analysis
+        ifNull(ep.final_action, '') AS final_action,
+        toFloat64(ifNull(ep.removal_pct, 0)) AS removal_pct,
+        toUInt32(ifNull(ep.processing_time_ms, 0)) AS processing_time_ms,
+        toUInt8(ifNull(ep.pii_sanitized, 0)) AS pii_sanitized,
+        ifNull(ep.pii_types_detected, []) AS pii_types_detected,
+        toUInt32(ifNull(ep.pii_entities_count, 0)) AS pii_entities_count,
+        ifNull(ep.detected_language, '') AS detected_language,
 
         -- Detected categories
         arrayDistinct(
@@ -706,11 +737,14 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
         toUInt8(ifNull(JSONExtractInt(ep.scoring_json, 'sanitizer_score'), 0)) AS sanitizer_score,
         toFloat64(ifNull(ep.pg_score_percent, 0)) AS pg_score_percent,
 
-        -- Decision reason
+        -- Decision source and reason
+        ifNull(JSONExtractString(ep.final_decision_json, 'source'), 'unknown') AS decision_source,
         ifNull(JSONExtractString(ep.final_decision_json, 'internal_note'), '') AS decision_reason,
 
-        -- Full context (JSON fields)
+        -- Full context (JSON fields for detailed analysis)
         ep.scoring_json AS scoring_breakdown,
+        ep.sanitizer_json AS sanitizer_breakdown,
+        ep.final_decision_json AS final_decision,
         ep.pipeline_flow_json AS pipeline_flow
 
       FROM n8n_logs.false_positive_reports AS fp
@@ -738,6 +772,8 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
     return {
       ...row,
       scoring_breakdown: row.scoring_breakdown ? JSON.parse(row.scoring_breakdown) : null,
+      sanitizer_breakdown: row.sanitizer_breakdown ? JSON.parse(row.sanitizer_breakdown) : null,
+      final_decision: row.final_decision ? JSON.parse(row.final_decision) : null,
       pattern_matches: row.scoring_breakdown
         ? JSON.parse(row.scoring_breakdown).match_details || []
         : [],
