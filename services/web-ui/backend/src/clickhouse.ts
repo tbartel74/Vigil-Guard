@@ -223,6 +223,7 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
 }
 
 export interface FalsePositiveReport {
+  report_id?: string;  // UUID for the report
   event_id: string;
   reported_by: string;
   report_type?: 'FP' | 'TP';  // Default: 'FP'

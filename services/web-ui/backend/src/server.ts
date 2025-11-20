@@ -787,7 +787,7 @@ app.post("/api/feedback/true-positive", authenticate, async (req, res) => {
 // Unified quality report endpoint (FP & TP) - NEW for PromptAnalyzer
 app.post("/api/feedback/submit", authenticate, async (req, res) => {
   try {
-    const { event_id, report_type, reason, comment } = req.body;
+    const { event_id, report_type, reason, comment, report_id: providedReportId } = req.body;
     const reported_by = (req as any).user?.username || 'unknown';
 
     // Validate required fields
@@ -806,8 +806,17 @@ app.post("/api/feedback/submit", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
 
-    // Submit the report with full event context
+    // Use provided report_id (from plugin) or generate new UUID
+    let report_id = providedReportId;
+    if (!report_id) {
+      // Use Node.js built-in crypto.randomUUID() - available in Node 14.17+
+      const crypto = await import('crypto');
+      report_id = crypto.randomUUID();
+    }
+
+    // Submit the report with full event context and UUID
     const success = await submitFalsePositiveReport({
+      report_id,
       event_id,
       reported_by,
       report_type,
@@ -820,8 +829,6 @@ app.post("/api/feedback/submit", authenticate, async (req, res) => {
     });
 
     if (success) {
-      // Generate unique report ID
-      const report_id = `${report_type}-${event_id}-${Date.now()}`;
       const reportTypeLabel = report_type === 'TP' ? 'True positive' : 'False positive';
       res.json({
         success: true,

@@ -367,6 +367,7 @@ export async function getFPReportList(params: FPReportListParams): Promise<FPRep
 
   if (params.startDate) queryParams.set('startDate', params.startDate);
   if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.reportType) queryParams.set('reportType', params.reportType);
   if (params.reason) queryParams.set('reason', params.reason);
   if (params.reportedBy) queryParams.set('reportedBy', params.reportedBy);
   if (params.minScore !== undefined) queryParams.set('minScore', String(params.minScore));
