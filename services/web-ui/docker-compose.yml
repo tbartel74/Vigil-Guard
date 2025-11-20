@@ -32,17 +32,19 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: vigil-web-ui-backend
-    command: ["npm","run","dev"]
+    command: ["node","dist/server.js"]
     ports:
       - "8787:8787"
     environment:
-      - NODE_ENV=development
-      - TARGET_DIR=${TARGET_DIR:-../../vigil_data/workflow/config}
+      - NODE_ENV=production
+      - TARGET_DIR=${TARGET_DIR:-/config}
       - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-vigil-clickhouse}
       - CLICKHOUSE_PORT=${CLICKHOUSE_HTTP_PORT:-8123}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-admin123}
       - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-n8n_logs}
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
     volumes:
       - ./backend:/app
       - /app/node_modules

@@ -223,8 +223,10 @@ export async function getPromptDetails(eventId: string): Promise<PromptDetails |
 }
 
 export interface FalsePositiveReport {
+  report_id?: string;  // UUID for the report
   event_id: string;
   reported_by: string;
+  report_type?: 'FP' | 'TP';  // Default: 'FP'
   reason: string;
   comment: string;
   event_timestamp?: string;
@@ -234,15 +236,16 @@ export interface FalsePositiveReport {
 }
 
 /**
- * Submit a false positive report
+ * Submit a false positive or true positive report
  */
 export async function submitFalsePositiveReport(report: FalsePositiveReport): Promise<boolean> {
   const client = getClickHouseClient();
 
   try {
-    // Prepare report data with timestamp conversion
+    // Prepare report data with timestamp conversion and default report_type
     const reportData = {
       ...report,
+      report_type: report.report_type || 'FP',  // Default to 'FP' if not specified
       // Convert ISO8601 timestamp to ClickHouse-compatible format
       event_timestamp: report.event_timestamp
         ? report.event_timestamp.replace('T', ' ').replace('Z', '').substring(0, 23)
@@ -256,10 +259,11 @@ export async function submitFalsePositiveReport(report: FalsePositiveReport): Pr
       format: 'JSONEachRow',
     });
 
-    console.log(`FP report submitted: event=${report.event_id}, by=${report.reported_by}, reason=${report.reason}`);
+    const reportType = reportData.report_type === 'TP' ? 'TP' : 'FP';
+    console.log(`${reportType} report submitted: event=${report.event_id}, by=${report.reported_by}, reason=${report.reason}`);
     return true;
   } catch (error) {
-    console.error('ClickHouse insert error (FP report):', error);
+    console.error('ClickHouse insert error (quality report):', error);
     return false;
   }
 }
@@ -312,6 +316,473 @@ export async function getFPStats(): Promise<FPStats> {
       top_reason: 'N/A',
       last_7_days: 0,
     };
+  }
+}
+
+// ============================================================================
+// FALSE POSITIVE DETAILED REPORTING
+// ============================================================================
+
+/**
+ * FP Report List Parameters
+ */
+export interface FPReportListParams {
+  startDate?: string;
+  endDate?: string;
+  reportType?: 'FP' | 'TP' | 'ALL';  // Filter by report type (default: ALL)
+  reason?: string;
+  reportedBy?: string;
+  minScore?: number;
+  maxScore?: number;
+  sortBy?: 'report_timestamp' | 'event_timestamp' | 'threat_score';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * Detailed FP Report (with event context from JOIN)
+ */
+export interface FPReportDetailed {
+  report_id: string;
+  event_id: string;
+  reported_by: string;
+  report_type: 'FP' | 'TP';  // Report type: False Positive or True Positive
+  reason: string;
+  comment: string;
+  report_timestamp: string;
+  event_timestamp: string;
+  original_input: string;
+  final_status: string;
+  threat_score: number;
+  detected_categories: string[];
+  sanitizer_score: number;
+  pg_score_percent: number;
+  decision_reason: string; // internal_note from final_decision_json
+}
+
+/**
+ * FP Report List Response (with pagination)
+ */
+export interface FPReportListResponse {
+  rows: FPReportDetailed[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+/**
+ * Get paginated, filterable list of FP reports with event context
+ */
+export async function getFPReportList(params: FPReportListParams): Promise<FPReportListResponse> {
+  const client = getClickHouseClient();
+
+  try {
+    // Build WHERE conditions
+    const whereConditions: string[] = ['1=1'];
+    const queryParams: any = {
+      pageSize: params.pageSize,
+      offset: (params.page - 1) * params.pageSize,
+    };
+
+    if (params.startDate) {
+      whereConditions.push("fp.timestamp >= {startDate:DateTime64(3, 'UTC')}");
+      queryParams.startDate = params.startDate;
+    }
+
+    if (params.endDate) {
+      whereConditions.push("fp.timestamp <= {endDate:DateTime64(3, 'UTC')}");
+      queryParams.endDate = params.endDate;
+    }
+
+    if (params.reason) {
+      whereConditions.push('fp.reason = {reason:String}');
+      queryParams.reason = params.reason;
+    }
+
+    if (params.reportedBy) {
+      whereConditions.push('fp.reported_by = {reportedBy:String}');
+      queryParams.reportedBy = params.reportedBy;
+    }
+
+    if (params.reportType && params.reportType !== 'ALL') {
+      whereConditions.push('fp.report_type = {reportType:String}');
+      queryParams.reportType = params.reportType;
+    }
+
+    if (params.minScore !== undefined) {
+      whereConditions.push('fp.threat_score >= {minScore:Float64}');
+      queryParams.minScore = params.minScore;
+    }
+
+    if (params.maxScore !== undefined) {
+      whereConditions.push('fp.threat_score <= {maxScore:Float64}');
+      queryParams.maxScore = params.maxScore;
+    }
+
+    // Validate and sanitize sort column
+    const allowedSortColumns = ['report_timestamp', 'event_timestamp', 'threat_score'];
+    const sortBy = allowedSortColumns.includes(params.sortBy || '')
+      ? params.sortBy
+      : 'report_timestamp';
+    const sortOrder = params.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    // Map friendly names to actual columns
+    const columnMapping: Record<string, string> = {
+      report_timestamp: 'fp.timestamp',
+      event_timestamp: 'fp.event_timestamp',
+      threat_score: 'fp.threat_score',
+    };
+
+    const safeSortColumn = columnMapping[sortBy!];
+
+    // Count total matching records
+    const countQuery = `
+      SELECT count() AS total
+      FROM n8n_logs.false_positive_reports AS fp
+      WHERE ${whereConditions.join(' AND ')}
+    `;
+
+    const countResult = await client.query({
+      query: countQuery,
+      query_params: queryParams,
+      format: 'JSONEachRow',
+    });
+
+    const countData = await countResult.json<{ total: number }>();
+    const total = countData[0]?.total || 0;
+
+    // Fetch paginated results with JOIN to events_processed
+    const dataQuery = `
+      SELECT
+        fp.report_id,
+        fp.event_id,
+        fp.reported_by,
+        fp.report_type,
+        fp.reason,
+        fp.comment,
+        formatDateTime(fp.timestamp, '%Y-%m-%dT%H:%i:%SZ') AS report_timestamp,
+        formatDateTime(fp.event_timestamp, '%Y-%m-%dT%H:%i:%SZ') AS event_timestamp,
+        fp.original_input,
+        fp.final_status,
+        fp.threat_score,
+
+        -- Extract detected categories from scoring_json
+        arrayDistinct(
+          arrayFilter(x -> x != '',
+            arrayMap(x -> JSONExtractString(x, 'category'),
+                     JSONExtractArrayRaw(ifNull(ep.scoring_json, '[]')))
+          )
+        ) AS detected_categories,
+
+        -- Extract sanitizer score
+        toUInt8(ifNull(JSONExtractInt(ep.scoring_json, 'sanitizer_score'), 0)) AS sanitizer_score,
+
+        -- Extract Prompt Guard score
+        toFloat64(ifNull(ep.pg_score_percent, 0)) AS pg_score_percent,
+
+        -- Extract decision reason (internal_note from final_decision_json)
+        ifNull(JSONExtractString(ep.final_decision_json, 'internal_note'), '') AS decision_reason
+
+      FROM n8n_logs.false_positive_reports AS fp
+      LEFT JOIN n8n_logs.events_processed AS ep
+        ON fp.event_id = ep.event_id
+      WHERE ${whereConditions.join(' AND ')}
+      ORDER BY ${safeSortColumn} ${sortOrder}
+      LIMIT {pageSize:UInt16} OFFSET {offset:UInt32}
+    `;
+
+    const dataResult = await client.query({
+      query: dataQuery,
+      query_params: queryParams,
+      format: 'JSONEachRow',
+    });
+
+    const rows = await dataResult.json<FPReportDetailed>();
+
+    return {
+      rows,
+      total,
+      page: params.page,
+      pageSize: params.pageSize,
+      pages: Math.ceil(total / params.pageSize),
+    };
+  } catch (error) {
+    console.error('ClickHouse query error (FP report list):', error);
+    return {
+      rows: [],
+      total: 0,
+      page: params.page,
+      pageSize: params.pageSize,
+      pages: 0,
+    };
+  }
+}
+
+/**
+ * FP Statistics by Reason
+ */
+export interface FPReasonStats {
+  reason: string;
+  count: number;
+  percentage: number;
+  avg_threat_score: number;
+}
+
+/**
+ * Get FP statistics grouped by reason
+ */
+export async function getFPStatsByReason(timeRange: string = '30 DAY'): Promise<FPReasonStats[]> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        reason,
+        count() AS count,
+        round(count() * 100.0 / sum(count()) OVER (), 2) AS percentage,
+        round(avg(threat_score), 2) AS avg_threat_score
+      FROM n8n_logs.false_positive_reports
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      GROUP BY reason
+      ORDER BY count DESC
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    return await resultSet.json<FPReasonStats>();
+  } catch (error) {
+    console.error('ClickHouse query error (FP stats by reason):', error);
+    return [];
+  }
+}
+
+/**
+ * FP Statistics by Reporter
+ */
+export interface FPReporterStats {
+  reported_by: string;
+  count: number;
+  recent_reports: number;
+}
+
+/**
+ * Get FP statistics grouped by reporter
+ */
+export async function getFPStatsByReporter(timeRange: string = '30 DAY'): Promise<FPReporterStats[]> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        reported_by,
+        count() AS count,
+        countIf(timestamp >= now() - INTERVAL 7 DAY) AS recent_reports
+      FROM n8n_logs.false_positive_reports
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      GROUP BY reported_by
+      ORDER BY count DESC
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    return await resultSet.json<FPReporterStats>();
+  } catch (error) {
+    console.error('ClickHouse query error (FP stats by reporter):', error);
+    return [];
+  }
+}
+
+/**
+ * FP Statistics by Detected Category
+ */
+export interface FPCategoryStats {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+/**
+ * Get FP statistics grouped by final_status
+ * Uses data from false_positive_reports table directly (no JOIN needed)
+ * Shows breakdown: ALLOWED, SANITIZED, BLOCKED
+ */
+export async function getFPStatsByCategory(timeRange: string = '30 DAY'): Promise<FPCategoryStats[]> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        final_status AS category,
+        count() AS count,
+        round(count() * 100.0 / sum(count()) OVER (), 2) AS percentage
+      FROM n8n_logs.false_positive_reports
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      GROUP BY final_status
+      ORDER BY count DESC
+      LIMIT 20
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    return await resultSet.json<FPCategoryStats>();
+  } catch (error) {
+    console.error('ClickHouse query error (FP stats by category):', error);
+    return [];
+  }
+}
+
+/**
+ * FP Trend Data
+ */
+export interface FPTrendData {
+  date: string;
+  count: number;
+}
+
+/**
+ * Get FP trend over time (daily or weekly)
+ */
+export async function getFPTrend(timeRange: string = '30 DAY', interval: 'day' | 'week' = 'day'): Promise<FPTrendData[]> {
+  const client = getClickHouseClient();
+
+  try {
+    const dateFunc = interval === 'week' ? 'toStartOfWeek' : 'toDate';
+    const dateFormat = interval === 'week' ? '%Y-W%V' : '%Y-%m-%d';
+
+    const query = `
+      SELECT
+        formatDateTime(${dateFunc}(timestamp), '${dateFormat}') AS date,
+        count() AS count
+      FROM n8n_logs.false_positive_reports
+      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      GROUP BY ${dateFunc}(timestamp)
+      ORDER BY ${dateFunc}(timestamp) ASC
+    `;
+
+    const resultSet = await client.query({
+      query,
+      format: 'JSONEachRow',
+    });
+
+    return await resultSet.json<FPTrendData>();
+  } catch (error) {
+    console.error('ClickHouse query error (FP trend):', error);
+    return [];
+  }
+}
+
+/**
+ * Get single FP report with full event context including decision analysis
+ */
+export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed & {
+  scoring_breakdown: any;
+  sanitizer_breakdown: any;
+  final_decision: any;
+  pattern_matches: any[];
+  pipeline_flow: any;
+  final_action: string;
+  removal_pct: number;
+  processing_time_ms: number;
+  pii_sanitized: number;
+  pii_types_detected: string[];
+  pii_entities_count: number;
+  detected_language: string;
+  decision_source: string;
+} | null> {
+  const client = getClickHouseClient();
+
+  try {
+    const query = `
+      SELECT
+        fp.report_id,
+        fp.event_id,
+        fp.reported_by,
+        fp.report_type,
+        fp.reason,
+        fp.comment,
+        formatDateTime(fp.timestamp, '%Y-%m-%dT%H:%i:%SZ') AS report_timestamp,
+        formatDateTime(fp.event_timestamp, '%Y-%m-%dT%H:%i:%SZ') AS event_timestamp,
+        fp.original_input,
+        fp.final_status,
+        fp.threat_score,
+
+        -- NEW: Additional metadata for decision analysis
+        ifNull(ep.final_action, '') AS final_action,
+        toFloat64(ifNull(ep.removal_pct, 0)) AS removal_pct,
+        toUInt32(ifNull(ep.processing_time_ms, 0)) AS processing_time_ms,
+        toUInt8(ifNull(ep.pii_sanitized, 0)) AS pii_sanitized,
+        ifNull(ep.pii_types_detected, []) AS pii_types_detected,
+        toUInt32(ifNull(ep.pii_entities_count, 0)) AS pii_entities_count,
+        ifNull(ep.detected_language, '') AS detected_language,
+
+        -- Detected categories
+        arrayDistinct(
+          arrayFilter(x -> x != '',
+            arrayMap(x -> JSONExtractString(x, 'category'),
+                     JSONExtractArrayRaw(ifNull(ep.scoring_json, '[]')))
+          )
+        ) AS detected_categories,
+
+        -- Scores
+        toUInt8(ifNull(JSONExtractInt(ep.scoring_json, 'sanitizer_score'), 0)) AS sanitizer_score,
+        toFloat64(ifNull(ep.pg_score_percent, 0)) AS pg_score_percent,
+
+        -- Decision source and reason
+        ifNull(JSONExtractString(ep.final_decision_json, 'source'), 'unknown') AS decision_source,
+        ifNull(JSONExtractString(ep.final_decision_json, 'internal_note'), '') AS decision_reason,
+
+        -- Full context (JSON fields for detailed analysis)
+        ep.scoring_json AS scoring_breakdown,
+        ep.sanitizer_json AS sanitizer_breakdown,
+        ep.final_decision_json AS final_decision,
+        ep.pipeline_flow_json AS pipeline_flow
+
+      FROM n8n_logs.false_positive_reports AS fp
+      LEFT JOIN n8n_logs.events_processed AS ep
+        ON fp.event_id = ep.event_id
+      WHERE fp.report_id = {reportId:String}
+      LIMIT 1
+    `;
+
+    const resultSet = await client.query({
+      query,
+      query_params: { reportId },
+      format: 'JSONEachRow',
+    });
+
+    const data = await resultSet.json<any>();
+
+    if (data.length === 0) {
+      return null;
+    }
+
+    const row = data[0];
+
+    // Parse JSON fields
+    return {
+      ...row,
+      scoring_breakdown: row.scoring_breakdown ? JSON.parse(row.scoring_breakdown) : null,
+      sanitizer_breakdown: row.sanitizer_breakdown ? JSON.parse(row.sanitizer_breakdown) : null,
+      final_decision: row.final_decision ? JSON.parse(row.final_decision) : null,
+      pattern_matches: row.scoring_breakdown
+        ? JSON.parse(row.scoring_breakdown).match_details || []
+        : [],
+      pipeline_flow: row.pipeline_flow ? JSON.parse(row.pipeline_flow) : null,
+    };
+  } catch (error) {
+    console.error('ClickHouse query error (FP report details):', error);
+    return null;
   }
 }
 

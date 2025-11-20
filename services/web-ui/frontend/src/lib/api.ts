@@ -212,6 +212,7 @@ export async function fetchAuditLog() {
 // False Positive Feedback API
 export interface FalsePositiveReport {
   event_id: string;
+  report_type?: 'FP' | 'TP';  // Optional, defaults to 'FP' on backend
   reason: string;
   comment: string;
   event_timestamp?: string;
@@ -231,6 +232,210 @@ export async function submitFalsePositiveReport(report: FalsePositiveReport) {
 
 export async function fetchFPStats() {
   const r = await authenticatedFetch(`${API}/feedback/stats`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ============================================================================
+// FALSE POSITIVE DETAILED REPORTING API
+// ============================================================================
+
+export interface FPReportDetailed {
+  report_id: string;
+  event_id: string;
+  reported_by: string;
+  report_type: 'FP' | 'TP';  // Report type: False Positive or True Positive
+  reason: string;
+  comment: string;
+  report_timestamp: string;
+  event_timestamp: string;
+  original_input: string;
+  final_status: string;
+  threat_score: number;
+  detected_categories: string[];
+  sanitizer_score: number;
+  pg_score_percent: number;
+  decision_reason: string; // internal_note from final_decision_json
+
+  // Decision Analysis fields
+  final_action: string;
+  removal_pct: number;
+  processing_time_ms: number;
+  pii_sanitized: number;
+  pii_types_detected: string[];
+  pii_entities_count: number;
+  detected_language: string;
+  decision_source: string;
+
+  // Parsed JSON objects (only in detail view from getFPReportDetails)
+  scoring_breakdown?: {
+    sanitizer_score: number;
+    prompt_guard_score: number;
+    prompt_guard_percent: number;
+    threat_score: number;
+    score_breakdown: Record<string, number>;
+    match_details: Array<{
+      category: string;
+      matchCount: number;
+      score: number;
+      matches: Array<{
+        pattern: string;
+        samples: string[];
+      }>;
+    }>;
+  };
+
+  sanitizer_breakdown?: {
+    decision: string;
+    removal_pct: number;
+    mode?: string;
+    score: number;
+    breakdown: Record<string, number>;
+    pii?: {
+      has: boolean;
+      entities_detected: number;
+      detection_method: string;
+      processing_time_ms: number;
+      language_stats: {
+        detected_language: string;
+        detection_confidence: number;
+        detection_method: string;
+        polish_entities: number;
+        english_entities: number;
+        regex_entities: number;
+      };
+      entities: Array<{
+        type: string;
+        start: number;
+        end: number;
+        score: number;
+      }>;
+    };
+  };
+
+  final_decision?: {
+    status: string;
+    action_taken: string;
+    source: string;
+    internal_note: string;
+  };
+
+  pipeline_flow?: {
+    input_raw: string;
+    input_normalized: string;
+    after_sanitization: string;
+    after_pii_redaction: string;
+    output_final: string;
+    output_status: string;
+  };
+
+  pattern_matches?: Array<{
+    category: string;
+    matchCount: number;
+    score: number;
+    matches: Array<{
+      pattern: string;
+      samples: string[];
+    }>;
+  }>;
+}
+
+export interface FPReportListParams {
+  startDate?: string;
+  endDate?: string;
+  reportType?: 'FP' | 'TP' | 'ALL';  // Filter by report type (default: ALL)
+  reason?: string;
+  reportedBy?: string;
+  minScore?: number;
+  maxScore?: number;
+  sortBy?: 'report_timestamp' | 'event_timestamp' | 'threat_score';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  pageSize: number;
+}
+
+export interface FPReportListResponse {
+  rows: FPReportDetailed[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+export async function getFPReportList(params: FPReportListParams): Promise<FPReportListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params.startDate) queryParams.set('startDate', params.startDate);
+  if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.reportType) queryParams.set('reportType', params.reportType);
+  if (params.reason) queryParams.set('reason', params.reason);
+  if (params.reportedBy) queryParams.set('reportedBy', params.reportedBy);
+  if (params.minScore !== undefined) queryParams.set('minScore', String(params.minScore));
+  if (params.maxScore !== undefined) queryParams.set('maxScore', String(params.maxScore));
+  if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+  queryParams.set('page', String(params.page));
+  queryParams.set('pageSize', String(params.pageSize));
+
+  const r = await authenticatedFetch(`${API}/feedback/reports?${queryParams.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPReasonStats {
+  reason: string;
+  count: number;
+  percentage: number;
+  avg_threat_score: number;
+}
+
+export async function getFPStatsByReason(timeRange: string = '30 DAY'): Promise<FPReasonStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-reason?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPReporterStats {
+  reported_by: string;
+  count: number;
+  recent_reports: number;
+}
+
+export async function getFPStatsByReporter(timeRange: string = '30 DAY'): Promise<FPReporterStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-reporter?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPCategoryStats {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export async function getFPStatsByCategory(timeRange: string = '30 DAY'): Promise<FPCategoryStats[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/by-category?timeRange=${encodeURIComponent(timeRange)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export interface FPTrendData {
+  date: string;
+  count: number;
+}
+
+export async function getFPTrend(timeRange: string = '30 DAY', interval: 'day' | 'week' = 'day'): Promise<FPTrendData[]> {
+  const r = await authenticatedFetch(`${API}/feedback/stats/trend?timeRange=${encodeURIComponent(timeRange)}&interval=${interval}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed & {
+  scoring_breakdown: any;
+  pattern_matches: any[];
+  pipeline_flow: any;
+}> {
+  const r = await authenticatedFetch(`${API}/feedback/reports/${encodeURIComponent(reportId)}`);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -499,5 +704,36 @@ export async function syncPiiConfig(payload: SyncPiiConfigPayload): Promise<Sync
 export async function validatePiiConfig(): Promise<PiiConfigValidationResult> {
   const r = await authenticatedFetch(`${API}/pii-detection/validate-config`);
   if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ============================================================================
+// QUALITY REPORTING API (FP & TP)
+// ============================================================================
+
+export interface QualityReportPayload {
+  event_id: string;
+  report_type: 'FP' | 'TP';  // False Positive or True Positive
+  reason: string;
+  comment: string;
+}
+
+export interface QualityReportResponse {
+  success: boolean;
+  report_id: string;
+  message: string;
+}
+
+export async function submitQualityReport(payload: QualityReportPayload): Promise<QualityReportResponse> {
+  const r = await authenticatedFetch(`${API}/feedback/submit`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (!r.ok) {
+    const errorText = await r.text();
+    throw new Error(errorText || 'Failed to submit quality report');
+  }
+
   return r.json();
 }

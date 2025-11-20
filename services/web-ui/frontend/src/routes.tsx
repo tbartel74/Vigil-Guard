@@ -12,6 +12,7 @@ import { Settings } from "./components/Settings";
 import { PluginConfiguration } from "./components/PluginConfiguration";
 import { RetentionPolicy } from "./components/RetentionPolicy";
 import { PIISettings } from "./components/PIISettings";
+import FPReporting from "./components/FPReporting";
 import Documentation from "./components/Documentation";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import { MobileProvider } from "./context/MobileContext";
@@ -374,6 +375,7 @@ export const router = createBrowserRouter(
       children: [
         { path: "/", element: <Monitoring /> },
         { path: "/investigation", element: <Investigation /> },
+        { path: "/fp-reporting", element: <FPReporting /> },
         {
           path: "/config",
           element: <ConfigLayout />,
