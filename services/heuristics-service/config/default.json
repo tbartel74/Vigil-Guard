@@ -1,0 +1,62 @@
+{
+  "detection": {
+    "weights": {
+      "obfuscation": 0.30,
+      "structure": 0.25,
+      "whisper": 0.30,
+      "entropy": 0.15
+    },
+    "thresholds": {
+      "low_max": 20,
+      "medium_max": 50
+    },
+    "obfuscation": {
+      "zero_width_threshold": 1,
+      "homoglyph_threshold": 1,
+      "mixed_script_threshold": 2,
+      "base64_min_length": 20,
+      "hex_min_length": 16,
+      "spacing_anomaly_ratio": 0.01
+    },
+    "structure": {
+      "code_fence_threshold": 2,
+      "boundary_threshold": 3,
+      "newline_ratio_threshold": 0.3,
+      "segment_variance_threshold": 100
+    },
+    "whisper": {
+      "pattern_threshold": 2,
+      "divider_threshold": 2,
+      "roleplay_threshold": 2,
+      "question_repetition_threshold": 2,
+      "divider_weight": 100,
+      "pattern_weight_multiplier": 2.0
+    },
+    "entropy": {
+      "enabled": true,
+      "shannon_threshold_high": 4.5,
+      "shannon_threshold_low": 1.5,
+      "bigram_anomaly_threshold": 0.3
+    }
+  },
+  "performance": {
+    "target_latency_ms": 50,
+    "circuit_breaker": {
+      "enabled": true,
+      "timeout_ms": 1000,
+      "reset_ms": 30000
+    }
+  },
+  "scoring": {
+    "priority_boosts": {
+      "mixed_scripts_obfuscation": 10,
+      "heavy_whisper_with_structure": 15,
+      "high_entropy_with_obfuscation": 10
+    },
+    "confidence": {
+      "base": 0.6,
+      "signal_bonus": 0.1,
+      "max": 0.95
+    }
+  }
+}

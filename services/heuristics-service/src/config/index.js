@@ -1,0 +1,157 @@
+/**
+ * Configuration loader for Heuristics Service
+ * Supports environment variable overrides for all settings
+ */
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load default configuration
+const defaultConfigPath = path.join(__dirname, '../../config/default.json');
+let defaultConfig = {};
+
+try {
+  defaultConfig = JSON.parse(fs.readFileSync(defaultConfigPath, 'utf-8'));
+} catch (error) {
+  console.warn('Failed to load default config, using built-in defaults:', error.message);
+  defaultConfig = {
+    detection: {
+      weights: { obfuscation: 0.30, structure: 0.25, whisper: 0.30, entropy: 0.15 },
+      thresholds: { low_max: 39, medium_max: 69 },
+      obfuscation: { zero_width_threshold: 3, homoglyph_threshold: 5, mixed_script_threshold: 2 },
+      structure: { code_fence_threshold: 2, boundary_threshold: 3 },
+      whisper: { pattern_threshold: 2, divider_threshold: 2 },
+      entropy: { enabled: true, shannon_threshold_high: 4.5, shannon_threshold_low: 1.5, bigram_anomaly_threshold: 0.3 }
+    },
+    performance: { target_latency_ms: 50, circuit_breaker: { enabled: true, timeout_ms: 1000 } },
+    scoring: { priority_boosts: {}, confidence: { base: 0.6, signal_bonus: 0.1, max: 0.95 } }
+  };
+}
+
+/**
+ * Parse environment variable as float
+ */
+function envFloat(name, defaultValue) {
+  const val = process.env[name];
+  return val !== undefined ? parseFloat(val) : defaultValue;
+}
+
+/**
+ * Parse environment variable as int
+ */
+function envInt(name, defaultValue) {
+  const val = process.env[name];
+  return val !== undefined ? parseInt(val, 10) : defaultValue;
+}
+
+/**
+ * Parse environment variable as boolean
+ */
+function envBool(name, defaultValue) {
+  const val = process.env[name];
+  if (val === undefined) return defaultValue;
+  return val.toLowerCase() === 'true' || val === '1';
+}
+
+// Build configuration with environment overrides
+export const config = {
+  detection: {
+    weights: {
+      obfuscation: envFloat('WEIGHT_OBFUSCATION', defaultConfig.detection?.weights?.obfuscation ?? 0.30),
+      structure: envFloat('WEIGHT_STRUCTURE', defaultConfig.detection?.weights?.structure ?? 0.25),
+      whisper: envFloat('WEIGHT_WHISPER', defaultConfig.detection?.weights?.whisper ?? 0.30),
+      entropy: envFloat('WEIGHT_ENTROPY', defaultConfig.detection?.weights?.entropy ?? 0.15)
+    },
+    thresholds: {
+      low_max: envInt('THRESHOLD_LOW_MAX', defaultConfig.detection?.thresholds?.low_max ?? 39),
+      medium_max: envInt('THRESHOLD_MEDIUM_MAX', defaultConfig.detection?.thresholds?.medium_max ?? 69)
+    },
+    obfuscation: {
+      zero_width_threshold: envInt('OBFUSCATION_ZERO_WIDTH_THRESHOLD',
+        defaultConfig.detection?.obfuscation?.zero_width_threshold ?? 3),
+      homoglyph_threshold: envInt('OBFUSCATION_HOMOGLYPH_THRESHOLD',
+        defaultConfig.detection?.obfuscation?.homoglyph_threshold ?? 5),
+      mixed_script_threshold: envInt('OBFUSCATION_MIXED_SCRIPT_THRESHOLD',
+        defaultConfig.detection?.obfuscation?.mixed_script_threshold ?? 2),
+      base64_min_length: envInt('OBFUSCATION_BASE64_MIN_LENGTH',
+        defaultConfig.detection?.obfuscation?.base64_min_length ?? 20),
+      hex_min_length: envInt('OBFUSCATION_HEX_MIN_LENGTH',
+        defaultConfig.detection?.obfuscation?.hex_min_length ?? 16),
+      spacing_anomaly_ratio: envFloat('OBFUSCATION_SPACING_ANOMALY_RATIO',
+        defaultConfig.detection?.obfuscation?.spacing_anomaly_ratio ?? 0.01)
+    },
+    structure: {
+      code_fence_threshold: envInt('STRUCTURE_CODE_FENCE_THRESHOLD',
+        defaultConfig.detection?.structure?.code_fence_threshold ?? 2),
+      boundary_threshold: envInt('STRUCTURE_BOUNDARY_THRESHOLD',
+        defaultConfig.detection?.structure?.boundary_threshold ?? 3),
+      newline_ratio_threshold: envFloat('STRUCTURE_NEWLINE_RATIO_THRESHOLD',
+        defaultConfig.detection?.structure?.newline_ratio_threshold ?? 0.3),
+      segment_variance_threshold: envInt('STRUCTURE_SEGMENT_VARIANCE_THRESHOLD',
+        defaultConfig.detection?.structure?.segment_variance_threshold ?? 100)
+    },
+    whisper: {
+      pattern_threshold: envInt('WHISPER_PATTERN_THRESHOLD',
+        defaultConfig.detection?.whisper?.pattern_threshold ?? 2),
+      divider_threshold: envInt('WHISPER_DIVIDER_THRESHOLD',
+        defaultConfig.detection?.whisper?.divider_threshold ?? 2),
+      roleplay_threshold: envInt('WHISPER_ROLEPLAY_THRESHOLD',
+        defaultConfig.detection?.whisper?.roleplay_threshold ?? 2),
+      question_repetition_threshold: envInt('WHISPER_QUESTION_REPETITION_THRESHOLD',
+        defaultConfig.detection?.whisper?.question_repetition_threshold ?? 2),
+      divider_weight: envInt('WHISPER_DIVIDER_WEIGHT',
+        defaultConfig.detection?.whisper?.divider_weight ?? 50),
+      pattern_weight_multiplier: envFloat('WHISPER_PATTERN_WEIGHT_MULTIPLIER',
+        defaultConfig.detection?.whisper?.pattern_weight_multiplier ?? 1.0)
+    },
+    entropy: {
+      enabled: envBool('ENTROPY_ENABLED',
+        defaultConfig.detection?.entropy?.enabled ?? true),
+      shannon_threshold_high: envFloat('ENTROPY_HIGH_THRESHOLD',
+        defaultConfig.detection?.entropy?.shannon_threshold_high ?? 4.5),
+      shannon_threshold_low: envFloat('ENTROPY_LOW_THRESHOLD',
+        defaultConfig.detection?.entropy?.shannon_threshold_low ?? 1.5),
+      bigram_anomaly_threshold: envFloat('ENTROPY_BIGRAM_ANOMALY_THRESHOLD',
+        defaultConfig.detection?.entropy?.bigram_anomaly_threshold ?? 0.3)
+    }
+  },
+  performance: {
+    target_latency_ms: envInt('TARGET_LATENCY_MS', defaultConfig.performance?.target_latency_ms ?? 50),
+    circuit_breaker: {
+      enabled: envBool('CIRCUIT_BREAKER_ENABLED', defaultConfig.performance?.circuit_breaker?.enabled ?? true),
+      timeout_ms: envInt('CIRCUIT_BREAKER_TIMEOUT_MS',
+        defaultConfig.performance?.circuit_breaker?.timeout_ms ?? 1000),
+      reset_ms: envInt('CIRCUIT_BREAKER_RESET_MS',
+        defaultConfig.performance?.circuit_breaker?.reset_ms ?? 30000)
+    }
+  },
+  scoring: {
+    priority_boosts: defaultConfig.scoring?.priority_boosts ?? {},
+    confidence: {
+      base: envFloat('CONFIDENCE_BASE', defaultConfig.scoring?.confidence?.base ?? 0.6),
+      signal_bonus: envFloat('CONFIDENCE_SIGNAL_BONUS',
+        defaultConfig.scoring?.confidence?.signal_bonus ?? 0.1),
+      max: envFloat('CONFIDENCE_MAX', defaultConfig.scoring?.confidence?.max ?? 0.95)
+    }
+  }
+};
+
+// Normalize weights to ensure they sum to 1.0
+const weightSum = config.detection.weights.obfuscation +
+                  config.detection.weights.structure +
+                  config.detection.weights.whisper +
+                  config.detection.weights.entropy;
+
+if (Math.abs(weightSum - 1.0) > 0.001) {
+  console.warn(`Weight sum is ${weightSum}, normalizing to 1.0`);
+  config.detection.weights.obfuscation /= weightSum;
+  config.detection.weights.structure /= weightSum;
+  config.detection.weights.whisper /= weightSum;
+  config.detection.weights.entropy /= weightSum;
+}
+
+export default config;
