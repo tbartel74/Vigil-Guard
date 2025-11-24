@@ -32,6 +32,7 @@ services:
       - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/03-create-views.sql:ro
       - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/04-false-positives.sql:ro
       - ./services/monitoring/sql/05-retention-config.sql:/docker-entrypoint-initdb.d/05-retention-config.sql:ro
+      - ./services/monitoring/sql/07-semantic-embeddings.sql:/docker-entrypoint-initdb.d/07-semantic-embeddings.sql:ro
     networks:
       vigil-net:
         aliases:
@@ -217,6 +218,97 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  # ============================================
+  # SEMANTIC SERVICE (Branch B - Vector Similarity)
+  # ============================================
+  semantic-service:
+    build: ./services/semantic-service
+    container_name: vigil-semantic-service
+    image: vigil-semantic-service:1.0.0
+    environment:
+      - NODE_ENV=production
+      - PORT=5006
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - CLICKHOUSE_HOST=vigil-clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-n8n_logs}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:?ERROR - CLICKHOUSE_PASSWORD must be set in .env file}
+      - SEARCH_TOP_K=5
+      - THRESHOLD_LOW=40
+      - THRESHOLD_MEDIUM=70
+      - RATE_LIMIT_MAX=1000
+      - CLICKHOUSE_TIMEOUT=10000
+    ports:
+      - "${SEMANTIC_SERVICE_PORT:-5006}:5006"
+    volumes:
+      # Persist model cache (avoid re-download)
+      - ./vigil_data/semantic-models:/app/models
+      # Pre-generated embeddings (loaded at startup)
+      - ./services/semantic-service/data:/app/data:ro
+    networks:
+      vigil-net:
+        aliases:
+          - semantic-service
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5006/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Resource reservations (guaranteed minimum, no upper limits)
+    deploy:
+      resources:
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+  # ============================================
+  # HEURISTICS SERVICE (Branch A - Pattern Detection)
+  # ============================================
+  heuristics-service:
+    build: ./services/heuristics-service
+    container_name: vigil-heuristics
+    image: vigil-heuristics:2.0.0
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - LOG_LEVEL=${HEURISTICS_LOG_LEVEL:-info}
+      - PORT=5005
+      # Detection weights (must sum to 1.0)
+      - WEIGHT_OBFUSCATION=${WEIGHT_OBFUSCATION:-0.30}
+      - WEIGHT_STRUCTURE=${WEIGHT_STRUCTURE:-0.25}
+      - WEIGHT_WHISPER=${WEIGHT_WHISPER:-0.30}
+      - WEIGHT_ENTROPY=${WEIGHT_ENTROPY:-0.15}
+      # Thresholds
+      - THRESHOLD_LOW_MAX=${THRESHOLD_LOW_MAX:-39}
+      - THRESHOLD_MEDIUM_MAX=${THRESHOLD_MEDIUM_MAX:-69}
+      # Performance
+      - TARGET_LATENCY_MS=${TARGET_LATENCY_MS:-50}
+      - CIRCUIT_BREAKER_ENABLED=${CIRCUIT_BREAKER_ENABLED:-true}
+    ports:
+      - "${HEURISTICS_PORT:-5005}:5005"
+    volumes:
+      # Patterns directory (extracted from Roadmap)
+      - ./services/heuristics-service/patterns:/app/patterns:ro
+    networks:
+      vigil-net:
+        aliases:
+          - heuristics-service
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5005/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ============================================
   # LANGUAGE DETECTION SERVICE
