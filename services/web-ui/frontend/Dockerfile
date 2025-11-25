@@ -8,16 +8,16 @@ WORKDIR /app
 ARG VITE_GRAFANA_ORIGIN=http://localhost:3001
 ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (from root context)
+COPY services/web-ui/frontend/package*.json ./
 
 # Install dependencies
 # Note: Using npm install instead of npm ci due to npm workspaces
 # (package-lock.json is at monorepo root, not in workspace)
 RUN npm install
 
-# Copy source files
-COPY . .
+# Copy source files (from root context)
+COPY services/web-ui/frontend/ .
 
 # Documentation is synced separately via prepare-docs script during build
 # The docs are already in public/docs from the source copy
@@ -34,8 +34,8 @@ RUN apk add --no-cache curl
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration from frontend directory
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration (from root context)
+COPY services/web-ui/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80
