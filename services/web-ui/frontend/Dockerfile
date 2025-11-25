@@ -9,7 +9,7 @@ ARG VITE_GRAFANA_ORIGIN=http://localhost:3001
 ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
 
 # Copy package files
-COPY ./services/web-ui/frontend/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 # Note: Using npm install instead of npm ci due to npm workspaces
@@ -17,7 +17,7 @@ COPY ./services/web-ui/frontend/package*.json ./
 RUN npm install
 
 # Copy source files
-COPY ./services/web-ui/frontend .
+COPY . .
 
 # Documentation is synced separately via prepare-docs script during build
 # The docs are already in public/docs from the source copy
@@ -35,7 +35,7 @@ RUN apk add --no-cache curl
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration from frontend directory
-COPY ./services/web-ui/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

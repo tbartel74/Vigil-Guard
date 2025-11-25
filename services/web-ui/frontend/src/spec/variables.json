@@ -29,6 +29,18 @@
       "label": "PII Detection",
       "description": "Personally identifiable information detection",
       "order": 5
+    },
+    {
+      "id": "arbiter_weights",
+      "label": "Arbiter Weights",
+      "description": "Branch voting weights for 3-branch architecture",
+      "order": 6
+    },
+    {
+      "id": "arbiter_boosts",
+      "label": "Priority Boosts",
+      "description": "Override rules for edge cases",
+      "order": 7
     }
   ],
   "variables": [
@@ -415,6 +427,216 @@
         {
           "file": "unified_config.json",
           "path": "pii_detection.redaction_mode"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_WEIGHT_HEURISTICS",
+      "groupId": "arbiter_weights",
+      "label": "Heuristics Weight (Branch A)",
+      "type": "number",
+      "required": true,
+      "help": "Weight for pattern matching and entropy analysis (0.0-1.0). Default: 0.30",
+      "default": 0.3,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.weights.heuristics"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_WEIGHT_SEMANTIC",
+      "groupId": "arbiter_weights",
+      "label": "Semantic Weight (Branch B)",
+      "type": "number",
+      "required": true,
+      "help": "Weight for embedding similarity analysis (0.0-1.0). Default: 0.35",
+      "default": 0.35,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.weights.semantic"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_WEIGHT_LLM_GUARD",
+      "groupId": "arbiter_weights",
+      "label": "LLM Guard Weight (Branch C)",
+      "type": "number",
+      "required": true,
+      "help": "Weight for Llama Guard ML classification (0.0-1.0). Default: 0.35",
+      "default": 0.35,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.weights.llm_guard"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BLOCK_SCORE",
+      "groupId": "arbiter_weights",
+      "label": "Block Threshold",
+      "type": "number",
+      "required": true,
+      "help": "Combined score threshold to block content (0-100). Default: 50",
+      "default": 50,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.thresholds.block_score"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_CONFIDENCE_MIN",
+      "groupId": "arbiter_weights",
+      "label": "Minimum Confidence",
+      "type": "number",
+      "required": true,
+      "help": "Minimum confidence required for decision (0.0-1.0). Default: 0.6",
+      "default": 0.6,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.thresholds.confidence_min"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_CONSERVATIVE_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "Conservative Override",
+      "type": "boolean",
+      "required": true,
+      "help": "Block if ANY branch reports HIGH threat (≥70). Default: enabled",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.CONSERVATIVE_OVERRIDE.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_CONSERVATIVE_MIN",
+      "groupId": "arbiter_boosts",
+      "label": "Conservative Min Score",
+      "type": "number",
+      "required": true,
+      "help": "Minimum score for conservative override (0-100). Default: 70",
+      "default": 70,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.CONSERVATIVE_OVERRIDE.min_score"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_SEMANTIC_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "Semantic High Similarity Boost",
+      "type": "boolean",
+      "required": true,
+      "help": "Add boost when semantic similarity exceeds threshold. Default: enabled",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.SEMANTIC_HIGH_SIMILARITY.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_SEMANTIC_THRESHOLD",
+      "groupId": "arbiter_boosts",
+      "label": "Semantic Similarity Threshold",
+      "type": "number",
+      "required": true,
+      "help": "Similarity threshold to trigger boost (0.0-1.0). Default: 0.85",
+      "default": 0.85,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.SEMANTIC_HIGH_SIMILARITY.threshold"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_SEMANTIC_VALUE",
+      "groupId": "arbiter_boosts",
+      "label": "Semantic Boost Value",
+      "type": "number",
+      "required": true,
+      "help": "Points to add when similarity exceeds threshold (0-100). Default: 15",
+      "default": 15,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.SEMANTIC_HIGH_SIMILARITY.boost"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_UNANIMOUS_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "Unanimous Low Override",
+      "type": "boolean",
+      "required": true,
+      "help": "Allow if ALL branches report LOW threat (≤30). Default: enabled",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.UNANIMOUS_LOW.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_UNANIMOUS_MAX",
+      "groupId": "arbiter_boosts",
+      "label": "Unanimous Max Score",
+      "type": "number",
+      "required": true,
+      "help": "Maximum score for unanimous low override (0-100). Default: 30",
+      "default": 30,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.UNANIMOUS_LOW.max_score"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_LLM_VETO_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "LLM Guard Veto",
+      "type": "boolean",
+      "required": true,
+      "help": "Block if LLM Guard is certain (score ≥90). Default: enabled",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.LLM_GUARD_VETO.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_LLM_VETO_THRESHOLD",
+      "groupId": "arbiter_boosts",
+      "label": "LLM Veto Threshold",
+      "type": "number",
+      "required": true,
+      "help": "LLM Guard score threshold for veto (0-100). Default: 90",
+      "default": 90,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.LLM_GUARD_VETO.threshold"
         }
       ]
     }
