@@ -85,7 +85,7 @@ Add new version section at the top:
 - N/A
 
 ### Breaking Changes
-- None (backward compatible with v1.7.9)
+- None (backward compatible with v2.0.0)
 
 ### Migration Notes
 - Workflow import required: `Vigil Guard v1.8.1.json`
@@ -338,13 +338,13 @@ If critical issues found after release:
 docker-compose down
 
 # Checkout previous stable version
-git checkout v1.7.9
+git checkout v2.0.0
 
 # Rebuild and restart
 docker-compose up -d --build
 
 # Import previous workflow JSON
-# Manual step: n8n GUI → Import → Vigil Guard v1.7.9.json
+# Manual step: n8n GUI → Import → Vigil Guard v2.0.0.json
 ```
 
 ### 2. Revert Git Tag (if not yet published)
@@ -364,7 +364,7 @@ git push origin :refs/tags/v1.8.1
 
 **This release has been revoked due to critical bug.**
 
-Please use v1.7.9 instead: https://github.com/yourusername/vigil-guard/releases/tag/v1.7.9
+Please use v2.0.0 instead: https://github.com/yourusername/vigil-guard/releases/tag/v2.0.0
 
 Affected versions: v1.8.1
 Issue: [Link to GitHub issue]
