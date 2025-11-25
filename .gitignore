@@ -181,3 +181,6 @@ VERIFICATION_*.md
 # Test summaries (temporary analysis)
 TEST_SUMMARY.md
 PII_SCORE_REGRESSION_ANALYSIS.md
+
+# Archive - v1.8 legacy files
+old_1.8_files/
