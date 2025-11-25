@@ -101,10 +101,7 @@ export default function FileManager() {
   };
 
   const configFiles = [
-    { name: 'unified_config.json', description: 'Main configuration file with detection settings, bloom filter, and sanitization policies' },
-    { name: 'thresholds.config.json', description: 'Score thresholds for ALLOW, SANITIZE_LIGHT, SANITIZE_HEAVY, and BLOCK decisions' },
-    { name: 'rules.config.json', description: 'Detection rules and pattern matching definitions for threat categories' },
-    { name: 'normalize.conf', description: 'Character normalization rules including homoglyph and leet speak mappings' },
+    { name: 'unified_config.json', description: 'Main configuration file with detection settings, Arbiter weights, bloom filter, and sanitization policies (v2.0.0)' },
     { name: 'pii.conf', description: 'PII redaction patterns for sensitive data detection and removal' },
     { name: 'allowlist.schema.json', description: 'JSON Schema for allowlist validation and structure definition' },
   ];
