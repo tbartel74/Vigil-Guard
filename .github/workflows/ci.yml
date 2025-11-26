@@ -370,6 +370,66 @@ jobs:
           [ -x install.sh ] || (echo "install.sh not executable" && exit 1)
           [ -x scripts/download-llama-model.sh ] || (echo "download-llama-model.sh not executable" && exit 1)
 
+  # Heuristics Service - Unit Tests (v2.0.0)
+  heuristics-service-tests:
+    name: Heuristics Service - Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-heuristics-${{ hashFiles('services/heuristics-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-heuristics-
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        working-directory: services/heuristics-service
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: services/heuristics-service
+        run: npm test -- tests/unit/
+
+  # Semantic Service - Unit Tests (v2.0.0)
+  semantic-service-tests:
+    name: Semantic Service - Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-semantic-${{ hashFiles('services/semantic-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-semantic-
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        working-directory: services/semantic-service
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: services/semantic-service
+        run: npm test -- tests/unit/
+
   # All checks passed
   all-checks:
     name: ✅ All Checks Passed
@@ -384,6 +444,8 @@ jobs:
       - security-audit
       - secret-scan
       - install-script-check
+      - heuristics-service-tests
+      - semantic-service-tests
 
     steps:
       - name: Success
@@ -401,4 +463,6 @@ jobs:
           echo "  ✓ Documentation checked"
           echo "  ✓ Security audit completed"
           echo "  ✓ Installation scripts validated"
+          echo "  ✓ Heuristics Service unit tests (v2.0.0)"
+          echo "  ✓ Semantic Service unit tests (v2.0.0)"
           echo ""

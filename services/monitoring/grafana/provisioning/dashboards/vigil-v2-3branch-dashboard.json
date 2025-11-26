@@ -375,7 +375,7 @@
             "properties": [{ "id": "color", "value": { "fixedColor": "#a855f7", "mode": "fixed" } }]
           },
           {
-            "matcher": { "id": "byName", "options": "LLM Guard (C)" },
+            "matcher": { "id": "byName", "options": "NLP Analysis (C)" },
             "properties": [{ "id": "color", "value": { "fixedColor": "#06b6d4", "mode": "fixed" } }]
           }
         ]
@@ -676,7 +676,7 @@
       "targets": [
         {
           "format": "table",
-          "query": "SELECT formatDateTime(timestamp, '%Y-%m-%d %H:%i:%S') AS event_time, toString(id) as event_id, substring(original_input, 1, 80) as input_preview, substring(result, 1, 80) as output_preview, branch_a_score as A, branch_b_score as B, branch_c_score as C, threat_score, final_status, client_id, concat(browser_name, ' ', browser_version) as browser, arrayStringConcat(boosts_applied, ', ') as boosts FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') ORDER BY timestamp DESC LIMIT 100",
+          "query": "SELECT formatDateTime(toTimeZone(timestamp, '$__timezone'), '%Y-%m-%d %H:%i:%S') AS event_time, toString(id) as event_id, substring(original_input, 1, 80) as input_preview, substring(result, 1, 80) as output_preview, branch_a_score as A, branch_b_score as B, branch_c_score as C, threat_score, final_status, client_id, concat(browser_name, ' ', browser_version) as browser, arrayStringConcat(boosts_applied, ', ') as boosts FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') ORDER BY timestamp DESC LIMIT 100",
           "refId": "A"
         }
       ],

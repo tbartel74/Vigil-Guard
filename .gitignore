@@ -115,6 +115,7 @@ CHANGELOG.md
 
 # Codex tooling (local-only)
 .codex/
+bin
 bin/vg-orchestrate
 
 # Project management and scripts (not for repository)

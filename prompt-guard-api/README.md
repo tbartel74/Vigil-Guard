@@ -95,7 +95,7 @@ docker-compose up --build -d
 # Check logs
 docker-compose logs -f
 
-# Wait for "Model załadowany!" message
+# Wait for "Model loaded!" message
 ```
 
 ## API Endpoints

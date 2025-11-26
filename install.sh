@@ -1138,7 +1138,7 @@ EOF
 
     if [ "$TOTAL_OBJECTS" -ge 8 ]; then
         log_success "ClickHouse v2.0.0 initialized successfully ($TOTAL_OBJECTS tables/views)"
-        log_info "Architecture: 3-branch detection (Heuristics + Semantic + LLM Guard)"
+        log_info "Architecture: 3-branch detection (Heuristics + Semantic + NLP safety analysis)"
     else
         log_warning "Database created but object count is unexpected: $TOTAL_OBJECTS (expected ≥8)"
     fi
@@ -1780,9 +1780,9 @@ show_summary() {
     echo -e "    • Pattern database: ${GREEN}ClickHouse vector embeddings${NC}"
     echo -e "    • Performance: ${BLUE}<100ms per query${NC}"
     echo ""
-    echo -e "  ${GREEN}Branch C - LLM Guard (Future):${NC}"
+    echo -e "  ${GREEN}Branch C - NLP safety analysis (Future):${NC}"
     echo -e "    • Status: ${YELLOW}Planned for v2.1.0${NC}"
-    echo -e "    • Integration: ${YELLOW}Prompt Guard API ready${NC}"
+    echo -e "    • Integration: ${YELLOW}Prompt Guard API (LLM safety model) ready${NC}"
     echo ""
     echo -e "  ${GREEN}PII Detection (Dual-Language):${NC}"
     echo -e "    • Provider: ${BLUE}Microsoft Presidio${NC}"
