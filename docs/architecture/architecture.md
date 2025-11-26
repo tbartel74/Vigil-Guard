@@ -72,7 +72,7 @@ graph TB
         WebUI["Web UI<br/><br/>React + Vite<br/>Port: 5173<br/><br/>Configuration interface<br/>Monitoring dashboard"]
         Backend["Backend API<br/><br/>Express.js<br/>Port: 8787<br/><br/>RESTful API<br/>JWT authentication<br/>File management"]
         N8N["n8n Workflow<br/><br/>n8n Engine<br/>Port: 5678<br/><br/>40-node pipeline<br/>16 code nodes<br/>Threat detection"]
-        PromptGuard["Prompt Guard API<br/><br/>FastAPI<br/>Port: 8000<br/><br/>ML-based validation<br/>Llama Guard 2"]
+        PromptGuard["Prompt Guard API<br/><br/>FastAPI<br/>Port: 8000<br/><br/>NLP safety analysis<br/>Llama Guard 2 model"]
         Caddy["Reverse Proxy<br/><br/>Caddy<br/>Port: 80<br/><br/>Routes traffic<br/>SSL termination"]
     end
 
