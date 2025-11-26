@@ -20,12 +20,13 @@ try {
   console.warn('Failed to load default config, using built-in defaults:', error.message);
   defaultConfig = {
     detection: {
-      weights: { obfuscation: 0.30, structure: 0.25, whisper: 0.30, entropy: 0.15 },
-      thresholds: { low_max: 39, medium_max: 69 },
+      weights: { obfuscation: 0.25, structure: 0.20, whisper: 0.25, entropy: 0.15, security: 0.15 },
+      thresholds: { low_max: 30, medium_max: 65 },
       obfuscation: { zero_width_threshold: 3, homoglyph_threshold: 5, mixed_script_threshold: 2 },
       structure: { code_fence_threshold: 2, boundary_threshold: 3 },
       whisper: { pattern_threshold: 2, divider_threshold: 2 },
-      entropy: { enabled: true, shannon_threshold_high: 4.5, shannon_threshold_low: 1.5, bigram_anomaly_threshold: 0.3 }
+      entropy: { enabled: true, shannon_threshold_high: 4.5, shannon_threshold_low: 1.5, bigram_anomaly_threshold: 0.3 },
+      security: { sql_injection_threshold: 1, xss_threshold: 1, command_injection_threshold: 1, privilege_escalation_threshold: 2 }
     },
     performance: { target_latency_ms: 50, circuit_breaker: { enabled: true, timeout_ms: 1000 } },
     scoring: { priority_boosts: {}, confidence: { base: 0.6, signal_bonus: 0.1, max: 0.95 } }
@@ -61,10 +62,11 @@ function envBool(name, defaultValue) {
 export const config = {
   detection: {
     weights: {
-      obfuscation: envFloat('WEIGHT_OBFUSCATION', defaultConfig.detection?.weights?.obfuscation ?? 0.30),
-      structure: envFloat('WEIGHT_STRUCTURE', defaultConfig.detection?.weights?.structure ?? 0.25),
-      whisper: envFloat('WEIGHT_WHISPER', defaultConfig.detection?.weights?.whisper ?? 0.30),
-      entropy: envFloat('WEIGHT_ENTROPY', defaultConfig.detection?.weights?.entropy ?? 0.15)
+      obfuscation: envFloat('WEIGHT_OBFUSCATION', defaultConfig.detection?.weights?.obfuscation ?? 0.25),
+      structure: envFloat('WEIGHT_STRUCTURE', defaultConfig.detection?.weights?.structure ?? 0.20),
+      whisper: envFloat('WEIGHT_WHISPER', defaultConfig.detection?.weights?.whisper ?? 0.25),
+      entropy: envFloat('WEIGHT_ENTROPY', defaultConfig.detection?.weights?.entropy ?? 0.15),
+      security: envFloat('WEIGHT_SECURITY', defaultConfig.detection?.weights?.security ?? 0.15)
     },
     thresholds: {
       low_max: envInt('THRESHOLD_LOW_MAX', defaultConfig.detection?.thresholds?.low_max ?? 39),
@@ -116,7 +118,32 @@ export const config = {
       shannon_threshold_low: envFloat('ENTROPY_LOW_THRESHOLD',
         defaultConfig.detection?.entropy?.shannon_threshold_low ?? 1.5),
       bigram_anomaly_threshold: envFloat('ENTROPY_BIGRAM_ANOMALY_THRESHOLD',
-        defaultConfig.detection?.entropy?.bigram_anomaly_threshold ?? 0.3)
+        defaultConfig.detection?.entropy?.bigram_anomaly_threshold ?? 0.3),
+      bigram_language_detection: envBool('BIGRAM_LANGUAGE_DETECTION',
+        defaultConfig.detection?.entropy?.bigram_language_detection ?? true),
+      bigram_fallback_language: process.env.BIGRAM_FALLBACK_LANGUAGE ||
+        defaultConfig.detection?.entropy?.bigram_fallback_language || 'en',
+      bigram_sets: defaultConfig.detection?.entropy?.bigram_sets || {
+        en: {
+          bigrams: [
+            'th', 'he', 'in', 'er', 'an', 're', 'ed', 'on', 'es', 'st',
+            'en', 'at', 'to', 'nt', 'ha', 'nd', 'ou', 'ea', 'ng', 'as',
+            'or', 'ti', 'is', 'et', 'it', 'ar', 'te', 'se', 'hi', 'of'
+          ],
+          weight: 1.0,
+          min_frequency_threshold: 0.001
+        }
+      }
+    },
+    security: {
+      sql_injection_threshold: envInt('SECURITY_SQL_INJECTION_THRESHOLD',
+        defaultConfig.detection?.security?.sql_injection_threshold ?? 1),
+      xss_threshold: envInt('SECURITY_XSS_THRESHOLD',
+        defaultConfig.detection?.security?.xss_threshold ?? 1),
+      command_injection_threshold: envInt('SECURITY_COMMAND_INJECTION_THRESHOLD',
+        defaultConfig.detection?.security?.command_injection_threshold ?? 1),
+      privilege_escalation_threshold: envInt('SECURITY_PRIVILEGE_ESCALATION_THRESHOLD',
+        defaultConfig.detection?.security?.privilege_escalation_threshold ?? 2)
     }
   },
   performance: {
@@ -144,7 +171,8 @@ export const config = {
 const weightSum = config.detection.weights.obfuscation +
                   config.detection.weights.structure +
                   config.detection.weights.whisper +
-                  config.detection.weights.entropy;
+                  config.detection.weights.entropy +
+                  config.detection.weights.security;
 
 if (Math.abs(weightSum - 1.0) > 0.001) {
   console.warn(`Weight sum is ${weightSum}, normalizing to 1.0`);
@@ -152,6 +180,7 @@ if (Math.abs(weightSum - 1.0) > 0.001) {
   config.detection.weights.structure /= weightSum;
   config.detection.weights.whisper /= weightSum;
   config.detection.weights.entropy /= weightSum;
+  config.detection.weights.security /= weightSum;
 }
 
 export default config;

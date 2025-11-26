@@ -24,7 +24,9 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.9",
+    "axios": "^1.13.2",
     "supertest": "^6.3.4",
+    "uuid": "^13.0.0",
     "vitest": "^2.1.9"
   }
 }

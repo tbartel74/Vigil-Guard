@@ -47,6 +47,15 @@ const createMockDetectorResults = (overrides = {}) => ({
     bigram_anomaly_score: 50,
     random_segments: [],
     perplexity_score: 80
+  },
+  security: {
+    score: overrides.securityScore ?? 0,
+    signals: overrides.securitySignals ?? [],
+    sql_injection_count: 0,
+    xss_count: 0,
+    command_injection_count: 0,
+    privilege_escalation_count: 0,
+    detected_patterns: []
   }
 });
 

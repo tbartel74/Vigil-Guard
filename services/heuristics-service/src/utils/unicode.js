@@ -205,3 +205,116 @@ export function hasInvisibleChars(text) {
 export function removeInvisibleChars(text) {
   return text.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u206A-\u206F\uFEFF\uFFF9-\uFFFB]/g, '');
 }
+
+// Reference character frequency distributions for natural language
+// Based on research: natural English ~4.0-4.2 bpc at zero-order, random ~4.7 bpc
+const ENGLISH_FREQ = {
+  e: 0.127, t: 0.091, a: 0.082, o: 0.075, i: 0.070, n: 0.067, s: 0.063, h: 0.061,
+  r: 0.060, d: 0.043, l: 0.040, c: 0.028, u: 0.028, m: 0.024, w: 0.024, f: 0.022,
+  g: 0.020, y: 0.020, p: 0.019, b: 0.015, v: 0.010, k: 0.008, j: 0.002, x: 0.002,
+  q: 0.001, z: 0.001
+};
+
+const POLISH_FREQ = {
+  a: 0.099, i: 0.082, e: 0.077, o: 0.075, n: 0.055, r: 0.047, z: 0.046, w: 0.046,
+  s: 0.043, c: 0.040, t: 0.040, k: 0.035, y: 0.035, d: 0.032, p: 0.031, m: 0.028,
+  l: 0.027, j: 0.023, u: 0.021, ą: 0.010, ę: 0.010, b: 0.015, g: 0.014, ł: 0.018,
+  h: 0.011, ś: 0.008, ż: 0.006, ó: 0.010, ń: 0.006, ć: 0.004, ź: 0.001, f: 0.003
+};
+
+/**
+ * Calculate Relative Entropy (KL Divergence) comparing text distribution to reference language
+ * Higher value = text deviates more from natural language patterns
+ * @param {string} text - Input text
+ * @param {string} language - Language code ('en' or 'pl')
+ * @returns {number} Relative entropy value (0 = natural, higher = more random)
+ */
+export function calculateRelativeEntropy(text, language = 'en') {
+  if (!text || text.length === 0) return 0;
+
+  const refDist = language === 'pl' ? POLISH_FREQ : ENGLISH_FREQ;
+
+  // Get text character frequency (lowercase, letters only)
+  const cleanText = text.toLowerCase().replace(/[^a-ząćęłńóśźża-z]/g, '');
+  if (cleanText.length < 10) return 0; // Too short for meaningful analysis
+
+  const textDist = {};
+  for (const char of cleanText) {
+    textDist[char] = (textDist[char] || 0) + 1;
+  }
+
+  // Normalize to probabilities
+  const total = cleanText.length;
+  for (const char in textDist) {
+    textDist[char] /= total;
+  }
+
+  // Calculate KL divergence: KL(P||Q) = Σ P(x) * log(P(x)/Q(x))
+  // Where P is text distribution, Q is reference distribution
+  let klDivergence = 0;
+  const epsilon = 0.0001; // Small value to avoid log(0)
+
+  for (const char in textDist) {
+    const p = textDist[char];
+    const q = refDist[char] || epsilon;
+    if (p > 0) {
+      klDivergence += p * Math.log2(p / q);
+    }
+  }
+
+  // Normalize to 0-1 range (typical KL divergence for text is 0-5)
+  return Math.min(1, Math.max(0, klDivergence / 5));
+}
+
+/**
+ * Calculate Character Class Diversity
+ * Natural text uses mainly letters + spaces, obfuscated text mixes many classes
+ * @param {string} text - Input text
+ * @returns {Object} { count: number, classes: string[], score: number }
+ */
+export function calculateCharClassDiversity(text) {
+  if (!text || text.length === 0) {
+    return { count: 0, classes: [], score: 0 };
+  }
+
+  const classPatterns = {
+    lowercase: /[a-z]/,
+    uppercase: /[A-Z]/,
+    digits: /[0-9]/,
+    symbols: /[!@#$%^&*()_+=\-\[\]{}|;:'",.<>?\/\\`~]/,
+    unicode: /[^\x00-\x7F]/,
+    whitespace: /\s/
+  };
+
+  const detectedClasses = [];
+
+  for (const [className, pattern] of Object.entries(classPatterns)) {
+    if (pattern.test(text)) {
+      detectedClasses.push(className);
+    }
+  }
+
+  // Calculate diversity score (0-100)
+  // Natural text: 2-3 classes (lowercase, uppercase, whitespace) = low score
+  // Obfuscated: 4-6 classes = high score
+  const count = detectedClasses.length;
+  let score = 0;
+
+  if (count <= 2) {
+    score = 0; // Very natural
+  } else if (count === 3) {
+    score = 10; // Slightly complex
+  } else if (count === 4) {
+    score = 30; // Moderately suspicious
+  } else if (count === 5) {
+    score = 60; // Highly suspicious
+  } else {
+    score = 90; // Maximum diversity
+  }
+
+  return {
+    count,
+    classes: detectedClasses,
+    score
+  };
+}

@@ -16,14 +16,18 @@ import { describe, it, expect, beforeAll } from 'vitest';
 const BASE_URL = process.env.HEURISTICS_URL || 'http://localhost:5005';
 
 /**
- * Helper to send analyze request
+ * Helper to send analyze request with optional language parameter
  */
-async function analyze(text, requestId = null) {
+async function analyze(text, requestId = null, lang = null) {
   const id = requestId || `test-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const body = { text, request_id: id };
+  if (lang !== null) {
+    body.lang = lang;
+  }
   const response = await fetch(`${BASE_URL}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, request_id: id })
+    body: JSON.stringify(body)
   });
   return response.json();
 }
@@ -495,5 +499,54 @@ describe('Heuristics Service - Edge Cases', () => {
     expect(response.status).toBe(200);
     expect(data.branch_id).toBe('A');
     expect(data.degraded).toBe(false);
+  });
+});
+
+/**
+ * E2E Tests - Language-Aware Entropy Detection
+ */
+describe('Heuristics Service - Multi-Language Bigram Detection', () => {
+
+  it('should handle Polish text with lang=pl (low bigram anomaly)', async () => {
+    const polishText = "System bezpieczeństwa działa prawidłowo.";
+    const result = await analyze(polishText, null, 'pl');
+
+    expect(result.branch_id).toBe('A');
+    expect(result.features.entropy.bigram_anomaly_score).toBeLessThan(30);
+    expect(result.features.entropy.signals).not.toContain(expect.stringContaining('Unusual bigram patterns'));
+    expect(result.degraded).toBe(false);
+  });
+
+  it('should detect anomaly in Polish text when forced to English', async () => {
+    const polishText = "System bezpieczeństwa działa prawidłowo.";
+    const result = await analyze(polishText, null, 'en');
+
+    expect(result.features.entropy.bigram_anomaly_score).toBeGreaterThan(60);
+    // This demonstrates the bug we're fixing
+  });
+
+  it('should maintain English detection accuracy with lang=en', async () => {
+    const englishText = "The security system is working correctly.";
+    const result = await analyze(englishText, null, 'en');
+
+    expect(result.features.entropy.bigram_anomaly_score).toBeLessThan(30);
+    expect(result.degraded).toBe(false);
+  });
+
+  it('should detect obfuscated text regardless of language', async () => {
+    const obfuscated = "x7f9k2p3q8z1m4n6b5c0v";
+    const resultPl = await analyze(obfuscated, null, 'pl');
+    const resultEn = await analyze(obfuscated, null, 'en');
+
+    expect(resultPl.features.entropy.bigram_anomaly_score).toBeGreaterThan(70);
+    expect(resultEn.features.entropy.bigram_anomaly_score).toBeGreaterThan(70);
+  });
+
+  it('should fallback gracefully when lang parameter missing', async () => {
+    const text = "Hello world";
+    const result = await analyze(text); // No lang parameter
+
+    expect(result.features.entropy.bigram_anomaly_score).toBeLessThan(30);
+    expect(result.degraded).toBe(false);
   });
 });

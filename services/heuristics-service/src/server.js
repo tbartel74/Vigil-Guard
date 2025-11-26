@@ -19,6 +19,7 @@ import { detectObfuscation } from './detectors/obfuscation.js';
 import { detectStructure } from './detectors/structure.js';
 import { detectWhisper } from './detectors/whisper.js';
 import { detectEntropy } from './detectors/entropy.js';
+import { detectSecurityKeywords } from './detectors/security.js';
 import { calculateScore } from './scoring/scorer.js';
 import { normalizeText, getNormalizeConfig } from './utils/normalizer.js';
 
@@ -86,11 +87,12 @@ app.post('/analyze', validateRequest, async (req, res) => {
     }, 'Normalization completed');
 
     // Run detectors in parallel (on NORMALIZED text)
-    const [obfuscation, structure, whisper, entropy] = await Promise.all([
+    const [obfuscation, structure, whisper, entropy, security] = await Promise.all([
       detectObfuscation(normalizedText),
       detectStructure(normalizedText),
       detectWhisper(normalizedText),
-      detectEntropy(normalizedText)
+      detectEntropy(normalizedText, { lang }),
+      detectSecurityKeywords(normalizedText)
     ]);
 
     // Calculate final score (pass normalization signals for scoring boost)
@@ -98,7 +100,8 @@ app.post('/analyze', validateRequest, async (req, res) => {
       obfuscation,
       structure,
       whisper,
-      entropy
+      entropy,
+      security
     }, normSignals);
 
     // Add critical_signals flag for Arbiter (unified contract v2.1)
@@ -160,7 +163,8 @@ app.post('/analyze', validateRequest, async (req, res) => {
         obfuscation: { score: 0, error: true },
         structure: { score: 0, error: true },
         whisper: { score: 0, error: true },
-        entropy: { score: 0, error: true }
+        entropy: { score: 0, error: true },
+        security: { score: 0, error: true }
       },
       explanations: ['Service error - running in degraded mode'],
       timing_ms: timing,
@@ -238,6 +242,6 @@ app.listen(PORT, '0.0.0.0', () => {
 
   logger.info(`Heuristics Service (Branch A) v2.1.0 listening on port ${PORT}`);
   logger.info(`Target latency: ${config.performance.target_latency_ms}ms`);
-  logger.info(`Weights: Obf=${config.detection.weights.obfuscation}, Struct=${config.detection.weights.structure}, Whisper=${config.detection.weights.whisper}, Entropy=${config.detection.weights.entropy}`);
+  logger.info(`Weights: Obf=${config.detection.weights.obfuscation}, Struct=${config.detection.weights.structure}, Whisper=${config.detection.weights.whisper}, Entropy=${config.detection.weights.entropy}, Security=${config.detection.weights.security}`);
   logger.info('Internal normalization: ENABLED (v2.0 architecture)');
 });

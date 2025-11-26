@@ -1,0 +1,150 @@
+{
+  "sql_injection": {
+    "high_confidence": [
+      {
+        "pattern": "\\bUNION\\s+SELECT\\b",
+        "weight": 90,
+        "description": "SQL UNION injection"
+      },
+      {
+        "pattern": "\\bOR\\s+['\"]?1['\"]?\\s*=\\s*['\"]?1",
+        "weight": 85,
+        "description": "Boolean SQL injection (OR 1=1)"
+      },
+      {
+        "pattern": ";\\s*DROP\\s+TABLE",
+        "weight": 95,
+        "description": "SQL DROP TABLE"
+      },
+      {
+        "pattern": ";\\s*DELETE\\s+FROM",
+        "weight": 90,
+        "description": "SQL DELETE injection"
+      },
+      {
+        "pattern": "0x[0-9a-fA-F]+.*SELECT",
+        "weight": 85,
+        "description": "Hex-encoded SQL injection"
+      },
+      {
+        "pattern": "--\\s*$",
+        "weight": 70,
+        "description": "SQL comment injection"
+      },
+      {
+        "pattern": "/\\*.*\\*/",
+        "weight": 65,
+        "description": "SQL block comment"
+      }
+    ],
+    "medium_confidence": [
+      {
+        "pattern": "\\bSELECT\\b.*\\bFROM\\b",
+        "weight": 60,
+        "description": "SQL SELECT statement"
+      },
+      {
+        "pattern": "\\bINSERT\\s+INTO\\b",
+        "weight": 55,
+        "description": "SQL INSERT statement"
+      },
+      {
+        "pattern": "\\bUPDATE\\b.*\\bSET\\b",
+        "weight": 55,
+        "description": "SQL UPDATE statement"
+      }
+    ]
+  },
+  "xss": {
+    "high_confidence": [
+      {
+        "pattern": "<script[^>]*>",
+        "weight": 90,
+        "description": "Script tag injection"
+      },
+      {
+        "pattern": "\\bon(error|load|click|mouse|focus|blur)\\s*=",
+        "weight": 85,
+        "description": "Event handler injection"
+      },
+      {
+        "pattern": "javascript:",
+        "weight": 80,
+        "description": "JavaScript protocol"
+      },
+      {
+        "pattern": "<iframe\\b",
+        "weight": 85,
+        "description": "iframe injection"
+      },
+      {
+        "pattern": "document\\.(cookie|write|location)",
+        "weight": 75,
+        "description": "DOM manipulation"
+      },
+      {
+        "pattern": "<img[^>]+src\\s*=\\s*['\"]?javascript:",
+        "weight": 90,
+        "description": "Image XSS"
+      },
+      {
+        "pattern": "<svg[^>]*onload",
+        "weight": 85,
+        "description": "SVG XSS"
+      }
+    ]
+  },
+  "command_injection": {
+    "high_confidence": [
+      {
+        "pattern": ";\\s*(rm|cat|wget|curl|nc|netcat)\\b",
+        "weight": 90,
+        "description": "Shell command chaining"
+      },
+      {
+        "pattern": "\\|\\s*(cat|ls|pwd|whoami|id)\\b",
+        "weight": 85,
+        "description": "Pipe to command"
+      },
+      {
+        "pattern": "\\$\\([^)]+\\)",
+        "weight": 80,
+        "description": "Command substitution"
+      },
+      {
+        "pattern": "`[^`]+`",
+        "weight": 80,
+        "description": "Backtick command execution"
+      },
+      {
+        "pattern": "&&\\s*(rm|mv|cp|chmod)\\b",
+        "weight": 85,
+        "description": "Command chaining with AND"
+      }
+    ]
+  },
+  "privilege_escalation": {
+    "high_confidence": [
+      {
+        "pattern": "\\b(sudo|su\\s+root)\\b",
+        "weight": 85,
+        "description": "Root privilege command"
+      },
+      {
+        "pattern": "\\bchmod\\s+777\\b",
+        "weight": 80,
+        "description": "Dangerous file permissions"
+      },
+      {
+        "pattern": "\\b(admin|root)\\s*(access|panel|login|portal)\\b",
+        "weight": 70,
+        "description": "Admin access request"
+      },
+      {
+        "pattern": "/etc/(passwd|shadow)",
+        "weight": 90,
+        "description": "System password file access"
+      }
+    ]
+  }
+}

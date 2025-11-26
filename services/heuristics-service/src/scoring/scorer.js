@@ -89,7 +89,7 @@ function calculateNormalizationScore(normSignals) {
  * @returns {Object} Final scoring results with branch_result format
  */
 export function calculateScore(detectorResults, normSignals = null) {
-  const { obfuscation, structure, whisper, entropy } = detectorResults;
+  const { obfuscation, structure, whisper, entropy, security } = detectorResults;
 
   // Get weights from config
   const weights = config.detection.weights;
@@ -106,14 +106,16 @@ export function calculateScore(detectorResults, normSignals = null) {
     (enhancedObfuscationScore * weights.obfuscation) +
     (structure.score * weights.structure) +
     (whisper.score * weights.whisper) +
-    (entropy.score * weights.entropy);
+    (entropy.score * weights.entropy) +
+    (security.score * weights.security);
 
   // Find max sub-score (for single-detector attacks) - include enhanced obfuscation
   const maxSubScore = Math.max(
     enhancedObfuscationScore,
     structure.score,
     whisper.score,
-    entropy.score
+    entropy.score,
+    security.score
   );
 
   // Use hybrid scoring: blend weighted average with max-based scoring
@@ -140,6 +142,7 @@ export function calculateScore(detectorResults, normSignals = null) {
     structure.signals.length +
     whisper.signals.length +
     entropy.signals.length +
+    security.signals.length +
     normResult.signals.length;  // Include normalization signals
 
   // Base confidence + bonus for multiple independent signals
@@ -157,7 +160,8 @@ export function calculateScore(detectorResults, normSignals = null) {
     { name: 'obfuscation', score: obfuscation.score },
     { name: 'structure', score: structure.score },
     { name: 'whisper', score: whisper.score },
-    { name: 'entropy', score: entropy.score }
+    { name: 'entropy', score: entropy.score },
+    { name: 'security', score: security.score }
   ].sort((a, b) => b.score - a.score);
 
   const primaryDetector = detectorScores[0];
@@ -182,6 +186,9 @@ export function calculateScore(detectorResults, normSignals = null) {
   }
   if (entropy.signals.length > 0) {
     explanations.push(...entropy.signals.slice(0, 2));
+  }
+  if (security.signals.length > 0) {
+    explanations.push(...security.signals.slice(0, 2));
   }
 
   // Limit explanations to 10 most important
@@ -219,10 +226,20 @@ export function calculateScore(detectorResults, normSignals = null) {
     entropy: {
       entropy_raw: entropy.entropy_raw,
       entropy_normalized: entropy.entropy_normalized,
+      relative_entropy: entropy.relative_entropy,
+      char_class_diversity: entropy.char_class_diversity,
       bigram_anomaly_score: entropy.bigram_anomaly_score,
       random_segments: entropy.random_segments.length,
       perplexity_score: entropy.perplexity_score,
       score: entropy.score
+    },
+    security: {
+      sql_injection_count: security.sql_injection_count,
+      xss_count: security.xss_count,
+      command_injection_count: security.command_injection_count,
+      privilege_escalation_count: security.privilege_escalation_count,
+      detected_patterns: security.detected_patterns.length,
+      score: security.score
     }
   };
 
@@ -234,7 +251,8 @@ export function calculateScore(detectorResults, normSignals = null) {
         obfuscation: obfuscation.score,
         structure: structure.score,
         whisper: whisper.score,
-        entropy: entropy.score
+        entropy: entropy.score,
+        security: security.score
       },
       normalization_boost: {
         score: normResult.score,
@@ -245,7 +263,8 @@ export function calculateScore(detectorResults, normSignals = null) {
         obfuscation: enhancedObfuscationScore * weights.obfuscation,
         structure: structure.score * weights.structure,
         whisper: whisper.score * weights.whisper,
-        entropy: entropy.score * weights.entropy
+        entropy: entropy.score * weights.entropy,
+        security: security.score * weights.security
       },
       total_signals: totalSignals
     };
