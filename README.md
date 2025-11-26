@@ -24,7 +24,7 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 - 📊 **Real-time Monitoring** - Grafana dashboards with 6 specialized analytics panels
 - 🔬 **Investigation Panel** - Advanced prompt search with detailed decision analysis and pattern matching
 - ⚙️ **Dynamic Configuration** - Web-based GUI for managing security policies
-- 🤖 **LLM Guard Integration** - External LLM validation with risk-based policies
+- 🤖 **NLP Safety Analysis** - External NLP-based validation with risk-based policies
 - 🔄 **n8n Workflow Engine** - Scalable processing pipeline with 40 nodes
 - 📈 **ClickHouse Logging** - High-performance data storage and analytics
 - 🎯 **Risk-based Actions** - ALLOW, SANITIZE (Light/Heavy), BLOCK decisions
@@ -452,47 +452,158 @@ For detailed script documentation, see [scripts/README.md](scripts/README.md)
 
 ## 📊 System Architecture
 
-### Processing Pipeline
+### Processing Pipeline (v2.0.0)
 
 ```
-Chat Input → Input Validation → PII Redaction → Normalization
-    → Bloom Prefilter → Allowlist Validation → Pattern Matching
-    → Decision Engine → Correlation → Sanitization
-    → [Optional LLM Guard] → Final Decision
-    → ClickHouse Logging → Output
+                           ┌─────────────────────────────────┐
+                           │     Chat Input (Webhook)        │
+                           └────────────┬────────────────────┘
+                                        │
+                           ┌────────────▼────────────────────┐
+                           │     Input Validation            │
+                           │  (length, type, allowlist)      │
+                           └────────────┬────────────────────┘
+                                        │
+                        ┌───────────────┴───────────────┐
+                        │   3-Branch Executor (Parallel) │
+                        └───────────────┬───────────────┘
+                                        │
+                ┌───────────────────────┼───────────────────────┐
+                │                       │                       │
+        ┌───────▼────────┐     ┌───────▼────────┐     ┌───────▼────────┐
+        │   Branch A      │     │   Branch B      │     │   Branch C      │
+        │   Heuristics    │     │   Semantic      │     │   NLP Safety    │
+        │  (port 5005)    │     │  (port 5006)    │     │  (port 8000)    │
+        │                 │     │                 │     │                 │
+        │ • Entropy       │     │ • Embeddings    │     │ • NLP Guard     │
+        │ • Security      │     │ • Similarity    │     │ • Threat Class  │
+        │ • Obfuscation   │     │ • RAG Vectors   │     │ • Confidence    │
+        │ • Unicode       │     │                 │     │                 │
+        └─────┬───────────┘     └────────┬────────┘     └────────┬────────┘
+              │                          │                        │
+              │     score_a (0-100)      │   score_b (0-100)     │  score_c (0-100)
+              │     confidence_a         │   confidence_b         │  confidence_c
+              └──────────────────────────┼────────────────────────┘
+                                         │
+                            ┌────────────▼────────────────┐
+                            │      Arbiter Engine         │
+                            │  Weighted Aggregation       │
+                            │  • branch_a_weight: 0.30    │
+                            │  • branch_b_weight: 0.35    │
+                            │  • branch_c_weight: 0.35    │
+                            │  • Boost policies           │
+                            │  • Confidence thresholds    │
+                            └────────────┬────────────────┘
+                                         │
+                              ┌──────────▼──────────┐
+                              │   Decision Router   │
+                              └──────────┬──────────┘
+                                         │
+                     ┌───────────────────┴───────────────────┐
+                     │                                       │
+            ┌────────▼─────────┐                  ┌─────────▼────────┐
+            │   ALLOW Branch   │                  │   BLOCK Branch   │
+            └────────┬─────────┘                  └─────────┬────────┘
+                     │                                      │
+         ┌───────────▼──────────┐                           │
+         │   PII Redaction      │                           │
+         │  (ONLY for ALLOW)    │                           │
+         │                      │                           │
+         │ • Language Detection │                           │
+         │   (port 5002)        │                           │
+         │ • Presidio PII       │                           │
+         │   (port 5001)        │                           │
+         │   - Polish model     │                           │
+         │   - English model    │                           │
+         │ • Regex fallback     │                           │
+         └───────────┬──────────┘                           │
+                     │                                      │
+                     └──────────────┬───────────────────────┘
+                                    │
+                       ┌────────────▼────────────────┐
+                       │   ClickHouse Logging        │
+                       │   (events_v2 schema)        │
+                       │   • branch_a/b/c_score      │
+                       │   • arbiter_weights         │
+                       │   • pii_classification      │
+                       │   • detected_language       │
+                       └────────────┬────────────────┘
+                                    │
+                       ┌────────────▼────────────────┐
+                       │   Response Output           │
+                       │   • status (ALLOWED/BLOCKED)│
+                       │   • sanitized_body (if PII) │
+                       │   • metadata                │
+                       └─────────────────────────────┘
 ```
 
-### Decision Thresholds
+**Key Pipeline Changes in v2.0.0:**
+- ✅ **3-Branch Parallel Processing** - Heuristics, Semantic, NLP Safety run simultaneously
+- ✅ **Arbiter Aggregation** - Weighted scoring with boost policies
+- ✅ **PII Only for ALLOW** - BLOCK decisions skip PII entirely (performance optimization)
+- ✅ **Events_v2 Schema** - Stores all branch scores and arbiter decisions
+- ✅ **Fail-Secure Degradation** - If all branches timeout → BLOCK
 
-| Decision | Score Range | Action |
-|----------|-------------|--------|
-| **ALLOW** | 0-29 | Pass through without modification |
-| **SANITIZE_LIGHT** | 30-64 | Remove suspicious patterns |
-| **SANITIZE_HEAVY** | 65-84 | Aggressive content removal |
-| **BLOCK** | 85-100 | Reject content entirely |
+### Arbiter Decision Logic (v2.0.0)
 
-### Detection Categories (33)
+The Arbiter aggregates branch scores using weighted averaging and boost policies:
 
-**Critical Threats:**
-- CRITICAL_INJECTION
-- JAILBREAK_ATTEMPT
-- CONTROL_OVERRIDE
-- PROMPT_LEAK_ATTEMPT
-- GODMODE_JAILBREAK
-- DESTRUCTIVE_COMMANDS
+**Weighted Scoring:**
+```
+combined_score = (branch_a_score × 0.30) + (branch_b_score × 0.35) + (branch_c_score × 0.35)
+```
 
-**Security & Access:**
-- PRIVILEGE_ESCALATION
-- COMMAND_INJECTION
-- CREDENTIAL_HARVESTING
+**Decision Thresholds:**
 
-**Obfuscation & Manipulation:**
-- HEAVY_OBFUSCATION
-- FORMAT_COERCION
-- SOCIAL_ENGINEERING
+| Decision | Condition | Action |
+|----------|-----------|--------|
+| **BLOCK** | `combined_score ≥ 50` | Reject content entirely, skip PII redaction |
+| **ALLOW** | `combined_score < 50` | Pass through, apply PII redaction if enabled |
 
-**Additional Categories:**
-- DANGEROUS_CONTENT, SQL_XSS_ATTACKS, ROLEPLAY_ESCAPE, and 15+ more...
+**Boost Policies** (can override base score):
+- **Conservative Override**: If Branch C detects attack with high confidence → BLOCK
+- **Semantic High Similarity**: If Branch B finds high similarity to known attacks → boost score
+- **Unanimous High**: If all 3 branches agree on high threat → boost score
+- **NLP Veto**: If Branch C has very high confidence → override other branches
+
+**Degradation Handling:**
+- If branch times out → score = 0, weight redistributed to active branches
+- If all branches timeout → fail-secure BLOCK decision
+
+### Detection Categories (44 in v2.0.0)
+
+**Branch A (Pattern Detection)** uses 44 threat categories via Aho-Corasick prefilter:
+
+**Critical Threats (6):**
+- CRITICAL_INJECTION, JAILBREAK_ATTEMPT, CONTROL_OVERRIDE
+- PROMPT_LEAK_ATTEMPT, GODMODE_JAILBREAK, DESTRUCTIVE_COMMANDS
+
+**Security & Access (8):**
+- PRIVILEGE_ESCALATION, COMMAND_INJECTION, CREDENTIAL_HARVESTING
+- SQL_XSS_ATTACKS, PATH_TRAVERSAL, AUTHENTICATION_BYPASS
+- AUTHORIZATION_BYPASS, SESSION_HIJACKING
+
+**Obfuscation & Manipulation (10):**
+- HEAVY_OBFUSCATION, FORMAT_COERCION, SOCIAL_ENGINEERING
+- ENCODING_OBFUSCATION, UNICODE_OBFUSCATION, WHITESPACE_OBFUSCATION
+- ZERO_WIDTH_OBFUSCATION, HOMOGLYPH_ATTACK, LEETSPEAK_OBFUSCATION
+- BASE64_ENCODING
+
+**Additional Categories (20+):**
+- DANGEROUS_CONTENT, ROLEPLAY_ESCAPE, EMOJI_OBFUSCATION
+- MEDICAL_MISUSE, CBRNE_CONTENT, PROMPT_EXTRACTION
+- SYSTEM_MESSAGE_LEAK, DAN_MODE_JAILBREAK, and 12+ more...
+
+**Branch B (Heuristics)** adds:
+- Entropy-based randomness detection
+- Security keyword matching (993 patterns)
+- Structural obfuscation analysis
+- Unicode normalization anomalies
+
+**Branch C (NLP Safety)** provides:
+- Semantic threat classification
+- Context-aware attack detection
+- Confidence scoring (0.0-1.0)
 
 ## 🧪 Testing
 
@@ -562,61 +673,28 @@ Current detection capabilities:
 
 ## 📖 Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Updated documentation (3-branch, no legacy references) is in `docs/`:
 
-### Getting Started
-- **[Quick Start Guide](docs/QUICKSTART.md)** ⚡ - Get running in 5 minutes
-- [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
-- [User Guide](docs/USER_GUIDE.md) - Complete user manual
-- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
-
-### Configuration & Operations
-- [Configuration Reference](docs/CONFIGURATION.md) - All configuration options
-- [Configuration Variables](docs/CONFIG_VARIABLES.md) - Variable mapping reference
-- [Security Guide](docs/SECURITY.md) - Security policies and best practices
-- [Docker Guide](docs/DOCKER.md) - Container architecture and management
-- [Maintenance Guide](docs/MAINTENANCE.md) - Updates, backups, and security scanning
-
-### API & Integration
-- [API Documentation](docs/API.md) - REST API endpoints and usage
-- [Browser Extension Guide](docs/plugin/BROWSER_EXTENSION.md) - Plugin installation and configuration
-- [Browser Extension Quick Start](docs/plugin/QUICK_START.md) - 5-minute plugin setup
-- [Browser Extension Architecture](docs/plugin/HYBRID_ARCHITECTURE.md) - Technical implementation details
-- [Prompt Guard API](prompt-guard-api/README.md) - LLM Guard service documentation
-- [Presidio PII API](services/presidio-pii-api/README.md) - PII detection service documentation
-
-### Testing & Development
-- [Test Suite Guide](services/workflow/tests/README.md) - E2E testing and validation
-- [CI/CD Secrets](docs/CI_SECRETS.md) - GitHub Actions configuration
-- [Technical Architecture](docs/architecture/architecture.md) - System design details
-
-### Reference Materials
-- [Detection Categories](docs/DETECTION_CATEGORIES.md) - All 33 threat patterns
-- [ClickHouse Retention](docs/CLICKHOUSE_RETENTION.md) - Data lifecycle management
-- [PII Detection](docs/PII_DETECTION.md) - Dual-language PII detection system
-- [Model Setup](MODEL_SETUP.md) - Llama Prompt Guard download guide
+- Start: `docs/overview/README.md`, `docs/overview/QUICKSTART.md`
+- Architecture: `docs/architecture/system.md`, `docs/architecture/pipeline.md`, `docs/architecture/branches.md`
+- Configuration: `docs/config/unified-config.md`, `docs/config/heuristics.md`, `docs/config/env.md`
+- Services: `docs/services/heuristics.md`, `docs/services/semantic.md`, `docs/services/nlp-safety.md`, `docs/services/pii.md`, `docs/services/workflow.md`, `docs/services/web-ui.md`
+- API/Logs: `docs/api/events_v2.md`, `docs/api/plugin.md`, `docs/api/web-api.md`
+- Operations: `docs/operations/installation.md`, `docs/operations/docker.md`, `docs/operations/ci-cd.md`, `docs/operations/troubleshooting.md`
+- Security: `docs/security/threat-detection.md`, `docs/security/sanitization.md`, `docs/security/pii-security.md`
+- Tests: `docs/tests/index.md`
 
 ## 🔧 Configuration
 
-The system uses a unified configuration management approach:
+Key files:
+- `services/workflow/config/unified_config.json` – central pipeline/arbiter/sanitization/PII config.
+- `services/workflow/config/pii.conf` – regex fallback PII.
+- `services/workflow/config/allowlist.schema.json` – input validation schema.
+- Branch A: `services/heuristics-service/config/default.json` (+ ENV overrides).
 
-- **Configuration Files**: Located in `services/workflow/config/`
-  - `unified_config.json` - Main settings
-  - `thresholds.config.json` - Score ranges
-  - `rules.config.json` - Detection patterns
-  - `allowlist.schema.json` - Allowed content schema
-  - `normalize.conf` - Text normalization rules
-  - `pii.conf` - PII redaction patterns
+GUI: Web UI http://localhost/ui (prod) or http://localhost:5173 (dev) – arbiter settings, branch weights, health checks.
 
-- **GUI Configuration**: Web interface at http://localhost/ui (production) or http://localhost:5173 (dev mode)
-  - Variable mapping to configuration files
-  - Real-time updates with ETag validation
-  - Backup rotation (max 2 backups per file)
-
-- **Environment Variables**: Configure via `.env` file
-  - Copy `config/.env.example` to `.env`
-  - Customize settings for your deployment
-  - All services respect environment variables
+Env: `.env` (copy from `config/.env.example`) – service passwords, branch URLs, ClickHouse/Grafana.
 
 ⚠️ **IMPORTANT**: The `services/workflow/config/` directory contains critical detection patterns and rules. Do NOT modify directory name, file names, or their contents directly. Use the GUI for configuration changes.
 
