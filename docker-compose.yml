@@ -27,12 +27,9 @@ services:
       # Volume cleanup in install.sh ensures clean initialization with new password
     volumes:
       - ./vigil_data/clickhouse:/var/lib/clickhouse
-      - ./services/monitoring/sql/01-create-tables.sql:/docker-entrypoint-initdb.d/01-create-tables.sql:ro
-      - ./services/monitoring/sql/06-add-audit-columns-v1.7.0.sql:/docker-entrypoint-initdb.d/02-add-audit-columns-v1.7.0.sql:ro
-      - ./services/monitoring/sql/02-create-views.sql:/docker-entrypoint-initdb.d/03-create-views.sql:ro
-      - ./services/monitoring/sql/03-false-positives.sql:/docker-entrypoint-initdb.d/04-false-positives.sql:ro
-      - ./services/monitoring/sql/05-retention-config.sql:/docker-entrypoint-initdb.d/05-retention-config.sql:ro
-      - ./services/monitoring/sql/07-semantic-embeddings.sql:/docker-entrypoint-initdb.d/07-semantic-embeddings.sql:ro
+      - ./services/monitoring/sql/01-create-tables-v2.sql:/docker-entrypoint-initdb.d/01-create-tables-v2.sql:ro
+      - ./services/monitoring/sql/02-semantic-embeddings-v2.sql:/docker-entrypoint-initdb.d/02-semantic-embeddings-v2.sql:ro
+      - ./services/monitoring/sql/03-false-positives-views.sql:/docker-entrypoint-initdb.d/03-false-positives-views.sql:ro
     networks:
       vigil-net:
         aliases:
