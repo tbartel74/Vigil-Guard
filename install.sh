@@ -31,8 +31,11 @@ log_error() {
 }
 
 # Track installation progress
-TOTAL_STEPS=16
+TOTAL_STEPS=17
 CURRENT_STEP=0
+
+# Default Docker Compose command (overridden in check_prerequisites)
+DOCKER_COMPOSE_CMD=("docker-compose")
 
 print_header() {
     CURRENT_STEP=$((CURRENT_STEP + 1))
@@ -221,11 +224,18 @@ check_prerequisites() {
         missing_deps=1
     fi
 
-    # Check Docker Compose
-    if command_exists docker-compose || docker compose version >/dev/null 2>&1; then
-        log_success "Docker Compose is installed"
+    # Check Docker Compose and detect version (v1 binary vs v2 plugin)
+    if command_exists docker-compose; then
+        DOCKER_COMPOSE_CMD=("docker-compose")
+        COMPOSE_VERSION=$(docker-compose version --short 2>/dev/null || echo "unknown")
+        log_success "Docker Compose v1 (standalone) detected: $COMPOSE_VERSION"
+    elif docker compose version >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD=("docker" "compose")
+        COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+        log_success "Docker Compose v2 (plugin) detected: $COMPOSE_VERSION"
     else
         log_error "Docker Compose is not installed"
+        log_info "Install instructions: https://docs.docker.com/compose/install/"
         missing_deps=1
     fi
 
@@ -268,7 +278,7 @@ check_prerequisites() {
 check_disk_space() {
     print_header "Step 3: Disk Space Check"
 
-    local required_gb=30
+    local required_gb=35
     local current_dir="$PWD"
 
     log_info "Checking available disk space..."
@@ -296,7 +306,7 @@ check_disk_space() {
         log_error "You have ${available_gb} GB available, but ${required_gb} GB is required."
         echo ""
         log_info "Disk space breakdown:"
-        echo "  • Docker images: ~2.7 GB (was 1.8 GB with small spaCy models)"
+        echo "  • Docker images: ~3.5 GB (v2.0.0: +heuristics +semantic services)"
         echo "  • vigil_data volumes: 10-20 GB (logs, databases)"
         echo "  • Build cache: 3-5 GB (temporary)"
         echo "  • Reserved safety margin: 5 GB"
@@ -454,8 +464,8 @@ setup_environment() {
 
                 # Stop container if running
                 log_info "Stopping ClickHouse container if running..."
-                docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
-                docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
+                "${DOCKER_COMPOSE_CMD[@]}" stop clickhouse 2>/dev/null || log_info "Container not running"
+                "${DOCKER_COMPOSE_CMD[@]}" rm -f clickhouse 2>/dev/null || log_info "Container not present"
 
                 # Wait for full shutdown
                 sleep 2
@@ -494,9 +504,9 @@ setup_environment() {
                 log_warning "⚠️  WARNING: This WILL cause password authentication failures!"
                 echo ""
                 log_info "After installation, you'll need to manually fix ClickHouse authentication:"
-                log_info "  1. Stop services: docker-compose down"
+                log_info "  1. Stop services: ${DOCKER_COMPOSE_CMD[*]} down"
                 log_info "  2. Remove volume: rm -rf vigil_data/clickhouse"
-                log_info "  3. Restart with new password: docker-compose up -d"
+                log_info "  3. Restart with new password: ${DOCKER_COMPOSE_CMD[*]} up -d"
                 echo ""
                 log_warning "Continuing with installation (authentication issues expected)..."
                 echo ""
@@ -582,9 +592,9 @@ setup_environment() {
                     log_warning "⚠️  SECURITY RISK: Default passwords remain in use!"
                     log_info "To manually change passwords:"
                     log_info "  1. Edit .env file with strong passwords (32+ chars)"
-                    log_info "  2. Run: docker-compose down"
+                    log_info "  2. Run: ${DOCKER_COMPOSE_CMD[*]} down"
                     log_info "  3. Run: rm -rf vigil_data/clickhouse"
-                    log_info "  4. Run: docker-compose up -d"
+                    log_info "  4. Run: ${DOCKER_COMPOSE_CMD[*]} up -d"
                     force_regenerate=0  # Skip password generation
                 fi
             fi
@@ -609,10 +619,10 @@ setup_environment() {
 
                     # Stop and remove container
                     log_info "Stopping ClickHouse container if running..."
-                    docker-compose stop clickhouse 2>/dev/null || log_info "Container not running"
+                    "${DOCKER_COMPOSE_CMD[@]}" stop clickhouse 2>/dev/null || log_info "Container not running"
 
                     log_info "Removing ClickHouse container if present..."
-                    docker-compose rm -f clickhouse 2>/dev/null || log_info "Container not present"
+                    "${DOCKER_COMPOSE_CMD[@]}" rm -f clickhouse 2>/dev/null || log_info "Container not present"
 
                     # Wait for full shutdown
                     sleep 2
@@ -633,7 +643,7 @@ setup_environment() {
                         log_warning "  • You MUST resolve this before deploying to production"
                         echo ""
                         log_info "Manual intervention required:"
-                        log_info "  1. Stop all services: docker-compose down"
+                        log_info "  1. Stop all services: ${DOCKER_COMPOSE_CMD[*]} down"
                         log_info "  2. Remove volume: sudo rm -rf vigil_data/clickhouse"
                         log_info "  3. Re-run installation: ./install.sh"
                         echo ""
@@ -799,7 +809,7 @@ create_docker_network() {
             log_error "Failed to remove existing vigil-net network"
             log_error "Network may be in use by running containers"
             log_info "Check with: docker network inspect vigil-net"
-            log_info "Force removal: docker-compose down && docker network rm vigil-net"
+            log_info "Force removal: ${DOCKER_COMPOSE_CMD[*]} down && docker network rm vigil-net"
             exit 1
         fi
     fi
@@ -823,7 +833,7 @@ cleanup_docker_cache() {
         # Stop and remove containers first (if running)
         if docker ps -a | grep -q "vigil-"; then
             log_info "Stopping existing containers..."
-            docker-compose down 2>/dev/null || true
+            "${DOCKER_COMPOSE_CMD[@]}" down 2>/dev/null || true
         fi
         
         # Remove Vigil Guard images
@@ -847,13 +857,13 @@ start_all_services() {
     print_header "Building and Starting All Services"
 
     log_info "Building Docker images..."
-    docker-compose build
+    "${DOCKER_COMPOSE_CMD[@]}" build
 
     log_success "Docker images built successfully"
     echo ""
 
     log_info "Starting all services..."
-    docker-compose up -d
+    "${DOCKER_COMPOSE_CMD[@]}" up -d
 
     log_success "All services started"
     echo ""
@@ -916,16 +926,14 @@ start_all_services() {
 initialize_clickhouse() {
     print_header "Initializing ClickHouse Database"
 
-    # Verify all required SQL scripts exist
+    # Verify all required SQL scripts exist (v2.0.0)
     REQUIRED_SQL_FILES=(
-        "services/monitoring/sql/01-create-tables.sql"
-        "services/monitoring/sql/02-create-views.sql"
-        "services/monitoring/sql/03-false-positives.sql"
-        "services/monitoring/sql/05-retention-config.sql"
-        "services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
+        "services/monitoring/sql/01-create-tables-v2.sql"
+        "services/monitoring/sql/02-semantic-embeddings-v2.sql"
+        "services/monitoring/sql/03-false-positives-views.sql"
     )
 
-    log_info "Verifying SQL migration files..."
+    log_info "Verifying SQL files for v2.0.0..."
     MISSING_FILES=0
     for SQL_FILE in "${REQUIRED_SQL_FILES[@]}"; do
         if [ ! -f "$SQL_FILE" ]; then
@@ -936,10 +944,10 @@ initialize_clickhouse() {
 
     if [ $MISSING_FILES -gt 0 ]; then
         log_error "$MISSING_FILES SQL file(s) missing - cannot proceed"
-        log_info "Ensure you have the complete v1.7.0 repository"
+        log_info "Ensure you have the complete v2.0.0 repository"
         exit 1
     fi
-    log_success "All SQL migration files present"
+    log_success "All v2.0.0 SQL files present"
     echo ""
 
     # Load ClickHouse configuration from .env
@@ -998,7 +1006,7 @@ initialize_clickhouse() {
         fi
     done
 
-    # Create database
+    # Create database (Docker entrypoint will auto-create tables from volume mounts)
     log_info "Creating ${CLICKHOUSE_DB} database..."
     if DB_CREATE_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery <<EOF 2>&1
 CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB};
@@ -1012,287 +1020,127 @@ EOF
         exit 1
     fi
 
-    # Execute table creation script
-    log_info "Creating tables..."
-    TABLE_OUTPUT=$(cat services/monitoring/sql/01-create-tables.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    TABLE_STATUS=$?
+    # Verify Docker entrypoint created tables (v2.0.0 schema)
+    log_info "Verifying v2.0.0 tables created by Docker entrypoint..."
 
-    if [ $TABLE_STATUS -eq 0 ]; then
-        log_success "Tables created"
-    else
-        log_error "Failed to create tables"
-        log_error "ClickHouse error output:"
-        echo "$TABLE_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/01-create-tables.sql"
-        log_info "  2. Common issues:"
-        log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
-        log_info "     - Syntax errors in SQL"
-        log_info "     - Insufficient permissions"
-        log_info "  3. Verify database: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW DATABASES'"
-        echo ""
-        exit 1
-    fi
-
-    # Execute v1.7.0 audit columns migration FIRST (before views that reference these columns)
-    SQL_FILE="services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
-    if [ ! -f "$SQL_FILE" ]; then
-        log_error "SQL migration file not found: $SQL_FILE"
-        log_info "This file is required for v1.7.0 audit columns (PII classification + browser fingerprinting)"
-        exit 1
-    fi
-
-    log_info "Adding v1.7.0 audit columns (PII classification + browser fingerprinting)..."
-    AUDIT_OUTPUT=$(cat "$SQL_FILE" | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    AUDIT_STATUS=$?
-
-    if [ $AUDIT_STATUS -eq 0 ]; then
-        log_success "Audit columns added successfully"
-    else
-        log_error "Failed to add audit columns"
-        log_error "ClickHouse error output:"
-        echo "$AUDIT_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/06-add-audit-columns-v1.7.0.sql"
-        log_info "  2. Common issues:"
-        log_info "     - Columns already exist (migration idempotent with IF NOT EXISTS)"
-        log_info "     - Syntax errors in ALTER TABLE statements"
-        log_info "     - Target table does not exist"
-        echo ""
-        exit 1
-    fi
-
-    # Execute v1.8.1 language detection migration
-    SQL_FILE="services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
-    if [ ! -f "$SQL_FILE" ]; then
-        log_error "SQL migration file not found: $SQL_FILE"
-        log_info "This file is required for v1.8.1 language detection feature"
-        exit 1
-    fi
-
-    log_info "Adding v1.8.1 language detection column..."
-    LANG_OUTPUT=$(cat "$SQL_FILE" | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-    LANG_STATUS=$?
-
-    if [ $LANG_STATUS -eq 0 ]; then
-        log_success "Language detection column added successfully"
-    else
-        log_error "Failed to add language detection column"
-        log_error "ClickHouse error output:"
-        echo "$LANG_OUTPUT" | sed 's/^/    /'
-        echo ""
-        log_info "Troubleshooting:"
-        log_info "  1. Check SQL file: services/monitoring/sql/07-add-language-detection-v1.8.1.sql"
-        log_info "  2. Common issues:"
-        log_info "     - Column already exists (migration idempotent with IF NOT EXISTS)"
-        log_info "     - Syntax errors in ALTER TABLE statement"
-        log_info "     - Target table does not exist"
-        echo ""
-        exit 1
-    fi
-
-    # Check if views already exist (created by Docker entrypoint)
-    log_info "Checking views..."
-    VIEW_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SELECT COUNT(*) FROM system.tables WHERE database = '${CLICKHOUSE_DB}' AND name LIKE 'v_%'" 2>/dev/null | tr -d ' ')
-
-    if [ "$VIEW_COUNT" -ge 2 ]; then
-        log_info "Views already created (Docker entrypoint initialized them)"
-        log_info "Verifying view schema compatibility..."
-        VIEW_SCHEMA=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW CREATE VIEW ${CLICKHOUSE_DB}.v_grafana_prompts_table" 2>&1)
-        VIEW_SCHEMA_STATUS=$?
-
-        if [ $VIEW_SCHEMA_STATUS -ne 0 ]; then
-            log_warning "Unable to read existing view definition (status $VIEW_SCHEMA_STATUS). Recreating views..."
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_grafana_prompts_table" >/dev/null 2>&1 || true
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_malice_index_timeseries" >/dev/null 2>&1 || true
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.events_summary_realtime" >/dev/null 2>&1 || true
-            VIEW_COUNT=0
-        elif echo "$VIEW_SCHEMA" | grep -q "pii_sanitized"; then
-            log_success "Existing views are compatible with v1.7.0 schema"
-        else
-            log_warning "Existing views are outdated (missing v1.7.0 audit columns). Recreating..."
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_grafana_prompts_table" >/dev/null 2>&1 || true
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.v_malice_index_timeseries" >/dev/null 2>&1 || true
-            docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "DROP VIEW IF EXISTS ${CLICKHOUSE_DB}.events_summary_realtime" >/dev/null 2>&1 || true
-            VIEW_COUNT=0
-        fi
-    else
-        log_info "Creating views..."
-        VIEW_OUTPUT=$(cat services/monitoring/sql/02-create-views.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-        VIEW_STATUS=$?
-
-        if [ $VIEW_STATUS -eq 0 ]; then
-            log_success "Views created"
-        else
-            log_error "Failed to create views"
-            log_error "ClickHouse error output:"
-            echo "$VIEW_OUTPUT" | sed 's/^/    /'
-            echo ""
-            log_info "Troubleshooting:"
-            log_info "  1. Check SQL file: services/monitoring/sql/02-create-views.sql"
-            log_info "  2. Common issues:"
-            log_info "     - View already exists (drop first with: DROP VIEW IF EXISTS ...)"
-            log_info "     - Referenced tables do not exist (check previous step)"
-            log_info "     - Syntax errors in view definition"
-            log_info "  3. Check existing views: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-            echo ""
-            exit 1
-        fi
-    fi
-
-    # Check if false positive reports table exists
-    log_info "Checking false positive reports table..."
-    FP_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "EXISTS TABLE false_positive_reports" 2>/dev/null | tr -d ' ')
-
-    if [ "$FP_EXISTS" = "1" ]; then
-        log_success "False positive reports table already exists (Docker entrypoint initialized it)"
-    else
-        log_info "Creating false positive reports table..."
-        FP_OUTPUT=$(cat services/monitoring/sql/03-false-positives.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-        FP_STATUS=$?
-
-        if [ $FP_STATUS -eq 0 ]; then
-            log_success "False positive reports table created"
-        else
-            log_error "Failed to create false positive reports table"
-            log_error "ClickHouse error output:"
-            echo "$FP_OUTPUT" | sed 's/^/    /'
-            echo ""
-            log_info "Troubleshooting:"
-            log_info "  1. Check SQL file: services/monitoring/sql/03-false-positives.sql"
-            log_info "  2. Common issues:"
-            log_info "     - Table/view already exists (drop first with: DROP TABLE/VIEW IF EXISTS ...)"
-            log_info "     - Syntax errors in SQL"
-            log_info "     - Database does not exist"
-            log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-            echo ""
-            exit 1
-        fi
-    fi
-
-    # Check if retention config table exists
-    log_info "Checking retention config table..."
-    RETENTION_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "EXISTS TABLE retention_config" 2>/dev/null | tr -d ' ')
-
-    if [ "$RETENTION_EXISTS" = "1" ]; then
-        log_success "Retention config table already exists (Docker entrypoint initialized it)"
-    else
-        log_info "Creating retention config table..."
-        RETENTION_OUTPUT=$(cat services/monitoring/sql/05-retention-config.sql | docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery 2>&1)
-        RETENTION_STATUS=$?
-
-        if [ $RETENTION_STATUS -eq 0 ]; then
-            log_success "Retention config table created"
-        else
-            log_error "Failed to create retention config table"
-            log_error "ClickHouse error output:"
-            echo "$RETENTION_OUTPUT" | sed 's/^/    /'
-            echo ""
-            log_info "Troubleshooting:"
-            log_info "  1. Check SQL file: services/monitoring/sql/05-retention-config.sql"
-            log_info "  2. Common issues:"
-            log_info "     - Table already exists (drop first with: DROP TABLE IF EXISTS ...)"
-            log_info "     - Syntax errors in SQL"
-            log_info "     - Database does not exist"
-            log_info "  3. List all objects: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'SHOW TABLES FROM ${CLICKHOUSE_DB}'"
-            log_info "  4. Verify columns: docker exec ${CLICKHOUSE_CONTAINER_NAME} clickhouse-client -q 'DESCRIBE TABLE ${CLICKHOUSE_DB}.events_processed'"
-            echo ""
-            exit 1
-        fi
-    fi
-
-    # Verify v1.7.0 audit columns (9 columns: PII classification + browser fingerprinting)
-    log_info "Verifying v1.7.0 audit columns..."
-    AUDIT_COLUMNS=(
-        "pii_sanitized"
-        "pii_types_detected"
-        "pii_entities_count"
-        "client_id"
-        "browser_name"
-        "browser_version"
-        "os_name"
-        "browser_language"
-        "browser_timezone"
+    # Expected tables for v2.0.0
+    V2_TABLES=(
+        "events_v2"
+        "false_positive_reports"
+        "retention_config"
+        "pattern_embeddings"
+        "embedding_metadata"
+        "embedding_audit_log"
     )
 
-    MISSING_COLUMNS=0
-    MISSING_COLUMN_NAMES=()
-    for COLUMN in "${AUDIT_COLUMNS[@]}"; do
-        COLUMN_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+    MISSING_TABLES=0
+    MISSING_TABLE_NAMES=()
+
+    for TABLE in "${V2_TABLES[@]}"; do
+        TABLE_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
             --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
             --database "$CLICKHOUSE_DB" \
-            -q "SELECT count() FROM system.columns WHERE database = '${CLICKHOUSE_DB}' AND table = 'events_processed' AND name = '${COLUMN}'" \
+            -q "EXISTS TABLE ${TABLE}" \
             2>/dev/null | tr -d ' ')
 
-        if [ "$COLUMN_EXISTS" = "0" ]; then
-            log_warning "Column '${COLUMN}' missing in events_processed"
-            MISSING_COLUMNS=$((MISSING_COLUMNS + 1))
-            MISSING_COLUMN_NAMES+=("$COLUMN")
+        if [ "$TABLE_EXISTS" = "0" ]; then
+            log_warning "Table '${TABLE}' missing"
+            MISSING_TABLES=$((MISSING_TABLES + 1))
+            MISSING_TABLE_NAMES+=("$TABLE")
         fi
     done
 
-    if [ $MISSING_COLUMNS -gt 0 ]; then
-        log_warning "$MISSING_COLUMNS audit column(s) missing - may indicate incomplete migration"
-        log_info "Missing columns: ${MISSING_COLUMN_NAMES[*]}"
+    if [ $MISSING_TABLES -gt 0 ]; then
+        log_warning "$MISSING_TABLES table(s) missing from v2.0.0 schema (update mode)"
+        log_warning "Missing tables: ${MISSING_TABLE_NAMES[*]}"
         echo ""
-        log_info "Re-running 06-add-audit-columns-v1.7.0.sql to fix..."
+        log_info "Applying v2.0.0 schema migration..."
+        echo ""
 
-        # Re-run migration (idempotent with IF NOT EXISTS)
-        RERUN_OUTPUT=$(cat "services/monitoring/sql/06-add-audit-columns-v1.7.0.sql" | \
-            docker exec -i "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
-            --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
-            --multiquery 2>&1)
-        RERUN_STATUS=$?
+        SQL_FILES=(
+            "services/monitoring/sql/01-create-tables-v2.sql"
+            "services/monitoring/sql/02-semantic-embeddings-v2.sql"
+            "services/monitoring/sql/03-false-positives-views.sql"
+        )
 
-        if [ $RERUN_STATUS -eq 0 ]; then
-            log_success "Audit columns migration re-applied successfully"
-
-            # Verify again
-            VERIFY_COUNT=0
-            for COLUMN in "${AUDIT_COLUMNS[@]}"; do
-                COLUMN_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
-                    --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
-                    --database "$CLICKHOUSE_DB" \
-                    -q "SELECT count() FROM system.columns WHERE database = '${CLICKHOUSE_DB}' AND table = 'events_processed' AND name = '${COLUMN}'" \
-                    2>/dev/null | tr -d ' ')
-                if [ "$COLUMN_EXISTS" = "1" ]; then
-                    VERIFY_COUNT=$((VERIFY_COUNT + 1))
+        for SQL_FILE in "${SQL_FILES[@]}"; do
+            if [ -f "$SQL_FILE" ]; then
+                log_info "Executing: $SQL_FILE"
+                if ! EXEC_OUTPUT=$(docker exec -i "$CLICKHOUSE_CONTAINER_NAME" \
+                    clickhouse-client \
+                    --user "$CLICKHOUSE_USER" \
+                    --password "$CLICKHOUSE_PASSWORD" \
+                    --multiquery <"$SQL_FILE" 2>&1); then
+                    log_error "Failed to execute $SQL_FILE"
+                    log_error "ClickHouse response: $EXEC_OUTPUT"
+                    log_info "Try manual execution: cat $SQL_FILE | docker exec -i vigil-clickhouse clickhouse-client -u admin --password=XXX --multiquery"
+                    exit 1
                 fi
-            done
-
-            if [ $VERIFY_COUNT -eq 9 ]; then
-                log_success "All 9 audit columns now present after re-run"
             else
-                log_error "Migration re-run completed but columns still missing ($VERIFY_COUNT/9)"
-                log_error "ClickHouse error output:"
-                echo "$RERUN_OUTPUT" | sed 's/^/    /'
-                echo ""
+                log_error "SQL file not found: $SQL_FILE"
                 exit 1
             fi
-        else
-            log_error "Failed to re-run audit columns migration"
-            log_error "ClickHouse error output:"
-            echo "$RERUN_OUTPUT" | sed 's/^/    /'
-            echo ""
+        done
+
+        echo ""
+        log_success "v2.0.0 schema migration completed"
+        echo ""
+
+        # Verify tables after migration
+        log_info "Re-verifying tables after migration..."
+        STILL_MISSING=0
+        for TABLE in "${V2_TABLES[@]}"; do
+            TABLE_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+                --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+                --database "$CLICKHOUSE_DB" \
+                -q "EXISTS TABLE ${TABLE}" \
+                2>/dev/null | tr -d ' ')
+
+            if [ "$TABLE_EXISTS" = "0" ]; then
+                log_error "Table '${TABLE}' still missing after migration"
+                STILL_MISSING=$((STILL_MISSING + 1))
+            fi
+        done
+
+        if [ $STILL_MISSING -gt 0 ]; then
+            log_error "Migration failed - $STILL_MISSING table(s) still missing"
+            log_info "Check ClickHouse logs: docker logs vigil-clickhouse"
             exit 1
         fi
+
+        log_success "All v2.0.0 tables verified after migration"
+    fi
+
+    log_success "All 6 v2.0.0 tables present"
+
+    # Verify views created
+    log_info "Verifying false positive views..."
+    VIEW_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "SELECT COUNT(*) FROM system.tables WHERE database = '${CLICKHOUSE_DB}' AND engine = 'View'" \
+        2>/dev/null | tr -d ' ')
+
+    if [ "$VIEW_COUNT" -ge 2 ]; then
+        log_success "False positive views created ($VIEW_COUNT views)"
     else
-        log_success "All 9 audit columns present"
-        log_info "v1.7.0 audit columns: pii_sanitized, pii_types_detected, pii_entities_count, client_id, browser_name, browser_version, os_name, browser_language, browser_timezone"
+        log_warning "Expected 2 views, found $VIEW_COUNT"
     fi
 
     echo ""
 
-    # Verify installation
-    log_info "Verifying database structure..."
-    TABLE_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --database "$CLICKHOUSE_DB" -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
+    # Final verification
+    log_info "Verifying v2.0.0 database structure..."
+    TOTAL_OBJECTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
-    if [ "$TABLE_COUNT" -ge 7 ]; then
-        log_success "ClickHouse initialized successfully ($TABLE_COUNT tables/views)"
+    if [ "$TOTAL_OBJECTS" -ge 8 ]; then
+        log_success "ClickHouse v2.0.0 initialized successfully ($TOTAL_OBJECTS tables/views)"
+        log_info "Architecture: 3-branch detection (Heuristics + Semantic + LLM Guard)"
     else
-        log_warning "Database created but table count is unexpected: $TABLE_COUNT (expected ≥7)"
+        log_warning "Database created but object count is unexpected: $TOTAL_OBJECTS (expected ≥8)"
     fi
 
     echo ""
@@ -1456,6 +1304,209 @@ initialize_language_detector() {
     echo ""
 }
 
+# Initialize Heuristics Service (Branch A)
+initialize_heuristics_service() {
+    print_header "Initializing Heuristics Service (Branch A)"
+
+    log_info "Waiting for Heuristics Service to be ready..."
+
+    # Wait for Heuristics Service health endpoint
+    RETRY_COUNT=0
+    MAX_RETRIES=12
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if curl -s http://localhost:5005/health >/dev/null 2>&1; then
+            log_success "Heuristics Service is ready on port 5005"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            log_info "Waiting for service startup... (attempt $RETRY_COUNT/$MAX_RETRIES)"
+            sleep 3
+        else
+            log_error "Heuristics Service health check timed out after 36 seconds"
+            log_info "Troubleshooting:"
+            log_info "  1. Check container status: docker ps -a | grep heuristics"
+            log_info "  2. Check logs: docker logs vigil-heuristics"
+            log_info "  3. Verify patterns exist: ls services/heuristics-service/patterns/"
+            log_info "  4. Check port: lsof -i :5005"
+            log_info "  5. Test manually: curl http://localhost:5005/health"
+            echo ""
+            return 1
+        fi
+    done
+
+    # Verify service capabilities
+    log_info "Verifying detection capabilities..."
+    HEALTH_RESPONSE=$(curl -s http://localhost:5005/health 2>/dev/null || echo "{}")
+
+    if echo "$HEALTH_RESPONSE" | grep -q "heuristics"; then
+        log_success "Heuristics detection operational"
+
+        # Display loaded patterns
+        PATTERN_COUNT=$(echo "$HEALTH_RESPONSE" | grep -o '"patterns_loaded":[0-9]*' | grep -o '[0-9]*' || echo "0")
+        if [ "$PATTERN_COUNT" -gt 0 ]; then
+            log_info "Patterns loaded: $PATTERN_COUNT detection rules"
+        fi
+    else
+        log_warning "Could not verify heuristics service health"
+        log_info "Service may still be initializing. Check logs if issues persist."
+    fi
+
+    # Verify pattern files exist
+    log_info "Checking pattern files..."
+    PATTERN_FILES=(
+        "services/heuristics-service/patterns/divider-patterns.json"
+        "services/heuristics-service/patterns/roleplay-patterns.json"
+        "services/heuristics-service/patterns/whisper-patterns.json"
+        "services/heuristics-service/patterns/homoglyphs.json"
+        "services/heuristics-service/patterns/system-markers.json"
+        "services/heuristics-service/patterns/zero-width.json"
+    )
+
+    MISSING_PATTERNS=0
+    for PATTERN_FILE in "${PATTERN_FILES[@]}"; do
+        if [ ! -f "$PATTERN_FILE" ]; then
+            log_warning "Pattern file missing: $PATTERN_FILE"
+            MISSING_PATTERNS=$((MISSING_PATTERNS + 1))
+        fi
+    done
+
+    if [ $MISSING_PATTERNS -eq 0 ]; then
+        log_success "All 6 pattern files present"
+    else
+        log_error "$MISSING_PATTERNS pattern file(s) missing"
+        log_info "Service may have limited detection capabilities"
+        log_info "Patterns should be in: services/heuristics-service/patterns/"
+        return 1
+    fi
+
+    # Display detection weights
+    log_info "Detection configuration:"
+    log_info "  • Obfuscation detection: Weight 30%"
+    log_info "  • Structure analysis: Weight 25%"
+    log_info "  • Whisper patterns: Weight 30%"
+    log_info "  • Entropy calculation: Weight 15%"
+
+    echo ""
+}
+
+# Initialize Semantic Service (Branch B)
+initialize_semantic_service() {
+    print_header "Initializing Semantic Service (Branch B)"
+
+    log_info "Waiting for Semantic Service to be ready..."
+
+    # Wait for Semantic Service health endpoint (longer timeout for model loading)
+    RETRY_COUNT=0
+    MAX_RETRIES=20
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if curl -s http://localhost:5006/health >/dev/null 2>&1; then
+            log_success "Semantic Service is ready on port 5006"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            if [ $RETRY_COUNT -eq 1 ]; then
+                log_info "Semantic service requires model download (~90 MB)"
+                log_info "This may take 1-2 minutes on first run..."
+            fi
+            log_info "Waiting for model loading... (attempt $RETRY_COUNT/$MAX_RETRIES)"
+            sleep 5
+        else
+            log_error "Semantic Service health check timed out after 100 seconds"
+            log_info "Troubleshooting:"
+            log_info "  1. Check container status: docker ps -a | grep semantic"
+            log_info "  2. Check logs: docker logs vigil-semantic"
+            log_info "  3. Verify ClickHouse is accessible: curl http://localhost:8123/ping"
+            log_info "  4. Check port: lsof -i :5006"
+            log_info "  5. Verify model download: docker logs vigil-semantic | grep 'paraphrase-multilingual'"
+            log_info "  6. Check disk space: df -h (model needs ~200 MB free)"
+            log_info "  7. Test manually: curl http://localhost:5006/health"
+            echo ""
+            return 1
+        fi
+    done
+
+    # Verify service capabilities
+    log_info "Verifying semantic detection..."
+    HEALTH_RESPONSE=$(curl -s http://localhost:5006/health 2>/dev/null || echo "{}")
+
+    if echo "$HEALTH_RESPONSE" | grep -q "semantic"; then
+        log_success "Semantic detection operational"
+
+        # Display model information
+        MODEL_NAME=$(echo "$HEALTH_RESPONSE" | grep -o '"model":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+        if [ "$MODEL_NAME" != "unknown" ]; then
+            log_info "Embedding model: $MODEL_NAME"
+        fi
+
+        # Display pattern count
+        PATTERN_COUNT=$(echo "$HEALTH_RESPONSE" | grep -o '"pattern_count":[0-9]*' | grep -o '[0-9]*' || echo "0")
+        if [ "$PATTERN_COUNT" -gt 0 ]; then
+            log_info "Vector patterns loaded: $PATTERN_COUNT embeddings"
+        fi
+    else
+        log_warning "Could not verify semantic service health"
+        log_info "Service may still be downloading models. Check logs if issues persist."
+    fi
+
+    # Verify ClickHouse connection for embeddings
+    log_info "Verifying ClickHouse integration..."
+
+    # Check if pattern_embeddings table exists
+    EMBEDDINGS_TABLE_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "EXISTS TABLE pattern_embeddings" \
+        2>/dev/null | tr -d ' ')
+
+    if [ "$EMBEDDINGS_TABLE_EXISTS" = "1" ]; then
+        log_success "Vector embeddings table ready"
+
+        # Count existing embeddings
+        EMBEDDING_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+            --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+            --database "$CLICKHOUSE_DB" \
+            -q "SELECT COUNT(*) FROM pattern_embeddings" \
+            2>/dev/null | tr -d ' ')
+
+        if [ "$EMBEDDING_COUNT" -gt 0 ]; then
+            log_info "Existing embeddings: $EMBEDDING_COUNT vectors (384-dimensional)"
+        else
+            log_info "No embeddings yet. Service will populate on first analysis."
+        fi
+    else
+        log_error "pattern_embeddings table not found in ClickHouse"
+        log_info "This table should have been created by 02-semantic-embeddings-v2.sql"
+        log_info "Semantic detection may not work until table is created"
+        return 1
+    fi
+
+    # Verify HNSW index
+    log_info "Checking vector similarity index..."
+    INDEX_CHECK=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "SELECT COUNT(*) FROM system.data_skipping_indices WHERE table = 'pattern_embeddings' AND name = 'embedding_idx'" \
+        2>/dev/null | tr -d ' ')
+
+    if [ "$INDEX_CHECK" = "1" ]; then
+        log_success "HNSW vector index ready (usearch cosine similarity)"
+    else
+        log_warning "HNSW index not found - semantic search may be slow"
+    fi
+
+    # Display detection configuration
+    log_info "Detection configuration:"
+    log_info "  • Model: paraphrase-multilingual-MiniLM-L6-v2-int8"
+    log_info "  • Embedding dimensions: 384 (INT8 quantized)"
+    log_info "  • Similarity metric: Cosine distance"
+    log_info "  • Search algorithm: HNSW (M=16, efSearch=100)"
+    log_info "  • Top-K results: 5 most similar patterns"
+
+    echo ""
+}
+
 # Install Test Dependencies
 install_test_dependencies() {
     print_header "Installing Test Dependencies"
@@ -1505,7 +1556,7 @@ verify_services() {
 
     # Check ClickHouse
     log_info "Checking ClickHouse..."
-    if docker-compose ps clickhouse | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps clickhouse | grep -q "Up"; then
         if curl -s http://localhost:8123/ping >/dev/null 2>&1; then
             log_success "ClickHouse is running on port 8123"
         else
@@ -1519,7 +1570,7 @@ verify_services() {
 
     # Check Grafana
     log_info "Checking Grafana..."
-    if docker-compose ps grafana | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps grafana | grep -q "Up"; then
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001 | grep -q "200\|302"; then
             log_success "Grafana is running on port 3001"
         else
@@ -1533,7 +1584,7 @@ verify_services() {
 
     # Check n8n
     log_info "Checking n8n..."
-    if docker-compose ps n8n | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps n8n | grep -q "Up"; then
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:5678 | grep -q "200\|302"; then
             log_success "n8n is running on port 5678"
         else
@@ -1547,7 +1598,7 @@ verify_services() {
 
     # Check Presidio PII API
     log_info "Checking Presidio PII API..."
-    if docker-compose ps presidio-pii-api | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps presidio-pii-api | grep -q "Up"; then
         if curl -s http://localhost:5001/health >/dev/null 2>&1; then
             log_success "Presidio PII API is running on port 5001"
         else
@@ -1561,7 +1612,7 @@ verify_services() {
 
     # Check Language Detector
     log_info "Checking Language Detection Service..."
-    if docker-compose ps language-detector | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps language-detector | grep -q "Up"; then
         if curl -s http://localhost:5002/health >/dev/null 2>&1; then
             log_success "Language Detector is running on port 5002"
         else
@@ -1573,9 +1624,37 @@ verify_services() {
         all_healthy=0
     fi
 
+    # Check Heuristics Service (Branch A)
+    log_info "Checking Heuristics Service..."
+    if "${DOCKER_COMPOSE_CMD[@]}" ps heuristics-service | grep -q "Up"; then
+        if curl -s http://localhost:5005/health >/dev/null 2>&1; then
+            log_success "Heuristics Service is running on port 5005 (Branch A)"
+        else
+            log_warning "Heuristics Service container is up but not responding yet"
+            all_healthy=0
+        fi
+    else
+        log_error "Heuristics Service is not running"
+        all_healthy=0
+    fi
+
+    # Check Semantic Service (Branch B)
+    log_info "Checking Semantic Service..."
+    if "${DOCKER_COMPOSE_CMD[@]}" ps semantic-service | grep -q "Up"; then
+        if curl -s http://localhost:5006/health >/dev/null 2>&1; then
+            log_success "Semantic Service is running on port 5006 (Branch B)"
+        else
+            log_warning "Semantic Service container is up but not responding yet (may be loading model)"
+            all_healthy=0
+        fi
+    else
+        log_error "Semantic Service is not running"
+        all_healthy=0
+    fi
+
     # Check Web UI Backend
     log_info "Checking Web UI Backend..."
-    if docker-compose ps web-ui-backend | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps web-ui-backend | grep -q "Up"; then
         if curl -s http://localhost:8787/api/files >/dev/null 2>&1; then
             log_success "Web UI Backend is running on port 8787"
         else
@@ -1589,7 +1668,7 @@ verify_services() {
 
     # Check Web UI Frontend
     log_info "Checking Web UI Frontend..."
-    if docker-compose ps web-ui-frontend | grep -q "Up"; then
+    if "${DOCKER_COMPOSE_CMD[@]}" ps web-ui-frontend | grep -q "Up"; then
         if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200\|404"; then
             log_success "Web UI Frontend is running on port 5173"
         else
@@ -1605,7 +1684,7 @@ verify_services() {
 
     if [ $all_healthy -eq 0 ]; then
         log_warning "Some services may need more time to start."
-        log_info "Check service logs with: docker-compose logs [service-name]"
+        log_info "Check service logs with: ${DOCKER_COMPOSE_CMD[*]} logs [service-name]"
         log_info "Or run: ./scripts/status.sh"
     fi
 
@@ -1660,6 +1739,8 @@ show_summary() {
     echo -e "  ${BLUE}•${NC} Grafana Dashboard: ${GREEN}http://localhost:${GRAFANA_PORT}${NC}"
     echo -e "  ${BLUE}•${NC} ClickHouse HTTP:   ${GREEN}http://localhost:${CLICKHOUSE_HTTP_PORT}${NC}"
     echo -e "  ${BLUE}•${NC} Presidio PII API:  ${GREEN}http://localhost:5001${NC}"
+    echo -e "  ${BLUE}•${NC} Heuristics API:    ${GREEN}http://localhost:5005${NC} (Branch A)"
+    echo -e "  ${BLUE}•${NC} Semantic API:      ${GREEN}http://localhost:5006${NC} (Branch B)"
     echo -e "  ${BLUE}•${NC} Prompt Guard API:  ${GREEN}http://localhost:8000${NC}"
     echo ""
     echo -e "${YELLOW}⚠️  Auto-Generated Credentials:${NC}"
@@ -1681,16 +1762,33 @@ show_summary() {
     echo -e "    Database: ${BLUE}${CLICKHOUSE_DB:-n8n_logs}${NC}"
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE${NC}"
+    echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE - v2.0.0${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${BLUE}PII Detection (NEW v1.6):${NC}"
-    echo -e "  • Provider: ${GREEN}Microsoft Presidio${NC}"
-    echo -e "  • Entity Types: ${GREEN}50+ (including Polish: PESEL, NIP, REGON, ID Card)${NC}"
-    echo -e "  • NLP Models: ${GREEN}spaCy (en_core_web_sm, pl_core_news_sm)${NC}"
-    echo -e "  • Custom Recognizers: ${GREEN}4 Polish PII types with checksum validation${NC}"
-    echo -e "  • Fallback: ${GREEN}Legacy regex (pii.conf) if Presidio offline${NC}"
-    echo -e "  • Performance: ${GREEN}<200ms detection, <10% false positives${NC}"
+    echo -e "${BLUE}3-Branch Detection Architecture (NEW v2.0.0):${NC}"
+    echo -e "  ${GREEN}Branch A - Heuristics Detection (Port 5005):${NC}"
+    echo -e "    • Obfuscation patterns: ${BLUE}30% weight${NC}"
+    echo -e "    • Structure analysis: ${BLUE}25% weight${NC}"
+    echo -e "    • Whisper techniques: ${BLUE}30% weight${NC}"
+    echo -e "    • Entropy calculation: ${BLUE}15% weight${NC}"
+    echo -e "    • Pattern files: ${GREEN}6 detection categories${NC}"
+    echo ""
+    echo -e "  ${GREEN}Branch B - Semantic Analysis (Port 5006):${NC}"
+    echo -e "    • Model: ${BLUE}paraphrase-multilingual-MiniLM-L6-v2-int8${NC}"
+    echo -e "    • Vector dimensions: ${BLUE}384 (INT8 quantized)${NC}"
+    echo -e "    • Similarity search: ${BLUE}HNSW index (usearch)${NC}"
+    echo -e "    • Pattern database: ${GREEN}ClickHouse vector embeddings${NC}"
+    echo -e "    • Performance: ${BLUE}<100ms per query${NC}"
+    echo ""
+    echo -e "  ${GREEN}Branch C - LLM Guard (Future):${NC}"
+    echo -e "    • Status: ${YELLOW}Planned for v2.1.0${NC}"
+    echo -e "    • Integration: ${YELLOW}Prompt Guard API ready${NC}"
+    echo ""
+    echo -e "  ${GREEN}PII Detection (Dual-Language):${NC}"
+    echo -e "    • Provider: ${BLUE}Microsoft Presidio${NC}"
+    echo -e "    • Languages: ${BLUE}Polish + English${NC}"
+    echo -e "    • Entity types: ${GREEN}50+ (PESEL, NIP, REGON, ID Card, EMAIL, PHONE, etc.)${NC}"
+    echo -e "    • Performance: ${BLUE}<200ms detection${NC}"
     echo ""
     echo -e "${BLUE}All services are using UNIQUE CRYPTOGRAPHIC PASSWORDS${NC}"
     echo -e "${BLUE}No default credentials are present in the system${NC}"
@@ -1712,11 +1810,11 @@ show_summary() {
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "Useful commands:"
-    echo -e "  ${BLUE}•${NC} Check all services:      ${YELLOW}docker-compose ps${NC}"
+    echo -e "  ${BLUE}•${NC} Check all services:      ${YELLOW}${DOCKER_COMPOSE_CMD[*]} ps${NC}"
     echo -e "  ${BLUE}•${NC} View service status:     ${YELLOW}./scripts/status.sh${NC}"
-    echo -e "  ${BLUE}•${NC} View all logs:           ${YELLOW}docker-compose logs -f${NC}"
-    echo -e "  ${BLUE}•${NC} Stop all services:       ${YELLOW}docker-compose down${NC}"
-    echo -e "  ${BLUE}•${NC} Restart a service:       ${YELLOW}docker-compose restart [service]${NC}"
+    echo -e "  ${BLUE}•${NC} View all logs:           ${YELLOW}${DOCKER_COMPOSE_CMD[*]} logs -f${NC}"
+    echo -e "  ${BLUE}•${NC} Stop all services:       ${YELLOW}${DOCKER_COMPOSE_CMD[*]} down${NC}"
+    echo -e "  ${BLUE}•${NC} Restart a service:       ${YELLOW}${DOCKER_COMPOSE_CMD[*]} restart [service]${NC}"
     echo ""
     echo "Management scripts:"
     echo -e "  ${BLUE}•${NC} Init ClickHouse DB:      ${YELLOW}./scripts/init-clickhouse.sh${NC}"
@@ -1742,7 +1840,7 @@ show_summary() {
         log_warning "Password mismatch detected:"
         log_warning "  .env file: ${ENV_PASSWORD}"
         log_warning "  Container: ${CONTAINER_PASSWORD}"
-        log_warning "  Run: docker-compose restart web-ui-backend"
+        log_warning "  Run: ${DOCKER_COMPOSE_CMD[*]} restart web-ui-backend"
     fi
     echo ""
 }
@@ -1815,18 +1913,32 @@ check_llama_model() {
         if [ -f "./scripts/download-llama-model.sh" ]; then
             ./scripts/download-llama-model.sh
 
-            # Check again after download
-            if [ -d "$LLAMA_MODEL_PATH" ] && [ -f "$LLAMA_MODEL_PATH/config.json" ]; then
-                echo ""
-                log_success "Model downloaded successfully!"
-                echo ""
-                log_info "Continuing with Vigil Guard installation..."
-                echo ""
-                sleep 2
-                return 0
-            else
+            # Check again after download - verify BOTH possible locations
+            LLAMA_MODEL_PATHS=(
+                "../vigil-llm-models/Llama-Prompt-Guard-2-86M"  # Recommended location
+                "./Llama-Prompt-Guard-2-86M"                     # In-repo location
+            )
+
+            MODEL_FOUND=false
+            for LLAMA_MODEL_PATH in "${LLAMA_MODEL_PATHS[@]}"; do
+                if [ -d "$LLAMA_MODEL_PATH" ] && [ -f "$LLAMA_MODEL_PATH/config.json" ]; then
+                    echo ""
+                    log_success "Model downloaded successfully to $LLAMA_MODEL_PATH"
+                    echo ""
+                    log_info "Continuing with Vigil Guard installation..."
+                    echo ""
+                    sleep 2
+                    MODEL_FOUND=true
+                    return 0
+                fi
+            done
+
+            if [ "$MODEL_FOUND" = false ]; then
                 echo ""
                 log_error "Model download failed or incomplete."
+                log_info "Checked locations:"
+                log_info "  - ../vigil-llm-models/Llama-Prompt-Guard-2-86M"
+                log_info "  - ./Llama-Prompt-Guard-2-86M"
                 log_info "Please run ./scripts/download-llama-model.sh manually and try again."
                 exit 1
             fi
@@ -1849,7 +1961,8 @@ main() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║                                                    ║${NC}"
     echo -e "${BLUE}║         Vigil Guard Installation Script       ║${NC}"
-    echo -e "${BLUE}║                      v1.0.0                        ║${NC}"
+    echo -e "${BLUE}║                      v2.0.0                        ║${NC}"
+    echo -e "${BLUE}║           3-Branch Detection Architecture          ║${NC}"
     echo -e "${BLUE}║                                                    ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -1882,6 +1995,8 @@ main() {
     initialize_clickhouse
     initialize_presidio
     initialize_language_detector
+    initialize_heuristics_service
+    initialize_semantic_service
     initialize_grafana
     install_test_dependencies
     verify_services
