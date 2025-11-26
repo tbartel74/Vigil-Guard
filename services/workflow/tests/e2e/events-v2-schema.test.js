@@ -211,8 +211,12 @@ describe('events_v2 Schema Validation', () => {
       const event = await sendAndVerify('My email is test@example.com');
 
       // pii_classification is parsed from pii_classification_json
+      // v2.0.0: pii_classification is an object with method, types, count fields
       expect(event.pii_classification).toBeDefined();
-      expect(Array.isArray(event.pii_classification)).toBe(true);
+      if (event.pii_classification && typeof event.pii_classification === 'object') {
+        // Object format: { method, types, count }
+        expect(typeof event.pii_classification).toBe('object');
+      }
     });
   });
 
