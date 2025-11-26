@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as api from '../lib/api';
+import descriptions from '../spec/descriptions.json';
+import Tooltip from './Tooltip';
 
 export function PluginConfiguration() {
   const [webhookUrl, setWebhookUrl] = useState('');
@@ -116,8 +118,20 @@ export function PluginConfiguration() {
             <h2 className="text-lg font-semibold text-white mb-4">Connection Settings</h2>
             <div className="space-y-4">
               <div>
-                <label htmlFor="webhookUrl" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="webhookUrl" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   Webhook URL
+                  {(descriptions as any)['PLUGIN_WEBHOOK_URL'] && (
+                    <Tooltip
+                      title={(descriptions as any)['PLUGIN_WEBHOOK_URL'].title}
+                      description={(descriptions as any)['PLUGIN_WEBHOOK_URL'].description}
+                      impact={(descriptions as any)['PLUGIN_WEBHOOK_URL'].impact}
+                      category={(descriptions as any)['PLUGIN_WEBHOOK_URL'].category}
+                    >
+                      <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                        ?
+                      </div>
+                    </Tooltip>
+                  )}
                 </label>
                 <input
                   id="webhookUrl"
@@ -133,8 +147,20 @@ export function PluginConfiguration() {
               </div>
 
               <div>
-                <label htmlFor="guiUrl" className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="guiUrl" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                   GUI URL
+                  {(descriptions as any)['PLUGIN_GUI_URL'] && (
+                    <Tooltip
+                      title={(descriptions as any)['PLUGIN_GUI_URL'].title}
+                      description={(descriptions as any)['PLUGIN_GUI_URL'].description}
+                      impact={(descriptions as any)['PLUGIN_GUI_URL'].impact}
+                      category={(descriptions as any)['PLUGIN_GUI_URL'].category}
+                    >
+                      <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                        ?
+                      </div>
+                    </Tooltip>
+                  )}
                 </label>
                 <input
                   id="guiUrl"
@@ -162,8 +188,20 @@ export function PluginConfiguration() {
                 onChange={(e) => setEnabled(e.target.checked)}
                 className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
               />
-              <label htmlFor="enabled" className="text-slate-300">
+              <label htmlFor="enabled" className="text-slate-300 flex items-center gap-2">
                 Enable plugin integration
+                {(descriptions as any)['PLUGIN_ENABLED'] && (
+                  <Tooltip
+                    title={(descriptions as any)['PLUGIN_ENABLED'].title}
+                    description={(descriptions as any)['PLUGIN_ENABLED'].description}
+                    impact={(descriptions as any)['PLUGIN_ENABLED'].impact}
+                    category={(descriptions as any)['PLUGIN_ENABLED'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
             </div>
             <p className="text-xs text-text-secondary mt-2 ml-8">

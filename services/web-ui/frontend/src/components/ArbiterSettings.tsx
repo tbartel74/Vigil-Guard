@@ -3,7 +3,9 @@ import toast from "react-hot-toast";
 import { resolveSpec, saveChanges } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import spec from "../spec/variables.json";
+import descriptions from "../spec/descriptions.json";
 import Select from "./Select";
+import Tooltip from "./Tooltip";
 
 type Chg = { file: string; payloadType: "json" | "conf"; updates: any[] };
 
@@ -146,11 +148,26 @@ export default function ArbiterSettings() {
     const res = resolveOut.find((r) => r.variable === v.name);
     const m = v.map[0];
     const currentValue = getCurrentValue(m.file, m, res?.mappings?.[0]?.value);
+    const desc = (descriptions as any)[v.name];
 
     return (
       <div key={v.name} className="bg-surface-dark border border-slate-800 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <div className="font-medium">{v.label}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-medium">{v.label}</div>
+            {desc && (
+              <Tooltip
+                title={desc.title}
+                description={desc.description}
+                impact={desc.impact}
+                category={desc.category}
+              >
+                <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                  ?
+                </div>
+              </Tooltip>
+            )}
+          </div>
           <div className={`text-xs font-semibold ${res?.valid?.ok ? "text-emerald-400" : "text-red-400"}`}>
             {res?.valid?.ok ? "SECURE" : `ALERT (${res?.valid?.reason || "spec"})`}
           </div>

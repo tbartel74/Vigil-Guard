@@ -186,5 +186,143 @@
       "hash": "SHA-256 cryptographic hash",
       "mask": "Partial masking (****59)"
     }
+  },
+  "MAX_INPUT_LENGTH": {
+    "title": "Maximum Input Length",
+    "description": "Maximum number of characters allowed in user input before rejection. Inputs exceeding this limit are blocked by the Early Block mechanism before 3-branch detection begins. Prevents denial-of-service attacks and resource exhaustion. Higher values allow longer messages but increase processing time and memory usage.",
+    "impact": "High",
+    "category": "Security & Performance"
+  },
+  "ARBITER_WEIGHT_PATTERN": {
+    "title": "Pattern Detection Weight",
+    "description": "Weight for Branch A (Pattern Detection) in Arbiter scoring (0.0-1.0). Controls how much the pattern matching results influence the final decision. Higher weight increases importance of regex-based detection. Default: 0.4 (40% influence)",
+    "impact": "High",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_WEIGHT_HEURISTICS": {
+    "title": "Heuristics Analysis Weight",
+    "description": "Weight for Branch B (Heuristics Analysis) in Arbiter scoring (0.0-1.0). Controls how much the heuristic analysis (entropy, token frequency, encoding obfuscation) influences the final decision. Higher weight increases importance of behavioral analysis. Default: 0.3 (30% influence)",
+    "impact": "High",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_WEIGHT_SEMANTIC": {
+    "title": "Semantic Analysis Weight",
+    "description": "Weight for semantic/vector analysis in Arbiter scoring (0.0-1.0). Controls how much the semantic similarity analysis influences the final decision. Higher weight increases importance of meaning-based detection. Default: 0.2 (20% influence)",
+    "impact": "High",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_WEIGHT_LLM_GUARD": {
+    "title": "LLM Guard Weight",
+    "description": "Weight for Branch C (LLM Guard) in Arbiter scoring (0.0-1.0). Controls how much the Llama Prompt Guard ML model influences the final decision. Higher weight increases importance of AI-based validation. Default: 0.1 (10% influence)",
+    "impact": "High",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_BLOCK_SCORE": {
+    "title": "Arbiter Block Threshold",
+    "description": "Combined score threshold for BLOCK decision (0-100). When weighted score from all branches exceeds this value, input is completely rejected. Should be higher than SANITIZE_HEAVY threshold. Default: 85",
+    "impact": "High",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_CONFIDENCE_MIN": {
+    "title": "Minimum Confidence Threshold",
+    "description": "Minimum confidence required for Arbiter decision (0.0-1.0). If confidence falls below this threshold, system defaults to conservative action (BLOCK or SANITIZE_HEAVY). Higher values ensure more certain decisions but may increase false positives. Default: 0.6 (60%)",
+    "impact": "Medium",
+    "category": "Arbiter Configuration"
+  },
+  "ARBITER_BOOST_CONSERVATIVE_ENABLED": {
+    "title": "Enable Conservative Boost",
+    "description": "Enable score boost when all degraded branches agree on threat. When multiple detection branches fail or degrade but still detect a threat, this boost increases the combined score to ensure conservative blocking. Helps prevent bypasses when some detection mechanisms are unavailable.",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_CONSERVATIVE_MIN": {
+    "title": "Conservative Boost Minimum Score",
+    "description": "Minimum score addition when conservative boost is triggered (0-100). This value is added to the combined score when all degraded branches agree on a threat. Higher values make the system more aggressive in blocking when confidence is low. Default: 20",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_SEMANTIC_ENABLED": {
+    "title": "Enable Semantic Boost",
+    "description": "Enable score boost when semantic analysis detects high similarity to known jailbreak patterns. When vector embeddings show strong similarity to historical attacks, this boost increases the threat score. Helps catch novel variations of known attacks.",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_SEMANTIC_THRESHOLD": {
+    "title": "Semantic Boost Threshold",
+    "description": "Cosine similarity threshold for semantic boost activation (0.0-1.0). When semantic analysis exceeds this similarity to known attacks, the boost is applied. Higher values require closer match to historical jailbreaks. Default: 0.85 (85% similarity)",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_SEMANTIC_VALUE": {
+    "title": "Semantic Boost Value",
+    "description": "Score addition when semantic boost is triggered (0-100). This value is added to the combined score when input shows high semantic similarity to known jailbreaks. Higher values make semantic detection more impactful. Default: 15",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_UNANIMOUS_ENABLED": {
+    "title": "Enable Unanimous Agreement Boost",
+    "description": "Enable score boost when all active branches agree on threat detection. When Pattern, Heuristics, Semantic, and LLM Guard all detect a threat, this boost significantly increases the combined score. Strong indicator of genuine attack.",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_UNANIMOUS_MAX": {
+    "title": "Unanimous Boost Maximum Score",
+    "description": "Maximum combined score when unanimous boost is triggered (0-100). When all branches agree on a threat, the score is elevated to at least this value. Typically set to BLOCK threshold to ensure blocking. Default: 95",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_LLM_VETO_ENABLED": {
+    "title": "Enable LLM Veto Boost",
+    "description": "Enable veto power for LLM Guard when it detects high-confidence jailbreak. When Llama Prompt Guard reports very high threat score, it can override lower scores from other branches. Final safety layer using advanced ML model.",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_LLM_VETO_THRESHOLD": {
+    "title": "LLM Veto Threshold",
+    "description": "LLM Guard score threshold for veto activation (0-100). When LLM Guard score exceeds this value, it can override other branch decisions and force BLOCK action. Should be high to avoid false positives (only very confident ML predictions). Default: 90",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "PLUGIN_WEBHOOK_URL": {
+    "title": "Browser Extension Webhook URL",
+    "description": "API endpoint where browser extension sends prompts for validation. Extension makes POST requests to this URL with user input and receives ALLOW/BLOCK/SANITIZE decisions. Must be accessible from user browsers. Auto-refreshes every 5 minutes. Example: http://localhost/ui/api/browser-filter",
+    "impact": "Critical",
+    "category": "Plugin Configuration"
+  },
+  "PLUGIN_GUI_URL": {
+    "title": "Web UI Base URL",
+    "description": "Base URL where Vigil Guard Web UI is hosted. Browser extension fetches configuration from this address on install and every 5 minutes. Users can also manually refresh via plugin popup. Must be accessible from user browsers. Example: http://localhost/ui",
+    "impact": "High",
+    "category": "Plugin Configuration"
+  },
+  "PLUGIN_ENABLED": {
+    "title": "Enable Browser Plugin Integration",
+    "description": "Global toggle for browser extension functionality. When disabled, extension enters fail-open mode: all prompts are automatically allowed without validation. Useful for emergency bypass or maintenance. Browser extensions auto-detect this setting within 5 minutes. Default: enabled",
+    "impact": "Critical",
+    "category": "Plugin Configuration"
+  },
+  "RETENTION_EVENTS_RAW_TTL": {
+    "title": "Raw Events Retention (days)",
+    "description": "How long to keep events_raw table data (raw webhook inputs for debugging). Data older than this TTL is automatically deleted by ClickHouse. Lower values save disk space but reduce debug history. Typical: 90 days for 3-month audit trail. Range: 1-3650 days.",
+    "impact": "Medium",
+    "category": "Data Retention"
+  },
+  "RETENTION_EVENTS_PROCESSED_TTL": {
+    "title": "Processed Events Retention (days)",
+    "description": "How long to keep events_processed table data (full analysis with scoring and decisions). Data older than this TTL is automatically deleted. This is your main audit log and investigation history. Typical: 365 days for 1-year compliance. Range: 1-3650 days.",
+    "impact": "High",
+    "category": "Data Retention"
+  },
+  "RETENTION_WARN_THRESHOLD": {
+    "title": "Disk Usage Warning Threshold (%)",
+    "description": "Disk usage percentage that triggers warning alerts (1-100%). When ClickHouse volume exceeds this threshold, system sends warnings to administrators. Set below critical threshold to get early notice before disk fills. Must be less than critical threshold. Typical: 80%",
+    "impact": "Medium",
+    "category": "Data Retention"
+  },
+  "RETENTION_CRITICAL_THRESHOLD": {
+    "title": "Disk Usage Critical Threshold (%)",
+    "description": "Disk usage percentage that triggers critical alerts (1-100%). When ClickHouse volume exceeds this threshold, system is at risk of data loss or service outage. Immediate action required to free space or expand volume. Must be greater than warning threshold. Typical: 90%",
+    "impact": "Critical",
+    "category": "Data Retention"
   }
 }

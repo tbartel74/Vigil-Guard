@@ -639,6 +639,21 @@
           "path": "arbiter.priority_boosts.LLM_GUARD_VETO.threshold"
         }
       ]
+    },
+    {
+      "name": "MAX_INPUT_LENGTH",
+      "groupId": "quick",
+      "label": "Maximum Input Length",
+      "type": "number",
+      "required": true,
+      "help": "Maximum input length in characters (1000-100000). Inputs exceeding this limit are rejected before processing. Prevents DoS attacks and resource exhaustion (default: 20000)",
+      "default": 20000,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "performance.max_input_length"
+        }
+      ]
     }
   ]
 }

@@ -280,6 +280,26 @@ export interface FPReportDetailed {
   detected_language: string;
   decision_source: string;
 
+  // Additional fields from events_v2 (for full branch analysis rendering like Monitoring)
+  branch_a_score?: number;
+  branch_b_score?: number;
+  branch_c_score?: number;
+  confidence?: number;
+  boosts_applied?: string[];
+  chat_input?: string;
+  result?: string;
+  client_id?: string;
+  browser_name?: string;
+  browser_version?: string;
+  os_name?: string;
+  pipeline_version?: string;
+  config_version?: string;
+
+  // RAW JSON fields (parsed) - same as EventV2Details for rendering detailed branch analysis
+  arbiter_json?: any;
+  branch_results_json?: any;
+  pii_classification_json?: any;
+
   // Parsed JSON objects (only in detail view from getFPReportDetails)
   scoring_breakdown?: {
     sanitizer_score: number;
@@ -611,9 +631,14 @@ export interface EventV2Row {
   pii_types_detected: string[];
   pii_entities_count: number;
   preview?: string;  // Truncated original_input for list view
-  arbiter_json?: string;
-  branch_results_json?: string;
-  pii_classification_json?: string;
+  arbiter_json?: any;  // Parsed JSON object
+  branch_results_json?: any;  // Parsed JSON object
+  pii_classification_json?: {  // Parsed PII classification object
+    types: string[];
+    count: number;
+    method: string;
+    sanitization_applied?: boolean;
+  };
 }
 
 export interface SearchResponseV2 {

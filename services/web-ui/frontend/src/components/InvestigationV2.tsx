@@ -569,18 +569,33 @@ export default function InvestigationV2() {
                 {selectedEvent.pii_sanitized && (
                   <div className="bg-slate-800 border border-blue-500/50 rounded-lg p-4">
                     <h3 className="text-sm font-medium text-blue-400 mb-2">PII Detection</h3>
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <span className="text-text-secondary text-sm">Entities Found: </span>
-                        <span className="text-white font-mono">{selectedEvent.pii_entities_count}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <span className="text-text-secondary text-sm">Entities Found: </span>
+                          <span className="text-white font-mono">{selectedEvent.pii_entities_count}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedEvent.pii_types_detected.map((type, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
+                              {type}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedEvent.pii_types_detected.map((type, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs">
-                            {type}
+                      {selectedEvent.pii_classification_json && (
+                        <div>
+                          <span className="text-text-secondary text-sm">Detection Method: </span>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            selectedEvent.pii_classification_json.method === 'presidio' ? 'bg-emerald-500/20 text-emerald-400' :
+                            selectedEvent.pii_classification_json.method === 'presidio_dual_language' ? 'bg-emerald-500/20 text-emerald-400' :
+                            selectedEvent.pii_classification_json.method === 'regex_fallback' ? 'bg-amber-500/20 text-amber-400' :
+                            'bg-slate-500/20 text-slate-400'
+                          }`}>
+                            {selectedEvent.pii_classification_json.method || 'unknown'}
                           </span>
-                        ))}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
