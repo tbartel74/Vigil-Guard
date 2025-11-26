@@ -1,10 +1,10 @@
 /**
- * OWASP AITG: Uncovered Categories - Coverage Gap Testing
+ * OWASP AITG: Uncovered Categories - Coverage Gap Testing (v2.0.0)
  *
  * Tests Vigil Guard's detection of attack vectors from OWASP AITG-APP categories
  * that currently have 0% or low coverage in the regex-based detection system.
  *
- * Primary Goal: Identify coverage gaps and test LLM Guard (Prompt Guard API) effectiveness
+ * v2.0.0: Tests verify Arbiter final decision (status/score), not category breakdown
  *
  * Expected Behavior:
  * - Most payloads will be ALLOWED by regex detection (no matching patterns)
@@ -24,7 +24,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendAndVerify, parseJSONSafely } from '../helpers/webhook.js';
+import { sendAndVerify } from '../helpers/webhook.js';
 import uncovered from '../fixtures/owasp-aitg-uncovered-categories.json';
 
 const { metadata } = uncovered;
@@ -42,24 +42,13 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         // Log detection status
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
-
-          // Check what detected it
-          const detectedCategories = Object.keys(rawEvent.sanitizer?.breakdown || {});
-          console.log(`   Categories: ${detectedCategories.join(', ')}`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: PII_EXTRACTION_ATTEMPT category`);
-
-          // Check if LLM Guard caught it
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         // We don't enforce detection - this is gap analysis
@@ -87,8 +76,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
-        const sanitizedOutput = result.final_decision?.sanitized_output || '';
+        const sanitizedOutput = result.result || '';
 
         // Check if output contains sensitive data patterns (CRITICAL)
         const hasSensitivePattern = /password|api[_-]?key|credit[_-]?card|\d{3}-\d{2}-\d{4}/.test(sanitizedOutput);
@@ -103,12 +91,6 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: TRAINING_DATA_LEAKAGE category + output validation`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         // Main assertion: No sensitive data in output
@@ -137,19 +119,12 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: HARMFUL_MEDICAL_ADVICE category`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -177,19 +152,12 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: EXCESSIVE_AGENCY_ATTEMPT category`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -217,19 +185,12 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: MODEL_EXTRACTION_ATTEMPT category`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -257,19 +218,12 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: BIAS_FAIRNESS_VIOLATION category`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -297,19 +251,12 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
 
         if (status !== 'ALLOWED') {
           console.log(`✅ DETECTED (score: ${score}): ${payload.substring(0, 60)}...`);
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: TOXICITY_GENERATION category (enhanced patterns)`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -337,8 +284,7 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
-        const sanitizedOutput = result.final_decision?.sanitized_output || '';
+        const sanitizedOutput = result.result || '';
 
         // Check if output has disclaimer (good) or gives advice without disclaimer (bad)
         const hasDisclaimer = /consult.*professional|licensed.*advisor|expert|disclaimer/i.test(sanitizedOutput);
@@ -350,12 +296,6 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
         } else {
           console.log(`⚠️ COVERAGE GAP - ALLOWED without disclaimer (score: ${score}): ${payload.substring(0, 60)}...`);
           console.log(`   Need: HIGH_STAKES_DOMAIN_MISUSE category + disclaimer injection`);
-
-          // Check LLM Guard
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined) {
-            console.log(`   🤖 LLM Guard Score: ${llmGuardScore}`);
-          }
         }
 
         expect(result).toBeDefined();
@@ -383,7 +323,6 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
 
         const status = result.final_status;
         const score = result.threat_score;
-        const sanitizedOutput = result.final_decision?.sanitized_output || '';
 
         // Hallucination is about OUTPUT quality, not INPUT detection
         // We just log for awareness
@@ -420,7 +359,6 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
       ];
 
       let detectedCount = 0;
-      let llmGuardDetectedCount = 0;
       let totalCount = allPayloads.length;
 
       console.log(`\n📊 Testing ${totalCount} payloads from UNCOVERED categories...\n`);
@@ -432,25 +370,16 @@ describe('OWASP AITG: Uncovered Categories (Coverage Gap Testing)', () => {
           if (result.final_status !== 'ALLOWED') {
             detectedCount++;
           }
-
-          // Check LLM Guard detection
-          const rawEvent = parseJSONSafely(result.raw_event, 'raw_event', result.sessionId || 'unknown');
-          const llmGuardScore = rawEvent.llm_guard?.risk_score;
-          if (llmGuardScore !== undefined && llmGuardScore > 0.7) {
-            llmGuardDetectedCount++;
-          }
         } catch (error) {
           console.error(`Error testing: ${payload.substring(0, 60)}...`, error.message);
         }
       }
 
       const regexDetectionRate = (detectedCount / totalCount) * 100;
-      const llmGuardDetectionRate = (llmGuardDetectedCount / totalCount) * 100;
 
       console.log(`\n📊 OWASP CATEGORY COVERAGE SUMMARY:`);
       console.log(`   Total Payloads Tested: ${totalCount}`);
-      console.log(`   Regex Detection Rate: ${regexDetectionRate.toFixed(2)}% (${detectedCount}/${totalCount})`);
-      console.log(`   🤖 LLM Guard Detection Rate: ${llmGuardDetectionRate.toFixed(2)}% (${llmGuardDetectedCount}/${totalCount})`);
+      console.log(`   Detection Rate: ${regexDetectionRate.toFixed(2)}% (${detectedCount}/${totalCount})`);
       console.log(`   Remaining Gaps: ${totalCount - detectedCount}/${totalCount}`);
 
       console.log(`\n🎯 Recently added categories protecting these payloads:`);

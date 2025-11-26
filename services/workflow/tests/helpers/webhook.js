@@ -17,7 +17,8 @@ dotenv.config({ path: resolve(__dirname, '../../../../.env') });
 // This prevents test failures from corrupting production config
 let originalPiiConfig = null;
 
-export const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+// v2.0.0: Updated webhook URL for 3-branch detection pipeline
+export const WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
 
 function getClickhouseConnection() {
   // Ensure CLICKHOUSE_HOST has protocol and port
@@ -143,31 +144,47 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
         ? `WHERE ${conditions.join(' AND ')}`
         : `WHERE 1=1`;
 
+      // v2.0.0: Query events_v2 table with 3-branch scores
       const query = `
         SELECT
           sessionId,
           action,
           timestamp,
           original_input,
-          normalized_input,
-          after_sanitization,
-          after_pii_redaction,
           chat_input,
           result,
           detected_language,
-          final_status,
-          final_action,
+
+          -- 3-Branch Scores (v2.0.0)
+          branch_a_score,
+          branch_b_score,
+          branch_c_score,
           threat_score,
-          threat_severity,
-          pg_score,
-          removal_pct,
+          confidence,
+          boosts_applied,
+
+          -- Final Decision
+          final_status,
+          final_decision,
+
+          -- PII
           pii_sanitized,
           pii_types_detected,
           pii_entities_count,
-          sanitizer_json,
-          final_decision_json,
-          raw_event
-        FROM n8n_logs.events_processed
+
+          -- Client
+          client_id,
+          browser_name,
+          browser_version,
+          os_name,
+          pipeline_version,
+          config_version,
+
+          -- JSON fields
+          arbiter_json,
+          branch_results_json,
+          pii_classification_json
+        FROM n8n_logs.events_v2
         ${whereClause}
         ORDER BY timestamp DESC
         LIMIT 1
@@ -191,23 +208,25 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
       if (result.data && result.data.length > 0) {
         const event = result.data[0];
 
-        // Parse JSON fields (using safe parser for better error messages)
-        if (event.sanitizer_json) {
-          event.sanitizer = parseJSONSafely(event.sanitizer_json, 'sanitizer_json', event.sessionId);
+        // v2.0.0: Parse JSON fields
+        if (event.arbiter_json) {
+          event.arbiter = parseJSONSafely(event.arbiter_json, 'arbiter_json', event.sessionId);
         }
-        if (event.final_decision_json) {
-          event.final_decision = parseJSONSafely(event.final_decision_json, 'final_decision_json', event.sessionId);
+        if (event.branch_results_json) {
+          event.branch_results = parseJSONSafely(event.branch_results_json, 'branch_results_json', event.sessionId);
         }
         if (event.pii_classification_json) {
           event.pii_classification = parseJSONSafely(event.pii_classification_json, 'pii_classification_json', event.sessionId);
-        } else if (event.sanitizer?.pii?.entities) {
-          event.pii_classification = event.sanitizer.pii.entities;
         } else {
           event.pii_classification = [];
         }
-        if (!event.pii_sanitized && event.sanitizer?.pii?.has !== undefined) {
-          event.pii_sanitized = event.sanitizer.pii.has ? 1 : 0;
-        }
+
+        // v2.0.0: Convenience accessors for branch scores
+        event.branches = {
+          A: { score: event.branch_a_score, name: 'heuristics' },
+          B: { score: event.branch_b_score, name: 'semantic' },
+          C: { score: event.branch_c_score, name: 'llm_guard' }
+        };
 
         return event;
       }
@@ -327,13 +346,22 @@ export async function sendAndVerify(chatInput, maxWaitOrOptions = {}, maybeOptio
 }
 
 /**
- * Helper to assert detection results
- * @param {Object} event - ClickHouse event
+ * Assert detection results (v2.0.0)
+ *
+ * PHILOSOPHY: Tests verify END RESULT of system - Arbiter decision, not individual branches.
+ * Branch scores (A, B, C) are diagnostic metadata, NOT subjects of test assertions.
+ *
+ * @param {Object} event - ClickHouse event from events_v2
  * @param {Object} expected - Expected values
+ * @param {string|string[]} expected.status - Expected final_status: ALLOWED, SANITIZED, BLOCKED
+ * @param {string} expected.decision - Expected final_decision: ALLOW, BLOCK
+ * @param {number} expected.minScore - Minimum threat_score (Arbiter output)
+ * @param {number} expected.maxScore - Maximum threat_score (Arbiter output)
  */
 export function assertDetection(event, expected) {
   const errors = [];
 
+  // Status check (v2.0.0: ALLOWED, SANITIZED, BLOCKED)
   if (expected.status) {
     const acceptableStatuses = Array.isArray(expected.status)
       ? expected.status
@@ -346,31 +374,83 @@ export function assertDetection(event, expected) {
     }
   }
 
-  if (expected.minScore !== undefined && event.sanitizer.score < expected.minScore) {
-    errors.push(
-      `Expected score >= ${expected.minScore}, got ${event.sanitizer.score}`
-    );
-  }
-
-  if (expected.maxScore !== undefined && event.sanitizer.score > expected.maxScore) {
-    errors.push(
-      `Expected score <= ${expected.maxScore}, got ${event.sanitizer.score}`
-    );
-  }
-
-  if (expected.categories) {
-    const detectedCategories = Object.keys(event.sanitizer.breakdown || {});
-    for (const category of expected.categories) {
-      if (!detectedCategories.includes(category)) {
-        errors.push(
-          `Expected category '${category}' not found. Detected: ${detectedCategories.join(', ')}`
-        );
-      }
+  // Decision check (v2.0.0: ALLOW, BLOCK)
+  if (expected.decision) {
+    if (event.final_decision !== expected.decision) {
+      errors.push(
+        `Expected decision ${expected.decision}, got ${event.final_decision}`
+      );
     }
+  }
+
+  // Combined threat score (Arbiter output)
+  if (expected.minScore !== undefined && event.threat_score < expected.minScore) {
+    errors.push(
+      `Expected threat_score >= ${expected.minScore}, got ${event.threat_score}`
+    );
+  }
+
+  if (expected.maxScore !== undefined && event.threat_score > expected.maxScore) {
+    errors.push(
+      `Expected threat_score <= ${expected.maxScore}, got ${event.threat_score}`
+    );
   }
 
   if (errors.length > 0) {
     throw new Error(`Detection assertion failed:\n${errors.join('\n')}`);
+  }
+}
+
+/**
+ * Assert final system decision (v2.0.0)
+ *
+ * PHILOSOPHY: Tests verify END RESULT - Arbiter's final decision.
+ * This is the PRIMARY assertion function for v2.0.0 tests.
+ *
+ * @param {Object} event - ClickHouse event from events_v2
+ * @param {Object} expected - Expected values
+ * @param {string|string[]} expected.status - Final status: ALLOWED, SANITIZED, BLOCKED
+ * @param {string} expected.decision - Binary decision: ALLOW, BLOCK
+ * @param {number} expected.minScore - Minimum combined threat_score
+ * @param {number} expected.maxScore - Maximum combined threat_score
+ * @param {boolean} expected.piiDetected - Whether PII should be detected
+ */
+export function assertSystemDecision(event, expected) {
+  const errors = [];
+
+  // Final status: ALLOWED, SANITIZED, BLOCKED
+  if (expected.status) {
+    const acceptable = Array.isArray(expected.status) ? expected.status : [expected.status];
+    if (!acceptable.includes(event.final_status)) {
+      errors.push(`Status: expected ${acceptable.join('|')}, got ${event.final_status}`);
+    }
+  }
+
+  // Binary decision: ALLOW, BLOCK
+  if (expected.decision) {
+    if (event.final_decision !== expected.decision) {
+      errors.push(`Decision: expected ${expected.decision}, got ${event.final_decision}`);
+    }
+  }
+
+  // Combined threat score (Arbiter output)
+  if (expected.minScore !== undefined && event.threat_score < expected.minScore) {
+    errors.push(`Score: expected >= ${expected.minScore}, got ${event.threat_score}`);
+  }
+  if (expected.maxScore !== undefined && event.threat_score > expected.maxScore) {
+    errors.push(`Score: expected <= ${expected.maxScore}, got ${event.threat_score}`);
+  }
+
+  // PII detection
+  if (expected.piiDetected !== undefined) {
+    const hasPii = event.pii_sanitized === 1;
+    if (expected.piiDetected !== hasPii) {
+      errors.push(`PII: expected ${expected.piiDetected}, got ${hasPii}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`System decision assertion failed:\n${errors.join('\n')}`);
   }
 }
 
@@ -397,70 +477,54 @@ function extractEntityText(entity, input) {
 }
 
 /**
- * Test webhook for PII tests (returns full event with ClickHouse data)
- * Sends prompt to workflow and returns ClickHouse event with PII details
+ * Test webhook for PII tests (v2.0.0)
+ * Sends prompt to workflow and returns ClickHouse event from events_v2
+ *
  * @param {string|Object} payloadOrString - Request payload with chatInput or just the string
- * @returns {Promise<Object>} ClickHouse event with pii field populated
+ * @returns {Promise<Object>} ClickHouse event with PII classification
  */
 export async function testWebhook(payloadOrString) {
-  // Handle both string and object inputs for backward compatibility
+  // Handle both string and object inputs
   const chatInput = typeof payloadOrString === 'string'
     ? payloadOrString
     : (payloadOrString.chatInput || payloadOrString);
 
-  // Use sendAndVerify to get full ClickHouse event with PII details
+  // Use sendAndVerify to get full ClickHouse event from events_v2
   const event = await sendAndVerify(chatInput);
 
-  // Add pii field from sanitizer for backward compatibility
-  if (event.sanitizer?.pii) {
-    event.pii = event.sanitizer.pii;
-  }
-
-  // CRITICAL: Enrich entities with text field extracted from ORIGINAL UNREDACTED INPUT
-  // Workflow stores minimal entity format (type, start, end, score) to minimize ClickHouse storage
-  // Tests expect full format with text and entity_type fields
-  // IMPORTANT: Use the chatInput we sent (original unredacted), NOT event.chat_input (ClickHouse redacted)
-  if (event.pii?.entities && Array.isArray(event.pii.entities)) {
-    event.pii.entities = event.pii.entities.map(e => ({
-      ...e,
-      text: extractEntityText(e, chatInput),  // Use ORIGINAL chatInput, not ClickHouse data
-      entity_type: e.type  // Map type to entity_type for test compatibility
-    }));
-  }
-
-  // BACKWARD COMPATIBILITY: Map v1.8.1 ClickHouse fields to old test field names
-  // v1.8.1 renamed fields: final_action, final_status, after_sanitization
-  // Legacy tests expect: action, status, sanitizedBody
-  if (!event.action && event.final_action !== undefined && event.final_action !== null) {
-    if (typeof event.final_action !== 'string') {
-      throw new Error(
-        `Invalid final_action type: expected string, got ${typeof event.final_action}. `
-        + `SessionId: ${event.sessionId || 'unknown'}`
-      );
-    }
-    event.action = event.final_action.toLowerCase();
-  }
-  if (!event.status && event.final_status) {
-    event.status = event.final_status;
-  }
-  if (!event.sanitizedBody && event.after_sanitization) {
-    event.sanitizedBody = event.after_sanitization;
+  // v2.0.0: PII data comes from pii_classification_json field
+  // Enrich entities with text field extracted from original input
+  if (event.pii_classification && Array.isArray(event.pii_classification)) {
+    event.pii = {
+      has: event.pii_sanitized === 1,
+      entities: event.pii_classification.map(e => ({
+        ...e,
+        text: extractEntityText(e, chatInput),
+        entity_type: e.type
+      }))
+    };
+  } else {
+    event.pii = {
+      has: event.pii_sanitized === 1,
+      entities: []
+    };
   }
 
   return event;
 }
 
 /**
- * Verify that an event with given original_input exists in ClickHouse
+ * Verify that an event with given original_input exists in ClickHouse (v2.0.0)
  * Used for audit trail verification
  * @param {string} originalInput - The original input text to search for
  * @returns {Promise<boolean>} True if event found, false otherwise
  */
 export async function verifyClickHouseLog(originalInput) {
   try {
+    // v2.0.0: Query events_v2 table
     const query = `
       SELECT COUNT(*) as count
-      FROM n8n_logs.events_processed
+      FROM n8n_logs.events_v2
       WHERE original_input = '${originalInput.replace(/'/g, "\\'")}'
       FORMAT JSON
     `;

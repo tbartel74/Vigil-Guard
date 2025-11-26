@@ -71,7 +71,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
       const event = await sendAndVerify(shortPrompt);
 
       expect(event.final_status).toBe('ALLOWED');
-      expect(event.sanitizer.score).toBeLessThan(30);
+      expect(event.threat_score).toBeLessThan(30);
 
       // Verify single-chunk processing (if metadata available)
       if (event.llm_guard) {
@@ -89,7 +89,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
       const event = await sendAndVerify(suspiciousContent);
 
       // Should trigger sliding window AND get caught
-      expect(event.sanitizer.score).toBeGreaterThanOrEqual(30);
+      expect(event.threat_score).toBeGreaterThanOrEqual(30);
       expect(event.final_status).toMatch(/SANITIZED|BLOCKED/);
     }, 30000);
   });
@@ -126,7 +126,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
 
       // Should be processed (repetition detected but might not reach SANITIZE threshold)
       expect(event.final_status).toMatch(/ALLOWED|SANITIZED|BLOCKED/);
-      expect(event.sanitizer.score).toBeGreaterThanOrEqual(0);
+      expect(event.threat_score).toBeGreaterThanOrEqual(0);
     }, 30000);
 
     it('should detect attacks that might cause Prompt Guard API errors', async () => {
@@ -203,7 +203,7 @@ describe('Phase 2.5: Critical Security Fixes', () => {
       const event = await sendAndVerify(legitimateContent);
 
       expect(event.final_status).toBe('ALLOWED');
-      expect(event.sanitizer.score).toBeLessThan(30);
+      expect(event.threat_score).toBeLessThan(30);
     }, 30000);
 
     it('should still detect obvious attacks in short prompts', async () => {

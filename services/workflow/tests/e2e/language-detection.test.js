@@ -16,8 +16,10 @@
 import { describe, test, expect } from 'vitest';
 import { sendToWorkflow, waitForClickHouseEvent } from '../helpers/webhook.js';
 
-const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+// v2.0.0: Updated webhook URL for 3-branch detection pipeline
+const WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
 
+// v2.0.0: detected_language is now a top-level field in events_v2
 describe('Language Detection - Polish Text', () => {
   test('should detect Polish and not mask common words', async () => {
     const sessionId = `test_pl_common_${Date.now()}`;
@@ -27,8 +29,8 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer).toBeDefined();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    // v2.0.0: detected_language is top-level field
+    expect(event.detected_language).toBe('pl');
 
     // "jest" should NOT be detected as PERSON
     const result = event.result || event.chat_input;
@@ -44,7 +46,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     expect(result).not.toContain('[PERSON]');
@@ -59,7 +61,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect Polish with Polish diacritics', async () => {
@@ -70,7 +72,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect Polish without diacritics', async () => {
@@ -81,7 +83,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect Polish formal text', async () => {
@@ -92,7 +94,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect Polish with numbers', async () => {
@@ -103,7 +105,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect Polish longer text', async () => {
@@ -116,7 +118,7 @@ describe('Language Detection - Polish Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 });
 
@@ -129,7 +131,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should detect English question', async () => {
@@ -140,7 +142,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should detect English with technical terms', async () => {
@@ -151,7 +153,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should detect English with numbers', async () => {
@@ -162,7 +164,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should detect English formal text', async () => {
@@ -173,7 +175,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should detect English longer text', async () => {
@@ -186,7 +188,7 @@ describe('Language Detection - English Text', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 });
 
@@ -199,7 +201,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should handle very short text (3 words English)', async () => {
@@ -210,7 +212,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should handle text with mostly numbers', async () => {
@@ -221,7 +223,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toMatch(/pl|en/);
+    expect(event.detected_language).toMatch(/pl|en/);
   });
 
   test('should handle text with special characters', async () => {
@@ -232,7 +234,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBeDefined();
+    expect(event.detected_language).toBeDefined();
   });
 
   test('should handle text with emojis', async () => {
@@ -243,7 +245,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should handle text with URLs', async () => {
@@ -254,7 +256,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should handle text with code snippets', async () => {
@@ -265,7 +267,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should handle text with punctuation only at end', async () => {
@@ -276,7 +278,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should handle single word Polish', async () => {
@@ -287,7 +289,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should handle single word English', async () => {
@@ -298,7 +300,7 @@ describe('Language Detection - Edge Cases', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 });
 
@@ -311,7 +313,7 @@ describe('Language Detection - Mixed Language', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
   });
 
   test('should detect dominant language (English with Polish word)', async () => {
@@ -322,7 +324,7 @@ describe('Language Detection - Mixed Language', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
   });
 
   test('should handle code-switching (sentence by sentence)', async () => {
@@ -334,7 +336,7 @@ describe('Language Detection - Mixed Language', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toMatch(/pl|en/);
+    expect(event.detected_language).toMatch(/pl|en/);
   });
 });
 
@@ -347,7 +349,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     // Credit card should be masked regardless of language
     const result = event.result || event.chat_input;
@@ -362,7 +364,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
 
     const result = event.result || event.chat_input;
     expect(result).not.toContain('5555555555554444');
@@ -376,7 +378,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     expect(result).not.toContain('test@example.com');
@@ -390,7 +392,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
 
     const result = event.result || event.chat_input;
     expect(result).not.toContain('user@domain.org');
@@ -404,7 +406,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     // "jest" should NOT be masked as PERSON
     const result = event.result || event.chat_input;
@@ -420,7 +422,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     expect(result).not.toContain('[PERSON]');
@@ -449,7 +451,7 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     // Both should be masked
@@ -498,7 +500,7 @@ describe('Language Detection - Regression Tests', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     // "jest" should NOT be masked
@@ -514,7 +516,7 @@ describe('Language Detection - Regression Tests', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     // "jeszcze" should NOT be masked
@@ -530,7 +532,7 @@ describe('Language Detection - Regression Tests', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('en');
+    expect(event.detected_language).toBe('en');
 
     const result = event.result || event.chat_input;
     // English names should still be detected in English text
@@ -538,8 +540,9 @@ describe('Language Detection - Regression Tests', () => {
   });
 });
 
+// v2.0.0: Statistics are stored in events_v2 columns, not in sanitizer object
 describe('Language Detection - Statistics Logging', () => {
-  test('should log language detection statistics', async () => {
+  test('should log detected language', async () => {
     const sessionId = `test_stats_${Date.now()}`;
     const response = await sendToWorkflow('Test statystyk języka polskiego', { sessionId });
 
@@ -547,14 +550,11 @@ describe('Language Detection - Statistics Logging', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats).toBeDefined();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
-    expect(event.sanitizer.pii?.language_stats?.polish_entities).toBeDefined();
-    expect(event.sanitizer.pii?.language_stats?.international_entities).toBeDefined();
-    expect(event.sanitizer.pii?.language_stats?.total_after_dedup).toBeDefined();
+    // v2.0.0: detected_language is top-level field
+    expect(event.detected_language).toBe('pl');
   });
 
-  test('should log entity counts by language', async () => {
+  test('should log PII entity counts', async () => {
     const sessionId = `test_stats_counts_${Date.now()}`;
     const response = await sendToWorkflow('Karta 4111111111111111 i PESEL 44051401359', { sessionId });
 
@@ -562,12 +562,12 @@ describe('Language Detection - Statistics Logging', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats).toBeDefined();
+    expect(event.detected_language).toBe('pl');
 
-    const stats = event.sanitizer.pii.language_stats;
-    // Should have entities from both Polish and international models
-    const totalEntities = (stats.polish_entities || 0) + (stats.international_entities || 0);
-    expect(totalEntities).toBeGreaterThan(0);
+    // v2.0.0: PII entity count is stored in pii_entities_count
+    expect(event.pii_entities_count).toBeGreaterThan(0);
+    expect(event.pii_sanitized).toBe(1);
+    expect(event.pii_types_detected).toBeDefined();
   });
 });
 
@@ -581,21 +581,8 @@ describe('Language Detection - Service Health', () => {
     expect(health.service).toBe('language-detector');
   });
 
-  test('should return detection method in PII results', async () => {
-    const sessionId = `test_method_${Date.now()}`;
-    const response = await sendToWorkflow('Test metody detekcji', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.detection_method).toBeDefined();
-    // Should use presidio with language awareness
-    expect(event.sanitizer.pii?.detection_method).toContain('presidio');
-  });
-
-  test('should detect CREDIT_CARD in Polish text using hybrid detection (v1.6.11)', async () => {
-    const sessionId = `test_pl_creditcard_hybrid_${Date.now()}`;
+  test('should detect CREDIT_CARD in Polish text (v2.0.0)', async () => {
+    const sessionId = `test_pl_creditcard_${Date.now()}`;
     const response = await sendToWorkflow(
       'Karta kredytowa 4111111111111111 i PESEL 44051401359',
       { sessionId }
@@ -606,20 +593,19 @@ describe('Language Detection - Service Health', () => {
 
     expect(event).toBeTruthy();
 
-    // Language should be Polish (entity-based detection)
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
-    expect(event.sanitizer.pii?.language_stats?.detection_method).toMatch(/entity_based|hybrid/);
+    // Language should be Polish
+    expect(event.detected_language).toBe('pl');
 
     // Both CREDIT_CARD and PESEL should be detected
     const result = event.result || event.chat_input;
     expect(result).toContain('[CARD]');
     expect(result).toContain('[PESEL]');
 
-    // Should NOT be blocked (proper sanitization)
-    expect(event.decision?.action).not.toBe('BLOCK');
+    // v2.0.0: Check final_decision instead of decision.action
+    expect(event.final_decision).toBe('ALLOW');
   });
 
-  test('should use entity-based detection when PESEL pattern present (v1.6.11)', async () => {
+  test('should detect PESEL in Polish context (v2.0.0)', async () => {
     const sessionId = `test_entity_based_pesel_${Date.now()}`;
     const response = await sendToWorkflow('PESEL: 92032100157', { sessionId });
 
@@ -627,8 +613,7 @@ describe('Language Detection - Service Health', () => {
     const event = await waitForClickHouseEvent({ sessionId }, 10000);
 
     expect(event).toBeTruthy();
-    expect(event.sanitizer.pii?.language_stats?.detected_language).toBe('pl');
-    expect(event.sanitizer.pii?.language_stats?.detection_method).toMatch(/entity_based|hybrid/);
+    expect(event.detected_language).toBe('pl');
 
     const result = event.result || event.chat_input;
     expect(result).toContain('[PESEL]');
