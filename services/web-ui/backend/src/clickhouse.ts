@@ -304,6 +304,7 @@ export interface FPReportListParams {
 }
 
 export interface FPReportDetailed {
+  // Basic report fields
   report_id: string;
   event_id: string;
   reported_by: string;
@@ -315,9 +316,112 @@ export interface FPReportDetailed {
   original_input: string;
   final_status: string;
   threat_score: number;
+  detected_categories: string[];
+  sanitizer_score: number;
+  pg_score_percent: number;
+  decision_reason: string;
+
+  // Decision Analysis fields
+  final_action: string;
+  removal_pct: number;
+  processing_time_ms: number;
+  pii_sanitized: number;
+  pii_types_detected: string[];
+  pii_entities_count: number;
+  detected_language: string;
+  decision_source: string;
+
+  // Additional fields from events_v2 (for full branch analysis rendering)
   branch_a_score: number;
   branch_b_score: number;
   branch_c_score: number;
+  confidence?: number;
+  boosts_applied?: string[];
+  chat_input?: string;
+  result?: string;
+  client_id?: string;
+  browser_name?: string;
+  browser_version?: string;
+  os_name?: string;
+  pipeline_version?: string;
+  config_version?: string;
+
+  // RAW JSON fields (parsed) - same as EventV2Details for rendering detailed branch analysis
+  arbiter_json?: any;
+  branch_results_json?: any;
+  pii_classification_json?: any;
+
+  // Parsed JSON objects (only in detail view from getFPReportDetails)
+  scoring_breakdown?: {
+    sanitizer_score: number;
+    prompt_guard_score: number;
+    prompt_guard_percent: number;
+    threat_score: number;
+    score_breakdown: Record<string, number>;
+    match_details: Array<{
+      category: string;
+      matchCount: number;
+      score: number;
+      matches: Array<{
+        pattern: string;
+        samples: string[];
+      }>;
+    }>;
+  };
+
+  sanitizer_breakdown?: {
+    decision: string;
+    removal_pct: number;
+    mode?: string;
+    score: number;
+    breakdown: Record<string, number>;
+    pii?: {
+      has: boolean;
+      entities_detected: number;
+      detection_method: string;
+      processing_time_ms: number;
+      language_stats: {
+        detected_language: string;
+        detection_confidence: number;
+        detection_method: string;
+        polish_entities: number;
+        english_entities: number;
+        regex_entities: number;
+      };
+      entities: Array<{
+        type: string;
+        start: number;
+        end: number;
+        score: number;
+      }>;
+    };
+  };
+
+  final_decision?: {
+    status: string;
+    action_taken: string;
+    source: string;
+    internal_note: string;
+  };
+
+  pipeline_flow?: {
+    input_raw: string;
+    input_normalized: string;
+    after_sanitization: string;
+    after_pii_redaction: string;
+    output_final: string;
+    output_status: string;
+  };
+
+  pattern_matches?: Array<{
+    category: string;
+    matchCount: number;
+    score: number;
+    matches: Array<{
+      pattern: string;
+      samples: string[];
+    }>;
+  }>;
 }
 
 export interface FPReportListResponse {
@@ -601,14 +705,7 @@ export async function getFPTrend(timeRange: string = '30 DAY', interval: 'day' |
 /**
  * Get single FP report with full event context
  */
-export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed & {
-  detected_language: string;
-  pii_sanitized: number;
-  pii_types_detected: string[];
-  pii_entities_count: number;
-  arbiter_json: any;
-  branch_results_json: any;
-} | null> {
+export async function getFPReportDetails(reportId: string): Promise<FPReportDetailed | null> {
   const client = getClickHouseClient();
 
   try {
@@ -625,6 +722,8 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
         fp.original_input,
         fp.final_status,
         fp.threat_score,
+        ifNull(ep.chat_input, '') AS chat_input,
+        ifNull(ep.result, '') AS result,
         ifNull(ep.branch_a_score, 0) AS branch_a_score,
         ifNull(ep.branch_b_score, 0) AS branch_b_score,
         ifNull(ep.branch_c_score, 0) AS branch_c_score,
@@ -632,8 +731,17 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
         toUInt8(ifNull(ep.pii_sanitized, 0)) AS pii_sanitized,
         ifNull(ep.pii_types_detected, []) AS pii_types_detected,
         toUInt32(ifNull(ep.pii_entities_count, 0)) AS pii_entities_count,
+        ifNull(ep.confidence, 0) AS confidence,
+        ifNull(ep.boosts_applied, []) AS boosts_applied,
+        ifNull(ep.client_id, '') AS client_id,
+        ifNull(ep.browser_name, '') AS browser_name,
+        ifNull(ep.browser_version, '') AS browser_version,
+        ifNull(ep.os_name, '') AS os_name,
+        ifNull(ep.pipeline_version, '') AS pipeline_version,
+        ifNull(ep.config_version, '') AS config_version,
         ep.arbiter_json,
-        ep.branch_results_json
+        ep.branch_results_json,
+        ep.pii_classification_json
       FROM n8n_logs.false_positive_reports AS fp
       LEFT JOIN n8n_logs.events_v2 AS ep
         ON fp.event_id = toString(ep.id)
@@ -655,10 +763,144 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
 
     const row = data[0];
 
+    // Parse raw JSON strings
+    const arbiterData = row.arbiter_json ? JSON.parse(row.arbiter_json) : null;
+    const branchResults = row.branch_results_json ? JSON.parse(row.branch_results_json) : null;
+    const piiClassification = row.pii_classification_json ? JSON.parse(row.pii_classification_json) : null;
+
+    // Extract detected_categories from explanations or branch results
+    // v2.0.0 doesn't have explicit categories array - extract from explanations
+    const detectedCategories: string[] = [];
+    if (arbiterData?.explanations) {
+      // Extract category names from explanations like "Matched categories: MULTI_STEP_ATTACK, HEAVY_OBFUSCATION, FORMAT_COERCION (+1 more)"
+      const categoryMatch = arbiterData.explanations.find((exp: string) => exp.includes('Matched categories:'));
+      if (categoryMatch) {
+        const categoriesStr = categoryMatch.replace('Matched categories:', '').replace(/\(\+\d+ more\)/, '').trim();
+        detectedCategories.push(...categoriesStr.split(',').map((c: string) => c.trim()));
+      }
+    }
+
+    // Transform to frontend interface shape
     return {
-      ...row,
-      arbiter_json: row.arbiter_json ? JSON.parse(row.arbiter_json) : null,
-      branch_results_json: row.branch_results_json ? JSON.parse(row.branch_results_json) : null,
+      // Basic report fields
+      report_id: row.report_id,
+      event_id: row.event_id,
+      reported_by: row.reported_by,
+      report_type: row.report_type,
+      reason: row.reason,
+      comment: row.comment,
+      report_timestamp: row.report_timestamp,
+      event_timestamp: row.event_timestamp,
+      original_input: row.original_input,
+      final_status: row.final_status,
+      threat_score: row.threat_score,
+      detected_categories: detectedCategories,
+
+      // Computed fields from JSON (v2.0.0 format)
+      sanitizer_score: arbiterData?.branches?.A?.score || 0,
+      pg_score_percent: arbiterData?.branches?.C?.score || 0,
+      decision_reason: arbiterData?.explanations?.join('; ') || '',
+      final_action: arbiterData?.final_decision || row.final_status,
+      removal_pct: 0, // Not tracked in v2.0.0
+      processing_time_ms: 0, // Not tracked in detail
+      pii_sanitized: row.pii_sanitized,
+      pii_types_detected: row.pii_types_detected,
+      pii_entities_count: row.pii_entities_count,
+      detected_language: row.detected_language,
+      decision_source: 'arbiter_v2', // v2.0.0 arbiter
+
+      // Additional fields from events_v2 (for full branch analysis rendering)
+      branch_a_score: row.branch_a_score,
+      branch_b_score: row.branch_b_score,
+      branch_c_score: row.branch_c_score,
+      confidence: row.confidence,
+      boosts_applied: row.boosts_applied,
+      chat_input: row.chat_input,
+      result: row.result,
+      client_id: row.client_id,
+      browser_name: row.browser_name,
+      browser_version: row.browser_version,
+      os_name: row.os_name,
+      pipeline_version: row.pipeline_version,
+      config_version: row.config_version,
+
+      // RAW JSON fields (for detailed branch analysis like Monitoring)
+      arbiter_json: arbiterData,
+      branch_results_json: branchResults,
+      pii_classification_json: piiClassification,
+
+      // Map pii_classification_json → sanitizer_breakdown
+      // Note: v2.0.0 workflow saves simplified PII data without language_stats/entities details
+      sanitizer_breakdown: piiClassification && row.pii_sanitized === 1 ? {
+        decision: row.final_status,
+        removal_pct: 0,
+        mode: piiClassification.method || 'presidio',
+        score: 0,
+        breakdown: {},
+        pii: {
+          has: true,
+          entities_detected: piiClassification.count || row.pii_entities_count || 0,
+          detection_method: piiClassification.method || 'presidio',
+          processing_time_ms: 0,
+          // Simplified language_stats (reconstructed from available data)
+          language_stats: {
+            detected_language: row.detected_language || 'unknown',
+            detection_confidence: 0.8, // Default confidence - not stored in v2.0.0
+            detection_method: 'hybrid',
+            polish_entities: piiClassification.types?.filter((t: string) => t.startsWith('PL_')).length || 0,
+            english_entities: piiClassification.types?.filter((t: string) => !t.startsWith('PL_')).length || 0,
+            regex_entities: 0, // Not available in simplified PII data
+          },
+          // Note: Individual entities array not stored in v2.0.0
+          // Frontend will gracefully handle missing entities with conditional rendering
+          entities: [],
+        },
+      } : undefined,
+
+      // Map arbiter_json → scoring_breakdown
+      // Note: v2.0.0 has different structure (3-branch format)
+      scoring_breakdown: arbiterData ? {
+        sanitizer_score: 0, // Not in v2.0.0 arbiter format
+        prompt_guard_score: 0, // Replaced by Branch C (LLM Guard)
+        prompt_guard_percent: arbiterData.branches?.C?.score || 0,
+        threat_score: arbiterData.combined_score || row.threat_score || 0,
+        score_breakdown: {
+          branch_a: arbiterData.branches?.A?.score || 0,
+          branch_b: arbiterData.branches?.B?.score || 0,
+          branch_c: arbiterData.branches?.C?.score || 0,
+        },
+        // Extract match_details from explanations if available
+        match_details: arbiterData.explanations ? arbiterData.explanations.map((exp: string, idx: number) => ({
+          category: 'EXPLANATION',
+          matchCount: 1,
+          score: 0,
+          matches: [{ pattern: exp, samples: [] }],
+        })) : [],
+      } : undefined,
+
+      // Map arbiter_json → final_decision
+      // Note: v2.0.0 format has simpler final_decision (string, not object)
+      final_decision: arbiterData ? {
+        status: arbiterData.final_decision || row.final_status,
+        action_taken: arbiterData.final_decision || row.final_status,
+        source: 'arbiter_v2',
+        internal_note: arbiterData.explanations?.join('; ') || '',
+      } : undefined,
+
+      // Map pipeline_flow - reconstructed from available data
+      // Note: pipeline_flow_json column doesn't exist in events_v2 schema
+      // Reconstruct basic pipeline flow from available fields
+      pipeline_flow: {
+        input_raw: row.original_input,
+        input_normalized: row.chat_input || row.original_input,
+        after_sanitization: row.result || row.chat_input || '',
+        after_pii_redaction: piiClassification?.has ? '(PII redacted)' : row.chat_input || '',
+        output_final: row.result || '',
+        output_status: row.final_status,
+      },
+
+      // Pattern matches (same as match_details for compatibility)
+      pattern_matches: arbiterData?.match_details || [],
     };
   } catch (error) {
     console.error('ClickHouse query error (FP report details):', error);

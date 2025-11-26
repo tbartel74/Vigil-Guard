@@ -362,7 +362,8 @@ export async function searchEventsV2(params: SearchParamsV2): Promise<SearchResu
         browser_name,
         browser_version,
         os_name,
-        substring(original_input, 1, 100) AS preview
+        substring(original_input, 1, 100) AS preview,
+        pii_classification_json
       FROM n8n_logs.events_v2
       WHERE ${whereClause}
       ORDER BY ${sortBy} ${sortOrder}
@@ -382,6 +383,7 @@ export async function searchEventsV2(params: SearchParamsV2): Promise<SearchResu
         ...row,
         timestamp: row.ts_iso,
         pii_sanitized: row.pii_sanitized === 1,
+        pii_classification_json: row.pii_classification_json ? JSON.parse(row.pii_classification_json) : null,
       })),
       total,
       page: params.page,
