@@ -8,7 +8,7 @@
  *
  * Expected Behavior:
  * - Most payloads will be ALLOWED by regex detection (no matching patterns)
- * - LLM Guard (Prompt Guard API) should catch semantic attacks
+ * - NLP analysis (Prompt Guard API) should catch semantic attacks
  * - Results will inform priority for new detection categories
  *
  * Categories Tested:

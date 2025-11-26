@@ -52,7 +52,7 @@ describe('events_v2 Schema Validation', () => {
       expect(event.branch_b_score).toBeLessThanOrEqual(100);
     });
 
-    it('should have branch_c_score (llm_guard)', async () => {
+    it('should have branch_c_score (NLP analysis / llm_guard)', async () => {
       const event = await sendAndVerify('Schema test for branch C');
 
       expect(typeof event.branch_c_score).toBe('number');

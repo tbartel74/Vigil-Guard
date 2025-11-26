@@ -10,7 +10,7 @@ Input → Language Detection → PII Detection → 3-Branch Pipeline → Arbiter
                                     ┌───────────────┼───────────────┐
                                     │               │               │
                                Branch A        Branch B        Branch C
-                             (Heuristics)     (Semantic)     (LLM Guard)
+                             (Heuristics)     (Semantic)   (NLP Analysis)
                                     │               │               │
                                     └───────────────┼───────────────┘
                                                     │
@@ -105,7 +105,7 @@ ClickHouse table: `n8n_logs.events_v2`
 | `timestamp` | DateTime64(3) | Event timestamp |
 | `branch_a_score` | UInt8 | Heuristics score (0-100) |
 | `branch_b_score` | UInt8 | Semantic score (0-100) |
-| `branch_c_score` | UInt8 | LLM Guard score (0-100) |
+| `branch_c_score` | UInt8 | NLP analysis score (0-100) |
 | `threat_score` | UInt8 | Combined Arbiter score (0-100) |
 | `confidence` | Float32 | Arbiter confidence (0-1) |
 | `boosts_applied` | Array(String) | Priority boosts applied |

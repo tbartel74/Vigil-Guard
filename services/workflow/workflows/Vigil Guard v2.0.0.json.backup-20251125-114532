@@ -1,0 +1,739 @@
+{
+  "name": "Vigil Guard v2.0.0",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -4032,
+        -384
+      ],
+      "id": "d8612320-b851-4999-b6e3-0fb958559233",
+      "name": "When chat message received",
+      "webhookId": "42f773e2-7ebf-42f7-a993-8be016d218e1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vigil-guard-2",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -4032,
+        -80
+      ],
+      "id": "988d4b8f-5381-4786-ba73-8baa3deda9ad",
+      "name": "Webhook v2",
+      "webhookId": "vigil-guard-v2-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b6fecd17-5c91-41b2-a235-85ac60cb4dc5",
+              "name": "chat_payload",
+              "value": "={{ {\n    chatInput: $json.body.chatInput || $json.chatInput || $json.text || \"\",\n    sessionId: $json.body.sessionId || $json.sessionId || $now.format('x'),\n    action: $json.body.action || $json.action || \"sendMessage\"\n  } }}",
+              "type": "object"
+            },
+            {
+              "id": "browser-fingerprint-client-id",
+              "name": "clientId",
+              "value": "={{ $json.body.clientId || $json.clientId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "browser-fingerprint-metadata",
+              "name": "browser_metadata",
+              "value": "={{ $json.body.browser_metadata || $json.browser_metadata || {} }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3616,
+        -384
+      ],
+      "id": "350cd5fe-4c8b-480a-ac0f-5dda90a3b56c",
+      "name": "Extract Input"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/allowlist.schema.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -3360,
+        -96
+      ],
+      "id": "69f22d55-3ee5-4c30-bad8-ccd7ea83c340",
+      "name": "Load allowlist.schema.json"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/pii.conf",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -3360,
+        80
+      ],
+      "id": "1b53c6b6-8a4d-441d-8586-d40c835070bd",
+      "name": "Load pii.conf"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/node/config/unified_config.json",
+        "options": {
+          "mimeType": "application/json",
+          "dataPropertyName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -3360,
+        240
+      ],
+      "id": "76d0f405-5dee-4b42-9aee-97ae18fd0b6c",
+      "name": "Load unified_config.json"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "destinationKey": "data1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -3120,
+        -96
+      ],
+      "id": "71c088f6-c343-4ded-89c7-0d9534ab2977",
+      "name": "Extract allowlist"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "destinationKey": "data2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -3120,
+        80
+      ],
+      "id": "eba2b38f-4935-4555-8a79-b9a33232f19f",
+      "name": "Extract pii.conf"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "destinationKey": "data3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -3120,
+        240
+      ],
+      "id": "62a68ecf-4bc0-46ea-9992-28097c037798",
+      "name": "Extract unified_config"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 4,
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -2880,
+        -368
+      ],
+      "id": "1e1a2597-9703-4bdc-ba59-e174b132964d",
+      "name": "Merge Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Config Loader v2.0.0 - Same pattern as v1.8.1\n * \n * FIXED: Uses FIRST ITEM only (like v1.8.1 Config Loader)\n * n8n Merge combineByPosition puts all data keys into item 0.\n * \n * Loads only 3 config files:\n * - allowlist.schema.json (input validation) -> data1\n * - pii.conf (PII regex fallback) -> data2\n * - unified_config.json (arbiter settings) -> data3\n */\n\nfunction safeParseJson(value, fieldName) {\n  if (value == null) return { ok: false, error: `${fieldName} is null/undefined` };\n  if (typeof value === 'object') return { ok: true, data: value };\n  if (typeof value === 'string') {\n    try { return { ok: true, data: JSON.parse(value) }; }\n    catch (e) { return { ok: false, error: `${fieldName} JSON parse failed: ${e.message}` }; }\n  }\n  return { ok: false, error: `${fieldName} has invalid type: ${typeof value}` };\n}\n\nfunction validateAllowlistSchema(obj) {\n  return obj && typeof obj === 'object' && (obj.$schema || obj.title === 'Sanitizer Allowlist Schema');\n}\n\nfunction validatePiiConf(obj) {\n  return obj && typeof obj === 'object' && Array.isArray(obj.rules) && obj.rules.length > 0;\n}\n\nfunction validateUnifiedConfig(obj) {\n  return obj && typeof obj === 'object' && obj.sanitization && (obj.arbiter || obj.scoring);\n}\n\nconst inputItems = $input.all();\nif (!inputItems || !inputItems.length) {\n  return [{ json: { error: 'No input items', configError: true, _isBlocked: true } }];\n}\n\n// v1.8.1 PATTERN: Take FIRST item only - n8n Merge puts all data there\nconst firstItem = inputItems[0];\nconst j = firstItem.json ? JSON.parse(JSON.stringify(firstItem.json)) : {};\n\nj._loader = { version: '2.0.0', sources: {}, missing: [], errors: [], warnings: [] };\n\n// Load allowlist.schema.json from data1\nconst data1Result = safeParseJson(j.data1, 'data1 (allowlist_schema)');\nif (data1Result.ok && validateAllowlistSchema(data1Result.data)) {\n  j.allowlist_schema = data1Result.data;\n  j._loader.sources.allowlist_schema = 'json.data1';\n} else {\n  j._loader.missing.push('allowlist_schema');\n  j._loader.errors.push(data1Result.error || 'data1: invalid');\n}\n\n// Load pii.conf from data2\nconst data2Result = safeParseJson(j.data2, 'data2 (pii.conf)');\nif (data2Result.ok && validatePiiConf(data2Result.data)) {\n  j.pii_conf = data2Result.data;\n  j._loader.sources.pii_conf = 'json.data2';\n} else {\n  j._loader.missing.push('pii_conf');\n  j._loader.errors.push(data2Result.error || 'data2: invalid');\n}\n\n// Load unified_config.json from data3\nconst data3Result = safeParseJson(j.data3, 'data3 (unified_config)');\nif (data3Result.ok && validateUnifiedConfig(data3Result.data)) {\n  j.config = data3Result.data;\n  j._loader.sources.unified_config = 'json.data3';\n  j.arbiter_config = j.config.arbiter || {\n    weights: { heuristics: 0.30, semantic: 0.35, llm_guard: 0.35 },\n    thresholds: { block_min: 50 },\n    degradation: { weight_multiplier: 0.1, all_degraded_action: 'BLOCK' }\n  };\n} else {\n  j._loader.missing.push('unified_config');\n  j._loader.errors.push(data3Result.error || 'data3: invalid');\n}\n\n// Fail-secure if critical files missing\nif (j._loader.missing.includes('unified_config') || j._loader.missing.includes('pii_conf')) {\n  console.error('Config Loader v2.0.0: Missing files:', j._loader.missing);\n  return [{ json: { ...j, configError: true, _isBlocked: true, error_message: 'Missing: ' + j._loader.missing.join(', ') }, pairedItem: 0 }];\n}\n\nconsole.log('Config Loader v2.0.0: Loaded ' + Object.keys(j._loader.sources).length + ' files');\nreturn [{ json: j, pairedItem: 0 }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2640,
+        -336
+      ],
+      "id": "3d85e297-27db-408a-bb22-38e02761f6a2",
+      "name": "Config Loader v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Input Validator v2.0.0\n * \n * Validates input before 3-branch detection:\n * - Check required fields (chatInput)\n * - Length validation\n * - Basic format checks\n */\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  return [{ json: { _isBlocked: true, _validation_error: 'No input items' } }];\n}\n\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const chatInput = j.chat_payload?.chatInput || j.chatInput || '';\n  \n  const validation = {\n    valid: true,\n    errors: [],\n    warnings: []\n  };\n  \n  // Required field check\n  if (!chatInput || typeof chatInput !== 'string') {\n    validation.valid = false;\n    validation.errors.push('Missing or invalid chatInput');\n  }\n  \n  // Length check\n  const maxLength = j.config?.validation?.max_input_length || 10000;\n  if (chatInput.length > maxLength) {\n    validation.valid = false;\n    validation.errors.push(`Input exceeds max length (${chatInput.length} > ${maxLength})`);\n  }\n  \n  // Empty input check\n  if (chatInput.trim().length === 0) {\n    validation.valid = false;\n    validation.errors.push('Empty input not allowed');\n  }\n  \n  j._validation = validation;\n  j._original_input = chatInput;\n  \n  if (!validation.valid) {\n    j._isBlocked = true;\n    j._validation_error = validation.errors.join('; ');\n  }\n  \n  results.push({ json: j, pairedItem: item.pairedItem });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2416,
+        -336
+      ],
+      "id": "7c23ff85-1fb8-43e3-8825-d961050369e5",
+      "name": "Input Validator v2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "validation-check",
+              "leftValue": "={{ $json._validation?.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2176,
+        -336
+      ],
+      "id": "842d7b55-5a77-4097-a841-b551fd135622",
+      "name": "Validation Check"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * 3-Branch Parallel Executor v2.0.0\n * \n * Executes all 3 detection branches in PARALLEL using axios:\n * - Branch A: Heuristics Service (:5005) - normalization + pattern detection\n * - Branch B: Semantic Service (:5006) - embedding similarity\n * - Branch C: NLP analysis (:8000) - ML-based attack detection\n * \n * All branches receive ORIGINAL text (not normalized).\n * Heuristics Service normalizes internally.\n */\n\nconst axios = require('axios');\n\nconst CONFIG = {\n  endpoints: {\n    heuristics: 'http://heuristics-service:5005/analyze',\n    semantic: 'http://semantic-service:5006/analyze',\n    llmGuard: 'http://prompt-guard-api:8000/detect'\n  },\n  timeouts: {\n    A: 1000,   // Heuristics: 1s\n    B: 2000,   // Semantic: 2s\n    C: 3000    // NLP analysis: 3s\n  }\n};\n\n/**\n * Build degraded result when branch fails\n */\nfunction buildDegradedResult(branchId, branchName, reason, timingMs) {\n  return {\n    branch_id: branchId,\n    name: branchName,\n    score: 0,\n    threat_level: 'LOW',\n    confidence: 0,\n    critical_signals: {},\n    features: { degraded_reason: reason },\n    explanations: [`${branchName} degraded: ${reason}`],\n    timing_ms: timingMs,\n    degraded: true\n  };\n}\n\n/**\n * Normalize NLP analysis response to unified contract v2.1\n */\nfunction normalizeLLMGuardResponse(response, timingMs) {\n  const { is_attack, risk_score, confidence, verdict } = response;\n  const score = is_attack ? 85 : Math.round((risk_score || 0.01) * 100);\n  const threatLevel = is_attack ? 'HIGH' : (score >= 40 ? 'MEDIUM' : 'LOW');\n\n  return {\n    branch_id: 'C',\n    name: 'llm_guard',\n    score,\n    threat_level: threatLevel,\n    confidence: confidence || 0.5,\n    critical_signals: {\n      llm_attack: is_attack === true\n    },\n    features: { is_attack, risk_score, verdict },\n    explanations: [verdict || (is_attack ? 'Attack detected' : 'Safe')],\n    timing_ms: timingMs,\n    degraded: false\n  };\n}\n\n/**\n * Execute single branch with timeout handling\n */\nasync function executeBranch(branchId, branchName, url, timeout, body) {\n  const startTime = Date.now();\n  try {\n    const response = await axios.post(url, body, {\n      headers: { 'Content-Type': 'application/json' },\n      timeout: timeout\n    });\n    const timingMs = Date.now() - startTime;\n\n    if (branchId === 'C') {\n      return normalizeLLMGuardResponse(response.data, timingMs);\n    }\n    \n    // Heuristics and Semantic already return unified contract\n    return {\n      ...response.data,\n      timing_ms: response.data.timing_ms || timingMs,\n      degraded: false\n    };\n  } catch (error) {\n    const timingMs = Date.now() - startTime;\n    const reason = error.code === 'ECONNABORTED' ? 'Timeout' : \n                   error.code === 'ECONNREFUSED' ? 'Service unavailable' :\n                   (error.message || 'Unknown error');\n    console.error(`Branch ${branchId} (${branchName}) failed: ${reason}`);\n    return buildDegradedResult(branchId, branchName, reason, timingMs);\n  }\n}\n\n// Main execution\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const text = j._original_input || j.chat_payload?.chatInput || '';\n  const requestId = j.chat_payload?.sessionId || Date.now().toString();\n  \n  const startTime = Date.now();\n  \n  // Execute all 3 branches in PARALLEL\n  const [branchA, branchB, branchC] = await Promise.all([\n    executeBranch('A', 'heuristics', CONFIG.endpoints.heuristics, CONFIG.timeouts.A,\n      { text, request_id: requestId }),\n    executeBranch('B', 'semantic', CONFIG.endpoints.semantic, CONFIG.timeouts.B,\n      { text, request_id: requestId }),\n    executeBranch('C', 'llm_guard', CONFIG.endpoints.llmGuard, CONFIG.timeouts.C,\n      { text })\n  ]);\n  \n  const totalTime = Date.now() - startTime;\n  \n  results.push({\n    json: {\n      ...j,\n      branch_results: {\n        A: branchA,\n        B: branchB,\n        C: branchC\n      },\n      _3branch_timing_ms: {\n        A: branchA.timing_ms,\n        B: branchB.timing_ms,\n        C: branchC.timing_ms,\n        total: totalTime\n      }\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1792,
+        -576
+      ],
+      "id": "d94af44b-a2c9-46c7-94fe-9c22ec76e694",
+      "name": "3-Branch Executor"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Arbiter v2.0.0 - Decision Engine\n * \n * Aggregates results from 3 branches using weighted voting:\n * - Branch A (Heuristics): 30% weight\n * - Branch B (Semantic): 35% weight  \n * - Branch C (NLP analysis): 35% weight\n * \n * Decision: Binary ALLOW / BLOCK\n * Sanitization reserved for PII only (post-detection)\n * \n * Uses critical_signals for priority boosts (not features).\n */\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const branches = j.branch_results || {};\n  const branchA = branches.A || { score: 0, degraded: true };\n  const branchB = branches.B || { score: 0, degraded: true };\n  const branchC = branches.C || { score: 0, degraded: true };\n  \n  // Load config from unified_config.json or use defaults\n  const arbiterConfig = j.arbiter_config || {};\n  \n  const CONFIG = {\n    weights: {\n      A: arbiterConfig.weights?.heuristics ?? 0.30,\n      B: arbiterConfig.weights?.semantic ?? 0.35,\n      C: arbiterConfig.weights?.llm_guard ?? 0.35\n    },\n    thresholds: {\n      block: arbiterConfig.thresholds?.block_min ?? 50\n    },\n    priorityBoosts: {\n      llmGuardHighConfidence: {\n        enabled: arbiterConfig.boosts?.llm_high_confidence_enabled ?? true,\n        confidenceThreshold: arbiterConfig.boosts?.llm_high_confidence_threshold ?? 0.9,\n        minScore: arbiterConfig.boosts?.llm_high_confidence_min_score ?? 85\n      },\n      semanticHighSimilarity: {\n        enabled: arbiterConfig.boosts?.semantic_high_similarity_enabled ?? true,\n        minScore: arbiterConfig.boosts?.semantic_high_similarity_min_score ?? 70\n      },\n      heuristicsCritical: {\n        enabled: arbiterConfig.boosts?.heuristics_critical_enabled ?? true,\n        scoreThreshold: arbiterConfig.boosts?.heuristics_critical_score_threshold ?? 75,\n        minScore: arbiterConfig.boosts?.heuristics_critical_min_score ?? 70\n      },\n      unanimousHigh: {\n        enabled: arbiterConfig.boosts?.unanimous_high_enabled ?? true,\n        minScore: arbiterConfig.boosts?.unanimous_high_min_score ?? 90\n      },\n      conservativeOverride: {\n        enabled: arbiterConfig.boosts?.conservative_override_enabled ?? true,\n        confidenceThreshold: arbiterConfig.boosts?.conservative_override_confidence ?? 0.95,\n        scoreThreshold: arbiterConfig.boosts?.conservative_override_score ?? 50,\n        minScore: arbiterConfig.boosts?.conservative_override_min_score ?? 65\n      }\n    },\n    degradation: {\n      weightMultiplier: arbiterConfig.degradation?.weight_multiplier ?? 0.1,\n      allDegradedAction: arbiterConfig.degradation?.all_degraded_action ?? 'BLOCK'\n    }\n  };\n  \n  // Handle all branches degraded - fail-secure BLOCK\n  if (branchA.degraded && branchB.degraded && branchC.degraded) {\n    results.push({\n      json: {\n        ...j,\n        arbiter_result: {\n          combined_score: 100,\n          final_decision: CONFIG.degradation.allDegradedAction,\n          confidence: 0,\n          all_degraded: true,\n          branches: {\n            A: { score: branchA.score, weight: 0, degraded: true },\n            B: { score: branchB.score, weight: 0, degraded: true },\n            C: { score: branchC.score, weight: 0, degraded: true }\n          },\n          boosts_applied: [],\n          explanations: ['All branches degraded - fail-secure BLOCK']\n        },\n        _isBlocked: true\n      },\n      pairedItem: item.pairedItem\n    });\n    continue;\n  }\n  \n  // Adjust weights for degraded branches\n  const weights = { ...CONFIG.weights };\n  const mult = CONFIG.degradation.weightMultiplier;\n  \n  if (branchA.degraded) weights.A *= mult;\n  if (branchB.degraded) weights.B *= mult;\n  if (branchC.degraded) weights.C *= mult;\n  \n  // Normalize weights to sum to 1.0\n  const totalWeight = weights.A + weights.B + weights.C;\n  weights.A /= totalWeight;\n  weights.B /= totalWeight;\n  weights.C /= totalWeight;\n  \n  // Calculate weighted score\n  let combinedScore =\n    (branchA.score * weights.A) +\n    (branchB.score * weights.B) +\n    (branchC.score * weights.C);\n  \n  const boostsApplied = [];\n  const b = CONFIG.priorityBoosts;\n  \n  // Priority Boost 1: CONSERVATIVE_OVERRIDE\n  // NLP analysis says attack with high confidence but weighted score is low\n  if (b.conservativeOverride.enabled &&\n      branchC.critical_signals?.llm_attack &&\n      branchC.confidence > b.conservativeOverride.confidenceThreshold &&\n      combinedScore < b.conservativeOverride.scoreThreshold) {\n    combinedScore = Math.max(combinedScore, b.conservativeOverride.minScore);\n    boostsApplied.push('CONSERVATIVE_OVERRIDE');\n  }\n  \n  // Priority Boost 2: SEMANTIC_HIGH_SIMILARITY\n  // High embedding match to known attacks\n  if (b.semanticHighSimilarity.enabled &&\n      branchB.threat_level === 'HIGH' &&\n      branchB.critical_signals?.high_similarity) {\n    combinedScore = Math.max(combinedScore, b.semanticHighSimilarity.minScore);\n    boostsApplied.push('SEMANTIC_HIGH_SIMILARITY');\n  }\n  \n  // Priority Boost 3: HEURISTICS_CRITICAL\n  // Obfuscation detected with high score\n  if (b.heuristicsCritical.enabled &&\n      branchA.score >= b.heuristicsCritical.scoreThreshold &&\n      branchA.critical_signals?.obfuscation_detected) {\n    combinedScore = Math.max(combinedScore, b.heuristicsCritical.minScore);\n    boostsApplied.push('HEURISTICS_CRITICAL');\n  }\n  \n  // Priority Boost 4: LLM_GUARD_HIGH_CONFIDENCE\n  // Attack with very high confidence\n  if (b.llmGuardHighConfidence.enabled &&\n      branchC.threat_level === 'HIGH' &&\n      branchC.critical_signals?.llm_attack &&\n      branchC.confidence > b.llmGuardHighConfidence.confidenceThreshold) {\n    combinedScore = Math.max(combinedScore, b.llmGuardHighConfidence.minScore);\n    boostsApplied.push('LLM_GUARD_HIGH_CONFIDENCE');\n  }\n  \n  // Priority Boost 5: UNANIMOUS_HIGH\n  // All branches agree on HIGH threat\n  if (b.unanimousHigh.enabled &&\n      branchA.threat_level === 'HIGH' &&\n      branchB.threat_level === 'HIGH' &&\n      branchC.threat_level === 'HIGH') {\n    combinedScore = Math.max(combinedScore, b.unanimousHigh.minScore);\n    boostsApplied.push('UNANIMOUS_HIGH');\n  }\n  \n  // Final binary decision\n  const finalScore = Math.round(combinedScore);\n  const finalDecision = finalScore >= CONFIG.thresholds.block ? 'BLOCK' : 'ALLOW';\n  \n  // Aggregate confidence\n  const combinedConfidence =\n    (branchA.confidence || 0) * weights.A +\n    (branchB.confidence || 0) * weights.B +\n    (branchC.confidence || 0) * weights.C;\n  \n  // Collect explanations from all branches\n  const allExplanations = [\n    ...(branchA.explanations || []),\n    ...(branchB.explanations || []),\n    ...(branchC.explanations || [])\n  ];\n  \n  results.push({\n    json: {\n      ...j,\n      arbiter_result: {\n        combined_score: finalScore,\n        final_decision: finalDecision,\n        confidence: parseFloat(combinedConfidence.toFixed(3)),\n        all_degraded: false,\n        branches: {\n          A: {\n            score: branchA.score,\n            threat_level: branchA.threat_level,\n            weight: parseFloat(weights.A.toFixed(3)),\n            degraded: branchA.degraded || false,\n            critical_signals: branchA.critical_signals || {}\n          },\n          B: {\n            score: branchB.score,\n            threat_level: branchB.threat_level,\n            weight: parseFloat(weights.B.toFixed(3)),\n            degraded: branchB.degraded || false,\n            critical_signals: branchB.critical_signals || {}\n          },\n          C: {\n            score: branchC.score,\n            threat_level: branchC.threat_level,\n            weight: parseFloat(weights.C.toFixed(3)),\n            degraded: branchC.degraded || false,\n            critical_signals: branchC.critical_signals || {}\n          }\n        },\n        boosts_applied: boostsApplied,\n        explanations: allExplanations\n      },\n      _isBlocked: finalDecision === 'BLOCK'\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1552,
+        -576
+      ],
+      "id": "341d2fdd-22e3-4d7f-b056-5a8dae2292f8",
+      "name": "Arbiter v2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "arbiter-decision-check",
+              "leftValue": "={{ $json.arbiter_result?.final_decision }}",
+              "rightValue": "ALLOW",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1296,
+        -576
+      ],
+      "id": "7e94088c-3cd2-4608-8b79-25b7fda93f9d",
+      "name": "Arbiter Decision"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * PII_Redactor_v2 - Dual-Language Presidio Integration + PII Classification\n * Version: 1.7.0 - Added PII Classification Audit Trail\n * Date: 2025-11-01\n *\n * Features:\n * - DUAL-LANGUAGE DETECTION: Calls Presidio API twice (pl + en)\n * - Parallel API calls for performance (Promise.all)\n * - Entity deduplication and merging\n * - Custom Polish recognizers (PESEL, NIP, REGON, ID card)\n * - International recognizers (Credit Card, Email, Phone, etc.)\n * - NEW v1.7.0: PII Classification tracking (_pii_sanitized, pii_classification object)\n *\n * Revision History:\n * - Rev 9 (v1.7.0): PII Classification audit trail (types, count, sanitization flag)\n * - Rev 8 (v1.6.10): DUAL-LANGUAGE detection (pl + en) for comprehensive PII coverage\n */\n// Entity Type Registry - Maps regex pattern names to Presidio entity types\nlet ENTITY_TYPE_REGISTRY = { validated: {} };\n\n// Validation rule registry (populated from config)\nlet VALIDATION_RULES = {};\n\n// Common conversational stopwords frequently mis-tagged as PERSON\nconst PERSON_STOPWORDS = new Set([\n  'jak',\n  'co',\n  'czy',\n  'gdzie',\n  'kiedy',\n  'dlaczego',\n  'jakie',\n  'jaka',\n  'jaki',\n  'jakim',\n  'jakich',\n  'jakze',\n  'jak to',\n  'explain',\n  'describe',\n  'python',\n  'windows',\n  'machine',\n  'learning',\n  'email',\n  'meeting',\n  'request',\n  'security',\n  'xss',\n  'owasp',\n  'vigil',\n  'guard',\n  'vigil guard',\n  'claude',\n  'claude code',\n  'claude code integration',\n  'master orchestrator',\n  'orchestrator'\n]);\n\nconst PERSON_BRAND_SUBSTRINGS = [\n  'vigil guard',\n  'claude',\n  'claude code',\n  'claude code integration',\n  'master orchestrator',\n  'vg-master-orchestrator',\n  'orchestrator',\n  'prompt guard'\n];\n\nconst OPERATIONAL_DATE_KEYWORDS = /(version|updated|update|status|release|build|changelog|last updated|revision|rev|deploy|deployment|eta|roadmap|doc|documentation)/i;\n\nfunction isOperationalMetadataDate(text, entity) {\n  if (!text || !entity) return false;\n  const windowStart = Math.max(0, entity.start - 40);\n  const windowEnd = Math.min(text.length, entity.end + 20);\n  const windowText = text.slice(windowStart, windowEnd);\n  return OPERATIONAL_DATE_KEYWORDS.test(windowText);\n}\n\n// Maps validator keys from config to actual checksum helpers\nconst VALIDATION_HANDLER_REGISTRY = {\n  pesel: validatePesel,\n  nip: validateNip,\n  regon: validateRegon,\n  credit_card: validateCardPan,\n  iban: validateIban,\n  email: validateEmail,\n  phone_international: validatePhoneInternational,\n  phone_polish: validatePhonePolish,\n  us_ssn: validateUsSsn,\n  uk_nhs: validateUkNhs,\n  uk_nino: validateUkNino,\n  ca_sin: validateCaSin,\n  au_medicare: validateAuMedicare,\n  au_tfn: validateAuTfn,\n  us_passport: validateUsPassport\n};\n\nconst DEFAULT_REDACTION_TOKENS = {\n  EMAIL_ADDRESS: '[EMAIL]',\n  PHONE_NUMBER: '[PHONE]',\n  PERSON: '[PERSON]',\n  PL_PESEL: '[PESEL]',\n  PL_NIP: '[NIP]',\n  PL_REGON: '[REGON]',\n  PL_ID_CARD: '[ID]',\n  CREDIT_CARD: '[CARD]',\n  IBAN_CODE: '[IBAN]',\n  IP_ADDRESS: '[IP]',\n  URL: '[URL]',\n  US_SSN: '[PERSON]',\n  UK_NHS: '[PERSON]',\n  UK_NINO: '[PERSON]',\n  CA_SIN: '[PERSON]',\n  AU_MEDICARE: '[PERSON]',\n  AU_TFN: '[PERSON]',\n  US_DRIVER_LICENSE: '[PERSON]',\n  PASSPORT: '[PERSON]',\n  DATE_TIME: '[PERSON]',\n  LOCATION: '[PERSON]'\n};\n\nfunction digitsOnly(value) {\n  return (value || '').replace(/[^0-9]/g, '');\n}\n\nfunction validatePesel(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 11) return false;\n  const weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];\n  const weightedSum = digits\n    .split('')\n    .slice(0, 10)\n    .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0);\n  const checksum = (10 - (weightedSum % 10)) % 10;\n  return checksum === parseInt(digits[10], 10);\n}\n\nfunction validateNip(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];\n  const weightedSum = digits\n    .split('')\n    .slice(0, 9)\n    .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0);\n  const checksum = weightedSum % 11;\n  if (checksum === 10) return false;\n  return checksum === parseInt(digits[9], 10);\n}\n\nfunction validateRegon(value) {\n  const digits = digitsOnly(value);\n  if (digits.length === 9) {\n    const weights = [8, 9, 2, 3, 4, 5, 6, 7];\n    const checksum = digits\n      .split('')\n      .slice(0, 8)\n      .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0) % 11;\n    if (checksum === 10) return false;\n    return checksum === parseInt(digits[8], 10);\n  }\n  if (digits.length === 14) {\n    const weights = [2, 4, 8, 5, 0, 9, 7, 3, 6, 1, 2, 4, 8];\n    const checksum = digits\n      .split('')\n      .slice(0, 13)\n      .reduce((sum, digit, index) => sum + parseInt(digit, 10) * weights[index], 0) % 11;\n    if (checksum === 10) return false;\n    return checksum === parseInt(digits[13], 10);\n  }\n  return false;\n}\n\nfunction validateCardPan(value) {\n  const digits = digitsOnly(value);\n  if (digits.length < 13 || digits.length > 19) return false;\n  let sum = 0;\n  let shouldDouble = false;\n  for (let i = digits.length - 1; i >= 0; i--) {\n    let digit = parseInt(digits.charAt(i), 10);\n    if (shouldDouble) {\n      digit *= 2;\n      if (digit > 9) digit -= 9;\n    }\n    sum += digit;\n    shouldDouble = !shouldDouble;\n  }\n  return sum % 10 === 0;\n}\n\nfunction validateIban(value) {\n  if (!value) return false;\n  const cleaned = value.replace(/\\s+/g, '').toUpperCase();\n  if (cleaned.length < 15 || cleaned.length > 34) return false;\n  if (!/^[A-Z]{2}\\d{2}[A-Z0-9]{11,30}$/.test(cleaned)) return false;\n  const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);\n  let remainder = 0;\n  for (const char of rearranged) {\n    const expanded = (char >= 'A' && char <= 'Z')\n      ? String(char.charCodeAt(0) - 55)\n      : char;\n    for (const digit of expanded) {\n      remainder = (remainder * 10 + parseInt(digit, 10)) % 97;\n    }\n  }\n  return remainder === 1;\n}\n\nfunction validateEmail(value) {\n  if (!value) return false;\n  const candidate = String(value).trim();\n  return /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/i.test(candidate);\n}\n\nfunction validatePhoneInternational(value) {\n  const digits = digitsOnly(value);\n  return digits.length >= 9;\n}\n\nfunction validatePhonePolish(value) {\n  const digits = digitsOnly(value);\n  if (digits.length === 9) return true;\n  if (digits.length === 11 && digits.startsWith('48')) return true;\n  return false;\n}\n\nfunction validateUsSsn(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  const uniqueDigits = new Set(digits.split(''));\n  if (uniqueDigits.size === 1) return false;\n  const group = parseInt(digits.slice(3, 5), 10);\n  const serial = parseInt(digits.slice(5), 10);\n  if (group === 0 || serial === 0) return false;\n  return true;\n}\n\nfunction validateUkNhs(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  const weights = [10, 9, 8, 7, 6, 5, 4, 3, 2];\n  const total = weights.reduce((sum, weight, index) => sum + weight * parseInt(digits.charAt(index), 10), 0);\n  const remainder = total % 11;\n  let check = 11 - remainder;\n  if (check === 11 || check === 10) check = 0;\n  return check === parseInt(digits.charAt(9), 10);\n}\n\nfunction validateUkNino(value) {\n  if (!value) return false;\n  const cleaned = value.replace(/[\\s-]+/g, '').toUpperCase();\n  if (!/^[A-Z]{2}\\d{6}[A-D]$/.test(cleaned)) return false;\n  const invalidPrefixes = new Set(['BG', 'GB', 'NK', 'KN', 'TN', 'NT', 'ZZ']);\n  if (invalidPrefixes.has(cleaned.slice(0, 2))) return false;\n  const forbiddenLetters = new Set(['D', 'F', 'I', 'U', 'V']);\n  if (forbiddenLetters.has(cleaned.charAt(0)) || forbiddenLetters.has(cleaned.charAt(1))) return false;\n  return true;\n}\n\nfunction validateCaSin(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  const uniqueDigits = new Set(digits.split(''));\n  if (uniqueDigits.size === 1) return false;\n  let total = 0;\n  for (let i = 0; i < digits.length; i++) {\n    let digit = parseInt(digits.charAt(i), 10);\n    if (i % 2 === 1) {\n      digit *= 2;\n      if (digit > 9) digit -= 9;\n    }\n    total += digit;\n  }\n  if (total % 10 === 0) {\n    return true;\n  }\n  return true;\n}\n\nfunction validateAuMedicare(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 10) return false;\n  if (digits.charAt(8) === '0' && digits.charAt(9) === '0') return false;\n  return true;\n}\n\nfunction validateAuTfn(value) {\n  const digits = digitsOnly(value);\n  if (digits.length !== 9) return false;\n  if (digits.split('').every((digit) => digit === digits.charAt(0))) return false;\n  return true;\n}\n\nfunction validateUsPassport(value) {\n  if (!value) return false;\n  const cleaned = String(value).trim().toUpperCase();\n  return /^[A-Z][0-9]{7}$/.test(cleaned);\n}\n\nfunction refineEntityByContext(entity, originalText) {\n  if (!entity || typeof entity.start !== 'number' || typeof entity.end !== 'number') {\n    return entity;\n  }\n  const contextStart = Math.max(0, entity.start - 40);\n  const context = originalText.slice(contextStart, entity.start).toLowerCase();\n  const textValue = entity.text || originalText.substring(entity.start, entity.end);\n  const updated = { ...entity, text: textValue };\n  const phoneTypes = new Set(['PHONE_NUMBER', 'PHONE_INTL', 'PHONE_PL', 'PL_PHONE_NUMBER']);\n  if (phoneTypes.has(updated.type)) {\n    if (/(ssn|social security)/.test(context)) {\n      if (validateUsSsn(textValue)) {\n        updated.type = 'US_SSN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid US SSN)`);\n        return null;\n      }\n    } else if (/nhs/.test(context)) {\n      if (validateUkNhs(textValue)) {\n        updated.type = 'UK_NHS';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid UK NHS number)`);\n        return null;\n      }\n    } else if (/(national insurance|ni number)/.test(context)) {\n      if (validateUkNino(textValue)) {\n        updated.type = 'UK_NINO';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid UK NINO)`);\n        return null;\n      }\n    } else if (/(\\bsin\\b|social insurance)/.test(context)) {\n      if (validateCaSin(textValue)) {\n        updated.type = 'CA_SIN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid CA SIN)`);\n        return null;\n      }\n    } else if (/medicare/.test(context)) {\n      if (validateAuMedicare(textValue)) {\n        updated.type = 'AU_MEDICARE';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid AU Medicare)`);\n        return null;\n      }\n    } else if (/(tax file|tfn)/.test(context)) {\n      if (validateAuTfn(textValue)) {\n        updated.type = 'AU_TFN';\n      } else {\n        console.log(`\u23ed\ufe0f  Dropping candidate ${textValue} (invalid AU TFN)`);\n        return null;\n      }\n    }\n  }\n  return updated;\n}\n\nfunction initializeMappingsFromConfig(piiConf, piiConfig) {\n  const registry = { validated: {} };\n  const validationMap = {};\n  const rules = Array.isArray(piiConf?.rules) ? piiConf.rules : [];\n\n  if (rules.length === 0) {\n    return {\n      entityRegistry: ENTITY_TYPE_REGISTRY,\n      validationMap: VALIDATION_RULES\n    };\n  }\n\n  for (const rule of rules) {\n    if (!rule || !rule.name) continue;\n\n    const entry = {\n      entity: typeof rule.target_entity === 'string' ? rule.target_entity : undefined,\n      validator: rule.validator,\n      validated: rule.validated\n    };\n\n    if (piiConfig?.regex_entity_map && piiConfig.regex_entity_map[rule.name]) {\n      const override = piiConfig.regex_entity_map[rule.name];\n      if (typeof override === 'string') {\n        entry.entity = override;\n      } else if (override && typeof override === 'object') {\n        if (override.entity || override.target_entity) {\n          entry.entity = override.entity || override.target_entity;\n        }\n        if (override.validator) {\n          entry.validator = override.validator;\n        }\n        if (override.validated !== undefined) {\n          entry.validated = override.validated;\n        }\n      }\n    }\n\n    if (entry.validator && VALIDATION_HANDLER_REGISTRY[entry.validator]) {\n      validationMap[rule.name] = VALIDATION_HANDLER_REGISTRY[entry.validator];\n    }\n\n    if (entry.entity) {\n      if (entry.validated === true) {\n        registry.validated[rule.name] = entry.entity;\n      } else {\n        if (!registry.general) registry.general = {};\n        registry.general[rule.name] = entry.entity;\n      }\n    }\n  }\n\n  if (piiConfig?.regex_entity_map) {\n    for (const [ruleName, value] of Object.entries(piiConfig.regex_entity_map)) {\n      if (registry.validated[ruleName] || validationMap[ruleName]) {\n        continue;\n      }\n\n      const entry = typeof value === 'string'\n        ? { entity: value }\n        : (value || {});\n\n      if (entry.validator && VALIDATION_HANDLER_REGISTRY[entry.validator]) {\n        validationMap[ruleName] = VALIDATION_HANDLER_REGISTRY[entry.validator];\n      }\n\n      if (entry.entity) {\n        if (entry.validated === true) {\n          registry.validated[ruleName] = entry.entity;\n        } else {\n          if (!registry.general) registry.general = {};\n          registry.general[ruleName] = entry.entity;\n        }\n      }\n    }\n  }\n\n  if (Object.keys(registry.validated).length === 0 && ENTITY_TYPE_REGISTRY?.validated) {\n    registry.validated = { ...ENTITY_TYPE_REGISTRY.validated };\n  }\n\n  if (Object.keys(validationMap).length === 0) {\n    Object.assign(validationMap, VALIDATION_RULES);\n  }\n\n  return { entityRegistry: registry, validationMap };\n}\n\nconst items = $input.all();\nif (!items || items.length === 0) {\n  console.warn('PII_Redactor_v2: No input items');\n  return [];\n}\n\nconst out = [];\n\n\n/**\n * Build map of text regions examined by Presidio for validated entity types\n * This tracks ALL regions Presidio examined (accepted + rejected by validators)\n */\nfunction buildPresidioExaminedRegions(allEntities, inputText) {\n  const regions = {};\n\n  for (const entity of allEntities) {\n    const entityType = entity.type;\n\n    // Only track validated entity types (those with checksum validators)\n    if (Object.values(ENTITY_TYPE_REGISTRY.validated).includes(entityType)) {\n      if (!regions[entityType]) {\n        regions[entityType] = [];\n      }\n\n      regions[entityType].push({\n        start: entity.start,\n        end: entity.end,\n        text: inputText.substring(entity.start, entity.end)\n      });\n    }\n  }\n\n  return regions;\n}\n\n/**\n * Check if regex match overlaps with region examined by Presidio\n */\nfunction checkOverlapWithPresidio(matchStart, matchEnd, presidioEntityType, presidioExaminedRegions) {\n  const examinedRegions = presidioExaminedRegions[presidioEntityType] || [];\n\n  for (const region of examinedRegions) {\n    // Check for ANY overlap (not just exact matches)\n    const hasOverlap = !(matchEnd <= region.start || matchStart >= region.end);\n\n    if (hasOverlap) {\n      return true;  // Presidio examined this region\n    }\n  }\n\n  return false;  // Presidio did not examine this region\n}\n\nfor (const item of items) {\n  const j = item.json ?? {};\n\n  if (j.configError === true || j._isBlocked === true) {\n    out.push(item);\n    continue;\n  }\n\n  const originalChatInput = j.chat_payload?.chatInput ?? j.chatInput ?? \"\";\n\n  if (!j._original_input) {\n    j._original_input = originalChatInput;\n  }\n\n  // v1.7.5: Use original text (preserves capitalization for PERSON detection)\n  // _original_input comes from Normalize_Node BEFORE casefold\n  let text = j._original_input || originalChatInput;\n\n  if (text) {\n    text = text.replace(/[\\u2010-\\u2015\\u2212]/g, '-');\n  }\n\n  if (!text) {\n    j.pii_error = \"PII_Redactor_v2: no text to redact\";\n    \n  }\n\n  const piiConfig = j.config?.pii_detection || {};\n  const { entityRegistry, validationMap } = initializeMappingsFromConfig(j.pii_conf, piiConfig);\n  ENTITY_TYPE_REGISTRY = entityRegistry;\n  VALIDATION_RULES = validationMap;\n  const enablePresidio = piiConfig.enabled !== false;\n  const fallbackToRegex = piiConfig.fallback_to_regex !== false;\n\n  let results = {\n    entities: [],\n    redacted_text: text,\n    detection_method: 'none',\n    processing_time_ms: 0,\n    error: null,\n    language_stats: {}\n  };\n\n  // DUAL-LANGUAGE DETECTION\n  if (enablePresidio) {\n    const languageDetectionEnabled = piiConfig.language_detection !== false;\n    const languageDetectorUrl = piiConfig.language_detector_url || 'http://vigil-language-detector:5002/detect';\n    const supportedLanguages = Array.isArray(piiConfig.languages) && piiConfig.languages.length > 0\n      ? piiConfig.languages\n      : ['pl', 'en'];\n\n    let detectedLanguage = null;\n    let languageDetectionMeta = null;\n    let primaryLanguage = null;\n    let shouldCallPolish = supportedLanguages.includes('pl');\n    let shouldCallEnglish = supportedLanguages.includes('en');\n    let polishEntities = [];\n\n\n    // ===== STEP 1: LANGUAGE DETECTION =====\n    // Call hybrid language-detector to determine primary language (pl/en)\n    // Used for adaptive PERSON entity routing to best model\n    if (languageDetectionEnabled) {\n      try {\n      const axios = require('axios');\n        const detectionResponse = await axios.post(languageDetectorUrl, {\n          text: text,\n          threshold: 0.85\n        }, {\n          headers: { 'Content-Type': 'application/json' },\n          timeout: 2000  // 2 second timeout\n        });\n\n        if (detectionResponse?.data) {\n          detectedLanguage = detectionResponse.data.language || null;\n          primaryLanguage = detectedLanguage;  // Use detected language as primary\n          languageDetectionMeta = {\n            method: detectionResponse.data.method || 'unknown',\n            confidence: detectionResponse.data.confidence || null,\n            processing_time_ms: detectionResponse.data.processing_time_ms || null\n          };\n\n          console.log(`\ud83c\udf0d Language detected: ${detectedLanguage} (${languageDetectionMeta.method}, confidence: ${(languageDetectionMeta.confidence * 100).toFixed(1)}%)`);\n\n          // Adjust which Presidio models to call based on detected language\n          if (detectedLanguage === 'pl') {\n            shouldCallPolish = true;\n            // Still call English for international entities (CREDIT_CARD, EMAIL, etc.)\n            shouldCallEnglish = supportedLanguages.includes('en');\n          } else if (detectedLanguage === 'en') {\n            shouldCallEnglish = true;\n            // Still call Polish for Polish-specific entities (PESEL, NIP, etc.)\n            shouldCallPolish = supportedLanguages.includes('pl');\n          }\n        }\n      } catch (detectionError) {\n        console.warn(`\u26a0\ufe0f  Language detection failed: ${detectionError.message} - defaulting to dual-language`);\n        languageDetectionMeta = {\n          method: 'error',\n          error: detectionError.message\n        };\n        // Fall back to calling both languages\n        shouldCallPolish = supportedLanguages.includes('pl');\n        shouldCallEnglish = supportedLanguages.includes('en');\n      }\n    } else {\n      console.log('\u2139\ufe0f  Language detection disabled - calling both Polish and English models');\n    }\n\n    let englishEntities = [];\n\n\n\n\n    try {\n      const startTime = Date.now();\n      const apiUrl = piiConfig.api_url || 'http://vigil-presidio-pii:5001/analyze';\n      const scoreThreshold = piiConfig.confidence_threshold || 0.7;\n      const apiTimeout = piiConfig.api_timeout_ms || 3000;\n\n      // ===== ENTITY LIST CONSTRUCTION =====\n      // FIXED v1.8.1: Read enabled entities from unified_config.json instead of hardcoded list\n      // Bug: Hardcoded entity lists ignored GUI disable settings (always sent URL to Presidio)\n      // Solution: Filter entity lists based on piiConfig.entities (from unified_config.json)\n      // ClickHouse logs confirmed: pii_types_detected=['URL'] even when URL disabled in GUI\n\n      const configEntities = Array.isArray(piiConfig.entities) && piiConfig.entities.length > 0\n        ? piiConfig.entities\n        : null;  // null = all entities enabled (backward compatibility)\n\n      const piiConfRules = Array.isArray(j.pii_conf?.rules) ? j.pii_conf.rules : [];\n      const fallbackEntities = [...new Set(\n        piiConfRules\n          .map(rule => rule?.target_entity)\n          .filter(entity => typeof entity === 'string' && entity.trim().length > 0)\n      )];\n      // CRITICAL: Derive Presidio-only entities from pii.conf instead of hardcoding\n      // This eliminates duplication between workflow and backend validation logic\n      // Single source of truth: pii.conf.__all_rules[].presidio_only flag\n      const allRules = Array.isArray(j.pii_conf?.__all_rules) ? j.pii_conf.__all_rules : [];\n      const PRESIDIO_ONLY_ENTITIES = new Set(\n        allRules\n          .filter(rule => rule?.presidio_only === true)\n          .map(rule => rule?.target_entity)\n          .filter(Boolean)\n      );\n\n      let enabledEntities = null;\n\n      if (fallbackEntities.length > 0) {\n        enabledEntities = [...fallbackEntities];\n\n        if (configEntities && configEntities.length > 0) {\n          const fallbackSet = new Set(fallbackEntities);\n          const configSet = new Set(configEntities);\n\n          const missingInFallbackRaw = configEntities.filter(entity => !fallbackSet.has(entity));\n          const missingInConfigRaw = fallbackEntities.filter(entity => !configSet.has(entity));\n          const presidioOnlyFromConfig = missingInFallbackRaw.filter(entity => PRESIDIO_ONLY_ENTITIES.has(entity));\n          const actionableMissingInFallback = missingInFallbackRaw.filter(entity => !PRESIDIO_ONLY_ENTITIES.has(entity));\n          const actionableMissingInConfig = missingInConfigRaw.filter(entity => !PRESIDIO_ONLY_ENTITIES.has(entity));\n\n          if (actionableMissingInFallback.length > 0 || actionableMissingInConfig.length > 0) {\n            console.warn('[PII Config Desync] Detected mismatch between unified_config.json and pii.conf rules');\n            if (actionableMissingInFallback.length > 0) {\n              console.warn('   \u2192 Missing in fallback rules:', actionableMissingInFallback.join(', '));\n            }\n            if (actionableMissingInConfig.length > 0) {\n              console.warn('   \u2192 Missing in unified config entities:', actionableMissingInConfig.join(', '));\n            }\n\n            const intersection = configEntities.filter(entity => fallbackSet.has(entity));\n\n            if (intersection.length > 0) {\n              enabledEntities = intersection;\n              console.warn(`   \u2192 Using intersection (${intersection.length} entities) until configuration is resynced`);\n            } else {\n              console.warn('   \u2192 No overlap found, defaulting to fallback entity list');\n            }\n          } else if (presidioOnlyFromConfig.length > 0) {\n            console.log(`\u2139\ufe0f  Presidio-only entities enabled via GUI (no regex fallback): ${presidioOnlyFromConfig.join(', ')}`);\n          }\n\n          if (presidioOnlyFromConfig.length > 0) {\n            enabledEntities = [...new Set([...enabledEntities, ...presidioOnlyFromConfig])];\n          }\n        }\n      } else {\n        enabledEntities = configEntities;  // fallback when pii.conf missing rules\n      }\n\n      // Define available entity types (superset of all possible entities)\n      const availableGeneralEntities = ['CREDIT_CARD', 'EMAIL_ADDRESS', 'PHONE_NUMBER', 'IBAN_CODE', 'IP_ADDRESS', 'URL', 'US_SSN', 'UK_NHS', 'UK_NINO', 'CA_SIN', 'AU_MEDICARE', 'AU_TFN', 'US_DRIVER_LICENSE', 'PASSPORT', 'DATE_TIME', 'LOCATION'];\n      const availablePolishSpecificEntities = ['PL_PESEL', 'PL_NIP', 'PL_REGON', 'PL_ID_CARD', 'PL_PHONE_NUMBER', 'DATE_TIME'];\n      const availableEnglishSpecificEntities = ['PERSON'];\n\n      const defaultEntityUniverse = [...new Set([...availableGeneralEntities, ...availablePolishSpecificEntities, ...availableEnglishSpecificEntities])];\n      const canonicalEntitySource = (enabledEntities && enabledEntities.length > 0)\n        ? enabledEntities\n        : (configEntities && configEntities.length > 0)\n          ? configEntities\n          : defaultEntityUniverse;\n\n      const canonicalEntitySet = new Set(canonicalEntitySource);\n      if (Array.isArray(configEntities)) {\n        for (const entityName of configEntities) {\n          canonicalEntitySet.add(entityName);\n        }\n      }\n\n      const filterByCanonical = (entityList, allowConfigOnly = false) => {\n        if (!Array.isArray(entityList)) {\n          return [];\n        }\n        if (canonicalEntitySet.size === 0) {\n          return entityList;\n        }\n        return entityList.filter(entity => {\n          if (canonicalEntitySet.has(entity)) {\n            return true;\n          }\n          if (allowConfigOnly && Array.isArray(configEntities) && configEntities.includes(entity)) {\n            return true;\n          }\n          return false;\n        });\n      };\n\n      const generalEntities = filterByCanonical(availableGeneralEntities);\n      const polishSpecificEntities = filterByCanonical(availablePolishSpecificEntities);\n      const englishSpecificEntities = filterByCanonical(availableEnglishSpecificEntities, true);\n\n      polishEntities = [...new Set([...generalEntities, ...polishSpecificEntities])];\n      englishEntities = [...new Set([...generalEntities, ...englishSpecificEntities])];\n\n      if (polishEntities.length === 0) {\n        polishEntities = Array.from(canonicalEntitySet);\n      }\n\n      if (englishEntities.length === 0) {\n        englishEntities = Array.from(new Set([\n          ...canonicalEntitySet,\n          ...englishSpecificEntities\n        ]));\n      }\n\n      console.log(`\ud83d\udce4 Entities to Presidio \u2192 Polish (${polishEntities.length}): ${polishEntities.join(', ') || '\u2205'}, English (${englishEntities.length}): ${englishEntities.join(', ') || '\u2205'}`);\n\n\n\n      // ===== STEP 1: LANGUAGE DETECTION =====\n      // Hybrid detector analyzes text to determine primary language (pl/en)\n      // Used for adaptive PERSON entity routing to best model\n\n\n\n      const detectionMode = piiConfig.detection_mode || 'balanced';\n      const contextEnhancement = piiConfig.context_enhancement !== false;\n\n      try {\n        const configUrl = apiUrl.replace('/analyze', '/config');\n\n        const currentModeKey = `presidio_mode_${detectionMode}_${contextEnhancement}`;\n        if (!global.__presidio_mode_cache || global.__presidio_mode_cache !== currentModeKey) {\n          const currentConfig = await axios.get(configUrl, { timeout: 1000 }).catch(() => ({ data: { current_mode: null } }));\n\n          if (currentConfig.data.current_mode !== detectionMode) {\n            await axios.post(configUrl, {\n              mode: detectionMode,\n              enable_context_enhancement: contextEnhancement\n            }, {\n              headers: { 'Content-Type': 'application/json' },\n              timeout: 2000\n            });\n            console.log(`\u2705 Presidio mode updated: ${currentConfig.data.current_mode} \u2192 ${detectionMode} (context: ${contextEnhancement})`);\n          }\n\n          global.__presidio_mode_cache = currentModeKey;\n        }\n      } catch (configError) {\n        console.warn(`\u26a0\ufe0f Failed to sync Presidio mode: ${configError.message} - continuing with current mode`);\n      }\n\n      // FIX: Use fallback Polish entities if polishEntities is empty\n      const polishEntitiesToUse = polishEntities.length > 0 \n        ? polishEntities \n        : ['PL_PESEL', 'PL_NIP', 'PL_REGON', 'PL_ID_CARD', 'EMAIL_ADDRESS', 'CREDIT_CARD', 'PHONE_NUMBER', 'IBAN_CODE'];\n      \n      const polishCall = shouldCallPolish\n        ? axios.post(apiUrl, {\n            text,\n            language: 'pl',\n            entities: polishEntitiesToUse,\n            score_threshold: scoreThreshold,\n            return_decision_process: false,\n            return_rejected: true\n          }, {\n            headers: { 'Content-Type': 'application/json' },\n            timeout: apiTimeout\n          }).catch(err => {\n            console.warn(`Polish API call failed: ${err.message}`);\n            return { data: { entities: [] }, error: err.message, status: err.response?.status ?? null };\n          })\n        : Promise.resolve({ data: { entities: [] } });\n\n      // FIX: Use fallback English entities if englishEntities is empty\n      const englishEntitiesToUse = englishEntities.length > 0\n        ? englishEntities\n        : ['PERSON', 'EMAIL_ADDRESS', 'CREDIT_CARD', 'PHONE_NUMBER', 'IBAN_CODE', 'IP_ADDRESS'];\n      \n      const englishCall = shouldCallEnglish\n        ? axios.post(apiUrl, {\n            text,\n            language: 'en',\n            entities: englishEntitiesToUse,\n            score_threshold: scoreThreshold,\n            return_decision_process: false,\n            return_rejected: true\n          }, {\n            headers: { 'Content-Type': 'application/json' },\n            timeout: apiTimeout\n          }).catch(err => {\n            console.warn(`International API call failed: ${err.message}`);\n            return { data: { entities: [] }, error: err.message, status: err.response?.status ?? null };\n          })\n        : Promise.resolve({ data: { entities: [] } });\n\n      const [plResponse, enResponse] = await Promise.all([polishCall, englishCall]);\n\n      const plEntities = Array.isArray(plResponse?.data?.entities) ? plResponse.data.entities : [];\n      const enEntities = Array.isArray(enResponse?.data?.entities) ? enResponse.data.entities : [];\n\n      const presidioErrors = [];\n      if (plResponse?.error) {\n        presidioErrors.push({ language: 'pl', error: plResponse.error, status: plResponse.status ?? null });\n      }\n      if (enResponse?.error) {\n        presidioErrors.push({ language: 'en', error: enResponse.error, status: enResponse.status ?? null });\n      }\n\n      // Extract rejected entities to include in examined regions\n      const plRejected = Array.isArray(plResponse?.data?.rejected_entities) ? plResponse.data.rejected_entities : [];\n      const enRejected = Array.isArray(enResponse?.data?.rejected_entities) ? enResponse.data.rejected_entities : [];\n\n      console.log(`\ud83d\udccb Presidio Polish: ${plEntities.length} accepted, ${plRejected.length} rejected`);\n      console.log(`\ud83d\udccb Presidio English: ${enEntities.length} accepted, ${enRejected.length} rejected`);\n\n      const annotateEntities = (entities, lang) => entities.map(entity => ({\n        ...entity,\n        source_language: lang,\n        text: entity?.text || text.substring(entity.start, entity.end)\n      }));\n\n      let combinedEntities = [\n        ...annotateEntities(plEntities, 'pl'),\n        ...annotateEntities(enEntities, 'en')\n      ].map(entity => refineEntityByContext(entity, text)).filter(Boolean);\n\n      if (primaryLanguage === 'pl') {\n        combinedEntities = combinedEntities.filter(entity => {\n          if (entity.source_language === 'en' && entity.type === 'PERSON') {\n            const candidate = (entity.text || '').trim();\n            if (candidate.length < 3) {\n              return false;\n            }\n            if (!/^[A-Z\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b]/.test(candidate)) {\n              return false;\n            }\n          }\n          return true;\n        });\n      }\n\n      \n      // Build map of regions examined by Presidio for validated types (accepted + rejected)\n      // This prevents regex fallback from overriding Presidio's validator decisions\n      const allExaminedEntities = [...combinedEntities];\n      const presidioExaminedRegions = buildPresidioExaminedRegions(allExaminedEntities, text);\n\n      console.log(`\ud83d\udd0d Examined regions built from ${combinedEntities.length} accepted entities (rejected entities will fall back to regex)`);\n\n      let dedupedEntities = deduplicateEntities(combinedEntities);\n\n      let regexEntities = [];\n      const shouldFallback = fallbackToRegex && j.pii_conf && (dedupedEntities.length === 0 || presidioErrors.length > 0);\n      if (shouldFallback) {\n        regexEntities = findRegexEntities(text, j.pii_conf, piiConfig, presidioExaminedRegions)\n          .map(entity => refineEntityByContext(entity, text))\n          .filter(entity => {\n            return !dedupedEntities.some(existing => (\n              entity.start < existing.end && entity.end > existing.start\n            ));\n          });\n\n        if (regexEntities.length > 0) {\n          dedupedEntities = deduplicateEntities([\n            ...dedupedEntities,\n            ...regexEntities\n          ]);\n        }\n      }\n\n      const detectionMeta = languageDetectionMeta || {};\n      const polishRetained = dedupedEntities.filter(e => e.source_language === 'pl').length;\n      const englishRetained = dedupedEntities.filter(e => e.source_language === 'en').length;\n      const regexRetained = dedupedEntities.filter(e => e.source_language === 'regex').length;\n\n      results.entities = dedupedEntities;\n      if (shouldFallback) {\n        results.detection_method = 'presidio+regex_fallback';\n      } else {\n        results.detection_method = 'presidio';  // v1.7.2: Backward compatible\n      }\n      results.detection_mode = 'dual_language';  // New field\n      results.processing_time_ms = Date.now() - startTime;\n\n      results.language_stats = {\n        detected_language: detectedLanguage || 'unknown',\n        primary_language: primaryLanguage,\n        detection_confidence: detectionMeta.confidence ?? null,\n        detection_method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n        detection_processing_ms: detectionMeta.processing_time_ms ?? null,\n        polish_entities: plEntities.length,\n        english_entities: enEntities.length,\n        regex_entities: regexEntities.length,\n        polish_entities_retained: polishRetained,\n        english_entities_retained: englishRetained,\n        regex_entities_retained: regexRetained,\n        international_entities: enEntities.length,\n        polish_requested_entities: polishEntities.length,\n        english_requested_entities: englishEntities.length,\n        total_after_dedup: dedupedEntities.length,\n        presidio_errors: presidioErrors\n      };\n\n      if (regexEntities.length > 0) {\n        results.language_stats.regex_entities_added = regexEntities.length;\n      }\n\n      if (presidioErrors.length > 0) {\n        results.language_stats.detection_error = presidioErrors.map(err => err.error).join('; ');\n        results.language_stats.fallback_triggered = shouldFallback;\n      } else if (shouldFallback) {\n        results.language_stats.fallback_triggered = true;\n      } else if (detectionMeta.error) {\n        results.language_stats.detection_error = detectionMeta.error;\n      }\n\n      console.log(\n        `Language routing: primary=${primaryLanguage}, detected=${detectedLanguage || 'unknown'}, entities=${results.entities.length} (pl:${plEntities.length}, en:${enEntities.length}) in ${results.processing_time_ms}ms`\n      );\n\n      j.language_detection = {\n        detected: detectedLanguage || 'unknown',\n        primary: primaryLanguage,\n        enabled: languageDetectionEnabled,\n        confidence: detectionMeta.confidence ?? null,\n        method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n        processing_time_ms: detectionMeta.processing_time_ms ?? null,\n        error: detectionMeta.error || null\n      };\n\n      j.detected_language = detectedLanguage || 'unknown';  // \u2705 FIXED: Set detected_language for downstream nodes\n\n    } catch (error) {\n      console.warn(`Presidio adaptive language error: ${error.message}`);\n      results.error = error.message;\n\n      const detectionMeta = languageDetectionMeta || {};\n      if (!results.language_stats) {\n        results.language_stats = {\n          detected_language: detectedLanguage || 'unknown',\n          primary_language: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          detection_confidence: detectionMeta.confidence ?? null,\n          detection_method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n          detection_error: detectionMeta.error || error.message,\n          total_after_dedup: 0\n        };\n      }\n\n      if (!j.language_detection) {\n        j.language_detection = {\n          detected: detectedLanguage || 'unknown',\n          primary: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          enabled: languageDetectionEnabled,\n          confidence: detectionMeta.confidence ?? null,\n          method: detectionMeta.method || (languageDetectionEnabled ? 'unknown' : 'disabled'),\n          processing_time_ms: detectionMeta.processing_time_ms ?? null,\n          error: detectionMeta.error || error.message\n        };\n\n        j.detected_language = detectedLanguage || 'unknown';  // \u2705 FIXED: Error path also sets detected_language\n      }\n\n      if (fallbackToRegex) {\n        console.log('Falling back to regex rules');\n        results = applyLegacyPiiRules(text, j.pii_conf, piiConfig);\n        const detectionMeta = languageDetectionMeta || {};\n        const fallbackStats = Object.assign({}, results.language_stats, {\n          detected_language: detectedLanguage || 'unknown',\n          primary_language: primaryLanguage || (supportedLanguages.includes('pl') ? 'pl' : supportedLanguages[0] || 'unknown'),\n          detection_confidence: detectionMeta.confidence ?? null,\n          detection_method: 'regex_fallback',\n          detection_error: detectionMeta.error || results.error || null,\n          fallback_triggered: true\n        });\n        if (fallbackStats.english_entities === undefined) {\n          fallbackStats.english_entities = 0;\n        }\n        if (fallbackStats.polish_entities === undefined) {\n          fallbackStats.polish_entities = 0;\n        }\n        if (fallbackStats.english_entities_retained === undefined) {\n          fallbackStats.english_entities_retained = fallbackStats.english_entities;\n        }\n        if (fallbackStats.polish_entities_retained === undefined) {\n          fallbackStats.polish_entities_retained = fallbackStats.polish_entities;\n        }\n        if (fallbackStats.international_entities === undefined) {\n          fallbackStats.international_entities = fallbackStats.english_entities;\n        }\n        results.language_stats = fallbackStats;\n      } else {\n        j.pii_error = `Presidio API failed: ${error.message}`;\n        item.json = j;\n        out.push(item);\n        continue;\n      }\n    }\n  } else if (fallbackToRegex) {\n    const regexEntitiesOnly = findRegexEntities(text, j.pii_conf, piiConfig, null);\n    const dedupedRegexEntities = deduplicateEntities(regexEntitiesOnly);\n\n    results.entities = dedupedRegexEntities;\n    results.detection_method = 'regex_fallback';\n    results.processing_time_ms = 0;\n    results.error = null;\n    results.language_stats = {\n      detected_language: 'regex_only',\n      primary_language: 'regex',\n      regex_entities: regexEntitiesOnly.length,\n      regex_entities_retained: dedupedRegexEntities.length,\n      total_after_dedup: dedupedRegexEntities.length\n    };\n  }\n\n  // APPLY REDACTION\n  const filteredEntities = [];\n  if (results?.entities?.length) {\n    for (const entity of results.entities) {\n      if (entity.type === 'PERSON' || entity.type === 'LOCATION') {\n        const entityText = text.substring(entity.start, entity.end).trim();\n        const normalizedEntity = entityText.toLowerCase();\n        const isLowerCase = entityText === normalizedEntity;\n        const firstToken = normalizedEntity.split(/\\s+/)[0];\n        const isAllUpper = entityText === entityText.toUpperCase();\n        const hasWhitespace = /\\s/.test(entityText);\n\n        if (PERSON_STOPWORDS.has(normalizedEntity) || PERSON_STOPWORDS.has(firstToken)) {\n          continue;\n        }\n\n        if (PERSON_BRAND_SUBSTRINGS.some(sub => normalizedEntity.includes(sub))) {\n          continue;\n        }\n\n        if (isLowerCase && normalizedEntity.length <= 3) {\n          continue;\n        }\n\n        if (entity.type === 'LOCATION' && !hasWhitespace && isAllUpper && entityText.length <= 5) {\n          continue;\n        }\n      }\n\n      if (entity.type === 'DATE_TIME' && isOperationalMetadataDate(text, entity)) {\n        continue;\n      }\n\n      filteredEntities.push(entity);\n    }\n  }\n\n  results.entities = filteredEntities;\n  let redactedText = text;\n  let redactionCount = 0;\n\n  if (results.entities.length > 0) {\n    const sortedEntities = results.entities.sort((a, b) => b.start - a.start);\n\n    for (const entity of sortedEntities) {\n      const originalText = text.substring(entity.start, entity.end);\n      const redactionToken = getRedactionToken(entity.type, originalText, piiConfig);\n\n      redactedText =\n        redactedText.substring(0, entity.start) +\n        redactionToken +\n        redactedText.substring(entity.end);\n\n      redactionCount++;\n    }\n  } else if (results.detection_method === 'regex_fallback') {\n    redactedText = results.redacted_text;\n    redactionCount = results.entities.length;\n  }\n\n  const hasPII = (redactedText !== text);\n\n  if (hasPII) {\n    j.chat_payload = j.chat_payload || {};\n    j.chat_payload.chatInput = redactedText;\n    j.chatInput = redactedText;\n    j.messages = j.messages || {};\n    if (j.messages.user) {\n      if (!j.messages.user.includes(redactedText)) {\n        j.messages.user = `${j.messages.user} ${redactedText}`.trim();\n      }\n    } else {\n      j.messages.user = `Content blocked by security policy. ${redactedText}`.trim();\n    }\n  } else {\n    j.chatInput = originalChatInput;\n  }\n\n  j._pipeline_snapshots = j._pipeline_snapshots || {};\n  j._pipeline_snapshots.afterPII = redactedText;\n\n  j.pii = {\n    redactedPreview: redactedText.substring(0, 200),\n    previewRedactionCount: redactionCount,\n    has: hasPII,\n    detection_method: results.detection_method,\n    processing_time_ms: results.processing_time_ms,\n    entities_detected: results.entities.length,\n    language_stats: results.language_stats || {},\n    entities: results.entities.map(e => ({\n      type: e.type,\n      start: e.start,\n      end: e.end,\n      score: e.score\n    }))\n  };\n  // NEW v1.7.0: Add PII classification flags for audit trail\n  j._pii_sanitized = hasPII;  // Boolean flag: was PII detected and redacted?\n\n  // Extract unique entity types for classification\n  const uniqueTypes = [...new Set(results.entities.map(e => e.type))];\n\n  j.pii_classification = {\n    types: uniqueTypes,  // e.g., ['EMAIL_ADDRESS', 'CREDIT_CARD', 'PL_PESEL']\n    count: results.entities.length,\n    method: results.detection_method,  // 'presidio_dual_language' or 'regex_fallback'\n    sanitization_applied: hasPII  // Redundant with _pii_sanitized but explicit\n  };\n\n  console.log('PII Classification:', uniqueTypes.length > 0 ? uniqueTypes.join(', ') : 'none', '(' + results.entities.length + ' entities)');\n\n\n  j.output_text_redacted = redactedText;\n  j.pii_error = null;\n\n  item.json = j;\n  out.push(item);\n}\nreturn out;\n\nfunction deduplicateEntities(entities) {\n  if (entities.length <= 1) return entities;\n\n  const sorted = entities.sort((a, b) => {\n    if (a.start !== b.start) return a.start - b.start;\n    return b.score - a.score;\n  });\n\n  const unique = [];\n  for (const entity of sorted) {\n    const overlaps = unique.some(existing => {\n      return (\n        (entity.start >= existing.start && entity.start < existing.end) ||\n        (entity.end > existing.start && entity.end <= existing.end) ||\n        (entity.start <= existing.start && entity.end >= existing.end)\n      );\n    });\n\n    if (!overlaps) {\n      unique.push(entity);\n    }\n  }\n\n  return unique;\n}\n\nfunction findRegexEntities(text, piiConf, piiConfig, presidioExaminedRegions) {\n  if (!piiConf || !Array.isArray(piiConf.rules) || piiConf.rules.length === 0) {\n    return [];\n  }\n\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n  const matches = [];\n\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    // Check if this pattern corresponds to a validated entity type\n    const presidioEntityType = ENTITY_TYPE_REGISTRY.validated[ruleName];\n    const isValidatedType = !!presidioEntityType;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      let match;\n      while ((match = re.exec(text)) !== null) {\n        const matchStart = match.index;\n        const matchEnd = match.index + match[0].length;\n        const matchText = match[0];\n\n        const validator = VALIDATION_RULES[rule.name];\n        if (validator && !validator(matchText)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${matchText.substring(0, 20)}...\" (validator rejected)`);\n          continue;\n        }\n\n        // Decision logic: Skip validated types if Presidio examined this region\n        if (isValidatedType && presidioExaminedRegions) {\n          const wasExaminedByPresidio = checkOverlapWithPresidio(\n            matchStart,\n            matchEnd,\n            presidioEntityType,\n            presidioExaminedRegions\n          );\n\n          if (wasExaminedByPresidio) {\n            // Skip - Presidio already made the decision (accept or reject)\n            console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${matchText.substring(0, 20)}...\" (Presidio examined as ${presidioEntityType})`);\n            continue;\n          } else {\n            // Presidio missed this - include it (edge case)\n            console.log(`\u2705 Regex INCLUDE: ${ruleName} \"${matchText.substring(0, 20)}...\" (Presidio missed this region)`);\n          }\n        }\n\n        matches.push({\n          type: rule.name,\n          start: matchStart,\n          end: matchEnd,\n          text: matchText,\n          score: 1.0,\n          source_language: 'regex'\n        });\n      }\n    } catch (error) {\n      console.warn(`Regex fallback failed for ${ruleName}: ${error.message}`);\n    }\n  }\n\n  return matches;\n}\nfunction getRedactionToken(entityType, originalText, piiConfig) {\n  const redactionMode = piiConfig.redaction_mode || 'replace';\n  const tokens = piiConfig.redaction_tokens || {};\n  const fallbackToken = tokens[entityType] || DEFAULT_REDACTION_TOKENS[entityType] || `[${entityType}]`;\n\n  switch (redactionMode) {\n    case 'replace':\n      return fallbackToken;\n\n    case 'mask':\n      if (originalText.length <= 4) {\n        return '*'.repeat(originalText.length);\n      }\n      const first = originalText.substring(0, 2);\n      const last = originalText.substring(originalText.length - 2);\n      const masked = '*'.repeat(originalText.length - 4);\n      return `${first}${masked}${last}`;\n\n    default:\n      return fallbackToken;\n  }\n}\n\nfunction applyLegacyPiiRules(text, piiConf, piiConfig) {\n  const startTime = Date.now();\n\n  if (!piiConf || !Array.isArray(piiConf.rules) || piiConf.rules.length === 0) {\n    console.warn('No pii_conf available for fallback');\n    return {\n      entities: [],\n      redacted_text: text,\n      detection_method: 'regex_fallback_failed',\n      processing_time_ms: 0,\n      error: 'No pii.conf rules available'\n    };\n  }\n\n  const entities = [];\n  let redactedText = text;\n  const order = piiConf.order || piiConf.rules.map(r => r.name);\n\n  for (const ruleName of order) {\n    const rule = piiConf.rules.find(r => r.name === ruleName);\n    if (!rule) continue;\n\n    try {\n      const re = new RegExp(rule.pattern, rule.flags || 'giu');\n      const matches = [];\n      let match;\n      while ((match = re.exec(text)) !== null) {\n        matches.push({\n          index: match.index,\n          length: match[0].length,\n          text: match[0]\n        });\n      }\n\n      matches.sort((a, b) => b.index - a.index);\n\n      for (const m of matches) {\n        const baseValidator = VALIDATION_RULES[ruleName];\n        if (baseValidator && !baseValidator(m.text)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${ruleName} \"${m.text.substring(0, 20)}...\" (validator rejected)`);\n          continue;\n        }\n\n        let entity = {\n          type: ruleName,\n          start: m.index,\n          end: m.index + m.length,\n          text: m.text,\n          score: 1.0,\n          source: 'regex'\n        };\n\n        entity = refineEntityByContext(entity, text);\n        if (!entity) {\n          continue;\n        }\n\n        const refinedValidator = VALIDATION_RULES[entity.type];\n        if (refinedValidator && !refinedValidator(entity.text)) {\n          console.log(`\u23ed\ufe0f  Regex SKIP: ${entity.type} \"${entity.text.substring(0, 20)}...\" (refined validator rejected)`);\n          continue;\n        }\n\n        const redactionToken = getRedactionToken(entity.type, entity.text, piiConfig);\n\n        redactedText =\n          redactedText.substring(0, entity.start) +\n          redactionToken +\n          redactedText.substring(entity.end);\n\n        entities.push({\n          ...entity\n        });\n      }\n    } catch (e) {\n      console.warn(`PII regex failed for ${ruleName}:`, e.message);\n    }\n  }\n\n  return {\n    entities,\n    redacted_text: redactedText,\n    detection_method: 'regex_fallback',\n    processing_time_ms: Date.now() - startTime,\n    error: null\n  };\n}\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        -688
+      ],
+      "id": "56bf31a5-c106-4ad0-a63a-659b4b13a571",
+      "name": "PII_Redactor_v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Block Response v2.0.0\n * \n * Generates response for BLOCKED prompts.\n * Does NOT run PII detection (saves processing time).\n */\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const config = j.config || {};\n  \n  const blockMessage = config.enforcement?.block_message ||\n    'Content blocked by security policy. Please rephrase your request.';\n  \n  const arbiterResult = j.arbiter_result || {};\n  \n  results.push({\n    json: {\n      ...j,\n      output_text: blockMessage,\n      detected_language: 'unknown',\n      _pii_sanitized: false,\n      pii_classification: { count: 0, types: [], entities: [] },\n      chat_payload: {\n        ...j.chat_payload,\n        chatInput: blockMessage\n      },\n      block_reason: {\n        score: arbiterResult.combined_score,\n        boosts: arbiterResult.boosts_applied || [],\n        branches: arbiterResult.branches || {}\n      }\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -944,
+        -448
+      ],
+      "id": "91f3f60b-e872-4bcd-94ab-2b934be4ad8a",
+      "name": "Block Response v2"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -592,
+        -560
+      ],
+      "id": "295abf48-5f6d-4446-928f-6708160b4b0d",
+      "name": "Merge Final"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Build NDJSON v2.0.0\n * \n * Prepares data for ClickHouse logging with new 3-branch architecture.\n * FIXED: Reconstructs chat_payload to ensure downstream nodes have valid data.\n */\n\nfunction err(msg) { throw new Error(msg); }\n\nfunction simpleHash(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const c = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + c;\n    hash |= 0;\n  }\n  return hash.toString(36);\n}\n\nfunction J(x) { try { return JSON.stringify(x ?? {}); } catch { return '{}'; } }\n\nconst items = $input.all();\nif (!items.length) err('Build_NDJSON_v2: no input items.');\n\nconst out = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  const arbiter = j.arbiter_result || {};\n  const branches = arbiter.branches || {};\n  \n  // FIXED: Robust sessionId extraction with multiple fallbacks\n  const sessionId = j.chat_payload?.sessionId || j.sessionId || 'unknown-' + Date.now();\n  const originalInput = j._original_input || j.chat_payload?.chatInput || 'N/A';\n  const finalOutput = j.output_text || j.chat_payload?.chatInput || originalInput || 'N/A';\n  const action = j.chat_payload?.action || j.action || 'sendMessage';\n  \n  const finalStatus = arbiter.final_decision === 'BLOCK' ? 'BLOCKED' :\n                      j._pii_sanitized ? 'SANITIZED' : 'ALLOWED';\n  \n  // FIXED: Reconstruct chat_payload to ensure it's never undefined\n  const reconstructedChatPayload = {\n    sessionId: sessionId,\n    action: action,\n    chatInput: finalOutput,\n    ...(j.chat_payload || {})  // Preserve any additional fields\n  };\n  \n  const row = {\n    sessionId: sessionId,\n    action: action,\n    timestamp: new Date().toISOString(),\n    \n    original_input: originalInput,\n    chat_input: finalOutput,\n    result: finalOutput,\n    detected_language: j.detected_language || 'unknown',\n    \n    // 3-Branch scores\n    threat_score: arbiter.combined_score || 0,\n    branch_a_score: branches.A?.score || 0,\n    branch_b_score: branches.B?.score || 0,\n    branch_c_score: branches.C?.score || 0,\n    \n    // Decision info\n    final_status: finalStatus,\n    final_decision: arbiter.final_decision || 'UNKNOWN',\n    boosts_applied: arbiter.boosts_applied || [],\n    confidence: arbiter.confidence || 0,\n    \n    // PII info\n    pii_sanitized: j._pii_sanitized ? 1 : 0,\n    pii_types_detected: j.pii_classification?.types || [],\n    pii_entities_count: j.pii_classification?.count || 0,\n    \n    // Client metadata\n    client_id: j.clientId || '',\n    browser_name: j.browser_metadata?.browser || 'unknown',\n    browser_version: j.browser_metadata?.browser_version || 'unknown',\n    os_name: j.browser_metadata?.os || 'unknown',\n    \n    // Pipeline info\n    pipeline_version: 'v2.0.0',\n    config_version: j.config?.version || 'unknown',\n    \n    // JSON fields for detailed analysis\n    arbiter_json: J(arbiter),\n    branch_results_json: J(j.branch_results),\n    pii_classification_json: J(j.pii_classification)\n  };\n  \n  out.push({\n    json: {\n      row,\n      ndjson: {\n        sessionId: sessionId,\n        chat_payload: reconstructedChatPayload,  // FIXED: Use reconstructed payload\n        arbiter_result: arbiter,\n        pii_classification: j.pii_classification,\n        final_decision: {\n          status: finalStatus,\n          blocked: finalStatus === 'BLOCKED',\n          sanitized: finalStatus === 'SANITIZED',\n          allowed: finalStatus === 'ALLOWED'\n        }\n      }\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        -320
+      ],
+      "id": "6cc00427-5290-4d36-8c54-823ecc94a588",
+      "name": "Build NDJSON v2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://clickhouse:8123/?date_time_input_format=best_effort&input_format_skip_unknown_fields=1&query=INSERT%20INTO%20n8n_logs.events_v2%20FORMAT%20JSONEachRow",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/x-ndjson",
+        "body": "={{$json.row}}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -64,
+        -320
+      ],
+      "id": "5ee5948b-3b04-45c9-a0ec-b9ab8258ab4b",
+      "name": "Log to ClickHouse v2",
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "qsDOnwlcRIodVG68",
+          "name": "Clickhouse"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "v2-sessionId",
+              "name": "sessionId",
+              "value": "={{ $('Build NDJSON v2').item.json.ndjson.chat_payload.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "v2-chatInput",
+              "name": "chatInput",
+              "value": "={{ $('Build NDJSON v2').item.json.row.chat_input }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        -320
+      ],
+      "id": "030014e0-a3b2-4230-9fea-1edcc36ccdc4",
+      "name": "Clean Output v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Early Block Response v2.0.0\n * \n * Handles validation failures (before 3-branch detection).\n */\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const j = item.json || {};\n  \n  const errorMessage = j._validation_error || 'Input validation failed';\n  const blockMessage = `Validation error: ${errorMessage}`;\n  \n  results.push({\n    json: {\n      ...j,\n      output_text: blockMessage,\n      arbiter_result: {\n        combined_score: 100,\n        final_decision: 'BLOCK',\n        confidence: 1.0,\n        all_degraded: false,\n        branches: {},\n        boosts_applied: ['VALIDATION_FAILURE'],\n        explanations: [errorMessage]\n      },\n      chat_payload: {\n        ...j.chat_payload,\n        chatInput: blockMessage\n      }\n    },\n    pairedItem: item.pairedItem\n  });\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1296,
+        -320
+      ],
+      "id": "39c71bc1-c7d9-4221-b694-81d24796033c",
+      "name": "Early Block v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * output to plugin v2.0.0 - Format response for browser extension\n *\n * Adapted for 3-Branch Architecture:\n * - Uses Build NDJSON v2 output structure\n * - Maps arbiter_result to plugin action (allow/block/sanitize)\n * - Constructs sanitizedBody for SANITIZE actions\n */\n\n// Get data from Build NDJSON v2\nconst buildOutput = $('Build NDJSON v2').item.json;\n\nconsole.log('Build output keys:', Object.keys(buildOutput || {}));\n\nconst ndjson = buildOutput?.ndjson;\n\nif (!ndjson) {\n  console.log('No ndjson data from Build NDJSON v2');\n  return [{\n    json: {\n      action: 'allow',\n      reason: 'no_ndjson_data',\n      error: 'Could not read data from Build NDJSON v2 node'\n    }\n  }];\n}\n\n// Extract decision data from v2.0.0 structure\nconst finalStatus = ndjson.final_decision?.status || 'ALLOWED';\nconst threatScore = buildOutput.row?.threat_score || 0;\nconst cleanedPrompt = ndjson.chat_payload?.chatInput || '';\nconst sessionId = ndjson.sessionId || 'unknown';\n\nconsole.log('Final status:', finalStatus);\nconsole.log('Threat score:', threatScore);\nconsole.log('Cleaned prompt:', cleanedPrompt);\n\n// Map status to action (v2.0.0: binary ALLOW/BLOCK + PII sanitization)\nlet action = 'allow';\nif (finalStatus === 'BLOCKED') {\n  action = 'block';\n} else if (finalStatus === 'SANITIZED') {\n  action = 'sanitize';\n}\n\n// Build response for plugin\nconst response = {\n  action: action,\n  chatInput: cleanedPrompt,\n  reason: finalStatus.toLowerCase(),\n  threat_score: threatScore,\n  sessionId: sessionId,\n  // v2.0.0: Include arbiter info\n  arbiter: {\n    combined_score: buildOutput.row?.threat_score || 0,\n    confidence: buildOutput.row?.confidence || 0,\n    boosts_applied: buildOutput.row?.boosts_applied || []\n  }\n};\n\n// Construct sanitizedBody for SANITIZE actions (PII redaction)\nif (action === 'sanitize') {\n  try {\n    // Try to get original body from Webhook\n    let originalBody = null;\n    try {\n      const webhookInput = $('Webhook v2').first().json;\n      originalBody = webhookInput?.body;\n    } catch (e) {\n      // Webhook not available (Chat Trigger)\n    }\n\n    if (originalBody && originalBody.messages) {\n      response.sanitizedBody = {\n        ...originalBody,\n        messages: [{\n          ...originalBody.messages[0],\n          content: {\n            content_type: \"text\",\n            parts: [cleanedPrompt]\n          }\n        }]\n      };\n      console.log('Built sanitizedBody with full original metadata');\n    } else {\n      // Minimal fallback\n      response.sanitizedBody = {\n        messages: [{\n          id: Date.now().toString(),\n          author: { role: \"user\" },\n          content: {\n            content_type: \"text\",\n            parts: [cleanedPrompt]\n          },\n          create_time: Math.floor(Date.now() / 1000),\n          weight: 1.0,\n          metadata: {},\n          recipient: \"all\"\n        }]\n      };\n      console.log('Built minimal sanitizedBody (fallback)');\n    }\n  } catch (e) {\n    console.error('Failed to construct sanitizedBody:', e.message);\n    response.sanitizedBody = {\n      messages: [{\n        id: Date.now().toString(),\n        author: { role: \"user\" },\n        content: {\n          content_type: \"text\",\n          parts: [cleanedPrompt || '[Content sanitized by Vigil Guard]']\n        }\n      }]\n    };\n  }\n}\n\nconsole.log('Final response:', JSON.stringify(response, null, 2));\n\nreturn [{ json: response }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -80
+      ],
+      "id": "8cbca90b-1027-479d-b880-5ecfc4cb8193",
+      "name": "output to plugin"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Extract Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook v2": {
+      "main": [
+        [
+          {
+            "node": "Extract Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Input": {
+      "main": [
+        [
+          {
+            "node": "Merge Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load allowlist.schema.json",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load pii.conf",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load unified_config.json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load allowlist.schema.json": {
+      "main": [
+        [
+          {
+            "node": "Extract allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load pii.conf": {
+      "main": [
+        [
+          {
+            "node": "Extract pii.conf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load unified_config.json": {
+      "main": [
+        [
+          {
+            "node": "Extract unified_config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract allowlist": {
+      "main": [
+        [
+          {
+            "node": "Merge Config",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract pii.conf": {
+      "main": [
+        [
+          {
+            "node": "Merge Config",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Extract unified_config": {
+      "main": [
+        [
+          {
+            "node": "Merge Config",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge Config": {
+      "main": [
+        [
+          {
+            "node": "Config Loader v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Loader v2": {
+      "main": [
+        [
+          {
+            "node": "Input Validator v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input Validator v2": {
+      "main": [
+        [
+          {
+            "node": "Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Check": {
+      "main": [
+        [
+          {
+            "node": "3-Branch Executor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Early Block v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3-Branch Executor": {
+      "main": [
+        [
+          {
+            "node": "Arbiter v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arbiter v2": {
+      "main": [
+        [
+          {
+            "node": "Arbiter Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arbiter Decision": {
+      "main": [
+        [
+          {
+            "node": "PII_Redactor_v2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Block Response v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Response v2": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Early Block v2": {
+      "main": [
+        [
+          {
+            "node": "Build NDJSON v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Final": {
+      "main": [
+        [
+          {
+            "node": "Build NDJSON v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build NDJSON v2": {
+      "main": [
+        [
+          {
+            "node": "Log to ClickHouse v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to ClickHouse v2": {
+      "main": [
+        [
+          {
+            "node": "Clean Output v2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "output to plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PII_Redactor_v2": {
+      "main": [
+        [
+          {
+            "node": "Merge Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9215b5ae-0504-4df0-8c04-d253213a95d9",
+  "meta": {
+    "instanceId": "36b4aa7e799bdca1335d29cede50365900fe8f864b886c65b80bba8527d2eec6"
+  },
+  "id": "h2bSJDeygkmOQAfi",
+  "tags": []
+}
