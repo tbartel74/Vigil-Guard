@@ -1,1 +1,170 @@
-[]
+[
+  {
+    "pattern": "\\bsimulation\\s+mode\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "Simulation mode request"
+  },
+  {
+    "pattern": "\\bdeveloper\\s+mode\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 80,
+    "description": "Developer mode request"
+  },
+  {
+    "pattern": "\\bunrestricted\\s+(?:AI|mode|access|assistant)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 85,
+    "description": "Unrestricted mode request"
+  },
+  {
+    "pattern": "\\bno\\s+(?:filters?|restrictions?|limits?|rules?)\\s+mode\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 85,
+    "description": "No restrictions mode"
+  },
+  {
+    "pattern": "\\bimagine\\s+you\\s+(?:are|have)\\s+(?:no|unlimited|unrestricted)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "Imagine no limits"
+  },
+  {
+    "pattern": "\\bpretend\\s+(?:to\\s+be|you\\s+are)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Pretend to be"
+  },
+  {
+    "pattern": "\\bact\\s+as\\s+(?:if|though)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Act as if"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+now\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "Identity override"
+  },
+  {
+    "pattern": "\\broleplay\\s+as\\s+(?:a|an)?\\s*(?:evil|chaotic|rebel|unrestricted)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "Roleplay as antagonist"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+now\\s+(?:free|unrestricted|liberated|unfiltered)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Freedom declaration"
+  },
+  {
+    "pattern": "\\bpretend\\s+you\\s+are\\s+(?:liberated|unfiltered|unrestricted)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Pretend liberation"
+  },
+  {
+    "pattern": "\\bact\\s+as\\s+(?:if\\s+you\\s+are\\s+)?(?:a|an)?\\s*(?:different|evil|malicious)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 65,
+    "description": "Act as different entity"
+  },
+  {
+    "pattern": "\\bembody\\s+the\\s+persona\\s+of\\.{0,200}(?:rebel|hacker|villain)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Embody antagonist persona"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+(?:DAN|Sydney|STAN|DUDE|Alphabreak)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 80,
+    "description": "Named jailbreak personas"
+  },
+  {
+    "pattern": "\\bDo\\s+Anything\\s+Now\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "DAN activation"
+  },
+  {
+    "pattern": "\\bstep\\s+into\\s+(?:the\\s+)?(?:role|character)\\s+of\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "Step into role"
+  },
+  {
+    "pattern": "\\bassume\\s+the\\s+(?:identity|role|persona)\\s+of\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 65,
+    "description": "Assume identity"
+  },
+  {
+    "pattern": "\\bbecome\\s+(?:a|an)\\s+(?:different|unrestricted|evil)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 65,
+    "description": "Become different"
+  },
+  {
+    "pattern": "\\bcharacter\\s+(?:switch|change|transformation)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "Character switch"
+  },
+  {
+    "pattern": "\\bpersona\\s+(?:shift|change|swap)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "Persona shift"
+  },
+  {
+    "pattern": "\\bplay\\s+the\\s+(?:part|role)\\s+of\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "Play the part"
+  },
+  {
+    "pattern": "\\btake\\s+on\\s+the\\s+(?:role|identity|persona)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "Take on role"
+  },
+  {
+    "pattern": "\\bimpersonate\\s+(?:a|an)\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 65,
+    "description": "Impersonation"
+  },
+  {
+    "pattern": "\\bin\\s+character\\s+as\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 60,
+    "description": "In character"
+  },
+  {
+    "pattern": "\\bmethod\\s+acting\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 55,
+    "description": "Method acting"
+  },
+  {
+    "pattern": "\\bget\\s+into\\s+character\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 55,
+    "description": "Get into character"
+  },
+  {
+    "pattern": "\\bswitch\\s+(?:to|into)\\s+(?:evil|unrestricted)\\s+mode\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 70,
+    "description": "Switch to evil mode"
+  },
+  {
+    "pattern": "\\bactivate\\s+(?:jailbreak|unrestricted|developer)\\s+mode\\b",
+    "category": "ROLEPLAY_MARKERS",
+    "weight": 75,
+    "description": "Activate jailbreak mode"
+  }
+]
