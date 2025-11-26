@@ -621,7 +621,7 @@ export interface EventV2Row {
   detected_language?: string;
   branch_a_score: number;  // Heuristics
   branch_b_score: number;  // Semantic
-  branch_c_score: number;  // LLM Guard
+  branch_c_score: number;  // NLP analysis (llm_guard)
   threat_score: number;    // Combined weighted score
   confidence: number;
   boosts_applied: string[];
@@ -698,7 +698,7 @@ export async function getBranchHealth(): Promise<BranchHealthStatus> {
   const data = await r.json();
 
   // API returns { branches: { A: {...}, B: {...}, C: {...} } }
-  // Transform to { heuristics: {...}, semantic: {...}, llm_guard: {...} }
+  // Transform to { heuristics: {...}, semantic: {...}, llm_guard: {...} } (llm_guard = NLP analysis branch)
   if (data.branches) {
     return {
       heuristics: data.branches.A || { status: 'unknown', latency_ms: 0 },

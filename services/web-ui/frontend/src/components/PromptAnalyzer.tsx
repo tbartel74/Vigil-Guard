@@ -356,7 +356,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
               <p className="text-sm text-purple-400 font-mono">{promptDetails.branch_b_score}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Branch C (LLM Guard):</span>
+              <span className="text-xs text-text-secondary">Branch C (NLP Analysis):</span>
               <p className="text-sm text-cyan-400 font-mono">{promptDetails.branch_c_score}</p>
             </div>
             <div>

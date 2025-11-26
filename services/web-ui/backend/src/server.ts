@@ -807,7 +807,7 @@ app.get("/api/system/containers", authenticate, async (req, res) => {
       checkService('Language Detector', process.env.LANGUAGE_DETECTOR_URL || 'http://vigil-language-detector:5002'),
       checkService('Branch A (Heuristics)', process.env.HEURISTICS_SERVICE_URL || 'http://vigil-heuristics:5005'),
       checkService('Branch B (Semantic)', process.env.SEMANTIC_SERVICE_URL || 'http://vigil-semantic-service:5006'),
-      checkService('Branch C (LLM Guard)', process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000')
+      checkService('Branch C (NLP Safety Analysis)', process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000')
     ]);
 
     const containers = [

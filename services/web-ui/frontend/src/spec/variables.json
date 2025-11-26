@@ -463,10 +463,10 @@
     {
       "name": "ARBITER_WEIGHT_LLM_GUARD",
       "groupId": "arbiter_weights",
-      "label": "LLM Guard Weight (Branch C)",
+      "label": "NLP Analysis Weight (Branch C)",
       "type": "number",
       "required": true,
-      "help": "Weight for Llama Guard ML classification (0.0-1.0). Default: 0.35",
+      "help": "Weight for the NLP safety classifier (Llama Guard-based, 0.0-1.0). Default: 0.35",
       "default": 0.35,
       "map": [
         {
@@ -613,10 +613,10 @@
     {
       "name": "ARBITER_BOOST_LLM_VETO_ENABLED",
       "groupId": "arbiter_boosts",
-      "label": "LLM Guard Veto",
+      "label": "NLP Analysis Veto",
       "type": "boolean",
       "required": true,
-      "help": "Block if LLM Guard is certain (score ≥90). Default: enabled",
+      "help": "Block if NLP analysis is certain (score ≥90). Default: enabled",
       "default": true,
       "map": [
         {
@@ -628,10 +628,10 @@
     {
       "name": "ARBITER_BOOST_LLM_VETO_THRESHOLD",
       "groupId": "arbiter_boosts",
-      "label": "LLM Veto Threshold",
+      "label": "NLP Analysis Veto Threshold",
       "type": "number",
       "required": true,
-      "help": "LLM Guard score threshold for veto (0-100). Default: 90",
+      "help": "NLP analysis score threshold for veto (0-100). Default: 90",
       "default": 90,
       "map": [
         {

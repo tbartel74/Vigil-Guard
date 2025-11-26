@@ -212,8 +212,8 @@
     "category": "Arbiter Configuration"
   },
   "ARBITER_WEIGHT_LLM_GUARD": {
-    "title": "LLM Guard Weight",
-    "description": "Weight for Branch C (LLM Guard) in Arbiter scoring (0.0-1.0). Controls how much the Llama Prompt Guard ML model influences the final decision. Higher weight increases importance of AI-based validation. Default: 0.1 (10% influence)",
+    "title": "NLP Analysis Weight",
+    "description": "Weight for Branch C (NLP analysis / llm_guard) in Arbiter scoring (0.0-1.0). Controls how much the NLP safety classifier (based on Llama Prompt Guard) influences the final decision. Higher weight increases importance of AI-based validation. Default: 0.1 (10% influence)",
     "impact": "High",
     "category": "Arbiter Configuration"
   },
@@ -261,7 +261,7 @@
   },
   "ARBITER_BOOST_UNANIMOUS_ENABLED": {
     "title": "Enable Unanimous Agreement Boost",
-    "description": "Enable score boost when all active branches agree on threat detection. When Pattern, Heuristics, Semantic, and LLM Guard all detect a threat, this boost significantly increases the combined score. Strong indicator of genuine attack.",
+    "description": "Enable score boost when all active branches agree on threat detection. When Pattern, Heuristics, Semantic, and NLP Analysis all detect a threat, this boost significantly increases the combined score. Strong indicator of genuine attack.",
     "impact": "High",
     "category": "Arbiter Boosts"
   },
@@ -272,14 +272,14 @@
     "category": "Arbiter Boosts"
   },
   "ARBITER_BOOST_LLM_VETO_ENABLED": {
-    "title": "Enable LLM Veto Boost",
-    "description": "Enable veto power for LLM Guard when it detects high-confidence jailbreak. When Llama Prompt Guard reports very high threat score, it can override lower scores from other branches. Final safety layer using advanced ML model.",
+    "title": "Enable NLP Analysis Veto",
+    "description": "Enable veto power for the NLP analysis branch when it detects high-confidence jailbreak. When the Llama Prompt Guard-based classifier reports very high threat score, it can override lower scores from other branches. Final safety layer using advanced ML model.",
     "impact": "High",
     "category": "Arbiter Boosts"
   },
   "ARBITER_BOOST_LLM_VETO_THRESHOLD": {
-    "title": "LLM Veto Threshold",
-    "description": "LLM Guard score threshold for veto activation (0-100). When LLM Guard score exceeds this value, it can override other branch decisions and force BLOCK action. Should be high to avoid false positives (only very confident ML predictions). Default: 90",
+    "title": "NLP Analysis Veto Threshold",
+    "description": "NLP analysis score threshold for veto activation (0-100). When the llm_guard branch score exceeds this value, it can override other branch decisions and force BLOCK action. Should be high to avoid false positives (only very confident ML predictions). Default: 90",
     "impact": "High",
     "category": "Arbiter Boosts"
   },

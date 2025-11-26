@@ -2,7 +2,7 @@
  * ClickHouse v2 Module - Events V2 with 3-Branch Detection Architecture
  *
  * This module handles queries for the new events_v2 table that supports:
- * - 3 branch scores (heuristics, semantic, llm_guard)
+ * - 3 branch scores (heuristics, semantic, llm_guard/NLP analysis)
  * - Arbiter decision fields (threat_score, confidence, boosts_applied)
  * - PII detection with detailed tracking
  */

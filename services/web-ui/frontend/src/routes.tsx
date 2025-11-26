@@ -35,7 +35,7 @@ const Monitoring = () => {
   // Fetch stats from API
   const fetchStats = async () => {
     try {
-      const data = await api.fetchStats24h(timeRange);
+      const data = await api.getEventsV2Stats(timeRange);
       setStats({
         requests_processed: Number(data.requests_processed) || 0,
         threats_blocked: Number(data.threats_blocked) || 0,
@@ -118,7 +118,7 @@ const Monitoring = () => {
     <div className="p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">LLM Guard Monitoring</h1>
+          <h1 className="text-2xl font-semibold">NLP Analysis Monitoring</h1>
           <p className="text-slate-400 mt-2">Real-time prompt injection detection and defense analytics.</p>
         </div>
 
@@ -236,7 +236,7 @@ const Monitoring = () => {
         <div>
           <div className="mb-3">
             <h3 className="text-md font-semibold text-white">Branch Scores Over Time</h3>
-            <p className="text-xs text-slate-400">3-Branch detection trends: Heuristics (A), Semantic (B), LLM Guard (C)</p>
+            <p className="text-xs text-slate-400">3-Branch detection trends: Heuristics (A), Semantic (B), NLP Analysis (C)</p>
           </div>
           <GrafanaEmbed
             src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=10&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
@@ -250,7 +250,7 @@ const Monitoring = () => {
         <div>
           <div className="mb-3">
             <h3 className="text-md font-semibold text-white">Branch Average Scores (24h)</h3>
-            <p className="text-xs text-slate-400">Average detection scores per branch: Heuristics, Semantic, LLM Guard</p>
+            <p className="text-xs text-slate-400">Average detection scores per branch: Heuristics, Semantic, NLP Analysis</p>
           </div>
           <GrafanaEmbed
             src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=11&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}

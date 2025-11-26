@@ -282,7 +282,7 @@ export default function ArbiterSettings() {
         <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
           <p className="text-sm text-slate-300 leading-relaxed">
             The Arbiter combines scores from all 3 detection branches using weighted voting.
-            Configure branch weights (default: Heuristics 30%, Semantic 35%, LLM Guard 35%),
+            Configure branch weights (default: Heuristics 30%, Semantic 35%, NLP Analysis 35%),
             priority boosts for edge cases, and thresholds for ALLOW/BLOCK decisions.
             Degraded weights are used when branches are offline.
           </p>
@@ -393,7 +393,7 @@ export default function ArbiterSettings() {
             )}
           </div>
 
-          {/* Branch C - LLM Guard */}
+          {/* Branch C - NLP Analysis */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -408,9 +408,9 @@ export default function ArbiterSettings() {
                 </span>
               )}
             </div>
-            <h3 className="text-lg font-medium text-white mb-1">LLM Guard</h3>
+            <h3 className="text-lg font-medium text-white mb-1">NLP Safety Analysis</h3>
             <p className="text-xs text-text-secondary mb-3">
-              Llama Guard ML classification model
+              NLP safety classifier (Llama Guard-based)
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -505,7 +505,7 @@ export default function ArbiterSettings() {
               <span className="text-red-400 font-semibold">2.</span>
               <div>
                 <span className="text-white font-medium">LLM_GUARD_VETO</span>
-                <span className="text-text-secondary ml-2">— Force BLOCK if LLM Guard score &gt; 90</span>
+                <span className="text-text-secondary ml-2">— Force BLOCK if NLP analysis score &gt; 90</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
