@@ -164,6 +164,18 @@ export const config = {
         defaultConfig.scoring?.confidence?.signal_bonus ?? 0.1),
       max: envFloat('CONFIDENCE_MAX', defaultConfig.scoring?.confidence?.max ?? 0.95)
     }
+  },
+  // Rate limiting - consistent with semantic service
+  rateLimit: {
+    windowMs: envInt('RATE_LIMIT_WINDOW_MS', 60000),  // 1 minute window
+    max: envInt('RATE_LIMIT_MAX', 1000)  // 1000 requests per window (high for testing)
+  },
+  // Tiered timeouts based on text length (in ms)
+  timeouts: {
+    short: envInt('TIMEOUT_SHORT', 50),      // < 500 chars
+    medium: envInt('TIMEOUT_MEDIUM', 100),   // 500-2000 chars
+    long: envInt('TIMEOUT_LONG', 200),       // 2000-5000 chars
+    veryLong: envInt('TIMEOUT_VERY_LONG', 500)  // > 5000 chars
   }
 };
 

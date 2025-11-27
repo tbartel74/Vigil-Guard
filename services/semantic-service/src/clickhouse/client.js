@@ -28,21 +28,29 @@ class ClickHouseClient {
     async query(sql, format = 'JSON') {
         const url = new URL(this.baseUrl);
         url.searchParams.set('database', this.config.database);
-        url.searchParams.set('user', this.config.user);
-        if (this.config.password) {
-            url.searchParams.set('password', this.config.password);
-        }
+        // Note: user/password now passed via HTTP Basic Auth header (more secure than URL)
 
         return new Promise((resolve, reject) => {
+            // Build Authorization header for HTTP Basic Auth
+            const authHeader = this.config.user
+                ? 'Basic ' + Buffer.from(`${this.config.user}:${this.config.password || ''}`).toString('base64')
+                : null;
+
+            const headers = {
+                'Content-Type': 'text/plain',
+                'Connection': 'keep-alive'
+            };
+
+            if (authHeader) {
+                headers['Authorization'] = authHeader;
+            }
+
             const options = {
                 method: 'POST',
                 hostname: this.config.host,
                 port: this.config.port,
                 path: url.search,
-                headers: {
-                    'Content-Type': 'text/plain',
-                    'Connection': 'keep-alive'
-                },
+                headers,
                 agent: this.agent,
                 timeout: this.config.timeout || 5000
             };

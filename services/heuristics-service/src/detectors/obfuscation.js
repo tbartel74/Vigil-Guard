@@ -11,6 +11,24 @@ import { detectScripts, normalizeHomoglyphs } from '../utils/unicode.js';
 const patterns = loadPatterns();
 
 /**
+ * Safely compile and match regex pattern
+ * @param {string} text - Text to match against
+ * @param {string} pattern - Regex pattern string
+ * @param {string} flags - Regex flags
+ * @param {string} description - Description for error logging
+ * @returns {Array|null} Matches or null if pattern is invalid
+ */
+function safeRegexMatch(text, pattern, flags = 'g', description = 'unknown') {
+  try {
+    const regex = new RegExp(pattern, flags);
+    return text.match(regex);
+  } catch (error) {
+    console.warn(`Invalid regex pattern (${description}): ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Detect obfuscation techniques in text
  * @param {string} text - Input text to analyze
  * @returns {Object} Obfuscation detection results
@@ -31,8 +49,7 @@ export async function detectObfuscation(text) {
   // 1. Zero-width character detection
   const zeroWidthChars = patterns.zeroWidth || [];
   for (const zwChar of zeroWidthChars) {
-    const regex = new RegExp(zwChar.unicode, 'g');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, zwChar.unicode, 'g', `zero-width char: ${zwChar.name || 'unknown'}`);
     if (matches) {
       results.zero_width_count += matches.length;
     }

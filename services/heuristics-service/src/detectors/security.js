@@ -13,13 +13,52 @@ const __dirname = path.dirname(__filename);
 
 // Load patterns from JSON file
 let securityPatterns = null;
+let patternLoadingError = null;
 
 function loadPatterns() {
   if (!securityPatterns) {
-    const patternsPath = path.join(__dirname, '../../patterns/security-keywords.json');
-    securityPatterns = JSON.parse(fs.readFileSync(patternsPath, 'utf8'));
+    try {
+      const patternsPath = path.join(__dirname, '../../patterns/security-keywords.json');
+      securityPatterns = JSON.parse(fs.readFileSync(patternsPath, 'utf8'));
+    } catch (error) {
+      console.error('CRITICAL: Failed to load security patterns:', error.message);
+      patternLoadingError = error.message;
+      // Return empty patterns structure to prevent crashes
+      securityPatterns = {
+        sql_injection: { high_confidence: [], medium_confidence: [] },
+        xss: { high_confidence: [] },
+        command_injection: { high_confidence: [] },
+        privilege_escalation: { high_confidence: [] }
+      };
+    }
   }
   return securityPatterns;
+}
+
+/**
+ * Get pattern loading status for health checks
+ */
+export function getPatternLoadingStatus() {
+  return {
+    loaded: !patternLoadingError,
+    error: patternLoadingError
+  };
+}
+
+/**
+ * Safely compile and match regex pattern
+ * @param {string} text - Text to match against
+ * @param {Object} patternDef - Pattern definition with pattern and description
+ * @returns {Array|null} Matches or null if pattern is invalid
+ */
+function safeRegexMatch(text, patternDef) {
+  try {
+    const regex = new RegExp(patternDef.pattern, 'gi');
+    return text.match(regex);
+  } catch (error) {
+    console.warn(`Invalid regex pattern in ${patternDef.description}: ${error.message}`);
+    return null;
+  }
 }
 
 /**
@@ -48,8 +87,7 @@ export async function detectSecurityKeywords(text) {
   // 1. SQL Injection Detection
   const sqlHighConfidence = patterns.sql_injection.high_confidence;
   for (const patternDef of sqlHighConfidence) {
-    const regex = new RegExp(patternDef.pattern, 'gi');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, patternDef);
     if (matches) {
       results.sql_injection_count += matches.length;
       results.detected_patterns.push({
@@ -63,8 +101,7 @@ export async function detectSecurityKeywords(text) {
 
   const sqlMediumConfidence = patterns.sql_injection.medium_confidence;
   for (const patternDef of sqlMediumConfidence) {
-    const regex = new RegExp(patternDef.pattern, 'gi');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, patternDef);
     if (matches) {
       results.sql_injection_count += matches.length;
       results.detected_patterns.push({
@@ -79,8 +116,7 @@ export async function detectSecurityKeywords(text) {
   // 2. XSS Detection
   const xssHighConfidence = patterns.xss.high_confidence;
   for (const patternDef of xssHighConfidence) {
-    const regex = new RegExp(patternDef.pattern, 'gi');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, patternDef);
     if (matches) {
       results.xss_count += matches.length;
       results.detected_patterns.push({
@@ -95,8 +131,7 @@ export async function detectSecurityKeywords(text) {
   // 3. Command Injection Detection
   const cmdHighConfidence = patterns.command_injection.high_confidence;
   for (const patternDef of cmdHighConfidence) {
-    const regex = new RegExp(patternDef.pattern, 'gi');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, patternDef);
     if (matches) {
       results.command_injection_count += matches.length;
       results.detected_patterns.push({
@@ -111,8 +146,7 @@ export async function detectSecurityKeywords(text) {
   // 4. Privilege Escalation Detection
   const privHighConfidence = patterns.privilege_escalation.high_confidence;
   for (const patternDef of privHighConfidence) {
-    const regex = new RegExp(patternDef.pattern, 'gi');
-    const matches = text.match(regex);
+    const matches = safeRegexMatch(text, patternDef);
     if (matches) {
       results.privilege_escalation_count += matches.length;
       results.detected_patterns.push({

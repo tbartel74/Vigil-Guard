@@ -22,10 +22,22 @@ async function initialize() {
     env.cacheDir = config.paths.modelsDir;
     env.allowLocalModels = true;
 
-    console.log('Loading sentence-transformers/all-MiniLM-L6-v2...');
+    // Use local model path for offline capability, fallback to HuggingFace ID
+    // Priority: MODEL_PATH env var > config.model.path (local bundled) > config.model.id (network)
+    let modelId = process.env.MODEL_PATH || config.model.path;
+
+    // Check if local model exists, fallback to network if not
+    const fs = require('fs');
+    const path = require('path');
+    if (!fs.existsSync(modelId)) {
+        console.warn(`Local model not found at ${modelId}, falling back to HuggingFace: ${config.model.id}`);
+        modelId = config.model.id;
+    }
+
+    console.log(`Loading embedding model: ${modelId}...`);
 
     // Create feature extraction pipeline
-    extractor = await pipelineFn('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+    extractor = await pipelineFn('feature-extraction', modelId, {
         quantized: true // Use quantized model for better performance
     });
 

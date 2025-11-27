@@ -30,6 +30,8 @@ const config = {
 
     // Model
     model: {
+        // Model ID for Transformers.js pipeline (can be HuggingFace ID or local path)
+        id: process.env.MODEL_ID || 'Xenova/all-MiniLM-L6-v2',
         name: 'all-MiniLM-L6-v2-int8',
         path: process.env.MODEL_PATH || path.join(SERVICE_DIR, 'models', 'all-MiniLM-L6-v2-onnx-int8'),
         dimension: 384,

@@ -26,6 +26,7 @@ export default function InvestigationV2() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventV2Row | null>(null);
   const [stats, setStats] = useState<QuickStatsV2 | null>(null);
   const [branchStats, setBranchStats] = useState<BranchStats | null>(null);
@@ -34,17 +35,27 @@ export default function InvestigationV2() {
   // Execute search - handle errors gracefully
   const handleSearch = async () => {
     setIsLoading(true);
+    setSearchError(null);
     try {
       const response = await api.searchEventsV2(searchParams);
       setResults(response.results || []);
       setTotal(response.total || 0);
       setPages(response.pages || 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error);
       // Set empty results on error (e.g., events_v2 table doesn't exist)
       setResults([]);
       setTotal(0);
       setPages(0);
+      // Provide user-friendly error message
+      const message = error?.message || 'Search failed';
+      if (message.includes('events_v2') || message.includes('UNKNOWN_TABLE')) {
+        setSearchError('Events V2 table not found. Please run ClickHouse migration.');
+      } else if (message.includes('ECONNREFUSED')) {
+        setSearchError('Cannot connect to ClickHouse. Please check service status.');
+      } else {
+        setSearchError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -354,6 +365,22 @@ export default function InvestigationV2() {
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+          </div>
+        ) : searchError ? (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 my-4">
+            <div className="flex items-start gap-3">
+              <span className="text-red-400 text-xl">⚠</span>
+              <div>
+                <h4 className="text-red-400 font-medium">Search Failed</h4>
+                <p className="text-sm text-text-secondary mt-1">{searchError}</p>
+                <button
+                  onClick={handleSearch}
+                  className="mt-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded transition-colors"
+                >
+                  Retry Search
+                </button>
+              </div>
+            </div>
           </div>
         ) : results.length === 0 ? (
           <div className="text-center py-12 text-text-secondary">

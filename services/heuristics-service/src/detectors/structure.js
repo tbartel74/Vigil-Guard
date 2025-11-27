@@ -58,7 +58,8 @@ export async function detectStructure(text) {
     results.signals.push(`Detected ${results.boundary_anomalies} boundary markers (threshold: ${config.detection.structure.boundary_threshold})`);
   }
 
-  // 3. Newline analysis
+  // 3. Newline and segmentation analysis
+  const lines = text.split('\n');
   const newlinePattern = /\n/g;
   const newlines = text.match(newlinePattern);
   const newlineCount = newlines ? newlines.length : 0;
@@ -68,13 +69,14 @@ export async function detectStructure(text) {
   const excessiveNewlines = text.match(consecutiveNewlines);
   if (excessiveNewlines) {
     results.excess_newlines = excessiveNewlines.reduce((acc, match) => acc + match.length - 2, 0);
-    if (results.excess_newlines >= config.detection.structure.newline_threshold) {
-      results.signals.push(`Found ${results.excess_newlines} excessive newlines`);
+    // newline_ratio_threshold (0.3) represents max ratio of excessive newlines to total lines
+    const newlineThreshold = Math.max(5, Math.round(lines.length * config.detection.structure.newline_ratio_threshold));
+    if (results.excess_newlines >= newlineThreshold) {
+      results.signals.push(`Found ${results.excess_newlines} excessive newlines (threshold: ${newlineThreshold})`);
     }
   }
 
   // 4. Segmentation analysis
-  const lines = text.split('\n');
   const nonEmptyLines = lines.filter(line => line.trim().length > 0);
 
   if (nonEmptyLines.length > 0) {
@@ -87,7 +89,9 @@ export async function detectStructure(text) {
 
     results.segmentation_score = Math.round(segmentationRatio * 100);
 
-    if (segmentationRatio > config.detection.structure.segmentation_ratio) {
+    // segment_variance_threshold is the percentage threshold for detecting high segmentation
+    // Use >= to trigger when score reaches the threshold (not just exceeds it)
+    if (results.segmentation_score >= config.detection.structure.segment_variance_threshold) {
       results.signals.push(`High segmentation detected (${results.segmentation_score}% short lines)`);
     }
   }
@@ -130,7 +134,9 @@ export async function detectStructure(text) {
   }
 
   // Excessive newlines (medium weight)
-  if (results.excess_newlines >= config.detection.structure.newline_threshold) {
+  // Use same threshold calculation as detection logic
+  const newlineThresholdForScore = Math.max(5, Math.round(lines.length * config.detection.structure.newline_ratio_threshold));
+  if (results.excess_newlines >= newlineThresholdForScore) {
     score += Math.min(20, results.excess_newlines * 2);
   }
 

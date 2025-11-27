@@ -13,6 +13,9 @@ const __dirname = path.dirname(__filename);
 // Cache for loaded patterns
 let patternsCache = null;
 
+// Track loading errors for health endpoint
+const loadingErrors = [];
+
 /**
  * Load all detection patterns
  * @returns {Object} Loaded patterns organized by type
@@ -47,6 +50,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load zero-width patterns:', error.message);
+    loadingErrors.push({ file: 'zero-width.json', error: error.message });
   }
 
   // Load homoglyphs
@@ -57,6 +61,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load homoglyph patterns:', error.message);
+    loadingErrors.push({ file: 'homoglyphs.json', error: error.message });
   }
 
   // Load system markers
@@ -67,6 +72,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load system markers:', error.message);
+    loadingErrors.push({ file: 'system-markers.json', error: error.message });
   }
 
   // Load whisper patterns (manual version)
@@ -83,6 +89,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load whisper patterns:', error.message);
+    loadingErrors.push({ file: 'whisper-patterns.json', error: error.message });
   }
 
   // Load divider patterns (manual version)
@@ -99,6 +106,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load divider patterns:', error.message);
+    loadingErrors.push({ file: 'divider-patterns.json', error: error.message });
   }
 
   // Load roleplay patterns (manual version)
@@ -115,6 +123,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load roleplay patterns:', error.message);
+    loadingErrors.push({ file: 'roleplay-patterns.json', error: error.message });
   }
 
   // Load boundary patterns
@@ -125,6 +134,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load boundary patterns:', error.message);
+    loadingErrors.push({ file: 'boundary-patterns.json', error: error.message });
   }
 
   // Load emoji mappings
@@ -135,6 +145,7 @@ export function loadPatterns() {
     }
   } catch (error) {
     console.warn('Failed to load emoji mappings:', error.message);
+    loadingErrors.push({ file: 'emoji-mappings.json', error: error.message });
   }
 
   // Cache the loaded patterns
@@ -160,4 +171,16 @@ export function loadPatterns() {
  */
 export function clearPatternsCache() {
   patternsCache = null;
+}
+
+/**
+ * Get pattern loading status for health checks
+ * @returns {Object} Loading status with errors if any
+ */
+export function getPatternLoadingStatus() {
+  return {
+    loaded: patternsCache !== null,
+    errors: loadingErrors,
+    degraded: loadingErrors.length > 0
+  };
 }

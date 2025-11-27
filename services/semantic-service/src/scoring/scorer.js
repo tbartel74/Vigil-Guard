@@ -160,11 +160,23 @@ function buildBranchResult(results, timingMs, degraded = false) {
 /**
  * Build degraded branch_result (when service has issues)
  *
- * Unified Contract v2.1: critical_signals always present
+ * IMPORTANT: Degraded responses return HTTP 200 (not 5xx) by design.
+ * This allows the Arbiter to continue processing with other branches.
+ *
+ * Unified Contract v2.1:
+ * - score: 0 (neutral, doesn't affect final decision)
+ * - threat_level: LOW (safe default)
+ * - degraded: true (signals to Arbiter to use other branches)
+ * - critical_signals.high_similarity: false (no boost applied)
+ *
+ * Arbiter behavior on degraded response:
+ * - Excludes this branch from weighted average
+ * - Uses remaining branches for decision
+ * - Logs degraded state in arbiter_json
  *
  * @param {string} reason - Reason for degraded mode
  * @param {number} timingMs - Processing time
- * @returns {Object} - Degraded branch_result
+ * @returns {Object} - Degraded branch_result with score=0, degraded=true
  */
 function buildDegradedResult(reason, timingMs) {
     return {

@@ -59,8 +59,26 @@ export default function BranchHealthPanel({
 
   if (error) {
     return (
-      <div className={`${compact ? 'p-2' : 'p-4'} text-red-400 text-sm`}>
-        {error}
+      <div className={`${compact ? 'p-2' : 'p-4'} rounded-lg ${
+        compact ? '' : 'bg-red-500/10 border border-red-500/30'
+      }`}>
+        <div className="flex items-start gap-2">
+          <span className="text-red-400 text-lg">⚠</span>
+          <div>
+            <p className="text-red-400 text-sm font-medium">
+              Branch health check failed
+            </p>
+            <p className="text-xs text-text-secondary mt-1">
+              {error}
+            </p>
+            <button
+              onClick={fetchData}
+              className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

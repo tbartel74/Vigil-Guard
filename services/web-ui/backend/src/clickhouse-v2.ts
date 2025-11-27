@@ -516,23 +516,28 @@ export async function getStatusDistribution(timeRange: string = '24 HOUR'): Prom
 // ============================================================================
 
 export interface BoostStats {
-  boost_name: string;
+  boost: string;  // Changed from boost_name to match frontend contract
   count: number;
   percentage: number;
 }
 
 /**
  * Get analysis of which priority boosts are most commonly applied
+ * @returns Array of boost stats or empty array on error (with logged error)
  */
 export async function getBoostStats(timeRange: string = '24 HOUR'): Promise<BoostStats[]> {
   const client = getClickHouseClient();
 
   try {
+    // Use NULLIF to prevent division by zero when no events exist in timeRange
     const query = `
       SELECT
-        boost AS boost_name,
+        boost,
         count() AS count,
-        round(count() * 100.0 / (SELECT count() FROM n8n_logs.events_v2 WHERE timestamp >= now() - INTERVAL ${timeRange}), 2) AS percentage
+        COALESCE(
+          round(count() * 100.0 / NULLIF((SELECT count() FROM n8n_logs.events_v2 WHERE timestamp >= now() - INTERVAL ${timeRange}), 0), 2),
+          0
+        ) AS percentage
       FROM (
         SELECT arrayJoin(boosts_applied) AS boost
         FROM n8n_logs.events_v2
