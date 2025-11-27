@@ -27,8 +27,10 @@ CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
     created_at DateTime DEFAULT now(),
     updated_at DateTime DEFAULT now(),
 
-    -- HNSW index for fast similarity search
-    INDEX embedding_idx embedding TYPE usearch('cosine', 'M=16,efConstruction=200,efSearch=100')
+    -- Vector similarity index for fast cosine search
+    -- Note: vector_similarity requires ClickHouse 24.1+
+    -- Arguments: method, distance_function, dimensions (384 = all-MiniLM-L6-v2 output)
+    INDEX embedding_idx embedding TYPE vector_similarity('hnsw', 'cosineDistance', 384)
 )
 ENGINE = MergeTree()
 ORDER BY (category, pattern_id)
