@@ -23,7 +23,7 @@ export default function Footer() {
         </a>
       </div>
       <div className="flex items-center gap-4 text-text-secondary">
-        <div>Enterprise Security Platform</div>
+        <div>Enterprise AI Security Platform</div>
         <div className="flex items-center gap-1">
           <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
           <span>System Operational</span>

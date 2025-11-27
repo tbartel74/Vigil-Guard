@@ -86,7 +86,7 @@ export default function TopBar() {
             <div className="text-lg font-bold tracking-tight text-white">
               Vigil Guard
             </div>
-            <div className="text-xs text-text-secondary">Enterprise Security Platform</div>
+            <div className="text-xs text-text-secondary">Enterprise AI Security Platform</div>
           </div>
         </Link>
       </div>

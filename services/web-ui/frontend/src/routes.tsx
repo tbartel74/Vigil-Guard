@@ -118,7 +118,7 @@ const Monitoring = () => {
     <div className="p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">NLP Analysis Monitoring</h1>
+          <h1 className="text-2xl font-semibold">Monitoring</h1>
           <p className="text-slate-400 mt-2">Real-time prompt injection detection and defense analytics.</p>
         </div>
 
