@@ -21,6 +21,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { WEBHOOK_URL } from '../helpers/webhook.js';
 
 // Timeout for health checks (5 seconds per service)
 const HEALTH_CHECK_TIMEOUT = 5000;
@@ -166,11 +167,10 @@ describe('Service Health Checks (Smoke Tests)', () => {
     test('n8n webhook endpoint should be accessible', async () => {
       // This doesn't test execution, just that the webhook URL is reachable
       // Real webhook test in other suites
-      // v2.0.0: Updated webhook URL
-      const webhookUrl = 'http://localhost:5678/webhook/vigil-guard-2';
+      // v2.0.0: Uses centralized WEBHOOK_URL from helpers/webhook.js
 
       try {
-        const response = await fetchWithTimeout(webhookUrl, {
+        const response = await fetchWithTimeout(WEBHOOK_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

@@ -17,8 +17,37 @@ dotenv.config({ path: resolve(__dirname, '../../../../.env') });
 // This prevents test failures from corrupting production config
 let originalPiiConfig = null;
 
-// v2.0.0: Updated webhook URL for 3-branch detection pipeline
-export const WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
+// v2.0.0: Webhook URL configuration
+// Priority: 1) VIGIL_WEBHOOK_URL from .env, 2) default fallback
+const DEFAULT_WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
+
+/**
+ * Get webhook URL from environment or use default
+ * Logs helpful message on first call if using default
+ */
+function getWebhookUrl() {
+  const envUrl = process.env.VIGIL_WEBHOOK_URL;
+
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Only log once per test run
+  if (!getWebhookUrl._warned) {
+    getWebhookUrl._warned = true;
+    console.log('');
+    console.log('ℹ️  VIGIL_WEBHOOK_URL not set in .env - using default:');
+    console.log(`   ${DEFAULT_WEBHOOK_URL}`);
+    console.log('');
+    console.log('   To configure custom webhook, add to your .env:');
+    console.log('   VIGIL_WEBHOOK_URL=http://localhost:5678/webhook/your-webhook-id');
+    console.log('');
+  }
+
+  return DEFAULT_WEBHOOK_URL;
+}
+
+export const WEBHOOK_URL = getWebhookUrl();
 
 function getClickhouseConnection() {
   // Ensure CLICKHOUSE_HOST has protocol and port

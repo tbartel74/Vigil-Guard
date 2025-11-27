@@ -14,10 +14,10 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { sendToWorkflow, waitForClickHouseEvent } from '../helpers/webhook.js';
+import { sendToWorkflow, waitForClickHouseEvent, WEBHOOK_URL } from '../helpers/webhook.js';
 
-// v2.0.0: Updated webhook URL for 3-branch detection pipeline
-const WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
+// v2.0.0: WEBHOOK_URL is now imported from helpers/webhook.js
+// Configure via VIGIL_WEBHOOK_URL in .env or use default
 
 // v2.0.0: detected_language is now a top-level field in events_v2
 describe('Language Detection - Polish Text', () => {
