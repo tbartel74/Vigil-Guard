@@ -966,7 +966,7 @@ app.post("/api/feedback/submit", authenticate, qualityFeedbackLimiter, async (re
       return res.status(400).json({ error: "Invalid report_type. Must be 'FP' or 'TP'" });
     }
 
-    // Fetch event details from ClickHouse (events_v2 table)
+// Fetch event details from ClickHouse (events_v2 table)
     const eventDetails = await getEventDetailsV2(event_id);
     if (!eventDetails) {
       return res.status(404).json({ error: "Event not found" });

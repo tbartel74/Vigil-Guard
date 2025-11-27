@@ -280,7 +280,7 @@ export interface FPReportDetailed {
   detected_language: string;
   decision_source: string;
 
-  // Additional fields from events_v2 (for full branch analysis rendering like Monitoring)
+// Additional fields from events_v2 (for full branch analysis rendering like Monitoring)
   branch_a_score?: number;
   branch_b_score?: number;
   branch_c_score?: number;
