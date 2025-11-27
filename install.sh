@@ -727,6 +727,7 @@ create_data_directories() {
     mkdir -p vigil_data/prompt-guard-cache
     mkdir -p vigil_data/caddy-data
     mkdir -p vigil_data/caddy-config
+    mkdir -p vigil_data/semantic-models
 
     log_success "Data directories created at: $(pwd)/vigil_data/"
 

@@ -11,9 +11,9 @@ Last updated: 2025-11-26
 
 ## Quick links
 - Start: `overview/README.md`, `overview/QUICKSTART.md`
-- Architektura: `architecture/system.md`, `architecture/pipeline.md`, `architecture/branches.md`
-- Konfiguracja: `config/unified-config.md`, `config/heuristics.md`, `config/env.md`
-- Serwisy: `services/heuristics.md`, `services/semantic.md`, `services/nlp-safety.md`, `services/pii.md`, `services/workflow.md`, `services/web-ui.md`
+- Architecture: `architecture/system.md`, `architecture/pipeline.md`, `architecture/branches.md`
+- Configuration: `config/unified-config.md`, `config/heuristics.md`, `config/env.md`
+- Services: `services/heuristics.md`, `services/semantic.md`, `services/nlp-safety.md`, `services/pii.md`, `services/workflow.md`, `services/web-ui.md`
 - API/Logs: `api/events_v2.md`, `api/plugin.md`, `api/web-api.md`
 - Operations: `operations/installation.md`, `operations/docker.md`, `operations/ci-cd.md`, `operations/troubleshooting.md`
 - Security: `security/threat-detection.md`, `security/sanitization.md`, `security/pii-security.md`

@@ -132,6 +132,9 @@ services:
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-admin}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:?ERROR - CLICKHOUSE_PASSWORD must be set in .env file}
       - CLICKHOUSE_DATABASE=${CLICKHOUSE_DB:-n8n_logs}
+      - HEURISTICS_SERVICE_URL=${HEURISTICS_SERVICE_URL:-http://vigil-heuristics:5005}
+      - SEMANTIC_SERVICE_URL=${SEMANTIC_SERVICE_URL:-http://vigil-semantic-service:5006}
+      - PROMPT_GUARD_URL=${PROMPT_GUARD_URL:-http://vigil-prompt-guard-api:8000}
     ports:
       - "${BACKEND_PORT:-8787}:8787"
     volumes:

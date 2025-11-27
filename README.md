@@ -35,17 +35,17 @@ Vigil Guard is a comprehensive security platform designed to protect Large Langu
 ### n8n Workflow Pipeline
 The complete processing pipeline with 40 nodes handling threat detection, sanitization, and logging:
 
-![n8n Workflow Pipeline](docs/pic/workflow-pipeline.png)
+![n8n Workflow Pipeline](docs/pic/Workflow-pipeline.png)
 
 ### Monitoring Dashboard
 Real-time analytics with Grafana dashboards showing threat detection, processing volumes, and system health:
 
-![Monitoring Dashboard](docs/pic/monitoring-dashboard.png)
+![Monitoring Dashboard](docs/pic/Monitoring-panel.png)
 
 ### Investigation Panel
 Advanced prompt search and analysis interface for investigating security events with detailed decision breakdowns:
 
-![Investigation Panel](docs/pic/investigation-panel.png)
+![Investigation Panel](docs/pic/Investigation.png)
 
 ### Data Retention Policy
 Automatic data lifecycle management with configurable TTL policies, disk usage monitoring, and force cleanup controls:

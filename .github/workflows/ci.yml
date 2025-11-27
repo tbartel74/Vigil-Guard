@@ -125,6 +125,8 @@ jobs:
           - web-ui-backend
           - web-ui-frontend
           - prompt-guard-api
+          - heuristics-service
+          - semantic-service
 
     steps:
       - uses: actions/checkout@v4
@@ -145,6 +147,16 @@ jobs:
         if: matrix.service == 'prompt-guard-api'
         working-directory: prompt-guard-api
         run: docker build -t vigil-guard-prompt-guard-api:test .
+
+      - name: Build Heuristics Service
+        if: matrix.service == 'heuristics-service'
+        working-directory: services/heuristics-service
+        run: docker build -t vigil-guard-heuristics-service:test .
+
+      - name: Build Semantic Service
+        if: matrix.service == 'semantic-service'
+        working-directory: services/semantic-service
+        run: docker build -t vigil-guard-semantic-service:test .
 
       - name: Smoke test - Start container
         env:
@@ -176,6 +188,20 @@ jobs:
                 -e MOCK_MODEL=true \
                 vigil-guard-prompt-guard-api:test
               sleep 8
+              docker logs "${CONTAINER_NAME}"
+              ;;
+            heuristics-service)
+              docker run -d --name "${CONTAINER_NAME}" \
+                -e NODE_ENV=test \
+                vigil-guard-heuristics-service:test
+              sleep 5
+              docker logs "${CONTAINER_NAME}"
+              ;;
+            semantic-service)
+              docker run -d --name "${CONTAINER_NAME}" \
+                -e NODE_ENV=test \
+                vigil-guard-semantic-service:test
+              sleep 5
               docker logs "${CONTAINER_NAME}"
               ;;
           esac
@@ -220,6 +246,12 @@ jobs:
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:8000/" || exit 1
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS -X POST http://127.0.0.1:8000/detect -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'" || exit 1
               ;;
+            heuristics-service)
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:5005/health" || exit 1
+              ;;
+            semantic-service)
+              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:5006/health" || exit 1
+              ;;
           esac
 
       - name: Cleanup
@@ -250,7 +282,7 @@ jobs:
       - name: Check required services
         run: |
           services=$(docker compose config --services)
-          required="web-ui-backend web-ui-frontend clickhouse grafana n8n caddy"
+          required="web-ui-backend web-ui-frontend clickhouse grafana n8n caddy heuristics-service semantic-service"
           for svc in $required; do
             echo "$services" | grep -q "$svc" || (echo "Missing service: $svc" && exit 1)
           done

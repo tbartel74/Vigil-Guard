@@ -237,6 +237,12 @@ app.get("/api/events-v2/:eventId", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Event ID is required" });
     }
 
+    // Validate UUID format (UUIDv4)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID format" });
+    }
+
     const event = await getEventDetailsV2(eventId);
     if (!event) {
       return res.status(404).json({ error: "Event not found" });
@@ -290,8 +296,11 @@ app.get("/api/branches/health", authenticate, async (req, res) => {
     const allHealthy = branchA.status === 'healthy' && branchB.status === 'healthy' && branchC.status === 'healthy';
     const anyHealthy = branchA.status === 'healthy' || branchB.status === 'healthy' || branchC.status === 'healthy';
 
-    res.json({
-      overall_status: allHealthy ? 'healthy' : (anyHealthy ? 'degraded' : 'offline'),
+    const overallStatus = allHealthy ? 'healthy' : (anyHealthy ? 'degraded' : 'offline');
+    const httpStatus = overallStatus === 'degraded' ? 503 : 200;
+
+    res.status(httpStatus).json({
+      overall_status: overallStatus,
       branches: {
         A: branchA,
         B: branchB,
