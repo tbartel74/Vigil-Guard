@@ -389,7 +389,7 @@
       "targets": [
         {
           "format": "time_series",
-          "query": "SELECT toStartOfMinute(timestamp) as time, avg(branch_a_score) as \"Heuristics (A)\", avg(branch_b_score) as \"Semantic (B)\", avg(branch_c_score) as \"LLM Guard (C)\" FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') GROUP BY time ORDER BY time",
+          "query": "SELECT toStartOfMinute(timestamp) as time, avg(branch_a_score) as \"Heuristics (A)\", avg(branch_b_score) as \"Semantic (B)\", avg(branch_c_score) as \"NLP Analysis (C)\" FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') GROUP BY time ORDER BY time",
           "refId": "A"
         }
       ],
@@ -435,7 +435,7 @@
       "targets": [
         {
           "format": "table",
-          "query": "SELECT 'Heuristics (A)' as metric, round(avg(branch_a_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') UNION ALL SELECT 'Semantic (B)' as metric, round(avg(branch_b_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') UNION ALL SELECT 'LLM Guard (C)' as metric, round(avg(branch_c_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC')",
+          "query": "SELECT 'Heuristics (A)' as metric, round(avg(branch_a_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') UNION ALL SELECT 'Semantic (B)' as metric, round(avg(branch_b_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC') UNION ALL SELECT 'NLP Analysis (C)' as metric, round(avg(branch_c_score), 1) as value FROM n8n_logs.events_v2 WHERE timestamp >= toDateTime64($from, 3, 'UTC') AND timestamp <= toDateTime64($to, 3, 'UTC')",
           "refId": "A"
         }
       ],
