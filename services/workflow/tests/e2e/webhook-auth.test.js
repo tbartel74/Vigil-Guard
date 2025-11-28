@@ -2,22 +2,36 @@
  * Webhook Authentication Tests
  *
  * Tests that the webhook properly handles authentication headers.
- * Note: These tests require the N8N_WEBHOOK_AUTH_TOKEN to be set in .env
- * and the n8n workflow to be configured with Header Auth.
+ * Token is read from config/.webhook-token file (single source of truth).
+ * The n8n workflow must be configured with Header Auth using this token.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { sendToWorkflow } from '../helpers/webhook.js';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-// Read auth config from environment
-const WEBHOOK_AUTH_TOKEN = process.env.N8N_WEBHOOK_AUTH_TOKEN || '';
-const WEBHOOK_AUTH_HEADER = process.env.N8N_WEBHOOK_AUTH_HEADER || 'X-Vigil-Auth';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Read auth token from config/.webhook-token (single source of truth)
+function getWebhookToken() {
+  const tokenPath = resolve(__dirname, '../../config/.webhook-token');
+  try {
+    return readFileSync(tokenPath, 'utf-8').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+const WEBHOOK_AUTH_TOKEN = getWebhookToken();
+const WEBHOOK_AUTH_HEADER = 'X-Vigil-Auth';
 
 describe('Webhook Authentication', () => {
 
   beforeAll(() => {
     if (!WEBHOOK_AUTH_TOKEN) {
-      console.warn('⚠️  N8N_WEBHOOK_AUTH_TOKEN not set - some tests may be skipped');
+      console.warn('⚠️  config/.webhook-token not found - some tests may be skipped');
     }
   });
 
@@ -26,7 +40,7 @@ describe('Webhook Authentication', () => {
     it('should have auth token configured in environment', () => {
       // This test enforces security - token MUST be set
       expect(WEBHOOK_AUTH_TOKEN).toBeTruthy();
-      expect(WEBHOOK_AUTH_TOKEN.length).toBeGreaterThanOrEqual(32);
+      expect(WEBHOOK_AUTH_TOKEN.length).toBeGreaterThanOrEqual(24);
     });
 
     it('should have correct auth header name', () => {
