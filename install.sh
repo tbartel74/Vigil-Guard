@@ -266,6 +266,27 @@ check_prerequisites() {
     # Note: Llama model check is done earlier in check_llama_model() function
     # before user confirms installation
 
+    # Auto-generate language-detector requirements.lock if missing
+    # This ensures reproducible builds with pinned dependency versions
+    LANG_DET_DIR="services/language-detector"
+    if [ -f "$LANG_DET_DIR/requirements.txt" ]; then
+        if [ ! -f "$LANG_DET_DIR/requirements.lock" ]; then
+            log_info "Generating language-detector requirements.lock..."
+            if docker run --rm -v "$(pwd)/$LANG_DET_DIR:/app" -w /app python:3.11-slim \
+                sh -c "pip install --quiet -r requirements.txt && pip freeze > requirements.lock" 2>/dev/null; then
+                if [ -f "$LANG_DET_DIR/requirements.lock" ]; then
+                    log_success "Generated requirements.lock for language-detector"
+                else
+                    log_warning "Failed to generate requirements.lock - will use requirements.txt"
+                fi
+            else
+                log_warning "Could not generate requirements.lock (Docker not ready) - will use requirements.txt"
+            fi
+        else
+            log_success "Language detector requirements.lock found"
+        fi
+    fi
+
     if [ $missing_deps -eq 1 ]; then
         log_error "Missing required dependencies. Please install them and try again."
         exit 1

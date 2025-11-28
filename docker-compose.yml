@@ -86,7 +86,7 @@ services:
   # WORKFLOW ENGINE
   # ============================================
   n8n:
-    image: n8nio/n8n:1.118.2@sha256:a17dbca282c95d2aa5021f0860ca136c1bda529daaa37dbece117c029d65ca39
+    image: n8nio/n8n:1.121.3@sha256:0a65e6e5995c19e0cf7e83d6b08ffa6c1898e8a53ff1658e6e7b22e68576c673
     container_name: vigil-n8n
     user: "node"
     working_dir: /home/node

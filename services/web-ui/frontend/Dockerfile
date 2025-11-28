@@ -12,9 +12,7 @@ ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
 COPY services/web-ui/frontend/package*.json ./
 
 # Install dependencies
-# Note: Using npm install instead of npm ci due to npm workspaces
-# (package-lock.json is at monorepo root, not in workspace)
-RUN npm install
+RUN npm ci
 
 # Copy source files (from root context)
 COPY services/web-ui/frontend/ .

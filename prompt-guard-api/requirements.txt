@@ -1,4 +1,4 @@
-fastapi==0.104.1
+fastapi==0.115.6
 uvicorn==0.24.0
 transformers>=4.46.0
 tokenizers>=0.20.0

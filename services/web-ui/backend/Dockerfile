@@ -8,9 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-# Note: Using npm install instead of npm ci due to npm workspaces
-# (package-lock.json is at monorepo root, not in workspace)
-RUN npm install
+RUN npm ci
 
 # Copy source files
 COPY tsconfig.json ./
@@ -30,8 +28,7 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 
 # Install production dependencies only
-# Note: Using npm install instead of npm ci due to npm workspaces
-RUN npm install --only=production
+RUN npm ci --omit=dev
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
