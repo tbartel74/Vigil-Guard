@@ -39,7 +39,8 @@ function getTieredTimeout(textLength) {
   if (textLength < 500) return timeouts.short;
   if (textLength < 2000) return timeouts.medium;
   if (textLength < 5000) return timeouts.long;
-  return timeouts.veryLong;
+  if (textLength < 50000) return timeouts.veryLong;
+  return 1000; // > 50000 chars: extreme timeout
 }
 
 /**
@@ -70,12 +71,20 @@ const logger = pino({
 // Initialize Express
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || []
-    : /^http:\/\/localhost(:\d+)?$/
-}));
+// Middleware - CORS configuration with validation
+const getAllowedOrigins = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return /^http:\/\/localhost(:\d+)?$/;
+  }
+  const origins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean);
+  if (!origins || origins.length === 0) {
+    logger.warn('ALLOWED_ORIGINS not set in production! Using restrictive default.');
+    return ['http://localhost'];
+  }
+  return origins;
+};
+
+app.use(cors({ origin: getAllowedOrigins() }));
 app.use(express.json({ limit: '1mb' }));
 
 // Rate limiting - consistent with semantic service
@@ -220,14 +229,16 @@ app.post('/analyze', validateRequest, async (req, res) => {
 
   } catch (error) {
     const timing = Date.now() - startTime;
-    logger.error({ request_id, error: error.message }, 'Analysis failed');
+    const errorId = Date.now().toString(36);
+    logger.error({ request_id, errorId, error: error.message, stack: error.stack }, 'Analysis failed');
 
-    // Return degraded response on error
+    // Return fail-secure response on error (BLOCK instead of ALLOW)
     const degradedResult = {
       branch_id: 'A',
       name: 'heuristics',
-      score: 0,
-      threat_level: 'UNKNOWN',
+      score: 100,
+      threat_level: 'HIGH',
+      decision: 'BLOCK',
       confidence: 0.0,
       features: {
         obfuscation: { score: 0, error: true },
@@ -236,10 +247,11 @@ app.post('/analyze', validateRequest, async (req, res) => {
         entropy: { score: 0, error: true },
         security: { score: 0, error: true }
       },
-      explanations: ['Service error - running in degraded mode'],
+      explanations: ['Service error - fail-secure mode activated'],
+      reason: 'Service error - fail-secure mode',
       timing_ms: timing,
       degraded: true,
-      error: error.message
+      errorId
     };
 
     updateMetrics(timing, true);
@@ -279,10 +291,11 @@ function updateMetrics(latency, degraded) {
 
 // Error handling
 app.use((err, req, res, next) => {
-  logger.error({ error: err.message, stack: err.stack }, 'Unhandled error');
+  const errorId = Date.now().toString(36);
+  logger.error({ errorId, error: err.message, stack: err.stack }, 'Unhandled error');
   res.status(500).json({
     error: 'Internal server error',
-    message: err.message,
+    errorId,
     branch_id: 'A',
     degraded: true
   });

@@ -10,6 +10,28 @@
 import { getClickHouseClient } from './clickhouse.js';
 
 // ============================================================================
+// SECURITY: TIME RANGE VALIDATION
+// ============================================================================
+
+const VALID_TIME_RANGES = ['1 HOUR', '6 HOUR', '12 HOUR', '24 HOUR', '7 DAY', '30 DAY', '90 DAY'] as const;
+type TimeRange = typeof VALID_TIME_RANGES[number];
+
+/**
+ * Validates timeRange parameter against whitelist to prevent SQL injection.
+ *
+ * @param timeRange - User-provided time range string
+ * @returns Validated time range from whitelist
+ * @throws Error if timeRange is not in allowed values
+ */
+function validateTimeRange(timeRange: string): TimeRange {
+  const normalized = timeRange.toUpperCase().trim();
+  if (!VALID_TIME_RANGES.includes(normalized as TimeRange)) {
+    throw new Error(`Invalid time range: ${timeRange}. Allowed: ${VALID_TIME_RANGES.join(', ')}`);
+  }
+  return normalized as TimeRange;
+}
+
+// ============================================================================
 // INTERFACES FOR EVENTS_V2
 // ============================================================================
 
@@ -131,6 +153,7 @@ export async function getQuickStatsV2(timeRange: string = '24 HOUR'): Promise<Qu
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     const query = `
       SELECT
         count() AS requests_processed,
@@ -138,7 +161,7 @@ export async function getQuickStatsV2(timeRange: string = '24 HOUR'): Promise<Qu
         countIf(final_status = 'SANITIZED') AS content_sanitized,
         countIf(pii_sanitized = 1) AS pii_sanitized
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
     `;
 
     const resultSet = await client.query({
@@ -176,6 +199,7 @@ export async function getBranchStats(timeRange: string = '24 HOUR'): Promise<Bra
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     const query = `
       SELECT
         round(avg(branch_a_score), 2) AS branch_a_avg,
@@ -184,7 +208,7 @@ export async function getBranchStats(timeRange: string = '24 HOUR'): Promise<Bra
         round(avg(threat_score), 2) AS threat_score_avg,
         round(avg(confidence), 4) AS confidence_avg
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
     `;
 
     const resultSet = await client.query({
@@ -228,6 +252,7 @@ export async function getEventListV2(timeRange: string, limit: number = 100): Pr
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     const query = `
       SELECT
         toString(id) AS id,
@@ -241,7 +266,7 @@ export async function getEventListV2(timeRange: string, limit: number = 100): Pr
         pii_sanitized,
         substring(original_input, 1, 100) AS preview
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
       ORDER BY timestamp DESC
       LIMIT ${limit}
     `;
@@ -488,13 +513,14 @@ export async function getStatusDistribution(timeRange: string = '24 HOUR'): Prom
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     const query = `
       SELECT
         final_status AS status,
         count() AS count,
         round(count() * 100.0 / sum(count()) OVER (), 2) AS percentage
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
       GROUP BY final_status
       ORDER BY count DESC
     `;
@@ -529,19 +555,20 @@ export async function getBoostStats(timeRange: string = '24 HOUR'): Promise<Boos
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     // Use NULLIF to prevent division by zero when no events exist in timeRange
     const query = `
       SELECT
         boost,
         count() AS count,
         COALESCE(
-          round(count() * 100.0 / NULLIF((SELECT count() FROM n8n_logs.events_v2 WHERE timestamp >= now() - INTERVAL ${timeRange}), 0), 2),
+          round(count() * 100.0 / NULLIF((SELECT count() FROM n8n_logs.events_v2 WHERE timestamp >= now() - INTERVAL ${validatedRange}), 0), 2),
           0
         ) AS percentage
       FROM (
         SELECT arrayJoin(boosts_applied) AS boost
         FROM n8n_logs.events_v2
-        WHERE timestamp >= now() - INTERVAL ${timeRange}
+        WHERE timestamp >= now() - INTERVAL ${validatedRange}
           AND length(boosts_applied) > 0
       )
       GROUP BY boost
@@ -579,6 +606,7 @@ export async function getHourlyTrend(): Promise<HourlyTrend[]> {
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange('24 HOUR');
     const query = `
       SELECT
         formatDateTime(toStartOfHour(timestamp), '%Y-%m-%dT%H:00:00Z') AS hour,
@@ -587,7 +615,7 @@ export async function getHourlyTrend(): Promise<HourlyTrend[]> {
         countIf(final_status = 'SANITIZED') AS sanitized,
         countIf(final_status = 'ALLOWED') AS allowed
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL 24 HOUR
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
       GROUP BY toStartOfHour(timestamp)
       ORDER BY hour ASC
     `;
@@ -622,6 +650,7 @@ export async function getPIIStatsV2(timeRange: string = '24 HOUR'): Promise<PIIS
   const client = getClickHouseClient();
 
   try {
+    const validatedRange = validateTimeRange(timeRange);
     // Overview query
     const overviewQuery = `
       SELECT
@@ -629,7 +658,7 @@ export async function getPIIStatsV2(timeRange: string = '24 HOUR'): Promise<PIIS
         round(countIf(pii_sanitized = 1) * 100.0 / count(), 2) AS pii_detection_rate,
         sum(pii_entities_count) AS total_entities
       FROM n8n_logs.events_v2
-      WHERE timestamp >= now() - INTERVAL ${timeRange}
+      WHERE timestamp >= now() - INTERVAL ${validatedRange}
     `;
 
     const overviewResult = await client.query({
@@ -648,7 +677,7 @@ export async function getPIIStatsV2(timeRange: string = '24 HOUR'): Promise<PIIS
       FROM (
         SELECT arrayJoin(pii_types_detected) AS pii_type
         FROM n8n_logs.events_v2
-        WHERE timestamp >= now() - INTERVAL ${timeRange}
+        WHERE timestamp >= now() - INTERVAL ${validatedRange}
           AND pii_sanitized = 1
       )
       GROUP BY pii_type

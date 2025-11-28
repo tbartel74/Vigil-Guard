@@ -7,6 +7,22 @@ const client = require('./client');
 const config = require('../config');
 
 /**
+ * Validates topK parameter to prevent SQL injection.
+ *
+ * @param {number} topK - Number of results to return
+ * @returns {number} Validated topK (clamped to 1-100)
+ * @throws Error if topK is not a valid integer
+ */
+function validateTopK(topK) {
+    const parsed = parseInt(topK, 10);
+    if (isNaN(parsed)) {
+        throw new Error('topK must be a valid integer');
+    }
+    // Clamp to reasonable range
+    return Math.max(1, Math.min(100, parsed));
+}
+
+/**
  * Search for similar patterns using HNSW index
  *
  * @param {number[]} embedding - Query embedding (384 dimensions)
@@ -18,6 +34,7 @@ async function searchSimilar(embedding, topK = config.search.topK) {
         throw new Error(`Invalid embedding: expected array of ${config.model.dimension} floats`);
     }
 
+    const validatedTopK = validateTopK(topK);
     const embeddingStr = embedding.map(v => v.toFixed(8)).join(',');
 
     const sql = `
@@ -29,7 +46,7 @@ async function searchSimilar(embedding, topK = config.search.topK) {
             1 - cosineDistance(embedding, [${embeddingStr}]) AS similarity
         FROM ${config.clickhouse.table}
         ORDER BY distance ASC
-        LIMIT ${topK}
+        LIMIT ${validatedTopK}
         FORMAT JSON
     `;
 
@@ -56,7 +73,8 @@ async function searchSimilar(embedding, topK = config.search.topK) {
  * @returns {Promise<Object>} - Category counts and scores
  */
 async function getCategoryBreakdown(embedding, topK = config.search.topK) {
-    const results = await searchSimilar(embedding, topK);
+    const validatedTopK = validateTopK(topK);
+    const results = await searchSimilar(embedding, validatedTopK);
 
     const categories = {};
     results.forEach((r, i) => {

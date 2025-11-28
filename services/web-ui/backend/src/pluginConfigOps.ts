@@ -4,7 +4,8 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { randomBytes } from 'crypto';
 import { parseFile } from './fileOps.js';
 
 // Token file path (persisted in mounted config volume)
@@ -13,17 +14,29 @@ const TOKEN_FILE = '/config/.webhook-token';
 /**
  * Get webhook auth token from file
  * Token is stored in /config/.webhook-token (mounted volume)
+ * Auto-generates token on first access if file doesn't exist
  */
 function getWebhookToken(): string {
-  if (existsSync(TOKEN_FILE)) {
+  // Auto-generate token if file doesn't exist
+  if (!existsSync(TOKEN_FILE)) {
     try {
-      const token = readFileSync(TOKEN_FILE, 'utf8').trim();
-      return token || '';
+      const newToken = randomBytes(24).toString('base64').replace(/[/+=]/g, '').slice(0, 32);
+      writeFileSync(TOKEN_FILE, newToken, 'utf8');
+      console.log('[Plugin Config] Auto-generated initial webhook token');
+      return newToken;
     } catch (error) {
-      console.warn('[Plugin Config] Failed to read token file:', error);
+      console.warn('[Plugin Config] Failed to auto-generate token file:', error);
+      return '';
     }
   }
-  return '';
+
+  try {
+    const token = readFileSync(TOKEN_FILE, 'utf8').trim();
+    return token || '';
+  } catch (error) {
+    console.warn('[Plugin Config] Failed to read token file:', error);
+    return '';
+  }
 }
 
 const __filename = fileURLToPath(import.meta.url);

@@ -95,6 +95,9 @@ coverage/
 # Vigil Guard Data Directory (persistent volumes)
 vigil_data/
 
+# Webhook authentication token (runtime secret, not for repository)
+services/workflow/config/.webhook-token
+
 # LLM Models (must be downloaded separately)
 # Keep the directory structure but ignore model files
 Llama-Prompt-Guard-2-86M/*

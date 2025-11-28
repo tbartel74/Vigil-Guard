@@ -42,11 +42,21 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(compression());
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || []
-    : /^http:\/\/localhost(:\d+)?$/
-}));
+
+// CORS configuration with validation
+const getAllowedOrigins = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return /^http:\/\/localhost(:\d+)?$/;
+  }
+  const origins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean);
+  if (!origins || origins.length === 0) {
+    logger.warn('ALLOWED_ORIGINS not set in production! Using restrictive default.');
+    return ['http://localhost'];
+  }
+  return origins;
+};
+
+app.use(cors({ origin: getAllowedOrigins() }));
 app.use(express.json({ limit: '1mb' }));
 
 // Rate limiting
@@ -104,9 +114,9 @@ app.post('/analyze', async (req, res) => {
             });
         }
 
-        if (text.length > 10000) {
+        if (text.length > 100000) {
             return res.status(400).json({
-                error: 'Text too long: maximum 10000 characters'
+                error: 'Text too long: maximum 100000 characters'
             });
         }
 
@@ -123,10 +133,11 @@ app.post('/analyze', async (req, res) => {
         try {
             embedding = await embeddingGenerator.generate(text);
         } catch (e) {
-            logger.error({ error: e.message }, 'Embedding generation failed');
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Embedding generation failed');
             const timingMs = Date.now() - startTime;
             return res.json(
-                buildDegradedResult(`Embedding failed: ${e.message}`, timingMs)
+                buildDegradedResult('Embedding generation failed', timingMs)
             );
         }
 
@@ -135,10 +146,11 @@ app.post('/analyze', async (req, res) => {
         try {
             results = await searchSimilar(embedding, config.search.topK);
         } catch (e) {
-            logger.error({ error: e.message }, 'ClickHouse search failed');
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'ClickHouse search failed');
             const timingMs = Date.now() - startTime;
             return res.json(
-                buildDegradedResult(`Search failed: ${e.message}`, timingMs)
+                buildDegradedResult('Database search failed', timingMs)
             );
         }
 
@@ -161,10 +173,11 @@ app.post('/analyze', async (req, res) => {
         res.json(response);
 
     } catch (e) {
-        logger.error({ error: e.message, stack: e.stack }, 'Unexpected error');
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Unexpected error');
         const timingMs = Date.now() - startTime;
         res.status(500).json(
-            buildDegradedResult(`Internal error: ${e.message}`, timingMs)
+            buildDegradedResult('Internal server error', timingMs)
         );
     }
 });
@@ -240,7 +253,9 @@ app.get('/metrics', async (req, res) => {
             }
         });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Metrics endpoint error');
+        res.status(500).json({ error: 'Internal server error', errorId });
     }
 });
 
@@ -316,8 +331,8 @@ function startPeriodicHealthCheck(intervalMs = 30000) {
                     serviceReady = modelReady && clickhouseReady;
                     logger.info('ClickHouse connection recovered');
                 }
-            } catch {
-                // Still not ready, will retry next interval
+            } catch (error) {
+                logger.error({ error: error.message }, 'Periodic health check failed');
             }
         }
     }, intervalMs);

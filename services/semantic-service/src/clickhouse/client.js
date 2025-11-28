@@ -110,7 +110,10 @@ class ClickHouseClient {
         try {
             await this.query('SELECT 1', 'text');
             return true;
-        } catch {
+        } catch (error) {
+            // Note: Logger not available in client class, would need to be injected
+            // For now, use console.warn for visibility
+            console.warn('ClickHouse health check failed:', error.message);
             return false;
         }
     }

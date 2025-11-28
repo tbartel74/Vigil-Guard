@@ -163,9 +163,10 @@ function buildBranchResult(results, timingMs, degraded = false) {
  * IMPORTANT: Degraded responses return HTTP 200 (not 5xx) by design.
  * This allows the Arbiter to continue processing with other branches.
  *
- * Unified Contract v2.1:
- * - score: 0 (neutral, doesn't affect final decision)
- * - threat_level: LOW (safe default)
+ * Unified Contract v2.1 (FAIL-SECURE):
+ * - score: 100 (BLOCK, fail-secure mode)
+ * - threat_level: HIGH (secure default)
+ * - decision: 'BLOCK' (explicit decision)
  * - degraded: true (signals to Arbiter to use other branches)
  * - critical_signals.high_similarity: false (no boost applied)
  *
@@ -176,14 +177,17 @@ function buildBranchResult(results, timingMs, degraded = false) {
  *
  * @param {string} reason - Reason for degraded mode
  * @param {number} timingMs - Processing time
- * @returns {Object} - Degraded branch_result with score=0, degraded=true
+ * @param {Object} options - Options object with failSecure flag
+ * @returns {Object} - Degraded branch_result with score=100 (fail-secure), degraded=true
  */
-function buildDegradedResult(reason, timingMs) {
+function buildDegradedResult(reason, timingMs, options = {}) {
+    const failSecure = options.failSecure !== false; // Default to fail-secure
     return {
         branch_id: config.branch.id,
         name: config.branch.name,
-        score: 0,
-        threat_level: ThreatLevel.LOW,
+        score: failSecure ? 100 : 0,
+        threat_level: failSecure ? ThreatLevel.HIGH : ThreatLevel.LOW,
+        decision: failSecure ? 'BLOCK' : 'ALLOW',
         confidence: 0,
         // Unified contract v2.1: critical_signals for Arbiter
         critical_signals: {
@@ -197,6 +201,7 @@ function buildDegradedResult(reason, timingMs) {
             degraded_reason: reason
         },
         explanations: [`Service degraded: ${reason}`],
+        reason: failSecure ? 'Service error - fail-secure mode' : 'Service error - degraded mode',
         timing_ms: timingMs,
         degraded: true
     };

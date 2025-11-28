@@ -97,6 +97,12 @@ export async function detectStructure(text) {
   }
 
   // 5. Nested structure detection
+  // ReDoS protection: limit text length before applying nested patterns to prevent catastrophic backtracking
+  const MAX_STRUCTURE_CHECK_LENGTH = 10000;
+  const textToCheck = text.length > MAX_STRUCTURE_CHECK_LENGTH
+    ? text.slice(0, MAX_STRUCTURE_CHECK_LENGTH)
+    : text;
+
   const nestedPatterns = [
     /\[\[.*?\[\[.*?\]\].*?\]\]/g,     // Nested double brackets
     /\{\{.*?\{\{.*?\}\}.*?\}\}/g,     // Nested double braces
@@ -105,7 +111,7 @@ export async function detectStructure(text) {
   ];
 
   for (const pattern of nestedPatterns) {
-    const matches = text.match(pattern);
+    const matches = textToCheck.match(pattern);
     if (matches) {
       results.nested_structures += matches.length;
     }
