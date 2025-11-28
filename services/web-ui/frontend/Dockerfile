@@ -30,8 +30,9 @@ RUN npm run build
 # Stage 2: Production server
 FROM nginx:alpine
 
+# Security: Update Alpine packages to fix CVE-2025-65018 (libpng)
 # Install curl for healthcheck
-RUN apk add --no-cache curl
+RUN apk upgrade --no-cache && apk add --no-cache curl
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
