@@ -181,6 +181,18 @@ Vigil Guard uses JSON Web Tokens (JWT) for session management:
 - **Token Format**: `Bearer <token>` in `Authorization` header
 - **Auto-refresh**: Not implemented (users must re-login after expiration)
 
+### Webhook Authentication
+
+Vigil Guard uses Header Authentication to secure the n8n webhook endpoint.
+
+| Property | Value |
+|----------|-------|
+| Header Name | `X-Vigil-Auth` |
+| Token Location | `.env` → `N8N_WEBHOOK_AUTH_TOKEN` |
+| Configuration | Manual in n8n Webhook node |
+
+See [WEBHOOK_SECURITY.md](./WEBHOOK_SECURITY.md) for detailed configuration instructions.
+
 ### Role-Based Access Control (RBAC)
 
 The system supports granular permissions:

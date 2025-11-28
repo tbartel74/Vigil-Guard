@@ -15,7 +15,9 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   mode: 'monitor', // 'monitor', 'block', 'sanitize'
   cache: true,
-  cacheTimeout: 300000 // 5 minutes
+  cacheTimeout: 300000, // 5 minutes
+  webhookAuthToken: '',
+  webhookAuthHeader: 'X-Vigil-Auth'
 };
 
 // Timeouts and limits
@@ -65,6 +67,8 @@ async function fetchConfigFromGUI() {
         mode: 'monitor',
         cache: true,
         cacheTimeout: 300000,
+        webhookAuthToken: data.webhookAuthToken || '',
+        webhookAuthHeader: data.webhookAuthHeader || 'X-Vigil-Auth',
         lastFetch: Date.now()
       }
     });
@@ -524,14 +528,26 @@ async function callWebhook(webhookUrl, payload) {
   console.log('[Vigil Guard] 📦 Payload:', JSON.stringify(payload, null, 2));
 
   try {
+    // Get current config for auth token
+    const config = await getConfig();
+
+    // Build headers object
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add auth header if token is configured
+    if (config.webhookAuthToken) {
+      headers[config.webhookAuthHeader || 'X-Vigil-Auth'] = config.webhookAuthToken;
+      console.log('[Vigil Guard] 🔐 Adding auth header:', config.webhookAuthHeader || 'X-Vigil-Auth');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(payload),
       signal: controller.signal
     }).finally(() => clearTimeout(timeout));

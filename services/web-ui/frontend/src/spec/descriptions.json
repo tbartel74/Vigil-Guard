@@ -193,6 +193,12 @@
     "impact": "High",
     "category": "Security & Performance"
   },
+  "EXTERNAL_DOMAIN": {
+    "title": "External Domain / IP Address",
+    "description": "The domain name or IP address used by browser plugins and external systems to connect to Vigil Guard. When deploying on a network server (not localhost), set this to the server's IP address (e.g., 192.168.1.100) or domain name (e.g., vigil.example.com). Browser plugins automatically fetch this value and use it to construct webhook URLs. For local development, keep the default 'localhost'.",
+    "impact": "Critical",
+    "category": "Network Access"
+  },
   "ARBITER_WEIGHT_PATTERN": {
     "title": "Pattern Detection Weight",
     "description": "Weight for Branch A (Pattern Detection) in Arbiter scoring (0.0-1.0). Controls how much the pattern matching results influence the final decision. Higher weight increases importance of regex-based detection. Default: 0.4 (40% influence)",
@@ -300,6 +306,18 @@
     "description": "Global toggle for browser extension functionality. When disabled, extension enters fail-open mode: all prompts are automatically allowed without validation. Useful for emergency bypass or maintenance. Browser extensions auto-detect this setting within 5 minutes. Default: enabled",
     "impact": "Critical",
     "category": "Plugin Configuration"
+  },
+  "WEBHOOK_AUTH_TOKEN": {
+    "title": "Webhook Authentication Token",
+    "description": "Secret token used for Header Authentication on the n8n webhook endpoint. Browser plugins and external systems must include this token in the X-Vigil-Auth header when calling the webhook. This token is auto-generated during installation and should be kept secret.",
+    "impact": "Critical",
+    "category": "Security"
+  },
+  "WEBHOOK_AUTH_HEADER": {
+    "title": "Webhook Authentication Header",
+    "description": "The HTTP header name used for webhook authentication. Default is X-Vigil-Auth. Browser plugins automatically include this header with the authentication token when sending requests to the webhook.",
+    "impact": "High",
+    "category": "Security"
   },
   "RETENTION_EVENTS_RAW_TTL": {
     "title": "Raw Events Retention (days)",

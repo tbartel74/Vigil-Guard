@@ -654,6 +654,21 @@
           "path": "performance.max_input_length"
         }
       ]
+    },
+    {
+      "name": "EXTERNAL_DOMAIN",
+      "groupId": "quick",
+      "label": "External Domain",
+      "type": "string",
+      "required": true,
+      "help": "Domain or IP address for external access (e.g., 192.168.1.100 or vigil.example.com). Used by plugins and external workflows to connect to Vigil Guard. Default: localhost",
+      "default": "localhost",
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "network.external_domain"
+        }
+      ]
     }
   ]
 }

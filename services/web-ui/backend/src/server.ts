@@ -11,7 +11,7 @@ import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.j
 import { submitFalsePositiveReport, getFPStats, getFPReportList, FPReportListParams, getFPReportDetails, getFPStatsByReason, getFPStatsByCategory, getFPStatsByReporter, getFPTrend } from "./clickhouse.js";
 import { getQuickStatsV2, getBranchStats, getEventListV2, searchEventsV2, getEventDetailsV2, getStatusDistribution, getBoostStats, getHourlyTrend, getPIIStatsV2, SearchParamsV2 } from "./clickhouse-v2.js";
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
-import { initPluginConfigTable } from "./pluginConfigOps.js";
+import { initPluginConfigTable, getExternalDomain } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
 import { analyzeDualLanguage } from "./piiAnalyzer.js";
 import { syncPiiConfig } from "./piiConfigSync.js";
@@ -29,6 +29,19 @@ const qualityFeedbackLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many feedback reports, please try again later" },
+});
+
+// Rate limiting for public plugin config endpoint (prevent brute force)
+const pluginConfigLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10, // 10 requests per minute per IP (reasonable for plugin refresh)
+  standardHeaders: true, // Return RateLimit-* headers
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+  handler: (req, res) => {
+    console.warn(`[Rate Limit] Plugin config endpoint abuse detected from IP: ${req.ip}`);
+    res.status(429).json({ error: "Too many requests, please try again later" });
+  }
 });
 
 // Validate SESSION_SECRET is set (CRITICAL SECURITY REQUIREMENT)
@@ -64,11 +77,58 @@ app.use(session({
   }
 }) as unknown as express.RequestHandler);
 
-// Browser origin will be http://localhost (Caddy on :80)
-// We also allow :8080 in case you expose a dev-port
+// Dynamic CORS configuration with external domain support
+// Allows: localhost (any port), external domain (http/https), undefined (same-origin)
 app.use(
   cors({
-    origin: [/^http:\/\/localhost(:\d+)?$/],
+    origin: async (origin, callback) => {
+      // Allow requests with no origin (same-origin, Postman, curl, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      try {
+        // Read external domain from unified_config.json
+        const externalDomain = await getExternalDomain();
+
+        // Build allowed origins list
+        const allowedOrigins: RegExp[] = [
+          /^http:\/\/localhost(:\d+)?$/,     // localhost with any port
+          /^https?:\/\/localhost(:\d+)?$/,   // localhost with http/https
+          /^chrome-extension:\/\/[a-z]+$/,   // Chrome extensions
+          /^moz-extension:\/\/[a-f0-9-]+$/,  // Firefox extensions
+        ];
+
+        // Add external domain patterns (if not localhost)
+        if (externalDomain && externalDomain !== 'localhost') {
+          // Escape special regex characters in domain
+          const escapedDomain = externalDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+          // Allow both http and https for external domain
+          allowedOrigins.push(
+            new RegExp(`^https?://${escapedDomain}(:\\d+)?$`)
+          );
+        }
+
+        // Check if origin matches any allowed pattern
+        const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          console.warn(`[CORS] Rejected origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      } catch (error) {
+        console.error('[CORS] Error checking external domain:', error);
+        // Fallback to localhost-only on error
+        if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS configuration error'));
+        }
+      }
+    },
     credentials: true // Enable credentials for authentication
   })
 );
@@ -82,8 +142,8 @@ app.get("/health", (req, res) => {
 // Authentication routes (public)
 app.use("/api/auth", authRoutes);
 
-// Plugin configuration routes (public /plugin-config, protected /plugin-config/settings)
-app.use("/api", pluginConfigRoutes);
+// Plugin configuration routes (public /plugin-config with rate limiting, protected /plugin-config/settings)
+app.use("/api", pluginConfigRoutes(pluginConfigLimiter));
 
 // Retention policy routes (protected - requires can_view_configuration)
 app.use("/api/retention", retentionRoutes);

@@ -296,5 +296,8 @@
       }
     },
     "notes": "Binary classification: CRITICAL (is_attack=true, risk_score=0.95) or MINIMAL (is_attack=false, risk_score=0.01). Model returns boolean decision with high confidence."
+  },
+  "network": {
+    "external_domain": "localhost"
   }
 }

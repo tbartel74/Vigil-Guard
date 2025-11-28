@@ -23,8 +23,8 @@
     },
     {
       "id": "plugin",
-      "title": "Web Browser Plugin",
-      "description": "Configure browser extension settings and webhook endpoints",
+      "title": "Webhook and Plugin",
+      "description": "Configure webhook security and browser extension settings",
       "overview": "Manage configuration for the Vigil Guard browser extension. Set webhook URL, GUI address, and enable/disable plugin integration. Browser extensions automatically fetch this configuration on install and refresh every 5 minutes.",
       "groups": []
     }

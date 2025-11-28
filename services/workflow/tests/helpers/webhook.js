@@ -21,6 +21,34 @@ let originalPiiConfig = null;
 // Priority: 1) VIGIL_WEBHOOK_URL from .env, 2) default fallback
 const DEFAULT_WEBHOOK_URL = 'http://localhost:5678/webhook/vigil-guard-2';
 
+// Webhook authentication - fetched from backend API (single source of truth)
+// Token is stored in /config/.webhook-token and served via /api/plugin-config
+const WEBHOOK_AUTH_HEADER = process.env.N8N_WEBHOOK_AUTH_HEADER || 'X-Vigil-Auth';
+let cachedWebhookToken = null;
+
+/**
+ * Get webhook auth token from backend API
+ * Token is managed via Web UI (Configuration → Webhook and Plugin)
+ */
+async function getWebhookAuthToken() {
+  if (cachedWebhookToken) {
+    return cachedWebhookToken;
+  }
+
+  try {
+    const response = await fetch('http://localhost:8787/api/plugin-config');
+    if (response.ok) {
+      const data = await response.json();
+      cachedWebhookToken = data.webhookAuthToken || '';
+      return cachedWebhookToken;
+    }
+  } catch (error) {
+    console.warn('⚠️  Failed to fetch webhook token from API:', error.message);
+  }
+
+  return '';
+}
+
 /**
  * Get webhook URL from environment or use default
  * Logs helpful message on first call if using default
@@ -120,17 +148,35 @@ export function parseJSONSafely(jsonString, fieldName, context = '') {
  * @returns {Promise<Object>} Response from workflow
  */
 export async function sendToWorkflow(chatInput, options = {}) {
+  // Get auth token from backend API (single source of truth)
+  const webhookAuthToken = await getWebhookAuthToken();
+
+  // Require auth token for security (tests should fail without it)
+  if (!webhookAuthToken) {
+    console.warn('⚠️  WARNING: Webhook auth token not configured');
+    console.warn('   Generate token in Web UI → Configuration → Webhook and Plugin');
+    console.warn('   Then configure it in n8n Webhook node credentials');
+  }
+
   const payload = {
     chatInput,
     ...options
   };
 
+  // Build headers with optional auth
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
+  // Add auth header if token is configured
+  if (webhookAuthToken) {
+    headers[WEBHOOK_AUTH_HEADER] = webhookAuthToken;
+  }
+
   const response = await fetch(WEBHOOK_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    },
+    headers,
     body: JSON.stringify(payload)
   });
 

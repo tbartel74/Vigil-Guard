@@ -4,6 +4,27 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { parseFile } from './fileOps.js';
+
+// Token file path (persisted in mounted config volume)
+const TOKEN_FILE = '/config/.webhook-token';
+
+/**
+ * Get webhook auth token from file
+ * Token is stored in /config/.webhook-token (mounted volume)
+ */
+function getWebhookToken(): string {
+  if (existsSync(TOKEN_FILE)) {
+    try {
+      const token = readFileSync(TOKEN_FILE, 'utf8').trim();
+      return token || '';
+    } catch (error) {
+      console.warn('[Plugin Config] Failed to read token file:', error);
+    }
+  }
+  return '';
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,6 +38,31 @@ export interface PluginConfig {
   version?: string;
   updatedAt?: string;
   updatedBy?: string;
+  webhookAuthToken?: string;
+  webhookAuthHeader?: string;
+}
+
+/**
+ * Read external domain from unified_config.json
+ * Defaults to 'localhost' if not configured
+ */
+export async function getExternalDomain(): Promise<string> {
+  try {
+    const unifiedConfig = await parseFile('unified_config.json');
+    const domain = unifiedConfig.parsed?.network?.external_domain;
+    return domain || 'localhost';
+  } catch (error) {
+    console.warn('[Plugin Config] Failed to read external domain from unified_config.json, using default:', error);
+    return 'localhost';
+  }
+}
+
+/**
+ * Generate dynamic webhook URL based on external domain configuration
+ */
+async function generateWebhookUrl(): Promise<string> {
+  const domain = await getExternalDomain();
+  return `http://${domain}:5678/webhook/vigil-guard-2`;
 }
 
 /**
@@ -65,6 +111,7 @@ export function initPluginConfigTable(): void {
 /**
  * Get current plugin configuration
  * Used by both public API (plugin) and protected API (admin UI)
+ * Generates webhook URL dynamically from unified_config.json network.external_domain
  */
 export async function getPluginConfig(): Promise<PluginConfig> {
   const db = new Database(DB_PATH);
@@ -76,13 +123,18 @@ export async function getPluginConfig(): Promise<PluginConfig> {
       throw new Error('Plugin configuration not found');
     }
 
+    // Generate dynamic webhook URL based on external domain configuration
+    const dynamicWebhookUrl = await generateWebhookUrl();
+
     return {
-      webhookUrl: row.webhook_url,
+      webhookUrl: dynamicWebhookUrl,  // Dynamic URL from unified_config.json
       guiUrl: row.gui_url,
       enabled: Boolean(row.enabled),
       version: '1.4.0',  // Current Vigil Guard version
       updatedAt: row.updated_at,
-      updatedBy: row.updated_by
+      updatedBy: row.updated_by,
+      webhookAuthToken: getWebhookToken(),
+      webhookAuthHeader: process.env.N8N_WEBHOOK_AUTH_HEADER || 'X-Vigil-Auth'
     };
   } catch (error) {
     console.error('[Plugin Config] Failed to fetch config:', error);
