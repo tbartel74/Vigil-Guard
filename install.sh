@@ -380,6 +380,10 @@ generate_secure_passwords() {
     echo -e "${GREEN}Backend Session Secret:${NC}"
     echo -e "  ${BLUE}${SESSION_SECRET}${NC}"
     echo ""
+    echo -e "${GREEN}n8n Webhook Security:${NC}"
+    echo -e "  ${YELLOW}⚠️  Generate token in Web UI → Configuration → Webhook and Plugin${NC}"
+    echo -e "  ${YELLOW}Then configure n8n Webhook node with Header Auth (see docs/WEBHOOK_SECURITY.md)${NC}"
+    echo ""
     echo -e "${RED}⚠️  IMPORTANT NEXT STEPS:${NC}"
     echo -e "  1. ${YELLOW}COPY${NC} these credentials to a secure password manager ${RED}NOW${NC}"
     echo -e "  2. These passwords are ${RED}NOT${NC} shown again after this screen"
@@ -1391,6 +1395,100 @@ initialize_heuristics_service() {
     echo ""
 }
 
+# Import Semantic Embeddings to ClickHouse
+import_semantic_embeddings() {
+    local EMBEDDINGS_FILE="services/semantic-service/data/embeddings_categorized.jsonl"
+
+    if [ ! -f "$EMBEDDINGS_FILE" ]; then
+        log_warning "Embeddings file not found: $EMBEDDINGS_FILE"
+        log_info "Semantic detection will work but with reduced accuracy"
+        return 1
+    fi
+
+    local TOTAL_LINES=$(wc -l < "$EMBEDDINGS_FILE" | tr -d ' ')
+    log_info "Importing $TOTAL_LINES semantic embeddings to ClickHouse..."
+    log_info "This may take 1-2 minutes..."
+
+    # Import using Python for reliable JSON handling
+    python3 << PYEOF
+import json
+import urllib.request
+import os
+import base64
+import sys
+import re
+
+def escape_clickhouse(s):
+    """Proper escaping for ClickHouse string values"""
+    if not s:
+        return ''
+    # Remove problematic characters, escape quotes
+    s = re.sub(r'[\x00-\x1f]', ' ', s)  # Remove control chars
+    s = s.replace("\\\\", "\\\\\\\\").replace("'", "\\\\'")
+    return s
+
+password = os.environ.get('CLICKHOUSE_PASSWORD', '')
+file_path = '$EMBEDDINGS_FILE'
+
+auth = base64.b64encode(f'admin:{password}'.encode()).decode()
+
+count = 0
+errors = 0
+
+with open(file_path, 'r') as f:
+    for line in f:
+        try:
+            record = json.loads(line.strip())
+            pattern_id = escape_clickhouse(record['pattern_id'])
+            category = escape_clickhouse(record['category'])
+            pattern_text = escape_clickhouse(record['pattern_text'][:150])
+            embedding = json.dumps(record['embedding'])
+
+            sql = f"INSERT INTO n8n_logs.pattern_embeddings (pattern_id, category, pattern_text, embedding) VALUES ('{pattern_id}', '{category}', '{pattern_text}', {embedding})"
+
+            req = urllib.request.Request(
+                'http://localhost:8123/',
+                data=sql.encode('utf-8'),
+                headers={'Authorization': f'Basic {auth}'}
+            )
+            try:
+                urllib.request.urlopen(req, timeout=10)
+                count += 1
+            except:
+                errors += 1
+        except:
+            errors += 1
+
+print(f"{count}")
+sys.exit(0 if count > 2500 else 1)  # Expect at least 2500 successful imports
+PYEOF
+
+    local IMPORT_RESULT=$?
+    local IMPORTED_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "SELECT COUNT(*) FROM pattern_embeddings" \
+        2>/dev/null | tr -d ' ')
+
+    if [ "$IMPORT_RESULT" -eq 0 ] && [ "$IMPORTED_COUNT" -gt 0 ]; then
+        log_success "Imported $IMPORTED_COUNT semantic embeddings"
+    elif [ "$IMPORTED_COUNT" -eq 0 ]; then
+        log_error "Embedding import failed completely (0 embeddings imported)"
+        log_error "Semantic detection service will not function without embeddings"
+        echo ""
+        log_info "To recover manually, run:"
+        log_info "  1. Check ClickHouse is running: docker ps | grep clickhouse"
+        log_info "  2. Verify embeddings file exists: ls -lh services/semantic-service/data/embeddings_categorized.jsonl"
+        log_info "  3. Re-run import: ./scripts/import-embeddings.sh"
+        log_info "  4. Or re-run full installation: ./install.sh"
+        echo ""
+        exit 1
+    else
+        log_warning "Embedding import had issues. Imported: $IMPORTED_COUNT"
+        log_info "Semantic detection will still work but may have reduced coverage"
+    fi
+}
+
 # Initialize Semantic Service (Branch B)
 initialize_semantic_service() {
     print_header "Initializing Semantic Service (Branch B)"
@@ -1474,7 +1572,8 @@ initialize_semantic_service() {
         if [ "$EMBEDDING_COUNT" -gt 0 ]; then
             log_info "Existing embeddings: $EMBEDDING_COUNT vectors (384-dimensional)"
         else
-            log_info "No embeddings yet. Service will populate on first analysis."
+            log_info "No embeddings found. Importing from seed data..."
+            import_semantic_embeddings
         fi
     else
         log_error "pattern_embeddings table not found in ClickHouse"

@@ -266,6 +266,63 @@ app.get('/', (req, res) => {
 // Startup
 // ============================================================================
 
+/**
+ * Wait for ClickHouse with retry and exponential backoff
+ * @param {number} maxRetries - Maximum number of retry attempts
+ * @param {number} initialDelayMs - Initial delay between retries
+ * @returns {Promise<boolean>} - True if connected successfully
+ */
+async function waitForClickHouse(maxRetries = 10, initialDelayMs = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const isHealthy = await clickhouseClient.healthCheck();
+            if (isHealthy) {
+                const tableInfo = await clickhouseClient.checkTable();
+                logger.info({
+                    attempt,
+                    table_exists: tableInfo.exists,
+                    pattern_count: tableInfo.count
+                }, 'ClickHouse connected');
+                return true;
+            }
+        } catch (e) {
+            const delay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), 30000);
+            logger.warn({
+                attempt,
+                maxRetries,
+                error: e.message,
+                nextRetryMs: delay
+            }, 'ClickHouse not ready, retrying...');
+
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Periodic health check to recover from transient failures
+ * Updates clickhouseReady and serviceReady flags
+ */
+function startPeriodicHealthCheck(intervalMs = 30000) {
+    setInterval(async () => {
+        if (!clickhouseReady) {
+            try {
+                const isHealthy = await clickhouseClient.healthCheck();
+                if (isHealthy) {
+                    clickhouseReady = true;
+                    serviceReady = modelReady && clickhouseReady;
+                    logger.info('ClickHouse connection recovered');
+                }
+            } catch {
+                // Still not ready, will retry next interval
+            }
+        }
+    }, intervalMs);
+}
+
 async function startup() {
     logger.info('Starting Semantic Service...');
 
@@ -281,21 +338,13 @@ async function startup() {
         // Continue - service will run in degraded mode
     }
 
-    // Check ClickHouse connection
-    logger.info('Checking ClickHouse connection...');
-    try {
-        clickhouseReady = await clickhouseClient.healthCheck();
-        if (clickhouseReady) {
-            const tableInfo = await clickhouseClient.checkTable();
-            logger.info({
-                table_exists: tableInfo.exists,
-                pattern_count: tableInfo.count
-            }, 'ClickHouse connected');
-        }
-    } catch (e) {
-        startupError = `ClickHouse connection failed: ${e.message}`;
-        logger.error({ error: e.message }, startupError);
-        // Continue - service will run in degraded mode
+    // Check ClickHouse connection with retry
+    logger.info('Waiting for ClickHouse connection...');
+    clickhouseReady = await waitForClickHouse(10, 2000);
+
+    if (!clickhouseReady) {
+        startupError = 'ClickHouse connection failed after retries';
+        logger.error(startupError);
     }
 
     // Set service ready status
@@ -305,6 +354,8 @@ async function startup() {
         logger.info('Service ready');
     } else {
         logger.warn({ model: modelReady, clickhouse: clickhouseReady }, 'Service starting in degraded mode');
+        // Start periodic health check to recover from degraded mode
+        startPeriodicHealthCheck(30000);
     }
 
     // Start server

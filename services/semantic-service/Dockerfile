@@ -28,6 +28,26 @@ RUN npm ci --only=production
 # Copy source code
 COPY src ./src
 
+# ============================================================================
+# DATA VOLUME USAGE EXPLANATION
+# ============================================================================
+# IMPORTANT: Embedding data is NOT included in this Docker image.
+#
+# Embeddings workflow:
+# 1. During installation (install.sh), embeddings are imported to ClickHouse
+#    from the ./data/embeddings.jsonl file via volume mount
+# 2. Volume mount: ./data:/app/data:ro (read-only, install.sh use only)
+# 3. At runtime, this service reads embeddings from ClickHouse database,
+#    NOT from the filesystem
+# 4. The ./data volume is not needed after initial installation
+#
+# Why this design?
+# - Keeps Docker image small (embeddings are ~500MB+)
+# - Centralizes embedding storage in ClickHouse (single source of truth)
+# - Allows embedding updates without rebuilding Docker image
+# - Enables fast similarity queries via ClickHouse vector functions
+# ============================================================================
+
 # Create model cache directory
 RUN mkdir -p /app/models && chown -R semantic:semantic /app/models
 
