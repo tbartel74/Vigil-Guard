@@ -60,18 +60,6 @@ function getWebhookUrl() {
     return envUrl;
   }
 
-  // Only log once per test run
-  if (!getWebhookUrl._warned) {
-    getWebhookUrl._warned = true;
-    console.log('');
-    console.log('ℹ️  VIGIL_WEBHOOK_URL not set in .env - using default:');
-    console.log(`   ${DEFAULT_WEBHOOK_URL}`);
-    console.log('');
-    console.log('   To configure custom webhook, add to your .env:');
-    console.log('   VIGIL_WEBHOOK_URL=http://localhost:5678/webhook/your-webhook-id');
-    console.log('');
-  }
-
   return DEFAULT_WEBHOOK_URL;
 }
 

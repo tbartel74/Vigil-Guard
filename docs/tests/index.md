@@ -13,7 +13,6 @@ Last updated: 2025-11-26
 
 ## Workflow
 - `npm test -- tests/e2e/events-v2-schema.test.js` – ClickHouse events_v2 schema compliance.
-- `npm test -- tests/e2e/owasp-aitg-uncovered.test.js` – security scenario coverage.
 
 ## Smoke
 - Heuristics: `curl http://localhost:5005/analyze -d '{"text":"hi","request_id":"t1"}'`

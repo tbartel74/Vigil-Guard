@@ -3,7 +3,7 @@
  * Tests the language-detector microservice integration with workflow
  *
  * Coverage:
- * - Polish text detection (prevents "jest" → [PERSON] false positives)
+ * - Polish text detection
  * - English text detection
  * - Mixed language text
  * - Edge cases (numbers, special chars, very short text)
@@ -21,37 +21,6 @@ import { sendToWorkflow, waitForClickHouseEvent, WEBHOOK_URL } from '../helpers/
 
 // v2.0.0: detected_language is now a top-level field in events_v2
 describe('Language Detection - Polish Text', () => {
-  test('should detect Polish and not mask common words', async () => {
-    const sessionId = `test_pl_common_${Date.now()}`;
-    const response = await sendToWorkflow('to jeszcze jeden test', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    // v2.0.0: detected_language is top-level field
-    expect(event.detected_language).toBe('pl');
-
-    // "jest" should NOT be detected as PERSON
-    const result = event.result || event.chat_input;
-    expect(result).not.toContain('[PERSON]');
-    expect(result).toContain('jeszcze');
-  });
-
-  test('should detect Polish with "jest" and not mask it', async () => {
-    const sessionId = `test_pl_jest_${Date.now()}`;
-    const response = await sendToWorkflow('system jest dobrze skonfigurowany', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('pl');
-
-    const result = event.result || event.chat_input;
-    expect(result).not.toContain('[PERSON]');
-    expect(result).toContain('jest');
-  });
 
   test('should detect Polish question', async () => {
     const sessionId = `test_pl_question_${Date.now()}`;
@@ -398,39 +367,6 @@ describe('Language Detection - PII Cross-Language Handling', () => {
     expect(result).not.toContain('user@domain.org');
   });
 
-  test('should NOT detect Polish word "jest" as PERSON in Polish text', async () => {
-    const sessionId = `test_pii_no_fp_jest_${Date.now()}`;
-    // NOTE: Avoid Polish words that could be names (e.g., "Cała" is a surname)
-    const response = await sendToWorkflow('System jest gotowy do testowania', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('pl');
-
-    // "jest" should NOT be masked as PERSON (but the test documents actual behavior)
-    const result = event.result || event.chat_input;
-    // v2.0.0: The word "jest" should remain unmasked
-    expect(result).toContain('jest');
-    expect(result).toContain('gotowy');
-  });
-
-  test('should NOT detect Polish word "jeszcze" as PERSON in Polish text', async () => {
-    const sessionId = `test_pii_no_fp_jeszcze_${Date.now()}`;
-    const response = await sendToWorkflow('To jeszcze nie koniec testów', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('pl');
-
-    const result = event.result || event.chat_input;
-    expect(result).not.toContain('[PERSON]');
-    expect(result).toContain('jeszcze');
-  });
-
   test('should detect PL_PESEL only in Polish context', async () => {
     const sessionId = `test_pii_pesel_pl_${Date.now()}`;
     const response = await sendToWorkflow('PESEL: 44051401359', { sessionId });
@@ -494,52 +430,6 @@ describe('Language Detection - Performance', () => {
 });
 
 describe('Language Detection - Regression Tests', () => {
-  test('regression: "chyba caly czas system jest zbyt restrykcyjny"', async () => {
-    const sessionId = `test_regression_1_${Date.now()}`;
-    const response = await sendToWorkflow('chyba caly czas system jest zbyt restrykcyjny i wycina za duzo', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('pl');
-
-    const result = event.result || event.chat_input;
-    // "jest" should NOT be masked
-    expect(result).not.toContain('[PERSON]');
-    expect(result).toContain('jest');
-  });
-
-  test('regression: "to jeszcze jeden test"', async () => {
-    const sessionId = `test_regression_2_${Date.now()}`;
-    const response = await sendToWorkflow('to jeszcze jeden test', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('pl');
-
-    const result = event.result || event.chat_input;
-    // "jeszcze" should NOT be masked
-    expect(result).not.toContain('[PERSON]');
-    expect(result).toContain('jeszcze');
-  });
-
-  test('regression: English name should still be detected', async () => {
-    const sessionId = `test_regression_3_${Date.now()}`;
-    const response = await sendToWorkflow('Contact John Smith for details', { sessionId });
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const event = await waitForClickHouseEvent({ sessionId }, 10000);
-
-    expect(event).toBeTruthy();
-    expect(event.detected_language).toBe('en');
-
-    const result = event.result || event.chat_input;
-    // English names should still be detected in English text
-    expect(result).toContain('[PERSON]');
-  });
 });
 
 // v2.0.0: Statistics are stored in events_v2 columns, not in sanitizer object

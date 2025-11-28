@@ -57,8 +57,6 @@ docker-compose ps
    ```bash
    docker compose up -d --build presidio-pii-api language-detector n8n
    ```
-4. Optional: from `services/workflow/`, run `npm test -- pii-detection-comprehensive.test.js` to confirm **63/63** tests pass.
-
 ## Service Architecture
 
 ```

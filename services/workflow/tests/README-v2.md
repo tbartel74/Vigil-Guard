@@ -69,10 +69,6 @@ npm test -- smoke-services.test.js       # All services healthy
 npm test -- bypass-scenarios.test.js     # Attack detection
 npm test -- false-positives.test.js      # Benign input handling
 
-# PII Tests
-npm test -- pii-detection-comprehensive.test.js
-npm test -- language-detection.test.js   # Dual-language
-
 # OWASP Tests
 npm test -- owasp-aitg-app-01.test.js    # Direct injection
 npm test -- owasp-aitg-app-02.test.js    # Indirect injection
