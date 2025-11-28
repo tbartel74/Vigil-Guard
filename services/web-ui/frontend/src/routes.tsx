@@ -15,7 +15,7 @@ import { RetentionPolicy } from "./components/RetentionPolicy";
 import { PIISettings } from "./components/PIISettings";
 import ArbiterSettings from "./components/ArbiterSettings";
 import FPReporting from "./components/FPReporting";
-import Documentation from "./components/Documentation";
+import { HelpPage } from "./components/help";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import { MobileProvider } from "./context/MobileContext";
 import * as api from "./lib/api";
@@ -434,7 +434,7 @@ export const router = createBrowserRouter(
         },
         { path: "/administration", element: <UserManagement /> },
         { path: "/settings", element: <Settings /> },
-        { path: "/help", element: <Documentation /> }
+        { path: "/help", element: <HelpPage /> }
       ]
     },
     {
