@@ -230,7 +230,9 @@ services:
   # SEMANTIC SERVICE (Branch B - Vector Similarity)
   # ============================================
   semantic-service:
-    build: ./services/semantic-service
+    build:
+      context: ./services/semantic-service
+      target: production
     container_name: vigil-semantic-service
     image: vigil-semantic-service:1.0.0
     environment:

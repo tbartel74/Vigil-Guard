@@ -25,6 +25,9 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 # Install build dependencies for native modules (better-sqlite3)
 RUN apk add --no-cache python3 make g++
 

@@ -25,8 +25,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install production dependencies only (--omit=dev replaces deprecated --only=production)
+RUN npm ci --omit=dev
 
 # Copy source code
 COPY src ./src
@@ -75,31 +75,3 @@ USER semantic
 # Start server
 CMD ["node", "src/server.js"]
 
-# ============================================================================
-# Development stage (for local development with hot reload)
-FROM node:20-slim AS development
-
-# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
-RUN npm install -g npm@latest
-
-WORKDIR /app
-
-# Install all dependencies (including dev)
-COPY package*.json ./
-RUN npm install
-
-# Copy source
-COPY . .
-
-# Create model cache directory
-RUN mkdir -p /app/models
-
-# Environment
-ENV NODE_ENV=development
-ENV PORT=5006
-ENV HOST=0.0.0.0
-ENV LOG_PRETTY=true
-
-EXPOSE 5006
-
-CMD ["npm", "run", "dev"]
