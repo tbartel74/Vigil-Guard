@@ -2,7 +2,7 @@
 
 Last updated: 2025-11-26
 
-## What's inside
+## What’s inside
 - 3-branch architecture (Heuristics, Semantic, NLP Safety) and n8n pipeline.
 - Installation, runtime, and maintenance guides.
 - Central configuration (`unified_config.json`), heuristics settings, and environment variables.
@@ -10,14 +10,32 @@ Last updated: 2025-11-26
 - Security (detection, sanitization, PII) and tests/CI.
 
 ## Quick links
-- Start: `overview/README.md`, `overview/QUICKSTART.md`
-- Architecture: `architecture/system.md`, `architecture/pipeline.md`, `architecture/branches.md`
-- Configuration: `config/unified-config.md`, `config/heuristics.md`, `config/env.md`
-- Services: `services/heuristics.md`, `services/semantic.md`, `services/nlp-safety.md`, `services/pii.md`, `services/workflow.md`, `services/web-ui.md`
-- API/Logs: `api/events_v2.md`, `api/plugin.md`, `api/web-api.md`
-- Operations: `operations/installation.md`, `operations/docker.md`, `operations/ci-cd.md`, `operations/troubleshooting.md`
-- Security: `security/threat-detection.md`, `security/sanitization.md`, `security/pii-security.md`
-- Tests: `tests/index.md`
+
+**Getting Started**
+- [Overview](overview/README.md) • [Quickstart Guide](overview/QUICKSTART.md)
+
+**Architecture**
+- [System Overview](architecture/system.md) • [3-Branch Pipeline](architecture/pipeline.md) • [Detection Branches](architecture/branches.md)
+
+**Configuration**
+- [Unified Config](config/unified-config.md) • [Heuristics Settings](config/heuristics.md) • [Environment Variables](config/env.md)
+
+**Services**
+- [Heuristics (Branch A)](services/heuristics.md) • [Semantic (Branch B)](services/semantic.md) • [NLP Safety (Branch C)](services/nlp-safety.md)
+- [PII Detection](services/pii.md) • [Workflow (n8n)](services/workflow.md) • [Web UI](services/web-ui.md)
+
+**API & Logs**
+- [Events v2](api/events_v2.md) • [Plugin API](api/plugin.md) • [Web API](api/web-api.md)
+
+**Operations**
+- [Installation](operations/installation.md) • [Docker](operations/docker.md) • [CI/CD](operations/ci-cd.md) • [Troubleshooting](operations/troubleshooting.md)
+
+**Security**
+- [Threat Detection](security/threat-detection.md) • [Sanitization](security/sanitization.md) • [PII Security](security/pii-security.md)
+- [Webhook Security](WEBHOOK_SECURITY.md)
+
+**Testing**
+- [Test Suite](tests/index.md)
 
 ## Key ports and endpoints
 - Workflow webhook: `POST /webhook/vigil-guard-2` (n8n, port 5678)

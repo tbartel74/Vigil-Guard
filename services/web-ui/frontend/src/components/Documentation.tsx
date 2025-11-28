@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -94,6 +95,7 @@ const tabToCategory: Record<string, string> = {
 };
 
 export default function Documentation() {
+  const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [activeTab, setActiveTab] = useState<string>("getting-started");
   const [content, setContent] = useState<string>("");
@@ -186,6 +188,11 @@ export default function Documentation() {
 
   // Load markdown content when section changes (with cache)
   useEffect(() => {
+    // Skip loading for external documents (they're loaded via loadExternalDoc)
+    if (activeSection === 'external-document') {
+      return;
+    }
+
     const loadContent = async () => {
       setLoading(true);
 
@@ -226,19 +233,8 @@ export default function Documentation() {
     setSidebarOpen(false);
   }, [activeSection]); // markdownCache has stable reference via useRef
 
-  // Navigate to a section
-  const navigateToSection = (sectionId: string) => {
-    const section = docSections.find(s => s.id === sectionId);
-    if (section) {
-      setActiveSection(sectionId);
-      setActiveTab(categoryToTab[section.category]);
-      setExternalDoc(null); // Clear external doc when navigating to curated section
-      window.scrollTo({ top: 0, behavior: 'auto' });
-    }
-  };
-
   // Load external document from manifest (with cache)
-  const loadExternalDoc = async (url: string, title: string, path: string) => {
+  const loadExternalDoc = useCallback(async (url: string, title: string, path: string) => {
     setLoading(true);
     try {
       // Check cache first
@@ -274,7 +270,51 @@ export default function Documentation() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [markdownCache]);
+
+  // Navigate to a section
+  const navigateToSection = useCallback((sectionId: string) => {
+    const section = docSections.find(s => s.id === sectionId);
+    if (section) {
+      setActiveSection(sectionId);
+      setActiveTab(categoryToTab[section.category]);
+      setExternalDoc(null); // Clear external doc when navigating to curated section
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, []);
+
+  // Handle URL query parameter (?doc=FILENAME.md)
+  // MUST be after navigateToSection and loadExternalDoc definitions
+  useEffect(() => {
+    const docParam = searchParams.get('doc');
+    if (docParam) {
+      // Remove .md extension if present
+      const docName = docParam.replace('.md', '');
+
+      // First try to find in curated sections
+      const section = docSections.find(s =>
+        s.file === docName ||
+        s.file.toUpperCase() === docName.toUpperCase() ||
+        s.id === docName.toLowerCase()
+      );
+
+      if (section) {
+        navigateToSection(section.id);
+      } else {
+        // Try to find in manifest (external documents)
+        const manifestEntry = typedManifest.documents?.find(doc =>
+          doc.file === docName ||
+          doc.file.toUpperCase() === docName.toUpperCase() ||
+          doc.path === docParam ||
+          doc.path.endsWith(docParam)
+        );
+
+        if (manifestEntry) {
+          loadExternalDoc(manifestEntry.url, manifestEntry.title, manifestEntry.path);
+        }
+      }
+    }
+  }, [searchParams, navigateToSection, loadExternalDoc, typedManifest.documents]);
 
   // Scroll to heading (using scrollIntoView for nested scroll containers)
   const scrollToHeading = (headingId: string) => {

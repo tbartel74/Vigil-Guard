@@ -1,6 +1,6 @@
 {
-  "generated": "2025-11-26T20:04:59.894Z",
-  "count": 57,
+  "generated": "2025-11-28T10:05:14.797Z",
+  "count": 58,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -29,18 +29,18 @@
       "url": "/ui/docs/api/events_v2.md",
       "title": "ClickHouse events_v2",
       "category": "api",
-      "size": 1776,
-      "modified": "2025-11-26T19:42:19.963Z"
+      "size": 1728,
+      "modified": "2025-11-26T20:06:27.115Z"
     },
     {
       "path": "api/plugin.md",
       "file": "plugin",
       "directory": "api",
       "url": "/ui/docs/api/plugin.md",
-      "title": "Kontrakt pluginu przeglądarkowego",
+      "title": "Browser plugin contract",
       "category": "api",
-      "size": 1143,
-      "modified": "2025-11-26T19:42:26.629Z"
+      "size": 1092,
+      "modified": "2025-11-26T20:06:02.257Z"
     },
     {
       "path": "api/web-api.md",
@@ -49,8 +49,8 @@
       "url": "/ui/docs/api/web-api.md",
       "title": "Web API (backend)",
       "category": "api",
-      "size": 1067,
-      "modified": "2025-11-26T19:42:33.540Z"
+      "size": 1025,
+      "modified": "2025-11-26T20:06:12.651Z"
     },
     {
       "path": "ARCHITECTURE_v1.7.9.md",
@@ -67,10 +67,10 @@
       "file": "architecture",
       "directory": "architecture",
       "url": "/ui/docs/architecture/architecture.md",
-      "title": "Technical Architecture",
+      "title": "Vigil Guard v2.0.0 - Technical Architecture",
       "category": "architecture",
-      "size": 15029,
-      "modified": "2025-11-26T18:34:00.722Z"
+      "size": 34658,
+      "modified": "2025-11-27T09:50:05.694Z"
     },
     {
       "path": "architecture/branches.md",
@@ -139,8 +139,8 @@
       "url": "/ui/docs/CONFIG_VARIABLES.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 231,
-      "modified": "2025-11-26T19:59:20.469Z"
+      "size": 203,
+      "modified": "2025-11-26T20:08:08.096Z"
     },
     {
       "path": "config/env.md",
@@ -167,10 +167,10 @@
       "file": "unified-config",
       "directory": "config",
       "url": "/ui/docs/config/unified-config.md",
-      "title": "unified_config.json – przewodnik",
+      "title": "unified_config.json – guide",
       "category": "config",
-      "size": 2586,
-      "modified": "2025-11-26T19:41:06.782Z"
+      "size": 2523,
+      "modified": "2025-11-26T20:09:30.525Z"
     },
     {
       "path": "CONFIGURATION.md",
@@ -179,8 +179,8 @@
       "url": "/ui/docs/CONFIGURATION.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 195,
-      "modified": "2025-11-26T19:59:13.339Z"
+      "size": 170,
+      "modified": "2025-11-26T20:08:02.149Z"
     },
     {
       "path": "DETECTION_CATEGORIES.md",
@@ -189,8 +189,8 @@
       "url": "/ui/docs/DETECTION_CATEGORIES.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 189,
-      "modified": "2025-11-26T19:59:28.991Z"
+      "size": 186,
+      "modified": "2025-11-26T20:08:13.561Z"
     },
     {
       "path": "DOCKER.md",
@@ -199,8 +199,8 @@
       "url": "/ui/docs/DOCKER.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 164,
-      "modified": "2025-11-26T19:59:35.371Z"
+      "size": 138,
+      "modified": "2025-11-26T20:10:16.192Z"
     },
     {
       "path": "GRAFANA_SETUP.md",
@@ -229,8 +229,8 @@
       "url": "/ui/docs/INSTALLATION.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 160,
-      "modified": "2025-11-26T19:59:07.363Z"
+      "size": 139,
+      "modified": "2025-11-26T20:10:21.768Z"
     },
     {
       "path": "MAINTENANCE.md",
@@ -239,8 +239,8 @@
       "url": "/ui/docs/MAINTENANCE.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 153,
-      "modified": "2025-11-26T19:59:41.576Z"
+      "size": 137,
+      "modified": "2025-11-26T20:08:22.055Z"
     },
     {
       "path": "MIGRATION_v1.7.0.md",
@@ -259,28 +259,28 @@
       "url": "/ui/docs/operations/ci-cd.md",
       "title": "CI/CD",
       "category": "operations",
-      "size": 879,
-      "modified": "2025-11-26T19:42:55.605Z"
+      "size": 861,
+      "modified": "2025-11-26T20:07:01.841Z"
     },
     {
       "path": "operations/docker.md",
       "file": "docker",
       "directory": "operations",
       "url": "/ui/docs/operations/docker.md",
-      "title": "Docker i uruchamianie",
+      "title": "Docker and runtime",
       "category": "operations",
-      "size": 947,
-      "modified": "2025-11-26T19:42:49.244Z"
+      "size": 926,
+      "modified": "2025-11-26T20:06:51.024Z"
     },
     {
       "path": "operations/installation.md",
       "file": "installation",
       "directory": "operations",
       "url": "/ui/docs/operations/installation.md",
-      "title": "Instalacja",
+      "title": "Installation",
       "category": "operations",
-      "size": 1342,
-      "modified": "2025-11-26T19:42:41.732Z"
+      "size": 1280,
+      "modified": "2025-11-26T20:06:40.851Z"
     },
     {
       "path": "operations/maintenance.md",
@@ -289,8 +289,8 @@
       "url": "/ui/docs/operations/maintenance.md",
       "title": "Utrzymanie",
       "category": "operations",
-      "size": 817,
-      "modified": "2025-11-26T19:43:02.379Z"
+      "size": 795,
+      "modified": "2025-11-26T20:09:53.167Z"
     },
     {
       "path": "operations/troubleshooting.md",
@@ -299,18 +299,18 @@
       "url": "/ui/docs/operations/troubleshooting.md",
       "title": "Troubleshooting",
       "category": "operations",
-      "size": 1417,
-      "modified": "2025-11-26T19:43:10.401Z"
+      "size": 1265,
+      "modified": "2025-11-26T20:07:14.700Z"
     },
     {
       "path": "overview/QUICKSTART.md",
       "file": "QUICKSTART",
       "directory": "overview",
       "url": "/ui/docs/overview/QUICKSTART.md",
-      "title": "Quickstart (5 minut)",
+      "title": "Quickstart (5 minutes)",
       "category": "overview",
-      "size": 1399,
-      "modified": "2025-11-26T19:40:21.669Z"
+      "size": 1383,
+      "modified": "2025-11-26T20:07:45.346Z"
     },
     {
       "path": "overview/README.md",
@@ -319,18 +319,18 @@
       "url": "/ui/docs/overview/README.md",
       "title": "Vigil Guard – Overview",
       "category": "overview",
-      "size": 3535,
-      "modified": "2025-11-26T20:00:38.812Z"
+      "size": 3509,
+      "modified": "2025-11-26T20:09:10.777Z"
     },
     {
       "path": "PII_DETECTION.md",
       "file": "PII_DETECTION",
       "directory": ".",
       "url": "/ui/docs/PII_DETECTION.md",
-      "title": "PII Detection with Microsoft Presidio",
+      "title": "Legacy placeholder",
       "category": "root",
-      "size": 42859,
-      "modified": "2025-11-25T07:54:16.757Z"
+      "size": 163,
+      "modified": "2025-11-26T20:10:40.132Z"
     },
     {
       "path": "PII_MONITORING_QUERIES.md",
@@ -379,8 +379,8 @@
       "url": "/ui/docs/QUICKSTART.md",
       "title": "Legacy placeholder",
       "category": "root",
-      "size": 145,
-      "modified": "2025-11-26T19:58:59.005Z"
+      "size": 127,
+      "modified": "2025-11-26T20:10:26.285Z"
     },
     {
       "path": "README.md",
@@ -389,8 +389,8 @@
       "url": "/ui/docs/README.md",
       "title": "Vigil Guard Documentation Hub",
       "category": "root",
-      "size": 1908,
-      "modified": "2025-11-26T19:44:58.753Z"
+      "size": 1885,
+      "modified": "2025-11-27T09:45:42.271Z"
     },
     {
       "path": "RELEASE.md",
@@ -419,8 +419,8 @@
       "url": "/ui/docs/SECURITY.md",
       "title": "Security Guide",
       "category": "root",
-      "size": 19659,
-      "modified": "2025-11-25T07:54:16.770Z"
+      "size": 20034,
+      "modified": "2025-11-28T08:59:46.042Z"
     },
     {
       "path": "security/pii-security.md",
@@ -459,8 +459,8 @@
       "url": "/ui/docs/services/heuristics.md",
       "title": "Heuristics Service (Branch A)",
       "category": "services",
-      "size": 1836,
-      "modified": "2025-11-26T19:41:36.324Z"
+      "size": 1802,
+      "modified": "2025-11-26T20:05:04.946Z"
     },
     {
       "path": "services/nlp-safety.md",
@@ -469,8 +469,8 @@
       "url": "/ui/docs/services/nlp-safety.md",
       "title": "NLP Safety Analysis (Branch C)",
       "category": "services",
-      "size": 1130,
-      "modified": "2025-11-26T19:41:50.428Z"
+      "size": 1049,
+      "modified": "2025-11-26T20:05:27.189Z"
     },
     {
       "path": "services/pii.md",
@@ -479,8 +479,8 @@
       "url": "/ui/docs/services/pii.md",
       "title": "PII Service (Presidio + regex fallback)",
       "category": "services",
-      "size": 1130,
-      "modified": "2025-11-26T19:41:57.204Z"
+      "size": 1084,
+      "modified": "2025-11-26T20:05:38.769Z"
     },
     {
       "path": "services/semantic.md",
@@ -489,8 +489,8 @@
       "url": "/ui/docs/services/semantic.md",
       "title": "Semantic Service (Branch B)",
       "category": "services",
-      "size": 945,
-      "modified": "2025-11-26T19:41:43.956Z"
+      "size": 838,
+      "modified": "2025-11-26T20:05:14.528Z"
     },
     {
       "path": "services/web-ui.md",
@@ -509,8 +509,8 @@
       "url": "/ui/docs/services/workflow.md",
       "title": "Workflow (n8n)",
       "category": "services",
-      "size": 1247,
-      "modified": "2025-11-26T19:42:10.501Z"
+      "size": 1208,
+      "modified": "2025-11-26T20:05:51.434Z"
     },
     {
       "path": "TESTING_CLEAN_INSTALL.md",
@@ -529,8 +529,8 @@
       "url": "/ui/docs/tests/index.md",
       "title": "Testy",
       "category": "tests",
-      "size": 835,
-      "modified": "2025-11-26T19:43:37.440Z"
+      "size": 818,
+      "modified": "2025-11-26T20:08:35.741Z"
     },
     {
       "path": "TMUX_STATUS_BAR.md",
@@ -561,6 +561,16 @@
       "category": "root",
       "size": 48206,
       "modified": "2025-11-25T07:54:16.721Z"
+    },
+    {
+      "path": "WEBHOOK_SECURITY.md",
+      "file": "WEBHOOK_SECURITY",
+      "directory": ".",
+      "url": "/ui/docs/WEBHOOK_SECURITY.md",
+      "title": "Webhook Security Guide",
+      "category": "root",
+      "size": 5471,
+      "modified": "2025-11-28T09:33:11.829Z"
     },
     {
       "path": "WORKFLOW_v1.7.6_NOTES.md",
