@@ -1,6 +1,6 @@
 /**
  * Vigil Guard - Overlay Proxy Architecture
- * Version: 0.4.0 - Network Layer Intercept (ChatGPT Only)
+ * Version: 0.5.0 - Service Worker Keep-Alive (ChatGPT Only)
  *
  * ⚠️ FROZEN: Claude.ai support disabled (work in progress)
  * ✅ ACTIVE: ChatGPT protection fully functional
@@ -15,6 +15,11 @@
  * 5. Returns response to content script
  * 6. Content script decides: allow/sanitize/block
  * 7. MutationObserver watches textarea/button replacements → NO-OP (handlers immortal)
+ *
+ * CRITICAL FIX (v0.5.0):
+ * - Service Worker Keep-Alive: Use chrome.runtime.connect() to maintain persistent connection
+ * - Auto-reconnect: If SW dies, attempt to reconnect before showing error
+ * - Companion change in service-worker.js: chrome.alarms API keeps SW alive
  *
  * STATUS (v0.4.0 - CURRENT):
  * ✅ ChatGPT: FULLY WORKING
@@ -80,7 +85,66 @@
  * NOTE: Both use contenteditable div, so we use .textContent instead of .value
  */
 
-console.log('[Vigil Guard] Overlay proxy initializing...');
+console.log('[Vigil Guard] Overlay proxy initializing (v0.5.0)...');
+
+// =============================================================================
+// SERVICE WORKER CONNECTION (v0.5.0)
+// =============================================================================
+// Use persistent port connection to keep service worker alive.
+// This prevents "Extension context invalidated" errors.
+
+let serviceWorkerPort = null;
+let connectionAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_DELAY_MS = 500;
+
+/**
+ * Establish persistent connection to service worker
+ * This keeps the SW alive as long as the tab is open
+ */
+function connectToServiceWorker() {
+  try {
+    serviceWorkerPort = chrome.runtime.connect({ name: 'vigil-guard-content' });
+
+    serviceWorkerPort.onDisconnect.addListener(() => {
+      console.log('[Vigil Guard] 📡 Service worker connection lost');
+      serviceWorkerPort = null;
+
+      // The SW might have been terminated - it will restart on next message
+      // We don't auto-reconnect here to avoid infinite loops
+    });
+
+    console.log('[Vigil Guard] 📡 Connected to service worker (keep-alive active)');
+    connectionAttempts = 0; // Reset counter on successful connection
+    return true;
+  } catch (error) {
+    console.error('[Vigil Guard] 📡 Failed to connect to service worker:', error);
+    serviceWorkerPort = null;
+    return false;
+  }
+}
+
+/**
+ * Attempt to reconnect to service worker
+ * Used when sendMessage fails with "Extension context invalidated"
+ */
+async function attemptReconnect() {
+  if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('[Vigil Guard] 📡 Max reconnection attempts reached');
+    return false;
+  }
+
+  connectionAttempts++;
+  console.log(`[Vigil Guard] 📡 Reconnection attempt ${connectionAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+
+  // Wait a bit before reconnecting
+  await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY_MS));
+
+  return connectToServiceWorker();
+}
+
+// Initial connection
+connectToServiceWorker();
 
 // =============================================================================
 // DEFENSE LAYER 5: NETWORK INTERCEPT (v0.4.0)
@@ -365,7 +429,7 @@ function updateStatus(status, message) {
 }
 
 // Send to Vigil Guard webhook (via service worker)
-async function checkWithGuard(text) {
+async function checkWithGuard(text, isRetry = false) {
   // RATE LIMITING: Prevent n8n overload
   const now = Date.now();
   const timeSinceLastCheck = now - lastCheckTime;
@@ -399,25 +463,39 @@ async function checkWithGuard(text) {
 
     console.log('[Vigil Guard] 📥 Response:', response);
 
+    // Reset connection attempts on successful response
+    connectionAttempts = 0;
+
     return response;
   } catch (error) {
     console.error('[Vigil Guard] ❌ Error:', error);
 
     // CRITICAL: Service Worker invalidation detection
     if (error.message && error.message.includes('Extension context invalidated')) {
-      console.error('[Vigil Guard] 🔴 SERVICE WORKER DIED - Extension needs reload!');
+      console.error('[Vigil Guard] 🔴 SERVICE WORKER CONTEXT LOST');
+
+      // v0.5.0: Attempt to reconnect before showing error
+      if (!isRetry) {
+        console.log('[Vigil Guard] 🔄 Attempting to reconnect...');
+        updateStatus('processing', 'Reconnecting to service...');
+
+        const reconnected = await attemptReconnect();
+        if (reconnected) {
+          console.log('[Vigil Guard] ✅ Reconnected! Retrying request...');
+          return checkWithGuard(text, true); // Retry with isRetry=true
+        }
+      }
+
+      // Reconnection failed - show error to user
+      console.error('[Vigil Guard] 🔴 RECONNECTION FAILED - Extension needs reload!');
       updateStatus('block', '⚠️ Extension context lost - reload needed');
 
       // Show user-friendly message
       const platformName = getPlatformName();
       alert(
         `⚠️ Vigil Guard Extension Context Lost\n\n` +
-        `The extension's background service has stopped.\n\n` +
-        `Please reload the extension:\n` +
-        `1. Go to chrome://extensions/\n` +
-        `2. Find "Vigil Guard AI Protection"\n` +
-        `3. Click the Reload button\n\n` +
-        `Or simply reload this ${platformName} page.`
+        `The extension's background service has stopped and couldn't be restarted.\n\n` +
+        `Please reload this ${platformName} page to restore protection.`
       );
 
       // Block the prompt to be safe (don't fail open when extension is broken)
@@ -426,6 +504,17 @@ async function checkWithGuard(text) {
         reason: 'extension_context_invalidated',
         error: error.message
       };
+    }
+
+    // v0.5.0: Handle "Receiving end does not exist" error (SW was asleep)
+    if (error.message && error.message.includes('Receiving end does not exist')) {
+      console.warn('[Vigil Guard] ⚠️ Service worker was asleep, retrying...');
+
+      if (!isRetry) {
+        // Wait for SW to wake up
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return checkWithGuard(text, true);
+      }
     }
 
     // Other errors: fail open - allow sending original text

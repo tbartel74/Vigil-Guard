@@ -4,7 +4,8 @@
   "version": "0.6.0",
   "description": "Real-time AI prompt protection - detects and blocks malicious inputs before they reach your LLM (ChatGPT, Claude.ai)",
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "http://localhost/*",
