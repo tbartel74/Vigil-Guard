@@ -1,33 +1,139 @@
-# Vigil Guard Documentation Hub
+# Vigil Guard Documentation
 
-Last updated: 2025-11-26
+<!-- GUI-HELP: Documentation hub for Vigil Guard v2.0.0 -->
+<!-- GUI-SECTION: docs-hub -->
 
-## What’s inside
-- 3-branch architecture (Heuristics, Semantic, NLP Safety) and n8n pipeline.
-- Installation, runtime, and maintenance guides.
-- Central configuration (`unified_config.json`), heuristics settings, and environment variables.
-- Service guides (A/B/C, PII, Web UI, workflow) and API/ClickHouse contracts.
-- Security (detection, sanitization, PII) and tests/CI.
+**Version:** 2.0.0 | **Last Updated:** 2025-11-28
 
-## Quick links
-- Start: `overview/README.md`, `overview/QUICKSTART.md`
-- Architecture: `architecture/system.md`, `architecture/pipeline.md`, `architecture/branches.md`
-- Configuration: `config/unified-config.md`, `config/heuristics.md`, `config/env.md`
-- Services: `services/heuristics.md`, `services/semantic.md`, `services/nlp-safety.md`, `services/pii.md`, `services/workflow.md`, `services/web-ui.md`
-- API/Logs: `api/events_v2.md`, `api/plugin.md`, `api/web-api.md`
-- Operations: `operations/installation.md`, `operations/docker.md`, `operations/ci-cd.md`, `operations/troubleshooting.md`
-- Security: `security/threat-detection.md`, `security/sanitization.md`, `security/pii-security.md`
-- Tests: `tests/index.md`
+---
 
-## Key ports and endpoints
-- Workflow webhook: `POST /webhook/vigil-guard-2` (n8n, port 5678)
-- Branch A: `http://heuristics-service:5005/analyze`
-- Branch B: `http://semantic-service:5006/analyze`
-- Branch C: `http://prompt-guard-api:8000/detect` (NLP Safety)
-- PII: `http://vigil-presidio-pii:5001/analyze`
-- Web UI backend: `http://localhost:8787` (prod via Caddy `/ui/api/*`)
-- Web UI frontend: `http://localhost/ui/` (prod) or `http://localhost:5173` (dev)
-- ClickHouse: `http://localhost:8123`, Grafana: `http://localhost:3000`
+## Quick Navigation
 
-## Minimal pipeline walkthrough
-Input → validation → 3-Branch Executor (A/B/C) → Arbiter → (ALLOW → PII) | (BLOCK → fast response) → Build NDJSON → ClickHouse → output/plugin.
+| I want to... | Go to |
+|--------------|-------|
+| Get started quickly | [Quickstart](overview/QUICKSTART.md) |
+| Understand the architecture | [Architecture](ARCHITECTURE.md) |
+| Configure detection rules | [Configuration Guide](guides/configuration.md) |
+| Monitor threats | [Dashboard Guide](guides/dashboard.md) |
+| Investigate prompts | [Investigation Guide](guides/investigation.md) |
+| Troubleshoot issues | [Troubleshooting](TROUBLESHOOTING.md) |
+| Use the API | [API Reference](api/web-api.md) |
+
+---
+
+## Documentation Structure
+
+```
+docs/
+├── README.md                 # This file (hub)
+├── ARCHITECTURE.md           # 3-branch system design
+├── SECURITY.md               # Security policies
+├── TROUBLESHOOTING.md        # Common issues
+│
+├── overview/
+│   └── QUICKSTART.md         # 5-minute setup
+│
+├── guides/                   # User guides
+│   ├── README.md            # Guide navigation
+│   ├── dashboard.md         # Monitoring
+│   ├── investigation.md     # Prompt analysis
+│   ├── configuration.md     # Settings
+│   ├── administration.md    # User management
+│   └── settings.md          # Preferences
+│
+├── services/
+│   └── README.md            # All microservices
+│
+├── config/
+│   ├── unified-config.md    # Main configuration
+│   ├── heuristics.md        # Branch A settings
+│   └── env.md               # Environment variables
+│
+├── operations/
+│   ├── installation.md      # Full install guide
+│   ├── docker.md            # Container management
+│   └── troubleshooting.md   # Quick fixes
+│
+├── api/
+│   ├── web-api.md           # REST API reference
+│   ├── events_v2.md         # ClickHouse schema
+│   └── plugin.md            # Browser extension API
+│
+├── plugin/
+│   ├── BROWSER_EXTENSION.md # Chrome extension docs
+│   └── QUICK_START.md       # Extension setup
+│
+└── specialized/
+    ├── GRAFANA_SETUP.md     # Dashboard setup
+    ├── CLICKHOUSE_RETENTION.md # Data lifecycle
+    └── WEBHOOK_SECURITY.md  # Webhook auth
+```
+
+---
+
+## Key Endpoints
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| Web UI | http://localhost/ui | Configuration interface |
+| n8n Webhook | POST /webhook/vigil-guard-2 | Detection endpoint |
+| Grafana | http://localhost:3001 | Dashboards |
+| ClickHouse | http://localhost:8123 | Analytics |
+
+**Internal Services:**
+| Service | Endpoint | Timeout |
+|---------|----------|---------|
+| Heuristics (A) | http://heuristics-service:5005/analyze | 1s |
+| Semantic (B) | http://semantic-service:5006/analyze | 2s |
+| NLP Safety (C) | http://prompt-guard-api:8000/detect | 3s |
+| PII | http://vigil-presidio-pii:5001/analyze | 5s |
+
+---
+
+## Pipeline Overview
+
+```
+Input → Validation → 3-Branch Executor → Arbiter → Decision
+                           ↓                ↓
+                     [A] [B] [C]      ALLOW/BLOCK
+                                           ↓
+                                     PII Redaction
+                                           ↓
+                                     ClickHouse Log
+                                           ↓
+                                        Output
+```
+
+**Arbiter:** Weights A=0.30, B=0.35, C=0.35 | Block threshold: 50
+
+---
+
+## Version History
+
+| Version | Date | Highlights |
+|---------|------|------------|
+| 2.0.0 | 2025-11 | 3-branch architecture, Arbiter v2 |
+| 1.8.1 | 2025-11 | Hybrid language detection |
+| 1.7.0 | 2025-11 | Sanitization integrity |
+| 1.6.0 | 2025-01 | Presidio integration |
+
+**Full changelog:** [CHANGELOG.md](../CHANGELOG.md)
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+
+**Quick commands:**
+```bash
+# Run tests
+cd services/workflow && npm test
+
+# Development
+cd services/web-ui/frontend && npm run dev
+```
+
+---
+
+**Need help?** See [Troubleshooting](TROUBLESHOOTING.md) or file an [issue](https://github.com/yourusername/vigil-guard/issues).
