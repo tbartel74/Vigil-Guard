@@ -2,6 +2,10 @@
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
 # Copy package files

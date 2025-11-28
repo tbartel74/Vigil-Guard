@@ -1,6 +1,9 @@
 # Heuristics Service (Branch A) - v2.0.0
 FROM node:20-alpine AS builder
 
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 # Build stage
 WORKDIR /build
 
@@ -16,6 +19,9 @@ COPY config ./config
 
 # Production stage
 FROM node:20-alpine
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
 
 # Security: Run as non-root user
 RUN addgroup -g 1001 -S nodejs && \

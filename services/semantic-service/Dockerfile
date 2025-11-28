@@ -8,6 +8,9 @@
 # Production image
 FROM node:20-slim AS production
 
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 # Labels
 LABEL org.opencontainers.image.title="Semantic Service"
 LABEL org.opencontainers.image.description="Semantic similarity detection using MiniLM embeddings"
@@ -75,6 +78,9 @@ CMD ["node", "src/server.js"]
 # ============================================================================
 # Development stage (for local development with hot reload)
 FROM node:20-slim AS development
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
 
 WORKDIR /app
 

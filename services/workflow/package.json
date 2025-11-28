@@ -30,7 +30,7 @@
     "benchmark:compare": "node tests/benchmark/pattern-engine-benchmark.js --compare"
   },
   "overrides": {
-    "glob": "^10.0.0",
+    "glob": "^10.5.0",
     "inflight": "npm:noop2@2.0.0"
   },
   "keywords": [
