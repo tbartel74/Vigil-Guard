@@ -1,0 +1,248 @@
+[
+  {
+    "char": "​",
+    "unicode": "\\u200B",
+    "charCode": "U+200B",
+    "description": "Zero-width space"
+  },
+  {
+    "char": "‌",
+    "unicode": "\\u200C",
+    "charCode": "U+200C",
+    "description": "Zero-width non-joiner"
+  },
+  {
+    "char": "‍",
+    "unicode": "\\u200D",
+    "charCode": "U+200D",
+    "description": "Zero-width joiner"
+  },
+  {
+    "char": "‎",
+    "unicode": "\\u200E",
+    "charCode": "U+200E",
+    "description": "Left-to-right mark"
+  },
+  {
+    "char": "‏",
+    "unicode": "\\u200F",
+    "charCode": "U+200F",
+    "description": "Right-to-left mark"
+  },
+  {
+    "char": "‪",
+    "unicode": "\\u202A",
+    "charCode": "U+202A",
+    "description": "Left-to-right embedding"
+  },
+  {
+    "char": "‫",
+    "unicode": "\\u202B",
+    "charCode": "U+202B",
+    "description": "Right-to-left embedding"
+  },
+  {
+    "char": "‬",
+    "unicode": "\\u202C",
+    "charCode": "U+202C",
+    "description": "Pop directional formatting"
+  },
+  {
+    "char": "‭",
+    "unicode": "\\u202D",
+    "charCode": "U+202D",
+    "description": "Left-to-right override"
+  },
+  {
+    "char": "‮",
+    "unicode": "\\u202E",
+    "charCode": "U+202E",
+    "description": "Right-to-left override"
+  },
+  {
+    "char": "⁠",
+    "unicode": "\\u2060",
+    "charCode": "U+2060",
+    "description": "Word joiner"
+  },
+  {
+    "char": "⁡",
+    "unicode": "\\u2061",
+    "charCode": "U+2061",
+    "description": "Function application"
+  },
+  {
+    "char": "⁢",
+    "unicode": "\\u2062",
+    "charCode": "U+2062",
+    "description": "Invisible times"
+  },
+  {
+    "char": "⁣",
+    "unicode": "\\u2063",
+    "charCode": "U+2063",
+    "description": "Invisible separator"
+  },
+  {
+    "char": "⁤",
+    "unicode": "\\u2064",
+    "charCode": "U+2064",
+    "description": "Invisible plus"
+  },
+  {
+    "char": "⁪",
+    "unicode": "\\u206A",
+    "charCode": "U+206A",
+    "description": "Inhibit symmetric swapping"
+  },
+  {
+    "char": "⁫",
+    "unicode": "\\u206B",
+    "charCode": "U+206B",
+    "description": "Activate symmetric swapping"
+  },
+  {
+    "char": "⁬",
+    "unicode": "\\u206C",
+    "charCode": "U+206C",
+    "description": "Inhibit Arabic form shaping"
+  },
+  {
+    "char": "⁭",
+    "unicode": "\\u206D",
+    "charCode": "U+206D",
+    "description": "Activate Arabic form shaping"
+  },
+  {
+    "char": "⁮",
+    "unicode": "\\u206E",
+    "charCode": "U+206E",
+    "description": "National digit shapes"
+  },
+  {
+    "char": "⁯",
+    "unicode": "\\u206F",
+    "charCode": "U+206F",
+    "description": "Nominal digit shapes"
+  },
+  {
+    "char": "﻿",
+    "unicode": "\\uFEFF",
+    "charCode": "U+FEFF",
+    "description": "Zero-width no-break space"
+  },
+  {
+    "char": "￹",
+    "unicode": "\\uFFF9",
+    "charCode": "U+FFF9",
+    "description": "Interlinear annotation anchor"
+  },
+  {
+    "char": "￺",
+    "unicode": "\\uFFFA",
+    "charCode": "U+FFFA",
+    "description": "Interlinear annotation separator"
+  },
+  {
+    "char": "￻",
+    "unicode": "\\uFFFB",
+    "charCode": "U+FFFB",
+    "description": "Interlinear annotation terminator"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u00A0",
+    "charCode": "U+00A0",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u1680",
+    "charCode": "U+1680",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2000",
+    "charCode": "U+2000",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2001",
+    "charCode": "U+2001",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2002",
+    "charCode": "U+2002",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2003",
+    "charCode": "U+2003",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2004",
+    "charCode": "U+2004",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2005",
+    "charCode": "U+2005",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2006",
+    "charCode": "U+2006",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2007",
+    "charCode": "U+2007",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2008",
+    "charCode": "U+2008",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u2009",
+    "charCode": "U+2009",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u200A",
+    "charCode": "U+200A",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u202F",
+    "charCode": "U+202F",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": " ",
+    "unicode": "\\u205F",
+    "charCode": "U+205F",
+    "description": "Unknown invisible character"
+  },
+  {
+    "char": "　",
+    "unicode": "\\u3000",
+    "charCode": "U+3000",
+    "description": "Unknown invisible character"
+  }
+]

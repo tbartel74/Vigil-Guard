@@ -1,0 +1,49 @@
+{
+  "name": "semantic-service",
+  "version": "1.0.0",
+  "description": "Semantic similarity detection service for Vigil Guard (Branch B)",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "setup": "./scripts/download-model.sh",
+    "embeddings:generate": "python3 scripts/generate-embeddings.py",
+    "embeddings:import": "node scripts/import-embeddings.js",
+    "embeddings:manage": "node scripts/embedding-manager.js"
+  },
+  "keywords": [
+    "vigil-guard",
+    "semantic-search",
+    "embedding",
+    "minilm",
+    "clickhouse",
+    "security"
+  ],
+  "author": "Vigil Guard Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "axios": "^1.6.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.0",
+    "helmet": "^7.1.0",
+    "pino": "^8.16.0",
+    "pino-pretty": "^10.2.3"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.55.0",
+    "nodemon": "^3.0.2",
+    "vitest": "^1.6.0"
+  }
+}

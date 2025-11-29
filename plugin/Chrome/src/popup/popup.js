@@ -1,4 +1,4 @@
-// Vigil Guard Plugin - Status Popup (v0.5.0)
+// Vigil Guard Plugin - Status Popup (v0.6.0)
 // Displays connection status and configuration info
 // All configuration is managed from Web UI
 
@@ -6,7 +6,6 @@
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
 const versionEl = document.getElementById('version');
-const guiUrlEl = document.getElementById('gui-url');
 const webhookStatusEl = document.getElementById('webhook-status');
 const refreshBtn = document.getElementById('refresh-config');
 
@@ -36,13 +35,6 @@ async function initialize() {
  * Update display with configuration info
  */
 function updateDisplay(config) {
-  // Display GUI URL (or fallback)
-  if (config.guiUrl) {
-    guiUrlEl.textContent = config.guiUrl;
-  } else {
-    guiUrlEl.textContent = 'Not configured';
-  }
-
   // Display webhook status
   if (config.n8nEndpoint || config.webhookUrl) {
     webhookStatusEl.textContent = 'Configured ✓';

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -16,8 +17,8 @@ import docsManifest from "../generated/docs-manifest.json";
 import type { DocsManifest } from "../types/docs-manifest";
 
 // Documentation version and build info
-const DOC_VERSION = "1.8.1";
-const BUILD_DATE = "2025-11-15";
+const DOC_VERSION = "2.0.0";
+const BUILD_DATE = "2025-11-28";
 
 // Documentation structure matching the docs/ directory
 interface DocSection {
@@ -41,27 +42,30 @@ interface SearchResult {
 const docSections: DocSection[] = [
   // Getting Started
   { id: "overview", title: "Overview", file: "README", category: "Getting Started", icon: "📘" },
-  { id: "installation", title: "Installation", file: "INSTALLATION", category: "Getting Started", icon: "⚙️" },
-  { id: "user-guide", title: "User Guide", file: "USER_GUIDE", category: "Getting Started", icon: "📖" },
+  { id: "quickstart", title: "Quick Start", file: "overview/QUICKSTART", category: "Getting Started", icon: "🚀" },
+  { id: "user-guide", title: "User Guides", file: "guides/README", category: "Getting Started", icon: "📖" },
 
   // Configuration
-  { id: "configuration", title: "Configuration", file: "CONFIGURATION", category: "Configuration", icon: "🧠" },
-  { id: "config-variables", title: "Config Variables", file: "CONFIG_VARIABLES", category: "Configuration", icon: "📋" },
+  { id: "configuration", title: "Configuration Guide", file: "guides/configuration", category: "Configuration", icon: "🧠" },
+  { id: "config-variables", title: "Environment Variables", file: "config/env", category: "Configuration", icon: "📋" },
+  { id: "unified-config", title: "Unified Config", file: "config/unified-config", category: "Configuration", icon: "⚙️" },
 
   // Security & API
   { id: "authentication", title: "Authentication & Users", file: "AUTHENTICATION", category: "Security & API", icon: "🔐" },
   { id: "api", title: "API Reference", file: "API", category: "Security & API", icon: "🔌" },
   { id: "security", title: "Security Guide", file: "SECURITY", category: "Security & API", icon: "🛡️" },
+  { id: "webhook-security", title: "Webhook Security", file: "WEBHOOK_SECURITY", category: "Security & API", icon: "🔗" },
 
   // Browser Extension
-  { id: "browser-extension", title: "Browser Extension Overview", file: "plugin/BROWSER_EXTENSION", category: "Browser Extension", icon: "🧩" },
-  { id: "plugin-quick-start", title: "Quick Start Guide", file: "plugin/QUICK_START", category: "Browser Extension", icon: "🚀" },
-  { id: "plugin-architecture", title: "Technical Architecture", file: "plugin/HYBRID_ARCHITECTURE", category: "Browser Extension", icon: "🏗️" },
+  { id: "browser-extension", title: "Browser Extension", file: "plugin/BROWSER_EXTENSION", category: "Browser Extension", icon: "🧩" },
+  { id: "plugin-quick-start", title: "Extension Quick Start", file: "plugin/QUICK_START", category: "Browser Extension", icon: "⚡" },
+  { id: "plugin-architecture", title: "Hybrid Architecture", file: "plugin/HYBRID_ARCHITECTURE", category: "Browser Extension", icon: "🏗️" },
 
   // Advanced
-  { id: "detection-categories", title: "Detection Categories", file: "DETECTION_CATEGORIES", category: "Advanced", icon: "🎯" },
+  { id: "architecture", title: "System Architecture", file: "ARCHITECTURE", category: "Advanced", icon: "🏛️" },
   { id: "grafana-setup", title: "Grafana Setup", file: "GRAFANA_SETUP", category: "Advanced", icon: "📊" },
   { id: "clickhouse-retention", title: "Data Retention Policy", file: "CLICKHOUSE_RETENTION", category: "Advanced", icon: "🗄️" },
+  { id: "troubleshooting", title: "Troubleshooting", file: "TROUBLESHOOTING", category: "Advanced", icon: "🔧" },
   { id: "accessibility", title: "Accessibility (WCAG 2.1)", file: "ACCESSIBILITY", category: "Advanced", icon: "♿" },
 ];
 
@@ -94,6 +98,7 @@ const tabToCategory: Record<string, string> = {
 };
 
 export default function Documentation() {
+  const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [activeTab, setActiveTab] = useState<string>("getting-started");
   const [content, setContent] = useState<string>("");
@@ -186,6 +191,11 @@ export default function Documentation() {
 
   // Load markdown content when section changes (with cache)
   useEffect(() => {
+    // Skip loading for external documents (they're loaded via loadExternalDoc)
+    if (activeSection === 'external-document') {
+      return;
+    }
+
     const loadContent = async () => {
       setLoading(true);
 
@@ -226,19 +236,8 @@ export default function Documentation() {
     setSidebarOpen(false);
   }, [activeSection]); // markdownCache has stable reference via useRef
 
-  // Navigate to a section
-  const navigateToSection = (sectionId: string) => {
-    const section = docSections.find(s => s.id === sectionId);
-    if (section) {
-      setActiveSection(sectionId);
-      setActiveTab(categoryToTab[section.category]);
-      setExternalDoc(null); // Clear external doc when navigating to curated section
-      window.scrollTo({ top: 0, behavior: 'auto' });
-    }
-  };
-
   // Load external document from manifest (with cache)
-  const loadExternalDoc = async (url: string, title: string, path: string) => {
+  const loadExternalDoc = useCallback(async (url: string, title: string, path: string) => {
     setLoading(true);
     try {
       // Check cache first
@@ -274,7 +273,51 @@ export default function Documentation() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [markdownCache]);
+
+  // Navigate to a section
+  const navigateToSection = useCallback((sectionId: string) => {
+    const section = docSections.find(s => s.id === sectionId);
+    if (section) {
+      setActiveSection(sectionId);
+      setActiveTab(categoryToTab[section.category]);
+      setExternalDoc(null); // Clear external doc when navigating to curated section
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, []);
+
+  // Handle URL query parameter (?doc=FILENAME.md)
+  // MUST be after navigateToSection and loadExternalDoc definitions
+  useEffect(() => {
+    const docParam = searchParams.get('doc');
+    if (docParam) {
+      // Remove .md extension if present
+      const docName = docParam.replace('.md', '');
+
+      // First try to find in curated sections
+      const section = docSections.find(s =>
+        s.file === docName ||
+        s.file.toUpperCase() === docName.toUpperCase() ||
+        s.id === docName.toLowerCase()
+      );
+
+      if (section) {
+        navigateToSection(section.id);
+      } else {
+        // Try to find in manifest (external documents)
+        const manifestEntry = typedManifest.documents?.find(doc =>
+          doc.file === docName ||
+          doc.file.toUpperCase() === docName.toUpperCase() ||
+          doc.path === docParam ||
+          doc.path.endsWith(docParam)
+        );
+
+        if (manifestEntry) {
+          loadExternalDoc(manifestEntry.url, manifestEntry.title, manifestEntry.path);
+        }
+      }
+    }
+  }, [searchParams, navigateToSection, loadExternalDoc, typedManifest.documents]);
 
   // Scroll to heading (using scrollIntoView for nested scroll containers)
   const scrollToHeading = (headingId: string) => {

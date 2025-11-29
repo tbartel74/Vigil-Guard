@@ -1,0 +1,23 @@
+{
+  "extraction_date": "2025-11-20T19:53:54.644Z",
+  "source_files": {
+    "normalize_conf": "/Users/tomaszbartel/Documents/Projects/Vigil-Guard/services/workflow/config/normalize.conf",
+    "rules_config": "/Users/tomaszbartel/Documents/Projects/Vigil-Guard/services/workflow/config/rules.config.json",
+    "unified_config": "/Users/tomaszbartel/Documents/Projects/Vigil-Guard/services/workflow/config/unified_config.json"
+  },
+  "statistics": {
+    "zero_width_chars": 41,
+    "homoglyphs": 18,
+    "leet_speak": 0,
+    "system_markers": 28,
+    "emoji_mappings": 25,
+    "multi_char_sequences": 12,
+    "whisper_patterns": 0,
+    "divider_patterns": 0,
+    "roleplay_patterns": 0,
+    "narrative_patterns": 0,
+    "boundary_patterns": 0,
+    "total_patterns": 124
+  },
+  "total_patterns": 0
+}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as api from '../lib/api';
+import descriptions from '../spec/descriptions.json';
+import Tooltip from './Tooltip';
 
 export function RetentionPolicy() {
   const [config, setConfig] = useState<api.RetentionConfig | null>(null);
@@ -235,8 +237,20 @@ export function RetentionPolicy() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* events_raw TTL */}
             <div>
-              <label htmlFor="eventsRawTtl" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="eventsRawTtl" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                 events_raw TTL (days)
+                {(descriptions as any)['RETENTION_EVENTS_RAW_TTL'] && (
+                  <Tooltip
+                    title={(descriptions as any)['RETENTION_EVENTS_RAW_TTL'].title}
+                    description={(descriptions as any)['RETENTION_EVENTS_RAW_TTL'].description}
+                    impact={(descriptions as any)['RETENTION_EVENTS_RAW_TTL'].impact}
+                    category={(descriptions as any)['RETENTION_EVENTS_RAW_TTL'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
               <input
                 id="eventsRawTtl"
@@ -254,8 +268,20 @@ export function RetentionPolicy() {
 
             {/* events_processed TTL */}
             <div>
-              <label htmlFor="eventsProcessedTtl" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="eventsProcessedTtl" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                 events_processed TTL (days)
+                {(descriptions as any)['RETENTION_EVENTS_PROCESSED_TTL'] && (
+                  <Tooltip
+                    title={(descriptions as any)['RETENTION_EVENTS_PROCESSED_TTL'].title}
+                    description={(descriptions as any)['RETENTION_EVENTS_PROCESSED_TTL'].description}
+                    impact={(descriptions as any)['RETENTION_EVENTS_PROCESSED_TTL'].impact}
+                    category={(descriptions as any)['RETENTION_EVENTS_PROCESSED_TTL'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
               <input
                 id="eventsProcessedTtl"
@@ -273,8 +299,20 @@ export function RetentionPolicy() {
 
             {/* Warning Threshold */}
             <div>
-              <label htmlFor="warnThreshold" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="warnThreshold" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                 Warning Threshold (%)
+                {(descriptions as any)['RETENTION_WARN_THRESHOLD'] && (
+                  <Tooltip
+                    title={(descriptions as any)['RETENTION_WARN_THRESHOLD'].title}
+                    description={(descriptions as any)['RETENTION_WARN_THRESHOLD'].description}
+                    impact={(descriptions as any)['RETENTION_WARN_THRESHOLD'].impact}
+                    category={(descriptions as any)['RETENTION_WARN_THRESHOLD'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
               <input
                 id="warnThreshold"
@@ -292,8 +330,20 @@ export function RetentionPolicy() {
 
             {/* Critical Threshold */}
             <div>
-              <label htmlFor="criticalThreshold" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="criticalThreshold" className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                 Critical Threshold (%)
+                {(descriptions as any)['RETENTION_CRITICAL_THRESHOLD'] && (
+                  <Tooltip
+                    title={(descriptions as any)['RETENTION_CRITICAL_THRESHOLD'].title}
+                    description={(descriptions as any)['RETENTION_CRITICAL_THRESHOLD'].description}
+                    impact={(descriptions as any)['RETENTION_CRITICAL_THRESHOLD'].impact}
+                    category={(descriptions as any)['RETENTION_CRITICAL_THRESHOLD'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
               <input
                 id="criticalThreshold"

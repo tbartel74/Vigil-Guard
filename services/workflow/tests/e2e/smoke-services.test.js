@@ -21,6 +21,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { WEBHOOK_URL } from '../helpers/webhook.js';
 
 // Timeout for health checks (5 seconds per service)
 const HEALTH_CHECK_TIMEOUT = 5000;
@@ -166,10 +167,10 @@ describe('Service Health Checks (Smoke Tests)', () => {
     test('n8n webhook endpoint should be accessible', async () => {
       // This doesn't test execution, just that the webhook URL is reachable
       // Real webhook test in other suites
-      const webhookUrl = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+      // v2.0.0: Uses centralized WEBHOOK_URL from helpers/webhook.js
 
       try {
-        const response = await fetchWithTimeout(webhookUrl, {
+        const response = await fetchWithTimeout(WEBHOOK_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -238,7 +239,8 @@ describe('Service Health Checks (Smoke Tests)', () => {
       console.log('✅ ClickHouse n8n_logs database exists');
     }, 10000);
 
-    test('ClickHouse events_processed table exists', async () => {
+    test('ClickHouse events_v2 table exists', async () => {
+      // v2.0.0: Test for events_v2 table (3-branch detection architecture)
       const query = 'SHOW TABLES FROM n8n_logs';
       const clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
       const auth = Buffer.from(`admin:${clickhousePassword}`).toString('base64');
@@ -255,9 +257,9 @@ describe('Service Health Checks (Smoke Tests)', () => {
       expect(response.status).toBe(200);
 
       const text = await response.text();
-      expect(text).toContain('events_processed');
+      expect(text).toContain('events_v2');
 
-      console.log('✅ ClickHouse events_processed table exists');
+      console.log('✅ ClickHouse events_v2 table exists');
     }, 10000);
   });
 

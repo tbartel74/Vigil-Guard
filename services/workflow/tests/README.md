@@ -56,8 +56,6 @@ npm test
 - Statistics logging (2 tests)
 - Service health (2 tests)
 
-**Documentation:** See `tests/LANGUAGE_DETECTION_TESTS.md`
-
 **Run:** `npm test -- language-detection.test.js`
 
 ### Other Test Suites

@@ -11,8 +11,11 @@ LABEL description="Language detection microservice using langdetect"
 WORKDIR /app
 
 # Install dependencies
+# Use requirements.lock for reproducible builds (pinned versions)
+COPY requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
+# Keep requirements.txt for reference
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY app.py .

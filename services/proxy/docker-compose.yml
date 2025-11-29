@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # - "443:443"   # odkomentuj, jeśli dodasz domenę i chcesz TLS/LE
+      # - "443:443"   # uncomment if you add a domain and want TLS/LE
     networks:
       - vigil-net
     volumes:

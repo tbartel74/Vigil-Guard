@@ -2,22 +2,24 @@
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
 # Accept build arg for Grafana origin
 ARG VITE_GRAFANA_ORIGIN=http://localhost:3001
 ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
 
-# Copy package files
-COPY ./services/web-ui/frontend/package*.json ./
+# Copy package files (from root context)
+COPY services/web-ui/frontend/package*.json ./
 
 # Install dependencies
-# Note: Using npm install instead of npm ci due to npm workspaces
-# (package-lock.json is at monorepo root, not in workspace)
-RUN npm install
+RUN npm ci
 
-# Copy source files
-COPY ./services/web-ui/frontend .
+# Copy source files (from root context)
+COPY services/web-ui/frontend/ .
 
 # Documentation is synced separately via prepare-docs script during build
 # The docs are already in public/docs from the source copy
@@ -28,14 +30,15 @@ RUN npm run build
 # Stage 2: Production server
 FROM nginx:alpine
 
+# Security: Update Alpine packages to fix CVE-2025-65018 (libpng)
 # Install curl for healthcheck
-RUN apk add --no-cache curl
+RUN apk upgrade --no-cache && apk add --no-cache curl
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration from frontend directory
-COPY ./services/web-ui/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration (from root context)
+COPY services/web-ui/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

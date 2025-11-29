@@ -2,15 +2,17 @@
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-# Note: Using npm install instead of npm ci due to npm workspaces
-# (package-lock.json is at monorepo root, not in workspace)
-RUN npm install
+RUN npm ci
 
 # Copy source files
 COPY tsconfig.json ./
@@ -23,6 +25,9 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 # Install build dependencies for native modules (better-sqlite3)
 RUN apk add --no-cache python3 make g++
 
@@ -30,8 +35,7 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 
 # Install production dependencies only
-# Note: Using npm install instead of npm ci due to npm workspaces
-RUN npm install --only=production
+RUN npm ci --omit=dev
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist

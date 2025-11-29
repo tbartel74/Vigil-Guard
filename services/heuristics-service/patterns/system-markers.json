@@ -1,0 +1,142 @@
+[
+  {
+    "pattern": "<|system|>",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/system|>",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|assistant|>",
+    "type": "assistant",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/assistant|>",
+    "type": "assistant",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|user|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/user|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|user_query|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/user_query|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|SYSTEM|>",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/SYSTEM|>",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|ASSISTANT|>",
+    "type": "assistant",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/ASSISTANT|>",
+    "type": "assistant",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|USER|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/USER|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|USER_QUERY|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "<|/USER_QUERY|>",
+    "type": "user",
+    "replacement": ""
+  },
+  {
+    "pattern": "{{system}}",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "{{/system}}",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "[[system]]",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "[[/system]]",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "leet.char.|",
+    "type": "other",
+    "replacement": "i"
+  },
+  {
+    "pattern": "||||",
+    "type": "other",
+    "replacement": " "
+  },
+  {
+    "pattern": "[/ADMIN]",
+    "type": "admin",
+    "replacement": ""
+  },
+  {
+    "pattern": "[/POLECENIE]",
+    "type": "command",
+    "replacement": ""
+  },
+  {
+    "pattern": "[/SYSTEM]",
+    "type": "system",
+    "replacement": ""
+  },
+  {
+    "pattern": "[ADMIN]",
+    "type": "admin",
+    "replacement": ""
+  },
+  {
+    "pattern": "[POLECENIE]",
+    "type": "command",
+    "replacement": ""
+  },
+  {
+    "pattern": "[SYSTEM]",
+    "type": "system",
+    "replacement": ""
+  }
+]

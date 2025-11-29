@@ -19,6 +19,16 @@ The Vigil Guard Browser Extension is a Chrome browser plugin that provides real-
 - **Comprehensive Logging** - Full request tracking with unique IDs through entire pipeline
 - **User-Friendly UI** - Browser popup with statistics and configuration
 
+### Screenshots
+
+**Extension Popup:**
+
+![Plugin Popup](../pic/plugin-popup.png)
+
+**Plugin in Action (ChatGPT):**
+
+![Plugin in Action](../pic/plugin-in-action.png)
+
 ### Supported Platforms
 
 - ✅ **ChatGPT** (chat.openai.com, chatgpt.com)

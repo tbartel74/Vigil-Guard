@@ -1,0 +1,33 @@
+# Lockfile for language-detector service
+# Generated: 2025-11-28
+# Python: 3.11+
+# Purpose: Pin all transitive dependencies for reproducible builds
+
+# Direct dependencies (from requirements.txt)
+Flask==3.1.0
+Flask-Limiter==3.5.0
+langdetect==1.0.9
+Werkzeug==3.1.3
+
+# Transitive dependencies (Flask 3.1.0)
+blinker==1.9.0
+click==8.1.8
+itsdangerous==2.2.0
+Jinja2==3.1.5
+MarkupSafe==3.0.2
+
+# Transitive dependencies (Flask-Limiter 3.5.0)
+limits==3.14.0
+deprecated==1.2.15
+packaging==24.2
+wrapt==1.17.0
+
+# Transitive dependencies (langdetect 1.0.9)
+six==1.17.0
+
+# Security notes:
+# - Werkzeug 3.1.3 fixes CVE-2024-34069 (7.5 HIGH)
+# - Werkzeug 3.1.3 fixes CVE-2024-49767 (6.9 MEDIUM)
+# - Werkzeug 3.1.3 fixes CVE-2024-49766 (6.3 MEDIUM)
+# - Flask 3.1.0 requires Werkzeug >=3.1.0
+# - All versions tested with Python 3.11

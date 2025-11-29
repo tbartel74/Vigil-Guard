@@ -65,7 +65,7 @@
   opacity: 1;
 }
 
-/* Ukryj oryginalny input podczas ładowania */
+/* Hide original input while loading */
 body.vigil-loading #prompt-textarea {
   opacity: 0.5;
   pointer-events: none;

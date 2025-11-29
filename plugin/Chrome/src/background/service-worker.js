@@ -1,7 +1,103 @@
 // Vigil Guard Browser Extension - Service Worker
-// Version: 0.5.0
+// Version: 0.6.0
+//
+// CRITICAL FIX (v0.6.0): Service Worker Keep-Alive mechanism
+// Chrome Manifest v3 terminates service workers after ~30s of inactivity.
+// This causes "Extension context invalidated" errors in content scripts.
+// Solution: Use chrome.alarms API to keep SW alive during active sessions.
 
-console.log('[Vigil Guard] Service Worker initialized');
+console.log('[Vigil Guard] Service Worker initialized (v0.6.0 with keep-alive)');
+
+// =============================================================================
+// SERVICE WORKER KEEP-ALIVE MECHANISM (v0.6.0)
+// =============================================================================
+// Chrome MV3 aggressively terminates service workers after ~30 seconds.
+// We use chrome.alarms (persistent) to wake up the SW periodically.
+// This ensures content scripts can always communicate with the background.
+
+const KEEP_ALIVE_ALARM_NAME = 'vigil-guard-keep-alive';
+const KEEP_ALIVE_INTERVAL_MINUTES = 0.4; // ~24 seconds (under 30s Chrome limit)
+
+// Track active tabs using the extension
+let activeTabsCount = 0;
+
+/**
+ * Start keep-alive mechanism when extension is actively used
+ */
+async function startKeepAlive() {
+  try {
+    // Create a periodic alarm that fires every ~24 seconds
+    await chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
+      periodInMinutes: KEEP_ALIVE_INTERVAL_MINUTES
+    });
+    console.log('[Vigil Guard] 🔄 Keep-alive alarm started');
+  } catch (error) {
+    console.error('[Vigil Guard] Failed to create keep-alive alarm:', error);
+  }
+}
+
+/**
+ * Stop keep-alive when no tabs are using the extension
+ */
+async function stopKeepAlive() {
+  try {
+    await chrome.alarms.clear(KEEP_ALIVE_ALARM_NAME);
+    console.log('[Vigil Guard] 🔄 Keep-alive alarm stopped (no active tabs)');
+  } catch (error) {
+    console.error('[Vigil Guard] Failed to clear keep-alive alarm:', error);
+  }
+}
+
+// Handle alarm events - this wakes up the service worker
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === KEEP_ALIVE_ALARM_NAME) {
+    // Just logging is enough to prove SW is alive
+    console.log('[Vigil Guard] 💓 Keep-alive ping at', new Date().toISOString());
+  }
+});
+
+// Track when content scripts connect/disconnect
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'vigil-guard-content') {
+    activeTabsCount++;
+    console.log('[Vigil Guard] 📡 Content script connected, active tabs:', activeTabsCount);
+
+    // Start keep-alive when first tab connects
+    if (activeTabsCount === 1) {
+      startKeepAlive();
+    }
+
+    port.onDisconnect.addListener(() => {
+      activeTabsCount = Math.max(0, activeTabsCount - 1);
+      console.log('[Vigil Guard] 📡 Content script disconnected, active tabs:', activeTabsCount);
+
+      // Stop keep-alive when no tabs are active (save resources)
+      if (activeTabsCount === 0) {
+        stopKeepAlive();
+      }
+    });
+  }
+});
+
+// Also start keep-alive on any message (fallback for tabs that don't use ports)
+function ensureKeepAlive() {
+  if (activeTabsCount === 0) {
+    activeTabsCount = 1; // At least one tab is using us
+    startKeepAlive();
+
+    // Auto-decrement after 5 minutes of no messages
+    setTimeout(() => {
+      activeTabsCount = Math.max(0, activeTabsCount - 1);
+      if (activeTabsCount === 0) {
+        stopKeepAlive();
+      }
+    }, 5 * 60 * 1000);
+  }
+}
+
+// =============================================================================
+// END KEEP-ALIVE MECHANISM
+// =============================================================================
 
 // Default GUI URL for fetching configuration
 const DEFAULT_GUI_URL = 'http://localhost:80/ui';
@@ -15,7 +111,9 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   mode: 'monitor', // 'monitor', 'block', 'sanitize'
   cache: true,
-  cacheTimeout: 300000 // 5 minutes
+  cacheTimeout: 300000, // 5 minutes
+  webhookAuthToken: '',
+  webhookAuthHeader: 'X-Vigil-Auth'
 };
 
 // Timeouts and limits
@@ -65,6 +163,8 @@ async function fetchConfigFromGUI() {
         mode: 'monitor',
         cache: true,
         cacheTimeout: 300000,
+        webhookAuthToken: data.webhookAuthToken || '',
+        webhookAuthHeader: data.webhookAuthHeader || 'X-Vigil-Auth',
         lastFetch: Date.now()
       }
     });
@@ -189,6 +289,9 @@ setInterval(() => {
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Vigil Guard] Message received:', request.type);
+
+  // v0.6.0: Ensure keep-alive is active when receiving messages
+  ensureKeepAlive();
 
   if (request.type === 'CHECK_WITH_GUARD') {
     checkWithGuardOverlay(request.payload)
@@ -524,14 +627,26 @@ async function callWebhook(webhookUrl, payload) {
   console.log('[Vigil Guard] 📦 Payload:', JSON.stringify(payload, null, 2));
 
   try {
+    // Get current config for auth token
+    const config = await getConfig();
+
+    // Build headers object
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add auth header if token is configured
+    if (config.webhookAuthToken) {
+      headers[config.webhookAuthHeader || 'X-Vigil-Auth'] = config.webhookAuthToken;
+      console.log('[Vigil Guard] 🔐 Adding auth header:', config.webhookAuthHeader || 'X-Vigil-Auth');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(payload),
       signal: controller.signal
     }).finally(() => clearTimeout(timeout));

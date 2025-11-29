@@ -1,0 +1,110 @@
+# ============================================================================
+# Semantic Service - Development Docker Compose
+# Branch B: Standalone development environment
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Semantic Service
+  # ============================================================================
+  semantic-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: semantic-service-dev
+    ports:
+      - "5006:5006"
+    volumes:
+      # Mount source for hot reload
+      - ./src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+      # Persist models (avoid re-download)
+      - semantic-models:/app/models
+    environment:
+      NODE_ENV: development
+      PORT: 5006
+      HOST: 0.0.0.0
+      LOG_PRETTY: "true"
+      LOG_LEVEL: debug
+      # ClickHouse connection
+      CLICKHOUSE_HOST: clickhouse-dev
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_DATABASE: n8n_logs
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-devpassword}
+      # Search settings
+      SEARCH_TOP_K: 5
+      THRESHOLD_LOW: 40
+      THRESHOLD_MEDIUM: 70
+    networks:
+      - semantic-net
+    depends_on:
+      clickhouse-dev:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5006/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================================
+  # ClickHouse (Development instance)
+  # ============================================================================
+  clickhouse-dev:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: clickhouse-semantic-dev
+    ports:
+      - "8124:8123"   # HTTP (different port to avoid conflict with main CH)
+      - "9001:9000"   # Native (different port)
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-devpassword}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_DB: n8n_logs
+    networks:
+      - semantic-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # Model Builder (one-time setup)
+  # ============================================================================
+  model-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: model-builder
+    container_name: model-builder
+    volumes:
+      - semantic-models:/build/models
+    command: ["echo", "Model built and stored in volume"]
+    profiles:
+      - setup
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  semantic-net:
+    driver: bridge
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  clickhouse-data:
+    driver: local
+  semantic-models:
+    driver: local
