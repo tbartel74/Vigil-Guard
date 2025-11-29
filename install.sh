@@ -1387,6 +1387,8 @@ initialize_heuristics_service() {
         "services/heuristics-service/patterns/homoglyphs.json"
         "services/heuristics-service/patterns/system-markers.json"
         "services/heuristics-service/patterns/zero-width.json"
+        "services/heuristics-service/patterns/security-keywords.json"
+        "services/heuristics-service/patterns/social-engineering-patterns.json"
     )
 
     MISSING_PATTERNS=0
@@ -1398,7 +1400,7 @@ initialize_heuristics_service() {
     done
 
     if [ $MISSING_PATTERNS -eq 0 ]; then
-        log_success "All 6 pattern files present"
+        log_success "All 8 pattern files present (v2.0.1: +CBRNE, +social engineering)"
     else
         log_error "$MISSING_PATTERNS pattern file(s) missing"
         log_info "Service may have limited detection capabilities"
