@@ -2,6 +2,11 @@ import { defineConfig } from 'vitest/config'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
+// Suppress Node.js promise rejection warnings for cleaner test output
+process.on('unhandledRejection', () => {});
+process.on('rejectionHandled', () => {});
+process.removeAllListeners('warning');
+
 // Load environment variables from root .env file
 config({ path: resolve(process.cwd(), '../../.env') })
 

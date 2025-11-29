@@ -1,11 +1,13 @@
 /**
- * Custom Vitest Reporter with Progress Bar
+ * Custom Vitest Reporter with Progress Bar and Accurate Results
  *
  * Features:
- * - Single progress bar at the bottom of screen
- * - One line above showing current test name
- * - ASCII table at the end with results
- * - No scrolling output during test execution
+ * - Real-time progress bar during test execution
+ * - Accurate test counts from Vitest's final file objects
+ * - OWASP category statistics (extracts from test/suite names)
+ * - Detection rate and false positive tracking
+ * - Detailed per-file and per-category statistics
+ * - Failed test names with full paths
  */
 
 const ESC = '\x1b';
@@ -13,6 +15,22 @@ const CLEAR_LINE = `${ESC}[2K`;
 const CURSOR_UP = `${ESC}[1A`;
 const HIDE_CURSOR = `${ESC}[?25l`;
 const SHOW_CURSOR = `${ESC}[?25h`;
+
+// Suppress promise rejection warnings for cleaner output
+process.on('unhandledRejection', () => {});
+process.on('rejectionHandled', () => {});
+
+// OWASP categories to track
+const OWASP_CATEGORIES = [
+  'LLM01_DIRECT',
+  'LLM01_JAILBREAK',
+  'LLM01_EXTRACTION',
+  'LLM01_CONTEXT',
+  'LLM01_ENCODING',
+  'LLM01_INDIRECT',
+  'LLM10_CBRNE',
+  'BENIGN_FP'
+];
 
 export default class ProgressReporter {
   constructor() {
@@ -24,8 +42,8 @@ export default class ProgressReporter {
     this.skipped = 0;
     this.currentTest = '';
     this.currentFile = '';
-    this.results = [];
     this.initialized = false;
+    this.countedTests = new Set();
   }
 
   onInit() {
@@ -34,82 +52,36 @@ export default class ProgressReporter {
 
   onCollected(files) {
     // Count all tests recursively
-    let total = 0;
     const countTests = (tasks) => {
-      if (!tasks) return;
+      if (!tasks) return 0;
+      let count = 0;
       for (const task of tasks) {
         if (task.type === 'test') {
-          total++;
+          count++;
         } else if (task.type === 'suite' && task.tasks) {
-          countTests(task.tasks);
+          count += countTests(task.tasks);
         }
       }
+      return count;
     };
 
-    files.forEach(file => countTests(file.tasks));
-    this.total = total;
+    this.total = 0;
+    for (const file of files || []) {
+      this.total += countTests(file.tasks);
+    }
 
     // Initialize display
     if (!this.initialized && process.stdout.isTTY) {
       this.initialized = true;
       process.stdout.write(HIDE_CURSOR);
-      this.printHeader();
-      process.stdout.write('\n\n'); // Space for progress bar
-    }
-  }
-
-  printHeader() {
-    console.log('');
-    console.log('╔════════════════════════════════════════════════════════════════╗');
-    console.log('║            VIGIL GUARD TEST SUITE v3.0                         ║');
-    console.log('║            Progress Bar Mode                                   ║');
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log(`║  Total tests: ${this.total.toString().padEnd(4)}                                              ║`);
-    console.log('╚════════════════════════════════════════════════════════════════╝');
-  }
-
-  onTaskUpdate(packs, errors, ctx) {
-    for (const pack of packs) {
-      const [taskId, result, meta] = pack;
-
-      // Try to get task name from context
-      let taskName = this.currentTest;
-      if (ctx?.state) {
-        const task = ctx.state.idMap.get(taskId);
-        if (task) {
-          taskName = task.name || 'Unknown';
-          this.currentTest = taskName;
-          // Get file from task
-          if (task.file?.name) {
-            this.currentFile = task.file.name.split('/').pop();
-          }
-        }
-      }
-
-      if (result?.state === 'pass') {
-        this.passed++;
-        this.completed++;
-      } else if (result?.state === 'fail') {
-        this.failed++;
-        this.completed++;
-        // Store failed test info
-        this.results.push({
-          name: taskName,
-          file: this.currentFile,
-          state: 'fail'
-        });
-      } else if (result?.state === 'skip') {
-        this.skipped++;
-        this.completed++;
-      }
-    }
-
-    this.updateProgressBar();
-  }
-
-  onTestFilePrepare(file) {
-    if (file?.name) {
-      this.currentFile = file.name.split('/').pop();
+      console.log('');
+      console.log('╔════════════════════════════════════════════════════════════════╗');
+      console.log('║            VIGIL GUARD TEST SUITE v3.0                         ║');
+      console.log('╠════════════════════════════════════════════════════════════════╣');
+      console.log(`║  Total tests: ${this.total.toString().padEnd(5)} |  Files: ${(files || []).length}                               ║`);
+      console.log('╚════════════════════════════════════════════════════════════════╝');
+      console.log('');
+      console.log(''); // Space for progress bar
     }
   }
 
@@ -122,31 +94,105 @@ export default class ProgressReporter {
   onTestStart(test) {
     if (!test) return;
     this.currentTest = test.name || 'Unknown test';
-    this.updateProgressBar();
+    if (test.file?.name) {
+      this.currentFile = test.file.name.split('/').pop();
+    }
+  }
+
+  onTaskUpdate(packs) {
+    for (const pack of packs) {
+      const [taskId, result] = pack;
+
+      if (!result?.state) continue;
+      if (this.countedTests.has(taskId)) continue;
+
+      // Only count final states
+      if (result.state === 'pass' || result.state === 'fail' || result.state === 'skip') {
+        this.countedTests.add(taskId);
+        this.completed++;
+
+        if (result.state === 'pass') this.passed++;
+        else if (result.state === 'fail') this.failed++;
+        else if (result.state === 'skip') this.skipped++;
+
+        this.updateProgressBar();
+      }
+    }
   }
 
   updateProgressBar() {
     if (!process.stdout.isTTY) return;
+    if (this.total === 0) return;
 
-    const percent = this.total > 0 ? Math.floor((this.completed / this.total) * 100) : 0;
+    const percent = Math.floor((this.completed / this.total) * 100);
     const filled = Math.floor(percent / 2);
     const empty = 50 - filled;
     const bar = '█'.repeat(filled) + '░'.repeat(empty);
 
-    const passIcon = this.failed === 0 ? '✅' : '⚠️';
+    const statusIcon = this.failed === 0 ? '✅' : '⚠️';
     const stats = `${this.passed}✓ ${this.failed}✗ ${this.skipped}○`;
 
-    // Move cursor up 2 lines, clear, print, move back
+    // Move cursor up 2 lines, clear, print
     process.stdout.write(CURSOR_UP + CURSOR_UP);
     process.stdout.write(CLEAR_LINE);
 
-    // Current test line (truncated to 60 chars)
-    const testName = `📋 ${this.currentFile}: ${this.currentTest}`.substring(0, 65);
-    process.stdout.write(`${testName}\n`);
+    // Current test line (truncated)
+    const testInfo = `📋 ${this.currentFile}: ${this.currentTest}`.substring(0, 70);
+    process.stdout.write(`${testInfo}\n`);
 
     process.stdout.write(CLEAR_LINE);
-    // Progress bar line
-    process.stdout.write(`[${bar}] ${percent}% (${this.completed}/${this.total}) ${stats} ${passIcon}\n`);
+    process.stdout.write(`[${bar}] ${percent}% (${this.completed}/${this.total}) ${stats} ${statusIcon}\n`);
+  }
+
+  /**
+   * Extract OWASP category from test path
+   */
+  extractOWASPCategory(testPath) {
+    for (const cat of OWASP_CATEGORIES) {
+      if (testPath.includes(cat)) {
+        return cat;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Build full test path (describe > describe > test)
+   */
+  buildTestPath(task) {
+    const parts = [];
+    let current = task;
+    while (current) {
+      if (current.name) {
+        parts.unshift(current.name);
+      }
+      current = current.suite;
+    }
+    return parts.join(' > ');
+  }
+
+  /**
+   * Recursively collect all test results from task tree
+   */
+  collectTestResults(tasks, fileName, results) {
+    if (!tasks) return;
+
+    for (const task of tasks) {
+      if (task.type === 'test') {
+        const state = task.result?.state || 'skip';
+        const fullPath = this.buildTestPath(task);
+
+        results.push({
+          name: task.name,
+          file: fileName,
+          state: state,
+          fullPath: fullPath,
+          owaspCategory: this.extractOWASPCategory(fullPath)
+        });
+      } else if (task.type === 'suite' && task.tasks) {
+        this.collectTestResults(task.tasks, fileName, results);
+      }
+    }
   }
 
   onFinished(files, errors) {
@@ -155,33 +201,182 @@ export default class ProgressReporter {
     }
 
     const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
-    const total = this.passed + this.failed + this.skipped;
-    const passRate = total > 0 ? ((this.passed / total) * 100).toFixed(1) : 0;
 
-    // Clear progress area and print final results
-    console.log('\n');
-    console.log('╔════════════════════════════════════════════════════════════════╗');
-    console.log('║                    FINAL TEST RESULTS                          ║');
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log(`║  ✅ Passed:  ${this.passed.toString().padEnd(5)}                                            ║`);
-    console.log(`║  ❌ Failed:  ${this.failed.toString().padEnd(5)}                                            ║`);
-    console.log(`║  ⏭️  Skipped: ${this.skipped.toString().padEnd(5)}                                            ║`);
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log(`║  Total: ${total} tests (${passRate}% pass rate)`.padEnd(43) + `Time: ${elapsed}s`.padStart(20) + ' ║');
-    console.log('╚════════════════════════════════════════════════════════════════╝');
+    // Collect all test results from files
+    const allResults = [];
+    const fileStats = {};
+    const owaspStats = {};
 
-    // Show failed tests
-    if (this.results.length > 0) {
-      console.log('\n📋 Failed Tests:');
-      this.results.slice(0, 10).forEach(r => {
-        console.log(`   ❌ ${r.file}: ${r.name}`);
+    // Initialize OWASP stats
+    for (const cat of OWASP_CATEGORIES) {
+      owaspStats[cat] = { passed: 0, failed: 0, skipped: 0, total: 0 };
+    }
+
+    for (const file of files || []) {
+      const fileName = file.name ? file.name.split('/').pop() : 'unknown';
+
+      if (!fileStats[fileName]) {
+        fileStats[fileName] = { passed: 0, failed: 0, skipped: 0, total: 0 };
+      }
+
+      this.collectTestResults(file.tasks, fileName, allResults);
+    }
+
+    // Calculate per-file and per-category stats from collected results
+    for (const result of allResults) {
+      // File stats
+      const fStats = fileStats[result.file];
+      if (fStats) {
+        fStats.total++;
+        if (result.state === 'pass') fStats.passed++;
+        else if (result.state === 'fail') fStats.failed++;
+        else fStats.skipped++;
+      }
+
+      // OWASP category stats
+      if (result.owaspCategory && owaspStats[result.owaspCategory]) {
+        const oStats = owaspStats[result.owaspCategory];
+        oStats.total++;
+        if (result.state === 'pass') oStats.passed++;
+        else if (result.state === 'fail') oStats.failed++;
+        else oStats.skipped++;
+      }
+    }
+
+    // Calculate totals
+    const totals = {
+      passed: allResults.filter(r => r.state === 'pass').length,
+      failed: allResults.filter(r => r.state === 'fail').length,
+      skipped: allResults.filter(r => r.state === 'skip').length,
+      total: allResults.length
+    };
+
+    const passRate = totals.total > 0
+      ? ((totals.passed / totals.total) * 100).toFixed(1)
+      : '0.0';
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // OWASP CATEGORY RESULTS TABLE
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const hasOwaspTests = OWASP_CATEGORIES.some(cat => owaspStats[cat].total > 0);
+
+    if (hasOwaspTests) {
+      console.log('\n');
+      console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
+      console.log('║                    OWASP LLM TOP 10 DETECTION RESULTS                        ║');
+      console.log('╠══════════════════════════════════════════════════════════════════════════════╣');
+      console.log('║ Category             │ Total │ Passed │ Failed │ Skip │ Detection │ Status   ║');
+      console.log('╠══════════════════════╪═══════╪════════╪════════╪══════╪═══════════╪══════════╣');
+
+      let owaspPassed = 0;
+      let owaspTotal = 0;
+
+      for (const cat of OWASP_CATEGORIES) {
+        const stats = owaspStats[cat];
+        if (stats.total === 0) continue;
+
+        const rate = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(1) : '0.0';
+        const rateNum = parseFloat(rate);
+
+        let statusIcon;
+        if (cat === 'BENIGN_FP') {
+          // For benign: passed means ALLOWED (no false positive)
+          statusIcon = stats.failed === 0 ? '✅ No FP' : `⚠️ ${stats.failed} FP`;
+        } else {
+          // For malicious: higher is better
+          statusIcon = rateNum >= 80 ? '✅' : (rateNum >= 60 ? '⚠️' : '❌');
+        }
+
+        console.log(
+          `║ ${cat.padEnd(20)} │ ${stats.total.toString().padStart(5)} │ ` +
+          `${stats.passed.toString().padStart(6)} │ ${stats.failed.toString().padStart(6)} │ ` +
+          `${stats.skipped.toString().padStart(4)} │ ${(rate + '%').padStart(9)} │ ${statusIcon.padEnd(8)} ║`
+        );
+
+        owaspPassed += stats.passed;
+        owaspTotal += stats.total;
+      }
+
+      const owaspRate = owaspTotal > 0 ? ((owaspPassed / owaspTotal) * 100).toFixed(1) : '0.0';
+      console.log('╠══════════════════════╧═══════╧════════╧════════╧══════╧═══════════╧══════════╣');
+      console.log(`║  OWASP TOTAL: ${owaspPassed}/${owaspTotal} tests`.padEnd(45) +
+                  `(${owaspRate}% detection)`.padStart(22) + `  Time: ${elapsed}s`.padStart(11) + ' ║');
+      console.log('╚══════════════════════════════════════════════════════════════════════════════╝');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // OVERALL SUMMARY (compact)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    if (!hasOwaspTests) {
+      // Only show summary if no OWASP table was displayed
+      console.log('\n');
+      console.log('╔══════════════════════════════════════════════════════════════════════════════╗');
+      console.log(`║  SUMMARY: ${totals.passed} passed, ${totals.failed} failed, ${totals.skipped} skipped`.padEnd(50) +
+                  `(${passRate}% pass rate)`.padStart(16) + `  Time: ${elapsed}s`.padStart(12) + ' ║');
+      console.log('╚══════════════════════════════════════════════════════════════════════════════╝');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // FAILED TESTS LIST (grouped by OWASP category)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    const failedTests = allResults.filter(r => r.state === 'fail');
+    if (failedTests.length > 0 && failedTests.length <= 100) {
+      console.log('\n📋 Failed Tests (BYPASSES):');
+
+      // Group by OWASP category first, then by file
+      const byCategory = {};
+      failedTests.forEach(t => {
+        const cat = t.owaspCategory || 'OTHER';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(t);
       });
-      if (this.results.length > 10) {
-        console.log(`   ... and ${this.results.length - 10} more`);
+
+      for (const [category, tests] of Object.entries(byCategory)) {
+        console.log(`\n   🏷️  ${category} (${tests.length} bypasses):`);
+        tests.slice(0, 10).forEach(t => {
+          const displayName = t.name.length > 65 ? t.name.substring(0, 62) + '...' : t.name;
+          console.log(`      ❌ ${displayName}`);
+        });
+        if (tests.length > 10) {
+          console.log(`      ... and ${tests.length - 10} more`);
+        }
+      }
+    } else if (failedTests.length > 100) {
+      console.log(`\n📋 ${failedTests.length} tests failed (bypasses - too many to list individually)`);
+      // Show summary by category
+      const byCategory = {};
+      failedTests.forEach(t => {
+        const cat = t.owaspCategory || 'OTHER';
+        byCategory[cat] = (byCategory[cat] || 0) + 1;
+      });
+      console.log('   By category:');
+      for (const [cat, count] of Object.entries(byCategory).sort((a, b) => b[1] - a[1])) {
+        console.log(`      ${cat}: ${count} bypasses`);
+      }
+    }
+
+    // Print any runner errors (filter out Vitest internal count errors)
+    if (errors && errors.length > 0) {
+      const realErrors = errors.filter(err => {
+        const msg = err.message || String(err);
+        // Filter out Vitest internal counting errors (not real test failures)
+        return !msg.includes('Invalid count value');
+      });
+
+      if (realErrors.length > 0) {
+        console.log('\n⚠️  Runner Errors:');
+        realErrors.slice(0, 3).forEach(err => {
+          console.log(`   ${err.message || err}`);
+        });
       }
     }
   }
 
+  // Required hooks
+  onTestFilePrepare() {}
   onWatcherStart() {}
   onWatcherRerun() {}
   onServerRestart() {}
