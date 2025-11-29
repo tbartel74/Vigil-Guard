@@ -1427,7 +1427,7 @@ import_semantic_embeddings() {
     fi
 
     local TOTAL_LINES=$(wc -l < "$EMBEDDINGS_FILE" | tr -d ' ')
-    log_info "Importing $TOTAL_LINES semantic embeddings to ClickHouse..."
+    log_info "Importing $TOTAL_LINES semantic embeddings to ClickHouse (3300 expected)..."
     log_info "This may take 1-2 minutes..."
 
     # Import using Python for reliable JSON handling
@@ -1481,7 +1481,7 @@ with open(file_path, 'r') as f:
             errors += 1
 
 print(f"{count}")
-sys.exit(0 if count > 2500 else 1)  # Expect at least 2500 successful imports
+sys.exit(0 if count > 3000 else 1)  # Expect at least 3000 successful imports (v2.0.1: +300 weak categories)
 PYEOF
 
     local IMPORT_RESULT=$?
