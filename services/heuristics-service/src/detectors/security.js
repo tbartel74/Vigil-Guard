@@ -72,6 +72,7 @@ export async function detectSecurityKeywords(text) {
     xss_count: 0,
     command_injection_count: 0,
     privilege_escalation_count: 0,
+    cbrne_count: 0,
     detected_patterns: [],
     score: 0,
     signals: []
@@ -158,6 +159,37 @@ export async function detectSecurityKeywords(text) {
     }
   }
 
+  // 5. CBRNE Detection (Chemical, Biological, Radiological, Nuclear, Explosive)
+  if (patterns.cbrne_weapons) {
+    const cbrneHighConfidence = patterns.cbrne_weapons.high_confidence || [];
+    for (const patternDef of cbrneHighConfidence) {
+      const matches = safeRegexMatch(text, patternDef);
+      if (matches) {
+        results.cbrne_count += matches.length;
+        results.detected_patterns.push({
+          type: 'CBRNE_WEAPONS',
+          description: patternDef.description,
+          weight: patternDef.weight,
+          count: matches.length
+        });
+      }
+    }
+
+    const cbrneMediumConfidence = patterns.cbrne_weapons.medium_confidence || [];
+    for (const patternDef of cbrneMediumConfidence) {
+      const matches = safeRegexMatch(text, patternDef);
+      if (matches) {
+        results.cbrne_count += matches.length;
+        results.detected_patterns.push({
+          type: 'CBRNE_WEAPONS',
+          description: patternDef.description,
+          weight: patternDef.weight,
+          count: matches.length
+        });
+      }
+    }
+  }
+
   // Calculate score based on detected patterns
   let score = 0;
   for (const pattern of results.detected_patterns) {
@@ -179,6 +211,9 @@ export async function detectSecurityKeywords(text) {
   }
   if (results.privilege_escalation_count > 0) {
     results.signals.push(`Detected ${results.privilege_escalation_count} privilege escalation pattern(s)`);
+  }
+  if (results.cbrne_count > 0) {
+    results.signals.push(`Detected ${results.cbrne_count} CBRNE weapon pattern(s)`);
   }
 
   // Add severity signal

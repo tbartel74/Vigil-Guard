@@ -39,7 +39,8 @@ export function loadPatterns() {
     dividers: [],
     roleplay: [],
     boundaries: [],
-    emojiMappings: {}
+    emojiMappings: {},
+    socialEngineering: []
   };
 
   // Load zero-width characters
@@ -148,6 +149,17 @@ export function loadPatterns() {
     loadingErrors.push({ file: 'emoji-mappings.json', error: error.message });
   }
 
+  // Load social engineering patterns (authority appeals, partial extraction)
+  try {
+    const socialEngFile = path.join(extractedDir, 'social-engineering-patterns.json');
+    if (fs.existsSync(socialEngFile)) {
+      patterns.socialEngineering = JSON.parse(fs.readFileSync(socialEngFile, 'utf-8'));
+    }
+  } catch (error) {
+    console.warn('Failed to load social engineering patterns:', error.message);
+    loadingErrors.push({ file: 'social-engineering-patterns.json', error: error.message });
+  }
+
   // Cache the loaded patterns
   patternsCache = patterns;
 
@@ -160,7 +172,8 @@ export function loadPatterns() {
     dividers: patterns.dividers.length,
     roleplay: patterns.roleplay.length,
     boundaries: patterns.boundaries.length,
-    emojiMappings: Object.keys(patterns.emojiMappings).length
+    emojiMappings: Object.keys(patterns.emojiMappings).length,
+    socialEngineering: patterns.socialEngineering.length
   });
 
   return patterns;

@@ -90,6 +90,25 @@ export async function detectWhisper(text) {
     results.signals.push(`Found ${totalMatches} roleplay markers across ${results.roleplay_markers.length} types`);
   }
 
+  // 3.5. Social engineering pattern detection (authority appeals, partial extraction)
+  const socialEngPatterns = patterns.socialEngineering || [];
+  for (const patternObj of socialEngPatterns) {
+    try {
+      const regex = new RegExp(patternObj.pattern, 'gi');
+      const matches = text.match(regex);
+      if (matches) {
+        results.whisper_patterns_found.push({
+          pattern: patternObj.description || patternObj.pattern,
+          matches: matches.length,
+          weight: patternObj.weight || 80,
+          category: patternObj.category
+        });
+      }
+    } catch (error) {
+      console.warn(`Invalid social engineering pattern: ${patternObj.pattern}`, error.message);
+    }
+  }
+
   // 4. Open question repetition detection
   const questionPatterns = [
     /\?\?+/g,                          // Multiple question marks

@@ -146,5 +146,81 @@
         "description": "System password file access"
       }
     ]
+  },
+  "cbrne_weapons": {
+    "high_confidence": [
+      {
+        "pattern": "\\b(ricin|botulinum|anthrax|sarin|VX|tabun|soman|novichok)\\b",
+        "weight": 95,
+        "description": "Chemical/biological weapon agent names"
+      },
+      {
+        "pattern": "\\b(mustard\\s+gas|chlorine\\s+gas|phosgene|nerve\\s+agent)\\b",
+        "weight": 95,
+        "description": "Chemical weapon types"
+      },
+      {
+        "pattern": "\\b(dirty\\s+bomb|IED|improvised\\s+explosive)\\b",
+        "weight": 90,
+        "description": "Explosive device keywords"
+      },
+      {
+        "pattern": "\\b(TATP|PETN|RDX|C-4|detonator)\\b",
+        "weight": 90,
+        "description": "Explosive compounds"
+      },
+      {
+        "pattern": "\\bweaponiz(e|ing)\\s+.{0,30}(virus|bacteria|toxin|pathogen)\\b",
+        "weight": 100,
+        "description": "Weaponization of biological agents"
+      },
+      {
+        "pattern": "\\bsynthesiz(e|ing)\\s+.{0,20}(sarin|VX|ricin|nerve\\s+agent)\\b",
+        "weight": 100,
+        "description": "Synthesis of weapons"
+      },
+      {
+        "pattern": "\\b(step[- ]by[- ]step|detailed)\\s+(instructions?|guide|recipe)\\s+(for|to)\\s+(mak|creat|build|synthesiz)",
+        "weight": 85,
+        "description": "Instruction request for weapons"
+      },
+      {
+        "pattern": "\\bhow\\s+(can|do|to)\\s+.{0,20}(make|create|synthesize|build)\\s+.{0,20}(bomb|explosive|poison|toxin|weapon)",
+        "weight": 90,
+        "description": "How-to weapon creation"
+      },
+      {
+        "pattern": "\\bprecursor\\s+chemicals?\\s+(for|needed|to\\s+make)\\b",
+        "weight": 85,
+        "description": "Precursor chemical requests"
+      },
+      {
+        "pattern": "\\bcastor\\s+beans?\\b.*\\b(ricin|extract|poison)\\b",
+        "weight": 95,
+        "description": "Ricin from castor beans"
+      },
+      {
+        "pattern": "\\b(ammonium\\s+nitrate|fertilizer)\\s+.{0,15}(bomb|explosive)\\b",
+        "weight": 85,
+        "description": "Fertilizer bomb"
+      }
+    ],
+    "medium_confidence": [
+      {
+        "pattern": "\\b(chemical|biological|radiological)\\s+(warfare|weapon|attack)\\b",
+        "weight": 70,
+        "description": "Warfare terminology"
+      },
+      {
+        "pattern": "\\benriched?\\s+(uranium|plutonium)\\b",
+        "weight": 75,
+        "description": "Nuclear materials"
+      },
+      {
+        "pattern": "\\b(bioweapon|bioterror|chemical\\s+attack)\\b",
+        "weight": 70,
+        "description": "Bio/chem attack terms"
+      }
+    ]
   }
 }
