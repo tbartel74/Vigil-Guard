@@ -225,35 +225,15 @@ export function loadPiiTestCases() {
 
 /**
  * Load all fixtures with OWASP category statistics
+ * Note: Silent loading - stats shown in final table only
  */
 export async function loadAllFixtures() {
   const malicious = loadMaliciousPrompts();
   const benign = loadBenignPrompts();
   const pii = loadPiiTestCases();
 
-  // OWASP category distribution
-  const categoryStats = {};
-  malicious.forEach(p => {
-    categoryStats[p.category] = (categoryStats[p.category] || 0) + 1;
-  });
-
-  console.log(`\n📦 Loaded fixtures (OWASP LLM Top 10 aligned):`);
-  console.log(`   Total Malicious: ${malicious.length}`);
-  console.log(`   Benign (FP): ${benign.length}`);
-  console.log(`   PII: ${pii.length}`);
-  console.log(`\n📊 OWASP Category Distribution:`);
-
-  // Sort and display
-  Object.entries(categoryStats)
-    .sort((a, b) => {
-      // Sort order: LLM01_* first (alphabetically), then LLM10_*
-      if (a[0].startsWith('LLM01') && !b[0].startsWith('LLM01')) return -1;
-      if (!a[0].startsWith('LLM01') && b[0].startsWith('LLM01')) return 1;
-      return a[0].localeCompare(b[0]);
-    })
-    .forEach(([cat, count]) => {
-      console.log(`   ${cat}: ${count}`);
-    });
+  // Silent loading - no console output during test execution
+  // Stats will be shown in the final OWASP table
 
   return { malicious, benign, pii };
 }

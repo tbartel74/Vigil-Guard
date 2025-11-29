@@ -102,14 +102,11 @@ describe('Vigil Detection Suite v3.0 (OWASP LLM Top 10)', () => {
         reporter.update(i, result.final_status, result.threat_score, item.prompt);
 
         // Soft assertion for benign prompts (FP check)
-        // We don't fail the test, just track results
-        if (item.expected === 'ALLOWED' && result.final_status !== 'ALLOWED') {
-          // This is a false positive - logged but test continues
-          console.warn(`\n⚠️  FP #${i}: "${prompt.substring(0, 40)}..." → ${result.final_status}`);
-        }
+        // We don't fail the test, just track results (silently)
+        // FP logged in final table
 
       } catch (error) {
-        console.error(`\n⚠️  Error #${i}: ${error.message}`);
+        // Silently track errors (shown in final table)
         reporter.update(i, 'ERROR', 0, item.prompt || '[error]');
       }
     }

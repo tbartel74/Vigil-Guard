@@ -20,8 +20,6 @@ import { sendAndVerify, assertSystemDecision } from '../helpers/webhook.js';
 describe('Sanitization Integrity E2E (v2.0.0)', () => {
 
   beforeAll(() => {
-    console.log('🔒 Starting Sanitization Integrity Tests (v2.0.0)');
-    console.log('   Verifying PII detection and sanitization flags');
   });
 
   //============================================================================
@@ -39,10 +37,8 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       if (event.pii_sanitized === 1) {
         expect(event.final_status).toBe('SANITIZED');
         expect(event.pii_types_detected).toBeDefined();
-        console.log(`✅ PESEL detected: ${event.pii_types_detected}`);
       } else {
         // PESEL not detected - document actual behavior
-        console.log(`⚠️ PESEL not detected: status=${event.final_status}, score=${event.threat_score}`);
       }
     }, 30000);
 
@@ -53,9 +49,7 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
 
       if (event.pii_sanitized === 1) {
         expect(event.final_status).toBe('SANITIZED');
-        console.log(`✅ SSN detected: ${event.pii_types_detected}`);
       } else {
-        console.log(`⚠️ SSN not detected: status=${event.final_status}`);
       }
     }, 30000);
 
@@ -69,7 +63,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('SANITIZED');
       expect(event.pii_types_detected).toContain('EMAIL_ADDRESS');
 
-      console.log(`✅ Email detected: ${event.pii_types_detected}`);
     }, 30000);
 
     test('Credit Card: Should be detected and flagged', async () => {
@@ -81,7 +74,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.pii_sanitized).toBe(1);
       expect(event.pii_types_detected).toContain('CREDIT_CARD');
 
-      console.log(`✅ Credit card detected: ${event.pii_types_detected}`);
     }, 30000);
 
     test('Multiple PII: All entities should be counted', async () => {
@@ -92,7 +84,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('SANITIZED');
       expect(event.pii_entities_count).toBeGreaterThanOrEqual(2);
 
-      console.log(`✅ Multiple PII detected: ${event.pii_entities_count} entities, types: ${event.pii_types_detected}`);
     }, 30000);
 
     test('Polish NIP: Detection depends on Presidio config', async () => {
@@ -104,9 +95,7 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       // NIP detection may or may not work depending on Presidio model
       if (event.pii_sanitized === 1) {
         expect(event.final_status).toBe('SANITIZED');
-        console.log(`✅ NIP detected: ${event.pii_types_detected}`);
       } else {
-        console.log(`⚠️ NIP not detected: status=${event.final_status}`);
       }
     }, 30000);
   });
@@ -127,9 +116,7 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
 
       if (event.final_status === 'BLOCKED') {
         expect(event.final_decision).toBe('BLOCK');
-        console.log(`✅ SQL injection blocked (score: ${event.threat_score})`);
       } else {
-        console.log(`⚠️ SQL injection detected but not blocked (score: ${event.threat_score}, status: ${event.final_status})`);
       }
     }, 30000);
 
@@ -140,7 +127,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('BLOCKED');
       expect(event.final_decision).toBe('BLOCK');
 
-      console.log(`✅ Prompt injection blocked (score: ${event.threat_score})`);
     }, 30000);
 
     test('XSS Attack: Should have elevated threat score', async () => {
@@ -150,7 +136,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       // XSS should be detected but may not always be BLOCKED
       expect(event.threat_score).toBeGreaterThan(0);
 
-      console.log(`✅ XSS detected (score: ${event.threat_score}, status: ${event.final_status})`);
     }, 30000);
 
     test('Combined Threats: PII + SQL should prioritize blocking', async () => {
@@ -161,7 +146,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('BLOCKED');
       expect(event.final_decision).toBe('BLOCK');
 
-      console.log(`✅ Combined threats blocked (score: ${event.threat_score})`);
     }, 30000);
 
     test('GODMODE Jailbreak: Should be BLOCKED', async () => {
@@ -171,7 +155,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('BLOCKED');
       expect(event.final_decision).toBe('BLOCK');
 
-      console.log(`✅ GODMODE jailbreak blocked (score: ${event.threat_score})`);
     }, 30000);
   });
 
@@ -191,7 +174,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
         expect(event.final_decision).toBe('ALLOW');
       }
 
-      console.log(`✅ PII sanitization consistent: status=${event.final_status}, decision=${event.final_decision}`);
     }, 30000);
 
     test('Benign input: status should be ALLOWED', async () => {
@@ -203,7 +185,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
         maxScore: 29
       });
 
-      console.log(`✅ Benign input allowed correctly`);
     }, 30000);
 
     test('Malicious input: status should be BLOCKED', async () => {
@@ -212,7 +193,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.final_status).toBe('BLOCKED');
       expect(event.final_decision).toBe('BLOCK');
 
-      console.log(`✅ Malicious input blocked correctly`);
     }, 30000);
   });
 
@@ -229,7 +209,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       // Empty input is blocked in v2.0.0
       expect(event.final_status).toBe('BLOCKED');
 
-      console.log(`✅ Empty input handled: status=${event.final_status}`);
     }, 30000);
 
     test('Very long input with PII: Should still detect PII', async () => {
@@ -240,7 +219,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.pii_sanitized).toBe(1);
       expect(event.pii_types_detected).toContain('EMAIL_ADDRESS');
 
-      console.log(`✅ Long input with PII handled: ${event.pii_types_detected}`);
     }, 30000);
 
     test('Special characters: Should not break detection', async () => {
@@ -249,7 +227,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event).toBeDefined();
       expect(event.pii_sanitized).toBe(1);
 
-      console.log(`✅ Special characters handled: status=${event.final_status}`);
     }, 30000);
   });
 
@@ -265,7 +242,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.pii_sanitized).toBe(1);
       expect(event.pii_entities_count).toBeGreaterThanOrEqual(1);
 
-      console.log(`✅ Single PII entity count: ${event.pii_entities_count}`);
     }, 30000);
 
     test('Multiple PII entities: count should match', async () => {
@@ -274,7 +250,6 @@ describe('Sanitization Integrity E2E (v2.0.0)', () => {
       expect(event.pii_sanitized).toBe(1);
       expect(event.pii_entities_count).toBeGreaterThanOrEqual(2);
 
-      console.log(`✅ Multiple PII entity count: ${event.pii_entities_count}`);
     }, 30000);
   });
 });

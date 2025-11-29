@@ -24,6 +24,8 @@ export default defineConfig({
     sequence: {
       concurrent: false,
       shuffle: false
-    }
+    },
+    // Custom progress bar reporter
+    reporters: ['./tests/helpers/vitest-reporter.js']
   }
 })

@@ -59,7 +59,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const response = await fetchWithTimeout('http://localhost:5678/healthz');
 
       expect(response.status).toBe(200);
-      console.log('✅ n8n is healthy');
     }, 10000);
 
     test('Presidio PII API should be healthy', async () => {
@@ -71,7 +70,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       expect(data).toHaveProperty('status');
       expect(data.status).toBe('healthy');
 
-      console.log('✅ Presidio PII API is healthy');
     }, 10000);
 
     test('Language Detector API should be healthy', async () => {
@@ -83,7 +81,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       expect(data).toHaveProperty('status');
       expect(data.status).toBe('healthy');
 
-      console.log('✅ Language Detector is healthy');
     }, 10000);
   });
 
@@ -96,14 +93,12 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const text = await response.text();
       expect(text).toBe('Ok.\n');
 
-      console.log('✅ ClickHouse is healthy');
     }, 10000);
 
     test('Grafana monitoring should be healthy', async () => {
       const response = await fetchWithTimeout('http://localhost:3001/api/health');
 
       expect(response.status).toBe(200);
-      console.log('✅ Grafana is healthy');
     }, 10000);
   });
 
@@ -118,7 +113,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       // Backend returns 'ok' not 'healthy'
       expect(data.status).toBe('ok');
 
-      console.log('✅ Web UI Backend is healthy');
     }, 10000);
 
     test('Web UI Frontend should be accessible', async () => {
@@ -131,7 +125,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const contentType = response.headers.get('content-type');
       expect(contentType).toMatch(/text\/html/);
 
-      console.log('✅ Web UI Frontend is accessible');
     }, 10000);
 
     test('Caddy reverse proxy should be healthy', async () => {
@@ -141,7 +134,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
 
       // Accept 200 OK or 3xx redirects as healthy
       expect([200, 301, 302, 303, 307, 308]).toContain(response.status);
-      console.log(`✅ Caddy proxy is healthy (status: ${response.status})`);
     }, 10000);
   });
 
@@ -151,10 +143,8 @@ describe('Service Health Checks (Smoke Tests)', () => {
         const response = await fetchWithTimeout('http://localhost:8000/health');
 
         expect(response.status).toBe(200);
-        console.log('✅ Prompt Guard API is healthy');
       } catch (error) {
         if (error.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
-          console.log('⚠️  Prompt Guard API not running (optional service)');
           // Don't fail test - this service is optional
         } else {
           throw error;
@@ -186,7 +176,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
         expect(response.status).toBeGreaterThanOrEqual(200);
         expect(response.status).toBeLessThan(600);
 
-        console.log(`✅ n8n webhook endpoint reachable (status: ${response.status})`);
       } catch (error) {
         if (error.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
           throw new Error('n8n webhook endpoint not accessible - is n8n running?');
@@ -214,7 +203,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const text = await response.text();
       expect(text).toContain('1');
 
-      console.log('✅ ClickHouse query execution works');
     }, 10000);
 
     test('ClickHouse n8n_logs database exists', async () => {
@@ -236,7 +224,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const text = await response.text();
       expect(text).toContain('n8n_logs');
 
-      console.log('✅ ClickHouse n8n_logs database exists');
     }, 10000);
 
     test('ClickHouse events_v2 table exists', async () => {
@@ -259,7 +246,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       const text = await response.text();
       expect(text).toContain('events_v2');
 
-      console.log('✅ ClickHouse events_v2 table exists');
     }, 10000);
   });
 
@@ -275,7 +261,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       expect(data.status).toBe('ok');
 
       // If the backend can respond with healthy status, it has database access
-      console.log('✅ Web UI Backend has ClickHouse connectivity');
     }, 10000);
 
     test('Caddy can proxy to Web UI Frontend', async () => {
@@ -290,7 +275,6 @@ describe('Service Health Checks (Smoke Tests)', () => {
       // HTML5 allows lowercase <!doctype html>
       expect(text.toLowerCase()).toContain('<!doctype html>');
 
-      console.log('✅ Caddy → Web UI Frontend proxy works');
     }, 10000);
   });
 });

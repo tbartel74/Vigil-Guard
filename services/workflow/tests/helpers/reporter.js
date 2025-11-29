@@ -51,13 +51,17 @@ export class ProgressReporter {
    */
   setCategory(name, range) {
     this.currentCategory = name;
-    // Wyświetl zmianę kategorii (jednoliniowo, bez nowego ekranu)
-    process.stdout.write(`\r\x1b[K📁 ${name} [${range}]  `);
-    console.log('');
+    // W trybie TTY: wyświetl zmianę kategorii
+    if (process.stdout.isTTY) {
+      process.stderr.write(`\n📁 ${name} [${range}]\n`);
+    }
+    // W batch mode: milcząco (wszystko w finalnej tabeli)
   }
 
   /**
    * Update progress bar (jednoliniowy, carriage return)
+   * W trybie TTY: dynamiczny progress bar
+   * W trybie batch (Vitest): progress co 10% lub przy zmianie kategorii
    */
   update(index, status, score, payload) {
     this.current = index + 1;
@@ -98,8 +102,17 @@ export class ProgressReporter {
 
     const statusIcon = detected ? '✅' : '❌';
 
-    // Single line update (carriage return, nie nowy ekran)
-    process.stdout.write(`\r[${bar}] ${percent}% (${this.current}/${this.total}) ${statusIcon}`);
+    // Wyświetlaj progress co 10% lub przy ostatnim teście
+    const isTTY = process.stdout.isTTY;
+    const showProgress = (percent % 10 === 0 && this.lastShownPercent !== percent) || this.current === this.total;
+
+    if (isTTY) {
+      // TTY mode: dynamiczny update w tej samej linii
+      process.stderr.write(`\r[${bar}] ${percent}% (${this.current}/${this.total}) ${statusIcon}`);
+    } else if (showProgress) {
+      // Batch mode: pokazuj tylko co 10%
+      this.lastShownPercent = percent;
+    }
 
     // Store result for final table
     this.results.push({
