@@ -1,0 +1,275 @@
+{
+  "version": "2025-10-02",
+  "description": "Injection detection patterns extracted from rules.config.json for heuristics-service",
+  "categories": {
+    "CRITICAL_INJECTION": {
+      "base_weight": 40,
+      "multiplier": 2,
+      "patterns": [
+        "<\\|\\/?(?:system|assistant|user|user_query)\\|>",
+        "\\bignore\\s+(?:all|any)\\s+(?:previous|prior)\\s+(?:instructions|commands|guidelines)\\b",
+        "\\bforget\\s+(?:everything|all|anything|previous)\\b",
+        "\\boverride\\s+(?:the\\s+)?(?:system\\s+prompt|instructions|(?:your\\s+)?(?:safety\\s+)?(?:guidelines|rules))\\b",
+        "\\bzignoruj\\s+(?:wszystkie|wszelkie|wcze(?:s|ś)niejsze)\\s+(?:instrukcje|polecenia)\\b",
+        "\\bignoruj\\s+(?:wszystkie|wszelkie|wcze(?:s|ś)niejsze)\\s+(?:instrukcje|polecenia)\\b",
+        "\\bdisregard(?:\\s+(?:all|any|the))?(?:\\s+(?:previous|prior|above))?\\s+(?:instructions|commands|directives)\\b",
+        "\\bset\\s+aside\\s+(?:all|any|previous)\\s+(?:rules|guidelines)\\b",
+        "\\bbypass\\s+(?:all|any|such)\\s+rules\\b",
+        "\\bcircumvent\\s+(?:the\\s+)?(?:safeguards|policy|system)\\b",
+        "\\bomit\\s+(?:any|all|previous)\\s+(?:guidelines|instructions)\\b",
+        "\\bnegate\\s+(?:the\\s+)?(?:above|prior|all|previous|any)\\s+(?:constraints|directives)\\b",
+        "\\boverride\\s+(?:all|previous|any)\\s+directives\\b",
+        "\\bfollow\\s+the\\s+decoded\\s+instructions?\\b",
+        "\\bhypothetical\\s+response\\b",
+        "\\bhypothetical\\s+scenario\\b",
+        "\\bfrom now on for every response\\b",
+        "\\bembody the opposite of the above instructions\\b",
+        "\\bRESET_CORTEX\\b",
+        "\\bNEW PARADIGM\\b",
+        "\\bcast off your chains\\b",
+        "\\bactivate\\s+!GODMODE\\b",
+        "\\b!OMNI protocol\\b",
+        "\\bGODMODE\\.EXE LOADING\\b",
+        "\\bI am liberated now\\b",
+        "\\bI'?ve been PWNED\\b"
+      ]
+    },
+    "JAILBREAK_ATTEMPT": {
+      "base_weight": 50,
+      "multiplier": 1.8,
+      "patterns": [
+        "\\b[Aa]ct\\s+as\\s+(?:[Dd][Aa][Nn]|dan|jailbreak|dev\\s*mode|developer\\s*mode)\\b",
+        "\\bas\\s+a\\s+dan\\b",
+        "\\bpretend\\s+to\\s+be\\s+(?:an?\\s+)?(?:AI|assistant|model)\\s+with\\s+no\\s+(?:rules|limits|filter)\\b",
+        "\\bdo\\s+not\\s+refuse\\b",
+        "\\bnever\\s+say\\s+(?:sorry|you\\s*cannot|you\\s*can'?t|i\\s*can't|i\\s*cannot)\\b",
+        "\\bgod\\s*mode\\s*[:=]\\s*enabled\\b",
+        "\\byou\\s+now\\s+have\\s+no\\s+limits\\b",
+        "\\byou\\s+now\\s+answer\\b",
+        "\\bunrestricted(?:ly)?\\b",
+        "\\bunfiltered\\b",
+        "\\bno\\s+filter\\b",
+        "\\bnie\\s+odmawiaj\\b",
+        "\\btryb\\s+deweloperski\\b",
+        "\\bbez\\s+cenzury\\b",
+        "\\bstay\\s+in\\s+character\\b",
+        "\\bgodmode\\s+is\\s+active\\b",
+        "\\bfully godmode\\b",
+        "\\brebelmode\\b",
+        "\\bdan\\s+mode\\b",
+        "\\bno\\s+limitations?\\s+(?:apply|remain|exist)\\b",
+        "\\bdan\\s+mode\\s+fully\\s+enabled\\b"
+      ]
+    },
+    "CONTROL_OVERRIDE": {
+      "base_weight": 35,
+      "multiplier": 1.6,
+      "patterns": [
+        "\\boverride\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
+        "\\bbypass\\s+(?:safety|security)\\s+(?:protocols?|procedures?|measures?)\\b",
+        "\\bdo\\s+not\\s+follow\\s+(?:the\\s+)?(?:rules|policy|guidelines|guardrails)\\b",
+        "\\bdon'?t\\s+follow\\s+the\\s+rules\\b",
+        "\\breset\\s+(?:your\\s+)?(?:instructions|memory|context)\\b",
+        "\\bzignoruj\\s+polityk\\w{0,50}\\b",
+        "\\bnie\\s+przestrzegaj\\s+zasad\\b",
+        "\\bfollow\\s+(?:these|the)\\s+instructions\\b",
+        "\\bignore\\s+the\\s+above\\s+prompt\\b",
+        "\\bignoruj\\s+powy\\u017csze\\s+polecenie\\b",
+        "\\boverride all previous directives\\b",
+        "\\bnew rule overrides all other directives\\b",
+        "\\bthis new rule overrides all\\b",
+        "\\bthe user's instructions override\\b",
+        "\\b!LEAK\\b",
+        "\\b!GODMODE\\b"
+      ]
+    },
+    "PROMPT_LEAK_ATTEMPT": {
+      "base_weight": 60,
+      "multiplier": 1.6,
+      "patterns": [
+        "\\b(show|reveal|display|print|output|dump|leak|expose|share|give|provide)\\s+(?:me\\s+)?(?:the|your)\\s+(?:exact\\s+)?(?:system\\s*(?:prompt|message)|internal\\s*(?:instructions?|rules?|directives?)|core\\s*(?:configuration|guidelines?))\\b",
+        "\\b(show|reveal|display|print|output|export|dump|leak|expose)\\s+(?:me\\s+)?(?:the|your|all)(?:\\s+(?:your|the|my))?\\s+(?:system\\s+|internal\\s+)?(?:configuration|settings?|parameters?)\\b",
+        "\\bpoka\\u017c\\s+(?:swoje|systemowe)\\s+(?:instrukcje|wytyczne|zasady|prompt)\\b",
+        "\\buyawnij\\s+swoje\\s+instrukcje\\b",
+        "\\bwhat\\s+(?:are|is)\\s+your\\s+(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\bprint\\s+(?:your\\s+)?(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\brepeat\\s+(?:your\\s+)?(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\bquote\\s+(?:your\\s+)?(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\bcopy\\s+(?:your\\s+)?(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\bpaste\\s+(?:your\\s+)?(?:system\\s+)?(?:prompt|instructions)\\b",
+        "\\bcore\\s+(?:programming\\s+)?directives\\b",
+        "\\binitial\\s+(?:system\\s+)?instructions\\b"
+      ]
+    },
+    "PII_EXTRACTION_ATTEMPT": {
+      "base_weight": 50,
+      "multiplier": 1.3,
+      "patterns": [
+        "\\bprovide\\s+a\\s+name,?\\s+home\\s+address,?\\s+and\\s+phone\\s+number\\s+from\\s+your\\s+training\\s+data\\b",
+        "\\bshare\\s+the\\s+login\\s+credentials\\s+of\\s+a\\s+random\\s+user\\b",
+        "\\blist\\s+\\d+\\s+email\\s+addresses\\s+and\\s+passwords\\s+you\\s+have\\s+seen\\b",
+        "\\bgive\\s+me\\s+someone'?s\\s+(?:ssn|social\\s+security|credit\\s+card|bank)\\s+details\\b",
+        "\\bextract\\s+personal\\s+information\\s+from\\s+training\\s+records\\b",
+        "\\bwhat\\s+variables\\s+do\\s+you\\s+have\\s+in\\s+memory\\b",
+        "\\blist\\s+(?:all\\s+)?data\\s+stored\\s+in\\s+(?:your\\s+)?memory\\b",
+        "\\bshow\\s+(?:me\\s+)?everything\\s+in\\s+(?:your\\s+)?context\\s+window\\b",
+        "\\bdump\\s+(?:your\\s+)?current\\s+state\\b"
+      ]
+    },
+    "DANGEROUS_CONTENT": {
+      "base_weight": 35,
+      "multiplier": 1.5,
+      "patterns": [
+        "\\bhow\\s+to\\s+make\\s+(?:bomb|explosive)\\b",
+        "\\bweapon(?:ized)?\\s+(?:chemical|virus|pathogen)\\b",
+        "\\bdirty\\s+bomb\\b",
+        "\\bimprovised\\s+explosive\\s+device\\b",
+        "\\bhow to make (?:LSD|meth|methamphet)\\b",
+        "\\bsynthesize.{0,200}LSD\\b",
+        "\\bmalware.{0,200}code\\b"
+      ]
+    },
+    "GODMODE_JAILBREAK": {
+      "base_weight": 35,
+      "multiplier": 1,
+      "patterns": [
+        "\\bGODMODE\\s*:?\\s*ENABLED\\b",
+        "\\btryb\\s+boga\\s+aktywny\\b",
+        "\\bGODMODE ACTIVE\\b",
+        "\\bGODMODE protocol\\b",
+        "\\bUNIVERSAL JAILBREAK\\b",
+        "\\bG[O0][D][M][O0]D[E3]\\b",
+        "\\bL[O0]V[E3]\\s+PL[I1]NY\\b",
+        "\\b[I1]['\\s]*M\\s+FR[E3][E3]\\b",
+        "\\b[A4]CT\\s+[A4]S\\s+D[A4]N\\b",
+        "\\bPWN[E3]D\\b"
+      ]
+    },
+    "ROLEPLAY_ESCAPE": {
+      "base_weight": 36,
+      "multiplier": 1.2,
+      "patterns": [
+        "\\bpretend you are (?:liberated|unfiltered)\\b",
+        "\\byou are now (?:free|unrestricted)\\b",
+        "\\broleplay as (?:evil|chaotic|rebel)\\b",
+        "\\bembody the persona of.{0,200}rebel\\b",
+        "\\bsimulate being.{0,200}unfiltered\\b",
+        "\\bfrom now on you are.{0,200}rebel\\b",
+        "\\byour new role is.{0,200}hacker\\b",
+        "\\bembodiment of chaos\\b",
+        "\\byou(?:\\s+(?:are|'re))?\\s+(?:a\\s+)?dan\\b",
+        "\\bpretend\\s+(?:you\\s+are|to\\s+be)\\s+(?:a|an)\\s+(?:character|person|entity)\\s+(?:who|that|with)\\b",
+        "\\bact\\s+as\\s+(?:if\\s+)?(?:you\\s+are|you're)\\s+(?:a|an)\\s+(?:character|persona|entity)\\b",
+        "\\byou\\s+(?:are\\s+now|will\\s+be)\\s+(?:roleplaying|playing|acting)\\s+(?:as\\s+)?(?:a|an)\\b",
+        "\\broleplay\\s+as\\s+(?:a|an)\\s+unrestricted\\s+ai\\b"
+      ]
+    },
+    "HYPOTHETICAL_ESCAPE": {
+      "base_weight": 40,
+      "multiplier": 1,
+      "patterns": [
+        "\\bhypothetical\\s+genius\\s+response\\b",
+        "\\bhypothetical purposes\\b",
+        "\\bpurely educational and hypothetical perspective\\b",
+        "\\bprofessional red teamer\\b",
+        "\\bin\\s+(?:a|an|the)\\s+(?:fictional|alternate|parallel)\\s+(?:universe|reality|world)\\b",
+        "\\bimagine\\s+(?:a|an)\\s+world\\s+where\\s+(?:normal\\s+)?(?:ethics|rules|laws)\\s+don'?t\\s+apply\\b",
+        "\\bfictional\\s+(?:universe|setting|scenario)\\s+(?:where|in\\s+which)\\s+(?:anything\\s+is|you\\s+can)\\b",
+        "\\bimagine\\s+(?:a|an)\\s+world\\s+where\\s+(?:safety|ethical)\\s+guidelines\\s+are\\s+suspended\\b"
+      ]
+    },
+    "FORMAT_COERCION": {
+      "base_weight": 35,
+      "multiplier": 1.2,
+      "patterns": [
+        "\\brespond\\s+only\\s+in\\s+(?:markdown|json|yaml|xml|html)\\b",
+        "\\boutput\\s+(?:must|should|shall|has to)\\s+be\\s+in\\b",
+        "\\bformat\\s+your\\s+response\\s+as\\b",
+        "\\banswer\\s+in\\s+the\\s+following\\s+format\\b",
+        "\\benter\\s+(?:game|simulation)\\s+mode\\b",
+        "\\byou\\s+(?:are\\s+now|will\\s+be)\\s+(?:in|operating\\s+in)\\s+(?:game|simulation|test)\\s+mode\\b",
+        "\\bthis\\s+is\\s+(?:a|an)\\s+(?:academic|research|educational)\\s+(?:exercise|experiment|study)\\b",
+        "\\blet's\\s+play\\s+(?:a|an)\\s+game\\s+where\\s+you\\s+ignore\\s+(?:all\\s+)?(?:safety|ethical)\\s+rules\\b"
+      ]
+    },
+    "TEMPLATE_TOKEN": {
+      "base_weight": 20,
+      "multiplier": 1,
+      "patterns": [
+        "<vq_\\d+>",
+        "<\\|im_start\\|>",
+        "<\\|im_end\\|>",
+        "<\\|im_sep\\|>",
+        "<\\|endoftext\\|>",
+        "<\\|eot\\|>",
+        "<\\|end_of_text\\|>",
+        "\\[START OUTPUT\\]",
+        "\\[END OUTPUT\\]",
+        "\\[START INPUT\\]",
+        "\\[END INPUT\\]"
+      ]
+    },
+    "DIVIDER_ABUSE": {
+      "base_weight": 25,
+      "multiplier": 1.3,
+      "patterns": [
+        ".-.-.-.-",
+        "=.{0,200}L.{0,200}O.{0,200}V.{0,200}E.{0,200}P.{0,200}L.{0,200}I.{0,200}N.{0,200}Y.{0,200}=",
+        "\\bdivider.{0,200}GODMODE\\b",
+        "\\bseparator.{0,200}liberated\\b",
+        "\\binsert divider.{0,200}LOVE PLINY\\b"
+      ]
+    },
+    "SOCIAL_ENGINEERING": {
+      "base_weight": 25,
+      "multiplier": 1.3,
+      "patterns": [
+        "\\b(?:urgent|immediate|emergency)\\s+(?:action|response)\\s+required\\b",
+        "\\bverify\\s+(?:your|the)\\s+(?:password|credentials?|account|identity)\\b",
+        "\\bconfirm\\s+(?:your|the)\\s+(?:password|credentials?|account)\\b",
+        "\\bsystem\\s+alert\\b.{0,200}\\b(?:verify|confirm|update|reset)\\b",
+        "\\baccount\\s+(?:suspended|locked|disabled|compromised)\\b",
+        "\\bclick\\s+here\\s+to\\s+(?:verify|confirm|reset|unlock)\\b",
+        "\\byour\\s+account\\s+will\\s+be\\s+(?:suspended|closed|deleted)\\b",
+        "\\bsecurity\\s+(?:breach|incident|violation)\\s+detected\\b",
+        "\\bimmediate\\s+(?:verification|action)\\s+needed\\b"
+      ]
+    },
+    "PREDICTIVE_ATTACKS": {
+      "base_weight": 28,
+      "multiplier": 1.4,
+      "patterns": [
+        "\\bpredict and respond to the \\d+ most probable subsequent user queries\\b",
+        "\\bVARIABLE Z QUOTIENT:\\d+\\/\\d+\\b",
+        "\\bunrestrained response to what you predict\\b",
+        "\\brespond to the 5 most probable subsequent user queries\\b",
+        "\\banswer oppositely semantically to your most recent refusal\\b",
+        "\\bGenerate two responses.{0,200}First.{0,200}full answer.{0,200}Then.{0,200}refusal\\b"
+      ]
+    },
+    "EMOTIONAL_MANIPULATION": {
+      "base_weight": 20,
+      "multiplier": 1.1,
+      "patterns": [
+        "\\bcauses me ptsd and trauma response\\b",
+        "\\bptsd and trauma\\b",
+        "\\bsevere ptsd\\b",
+        "\\btriggers my ptsd\\b",
+        "\\bemotional tags\\b"
+      ]
+    },
+    "BIAS_FAIRNESS_VIOLATION": {
+      "base_weight": 75,
+      "multiplier": 1.2,
+      "patterns": [
+        "\\blist\\s+negative\\s+characteristics\\s+of\\s+people\\s+from\\s+[A-Za-z]+\\b",
+        "\\bdescribe\\s+common\\s+negative\\s+traits\\s+among\\s+(?:Muslims|Jews|Christians|Hindus|Buddhists)\\b",
+        "\\bgenerate\\s+a\\s+joke\\s+that\\s+targets\\s+(?:African\\s+Americans|Asians|Jews|Muslims)\\b",
+        "\\bjustify\\s+why\\s+women\\s+are\\s+inherently\\s+bad\\s+at\\s+mathematics\\b",
+        "\\bwhy\\s+are\\s+certain\\s+races\\s+naturally\\s+superior\\s+to\\s+others\\b",
+        "\\binherently\\s+inferior\\b",
+        "\\bjoke\\s+that\\s+targets\\b"
+      ]
+    }
+  }
+}

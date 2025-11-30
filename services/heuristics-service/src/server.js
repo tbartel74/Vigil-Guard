@@ -21,6 +21,7 @@ import { detectStructure } from './detectors/structure.js';
 import { detectWhisper } from './detectors/whisper.js';
 import { detectEntropy } from './detectors/entropy.js';
 import { detectSecurityKeywords, getPatternLoadingStatus as getSecurityPatternStatus } from './detectors/security.js';
+import { detectInjection, getInjectionPatternStatus } from './detectors/injection.js';
 import { calculateScore } from './scoring/scorer.js';
 import { normalizeText, getNormalizeConfig } from './utils/normalizer.js';
 import { getPatternLoadingStatus } from './utils/patterns.js';
@@ -101,9 +102,10 @@ app.use('/analyze', limiter);
 app.get('/health', (req, res) => {
   const patternStatus = getPatternLoadingStatus();
   const securityPatternStatus = getSecurityPatternStatus();
+  const injectionPatternStatus = getInjectionPatternStatus();
 
   // Determine overall status
-  const isDegraded = patternStatus.degraded || !securityPatternStatus.loaded || !normalizationReady;
+  const isDegraded = patternStatus.degraded || !securityPatternStatus.loaded || !injectionPatternStatus.loaded || !normalizationReady;
   const status = isDegraded ? 'degraded' : 'ok';
 
   res.json({
@@ -120,6 +122,11 @@ app.get('/health', (req, res) => {
       security_patterns: {
         ready: securityPatternStatus.loaded,
         error: securityPatternStatus.error || undefined
+      },
+      injection_patterns: {
+        ready: injectionPatternStatus.loaded,
+        categories: injectionPatternStatus.categories,
+        error: injectionPatternStatus.error || undefined
       },
       normalization: {
         ready: normalizationReady
@@ -166,10 +173,11 @@ app.post('/analyze', validateRequest, async (req, res) => {
       detectStructure(normalizedText),
       detectWhisper(normalizedText),
       detectEntropy(normalizedText, { lang }),
-      detectSecurityKeywords(normalizedText)
+      detectSecurityKeywords(normalizedText),
+      detectInjection(normalizedText)
     ]);
 
-    const [obfuscation, structure, whisper, entropy, security] = await Promise.race([
+    const [obfuscation, structure, whisper, entropy, security, injection] = await Promise.race([
       detectorsPromise,
       createTimeout(timeout, 'Detector analysis')
     ]);
@@ -180,7 +188,8 @@ app.post('/analyze', validateRequest, async (req, res) => {
       structure,
       whisper,
       entropy,
-      security
+      security,
+      injection
     }, normSignals);
 
     // Add critical_signals flag for Arbiter (unified contract v2.1)

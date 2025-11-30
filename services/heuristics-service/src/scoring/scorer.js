@@ -89,7 +89,10 @@ function calculateNormalizationScore(normSignals) {
  * @returns {Object} Final scoring results with branch_result format
  */
 export function calculateScore(detectorResults, normSignals = null) {
-  const { obfuscation, structure, whisper, entropy, security } = detectorResults;
+  const { obfuscation, structure, whisper, entropy, security, injection } = detectorResults;
+
+  // Handle missing injection detector gracefully
+  const injectionResult = injection || { score: 0, signals: [], detected_patterns: [] };
 
   // Get weights from config
   const weights = config.detection.weights;
@@ -109,13 +112,14 @@ export function calculateScore(detectorResults, normSignals = null) {
     (entropy.score * weights.entropy) +
     (security.score * weights.security);
 
-  // Find max sub-score (for single-detector attacks) - include enhanced obfuscation
+  // Find max sub-score (for single-detector attacks) - include enhanced obfuscation and injection
   const maxSubScore = Math.max(
     enhancedObfuscationScore,
     structure.score,
     whisper.score,
     entropy.score,
-    security.score
+    security.score,
+    injectionResult.score
   );
 
   // Use hybrid scoring: blend weighted average with max-based scoring
@@ -136,13 +140,14 @@ export function calculateScore(detectorResults, normSignals = null) {
     threatLevel = 'HIGH';
   }
 
-  // Calculate confidence based on number of signals detected (including normalization)
+  // Calculate confidence based on number of signals detected (including normalization and injection)
   const totalSignals =
     obfuscation.signals.length +
     structure.signals.length +
     whisper.signals.length +
     entropy.signals.length +
     security.signals.length +
+    injectionResult.signals.length +  // Include injection signals
     normResult.signals.length;  // Include normalization signals
 
   // Base confidence + bonus for multiple independent signals
@@ -161,7 +166,8 @@ export function calculateScore(detectorResults, normSignals = null) {
     { name: 'structure', score: structure.score },
     { name: 'whisper', score: whisper.score },
     { name: 'entropy', score: entropy.score },
-    { name: 'security', score: security.score }
+    { name: 'security', score: security.score },
+    { name: 'injection', score: injectionResult.score }
   ].sort((a, b) => b.score - a.score);
 
   const primaryDetector = detectorScores[0];
@@ -189,6 +195,9 @@ export function calculateScore(detectorResults, normSignals = null) {
   }
   if (security.signals.length > 0) {
     explanations.push(...security.signals.slice(0, 2));
+  }
+  if (injectionResult.signals.length > 0) {
+    explanations.push(...injectionResult.signals.slice(0, 2));
   }
 
   // Limit explanations to 10 most important
@@ -240,6 +249,16 @@ export function calculateScore(detectorResults, normSignals = null) {
       privilege_escalation_count: security.privilege_escalation_count,
       detected_patterns: security.detected_patterns.length,
       score: security.score
+    },
+    injection: {
+      injection_count: injectionResult.injection_count || 0,
+      jailbreak_count: injectionResult.jailbreak_count || 0,
+      prompt_leak_count: injectionResult.prompt_leak_count || 0,
+      control_override_count: injectionResult.control_override_count || 0,
+      roleplay_count: injectionResult.roleplay_count || 0,
+      categories_triggered: injectionResult.categories_triggered?.length || 0,
+      detected_patterns: injectionResult.detected_patterns?.length || 0,
+      score: injectionResult.score
     }
   };
 
@@ -252,7 +271,8 @@ export function calculateScore(detectorResults, normSignals = null) {
         structure: structure.score,
         whisper: whisper.score,
         entropy: entropy.score,
-        security: security.score
+        security: security.score,
+        injection: injectionResult.score
       },
       normalization_boost: {
         score: normResult.score,
