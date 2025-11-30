@@ -51,6 +51,11 @@ class ClickHouseClient {
             url.searchParams.set('password', this.config.password);
         }
 
+        // Add FORMAT to SQL if not already present (for SELECT queries)
+        const sqlWithFormat = format !== 'text' && !sql.trim().toUpperCase().includes('FORMAT ') && sql.trim().toUpperCase().startsWith('SELECT')
+            ? `${sql.trim()} FORMAT ${format}`
+            : sql;
+
         return new Promise((resolve, reject) => {
             const options = {
                 method: 'POST',
@@ -85,7 +90,7 @@ class ClickHouseClient {
                 reject(new Error('Request timeout'));
             });
 
-            req.write(sql);
+            req.write(sqlWithFormat);
             req.end();
         });
     }

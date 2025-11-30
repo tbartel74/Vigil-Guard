@@ -10,6 +10,7 @@
   "scripts": {
     "preinstall": "echo 'Installing with devDependencies...'",
     "postinstall": "echo 'Workflow dependencies installed successfully'",
+    "pretest": "[ -d node_modules/vitest ] || npm install --silent",
     "test": "NODE_ENV=development npx vitest run",
     "test:watch": "NODE_ENV=development npx vitest",
     "test:ui": "NODE_ENV=development npx vitest --ui",
