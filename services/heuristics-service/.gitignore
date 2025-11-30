@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json - REQUIRED for Docker builds with npm ci
 
 # Environment
 .env
