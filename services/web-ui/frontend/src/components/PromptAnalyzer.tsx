@@ -27,6 +27,8 @@ interface PromptDetails {
   arbiter_json?: any;  // v2.0.0: arbiter decision details
   branch_results_json?: any;  // v2.0.0: branch detection details
   pii_classification_json?: any;  // v2.0.0: PII detection details
+  pii_sanitized?: boolean | number;  // v2.0.0: true if PII was redacted
+  pii_entities_count?: number;  // v2.0.0: count of detected PII entities
 }
 
 interface PromptAnalyzerProps {
@@ -356,7 +358,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
               <p className="text-sm text-purple-400 font-mono">{promptDetails.branch_b_score}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Branch C (NLP Analysis):</span>
+              <span className="text-xs text-text-secondary">Branch C (LLM Safety Engine Analysis):</span>
               <p className="text-sm text-cyan-400 font-mono">{promptDetails.branch_c_score}</p>
             </div>
             <div>

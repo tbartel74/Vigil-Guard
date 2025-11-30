@@ -162,17 +162,26 @@ describe('Scorer Module', () => {
 
     describe('buildDegradedResult', () => {
 
-        it('should build degraded result with reason', () => {
+        it('should build degraded result with reason (fail-secure by default)', () => {
             const result = buildDegradedResult('ClickHouse connection failed', 100);
 
             expect(result.branch_id).toBe('B');
             expect(result.name).toBe('semantic');
-            expect(result.score).toBe(0);
-            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            // Fail-secure: score=100 (BLOCK) when service is degraded
+            expect(result.score).toBe(100);
+            expect(result.threat_level).toBe(ThreatLevel.HIGH);
             expect(result.degraded).toBe(true);
             expect(result.timing_ms).toBe(100);
             expect(result.features.degraded_reason).toBe('ClickHouse connection failed');
             expect(result.explanations[0]).toContain('ClickHouse connection failed');
+        });
+
+        it('should build degraded result with fail-open option', () => {
+            const result = buildDegradedResult('Connection timeout', 50, { failSecure: false });
+
+            expect(result.score).toBe(0);
+            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            expect(result.degraded).toBe(true);
         });
 
     });

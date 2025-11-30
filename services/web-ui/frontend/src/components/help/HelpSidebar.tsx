@@ -31,7 +31,7 @@ interface HelpSidebarProps {
 
 /** Get Lucide icon component by name */
 function getIcon(iconName: string): React.ComponentType<{ className?: string }> {
-  const icons = LucideIcons as Record<string, React.ComponentType<{ className?: string }>>;
+  const icons = LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>;
   return icons[iconName] || BookOpen;
 }
 
