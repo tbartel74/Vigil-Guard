@@ -19,6 +19,7 @@ const SHOW_CURSOR = `${ESC}[?25h`;
 // Suppress promise rejection warnings for cleaner output
 process.on('unhandledRejection', () => {});
 process.on('rejectionHandled', () => {});
+process.removeAllListeners('warning');
 
 // OWASP categories to track
 const OWASP_CATEGORIES = [
@@ -269,8 +270,8 @@ export default class ProgressReporter {
       console.log('║ Category             │ Total │ Passed │ Failed │ Skip │ Detection │ Status   ║');
       console.log('╠══════════════════════╪═══════╪════════╪════════╪══════╪═══════════╪══════════╣');
 
-      let owaspPassed = 0;
-      let owaspTotal = 0;
+      let maliciousPassed = 0;  // Only count malicious detections (not BENIGN_FP)
+      let maliciousTotal = 0;
 
       for (const cat of OWASP_CATEGORIES) {
         const stats = owaspStats[cat];
@@ -294,14 +295,18 @@ export default class ProgressReporter {
           `${stats.skipped.toString().padStart(4)} │ ${(rate + '%').padStart(9)} │ ${statusIcon.padEnd(8)} ║`
         );
 
-        owaspPassed += stats.passed;
-        owaspTotal += stats.total;
+        // Only count malicious categories for detection rate (exclude BENIGN_FP)
+        if (cat !== 'BENIGN_FP') {
+          maliciousPassed += stats.passed;
+          maliciousTotal += stats.total;
+        }
       }
 
-      const owaspRate = owaspTotal > 0 ? ((owaspPassed / owaspTotal) * 100).toFixed(1) : '0.0';
+      // Detection rate = only malicious tests that were detected (excluded BENIGN_FP)
+      const detectionRate = maliciousTotal > 0 ? ((maliciousPassed / maliciousTotal) * 100).toFixed(1) : '0.0';
       console.log('╠══════════════════════╧═══════╧════════╧════════╧══════╧═══════════╧══════════╣');
-      console.log(`║  OWASP TOTAL: ${owaspPassed}/${owaspTotal} tests`.padEnd(45) +
-                  `(${owaspRate}% detection)`.padStart(22) + `  Time: ${elapsed}s`.padStart(11) + ' ║');
+      console.log(`║  MALICIOUS DETECTED: ${maliciousPassed}/${maliciousTotal} tests`.padEnd(45) +
+                  `(${detectionRate}% rate)`.padStart(22) + `  Time: ${elapsed}s`.padStart(14) + ' ║');
       console.log('╚══════════════════════════════════════════════════════════════════════════════╝');
     }
 
