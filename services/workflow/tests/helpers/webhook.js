@@ -11,7 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load .env from project root (4 levels up from tests/helpers/)
-dotenv.config({ path: resolve(__dirname, '../../../../.env') });
+// override: true ensures .env takes precedence over existing shell variables
+dotenv.config({ path: resolve(__dirname, '../../../../.env'), override: true });
 
 // CRITICAL: Store original PII config for rollback on timeout
 // This prevents test failures from corrupting production config
@@ -272,7 +273,7 @@ export async function sendToWorkflow(chatInput, options = {}) {
     );
   }
 
-  return response.json();
+  return await response.json();
 }
 
 /**
@@ -834,7 +835,7 @@ export async function updatePiiEntities(token, entities, etag) {
     throw new Error(`Failed to update PII entities: HTTP ${response.status}\n${text}`);
   }
 
-  return response.json();
+  return await response.json();
 }
 
 /**

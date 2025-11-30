@@ -8,7 +8,8 @@ process.on('rejectionHandled', () => {});
 process.removeAllListeners('warning');
 
 // Load environment variables from root .env file
-config({ path: resolve(process.cwd(), '../../.env') })
+// override: true ensures .env takes precedence over existing shell variables
+config({ path: resolve(process.cwd(), '../../.env'), override: true })
 
 export default defineConfig({
   test: {
