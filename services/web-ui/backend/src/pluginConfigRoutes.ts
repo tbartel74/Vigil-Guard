@@ -20,24 +20,29 @@ export default function createPluginConfigRouter(pluginConfigLimiter: RequestHan
 
   /**
    * GET /api/plugin-config
-   * Public endpoint - browser extension fetches configuration
+   * Public endpoint - browser extension fetches NON-SENSITIVE configuration
    * NO AUTHENTICATION REQUIRED (plugin needs access on first install)
    * RATE LIMITED: 10 requests per minute per IP
+   *
+   * SECURITY: webhookAuthToken is NEVER returned here - only via authenticated /settings endpoint
+   * The browser extension must be configured with the token during installation
    */
   router.get('/plugin-config', pluginConfigLimiter, async (req, res) => {
   try {
     const config = await getPluginConfig();
 
-    // Return only public fields (no internal metadata)
+    // Return only PUBLIC fields - NEVER expose auth credentials!
+    // Token must be configured in extension settings, not auto-fetched
     res.json({
       webhookUrl: config.webhookUrl,
       enabled: config.enabled,
       version: config.version,
-      webhookAuthToken: config.webhookAuthToken,
-      webhookAuthHeader: config.webhookAuthHeader
+      // SECURITY: Auth token is NOT included - prevents unauthorized webhook access
+      // Extension must be manually configured with token from admin panel
+      webhookAuthHeader: config.webhookAuthHeader  // Header name only, not the value
     });
 
-    console.log('[Plugin Config API] Configuration fetched by extension');
+    console.log('[Plugin Config API] Configuration fetched by extension (token excluded)');
   } catch (error: any) {
     console.error('[Plugin Config API] Failed to fetch config:', error);
     res.status(500).json({

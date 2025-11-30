@@ -233,6 +233,8 @@ app.post('/analyze', validateRequest, async (req, res) => {
     logger.error({ request_id, errorId, error: error.message, stack: error.stack }, 'Analysis failed');
 
     // Return fail-secure response on error (BLOCK instead of ALLOW)
+    // IMPORTANT: Return HTTP 200 with degraded:true so Arbiter can down-weight but proceed
+    // Using 5xx would make this branch appear offline, forcing fail-secure on entire request
     const degradedResult = {
       branch_id: 'A',
       name: 'heuristics',
@@ -255,7 +257,8 @@ app.post('/analyze', validateRequest, async (req, res) => {
     };
 
     updateMetrics(timing, true);
-    res.status(500).json(degradedResult);
+    // HTTP 200 with degraded:true - Arbiter contract (same as semantic-service)
+    res.status(200).json(degradedResult);
   }
 });
 

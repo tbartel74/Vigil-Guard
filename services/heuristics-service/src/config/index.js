@@ -171,11 +171,14 @@ export const config = {
     max: envInt('RATE_LIMIT_MAX', 1000)  // 1000 requests per window (high for testing)
   },
   // Tiered timeouts based on text length (in ms)
+  // IMPORTANT: Timeouts must account for normalization + 5 detectors + pattern matching
+  // Previous values (50-500ms) caused frequent timeouts triggering fail-secure BLOCK
+  // These values derived from observed P95 latencies in production
   timeouts: {
-    short: envInt('TIMEOUT_SHORT', 50),      // < 500 chars
-    medium: envInt('TIMEOUT_MEDIUM', 100),   // 500-2000 chars
-    long: envInt('TIMEOUT_LONG', 200),       // 2000-5000 chars
-    veryLong: envInt('TIMEOUT_VERY_LONG', 500)  // > 5000 chars
+    short: envInt('TIMEOUT_SHORT', 500),       // < 500 chars
+    medium: envInt('TIMEOUT_MEDIUM', 1000),    // 500-2000 chars
+    long: envInt('TIMEOUT_LONG', 2000),        // 2000-5000 chars
+    veryLong: envInt('TIMEOUT_VERY_LONG', 5000)  // > 5000 chars
   }
 };
 
