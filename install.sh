@@ -1433,7 +1433,8 @@ import_semantic_embeddings() {
     log_info "This may take 1-2 minutes..."
 
     # Import using Python for reliable JSON handling
-    python3 << PYEOF
+    # Note: Using quoted heredoc to preserve backslashes in Python code
+    EMBEDDINGS_FILE_PATH="$EMBEDDINGS_FILE" python3 << 'PYEOF'
 import json
 import urllib.request
 import os
@@ -1447,11 +1448,11 @@ def escape_clickhouse(s):
         return ''
     # Remove problematic characters, escape quotes
     s = re.sub(r'[\x00-\x1f]', ' ', s)  # Remove control chars
-    s = s.replace("\\\\", "\\\\\\\\").replace("'", "\\\\'")
+    s = s.replace("\\", "\\\\").replace("'", "\\'")
     return s
 
 password = os.environ.get('CLICKHOUSE_PASSWORD', '')
-file_path = '$EMBEDDINGS_FILE'
+file_path = os.environ.get('EMBEDDINGS_FILE_PATH', '')
 
 auth = base64.b64encode(f'admin:{password}'.encode()).decode()
 
