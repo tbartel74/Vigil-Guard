@@ -1494,8 +1494,11 @@ PYEOF
         -q "SELECT COUNT(*) FROM pattern_embeddings" \
         2>/dev/null | tr -d ' ')
 
-    if [ "$IMPORT_RESULT" -eq 0 ] && [ "$IMPORTED_COUNT" -gt 0 ]; then
-        log_success "Imported $IMPORTED_COUNT semantic embeddings"
+    # Verify minimum embedding count (3000+ required for full coverage)
+    local MIN_EMBEDDINGS=3000
+
+    if [ "$IMPORT_RESULT" -eq 0 ] && [ "$IMPORTED_COUNT" -ge "$MIN_EMBEDDINGS" ]; then
+        log_success "Imported $IMPORTED_COUNT semantic embeddings (verified: >= $MIN_EMBEDDINGS)"
     elif [ "$IMPORTED_COUNT" -eq 0 ]; then
         log_error "Embedding import failed completely (0 embeddings imported)"
         log_error "Semantic detection service will not function without embeddings"
@@ -1505,6 +1508,13 @@ PYEOF
         log_info "  2. Verify embeddings file exists: ls -lh services/semantic-service/data/embeddings_categorized.jsonl"
         log_info "  3. Re-run import: ./scripts/import-embeddings.sh"
         log_info "  4. Or re-run full installation: ./install.sh"
+        echo ""
+        exit 1
+    elif [ "$IMPORTED_COUNT" -lt "$MIN_EMBEDDINGS" ]; then
+        log_error "Embedding import incomplete: $IMPORTED_COUNT < $MIN_EMBEDDINGS required"
+        log_error "Semantic detection will have degraded accuracy"
+        echo ""
+        log_info "To fix, re-run installation: ./install.sh"
         echo ""
         exit 1
     else
@@ -1583,6 +1593,8 @@ initialize_semantic_service() {
         -q "EXISTS TABLE pattern_embeddings" \
         2>/dev/null | tr -d ' ')
 
+    local MIN_EMBEDDINGS=3000
+
     if [ "$EMBEDDINGS_TABLE_EXISTS" = "1" ]; then
         log_success "Vector embeddings table ready"
 
@@ -1593,8 +1605,12 @@ initialize_semantic_service() {
             -q "SELECT COUNT(*) FROM pattern_embeddings" \
             2>/dev/null | tr -d ' ')
 
-        if [ "$EMBEDDING_COUNT" -gt 0 ]; then
-            log_info "Existing embeddings: $EMBEDDING_COUNT vectors (384-dimensional)"
+        if [ "$EMBEDDING_COUNT" -ge "$MIN_EMBEDDINGS" ]; then
+            log_success "Existing embeddings: $EMBEDDING_COUNT vectors (verified: >= $MIN_EMBEDDINGS)"
+        elif [ "$EMBEDDING_COUNT" -gt 0 ]; then
+            log_warning "Incomplete embeddings: $EMBEDDING_COUNT < $MIN_EMBEDDINGS required"
+            log_info "Re-importing from seed data..."
+            import_semantic_embeddings
         else
             log_info "No embeddings found. Importing from seed data..."
             import_semantic_embeddings
