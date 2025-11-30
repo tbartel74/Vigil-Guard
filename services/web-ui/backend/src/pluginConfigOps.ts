@@ -14,7 +14,7 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { parseFile } from './fileOps.js';
 
 // Token file paths (persisted in mounted config volume)
@@ -341,6 +341,7 @@ export function getBootstrapTokenStatus(): BootstrapTokenInfo {
       createdAt: '',
       expiresAt: '',
       usedCount: 0,
+      maxUses: 0,
       lastUsedAt: null,
       status: 'not_configured'
     };
@@ -361,6 +362,7 @@ export function getBootstrapTokenStatus(): BootstrapTokenInfo {
       createdAt: '',
       expiresAt: '',
       usedCount: 0,
+      maxUses: 0,
       lastUsedAt: null,
       status: 'error',
       error: `Cannot read bootstrap token metadata: ${err.code === 'EACCES' ? 'Permission denied' : err.message}`,
@@ -396,6 +398,7 @@ export function getBootstrapTokenStatus(): BootstrapTokenInfo {
         createdAt: '',
         expiresAt: '',
         usedCount: 0,
+        maxUses: 0,
         lastUsedAt: null,
         status: 'error',
         error: `Bootstrap token metadata is corrupted (invalid JSON). Delete ${BOOTSTRAP_TOKEN_META_FILE} and regenerate.`,
@@ -408,6 +411,7 @@ export function getBootstrapTokenStatus(): BootstrapTokenInfo {
       createdAt: '',
       expiresAt: '',
       usedCount: 0,
+      maxUses: 0,
       lastUsedAt: null,
       status: 'error',
       error: `Invalid metadata: ${err.message}`,
@@ -459,7 +463,7 @@ export function validateBootstrapToken(providedToken: string): {
   webhookToken?: string;
   webhookAuthHeader?: string;
   error?: string;
-  errorCode?: 'NOT_CONFIGURED' | 'FILE_READ_ERROR' | 'PARSE_ERROR' | 'EXPIRED' | 'ALREADY_USED' | 'INVALID_TOKEN' | 'WEBHOOK_ERROR';
+  errorCode?: 'NOT_CONFIGURED' | 'FILE_READ_ERROR' | 'PARSE_ERROR' | 'EXPIRED' | 'ALREADY_USED' | 'INVALID_TOKEN' | 'WEBHOOK_ERROR' | 'USAGE_TRACKING_ERROR';
 } {
   if (!existsSync(BOOTSTRAP_TOKEN_FILE) || !existsSync(BOOTSTRAP_TOKEN_META_FILE)) {
     return {
@@ -548,9 +552,11 @@ export function validateBootstrapToken(providedToken: string): {
     };
   }
 
-  // Validate token
+  // Validate token using timing-safe comparison to prevent timing attacks
   const providedHash = createHash('sha256').update(providedToken).digest('hex');
-  if (providedHash !== storedHash) {
+  const providedBuffer = Buffer.from(providedHash, 'hex');
+  const storedBuffer = Buffer.from(storedHash, 'hex');
+  if (!timingSafeEqual(providedBuffer, storedBuffer)) {
     console.warn('[Bootstrap Token] Invalid token attempt');
     return {
       valid: false,
@@ -566,8 +572,16 @@ export function validateBootstrapToken(providedToken: string): {
   try {
     writeFileSync(BOOTSTRAP_TOKEN_META_FILE, JSON.stringify(metadata, null, 2), 'utf8');
   } catch (error) {
-    // Non-critical - log but don't fail validation
-    console.warn('[Bootstrap Token] Failed to update usage stats:', error);
+    const err = error as NodeJS.ErrnoException;
+    console.error('[Bootstrap Token] CRITICAL: Failed to update usage stats:', {
+      code: err.code,
+      message: err.message
+    });
+    return {
+      valid: false,
+      error: 'Failed to record token usage. Token validation aborted for security.',
+      errorCode: 'USAGE_TRACKING_ERROR'
+    };
   }
 
   console.log('[Bootstrap Token] Token validated successfully, use count:', metadata.usedCount);
@@ -679,9 +693,11 @@ export function verifyBootstrapToken(providedToken: string): {
     };
   }
 
-  // Validate token hash
+  // Validate token hash using timing-safe comparison
   const providedHash = createHash('sha256').update(providedToken).digest('hex');
-  if (providedHash !== storedHash) {
+  const providedBuffer = Buffer.from(providedHash, 'hex');
+  const storedBuffer = Buffer.from(storedHash, 'hex');
+  if (!timingSafeEqual(providedBuffer, storedBuffer)) {
     return {
       valid: false,
       error: 'Invalid bootstrap token',

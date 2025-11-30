@@ -25,6 +25,7 @@ import {
   generateBootstrapToken,
   getBootstrapTokenStatus,
   validateBootstrapToken,
+  verifyBootstrapToken,
   isBootstrapTokenConfigured,
   type BootstrapTokenInfo,
 } from '../src/pluginConfigOps.js';
@@ -377,6 +378,9 @@ describe('validateBootstrapToken', () => {
       return '';
     });
 
+    // Mock successful write (usage tracking)
+    (writeFileSync as any).mockImplementation(() => {});
+
     const result = validateBootstrapToken(token);
 
     expect(result.valid).toBe(true);
@@ -418,6 +422,44 @@ describe('validateBootstrapToken', () => {
       expect(updatedMetadata.usedCount).toBe(6);
       expect(updatedMetadata.lastUsedAt).toBeDefined();
     }
+  });
+
+  it('should return USAGE_TRACKING_ERROR when metadata write fails', () => {
+    const token = 'valid-token-123456789012345678';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const metadata = {
+      tokenHash: tokenHash,
+      createdAt: new Date().toISOString(),
+      expiresAt: futureDate,
+      usedCount: 0,
+      maxUses: 1,
+      lastUsedAt: null,
+    };
+
+    // Files exist
+    (existsSync as any).mockReturnValue(true);
+
+    // Read succeeds (token file and metadata)
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    // Write fails (simulating disk full)
+    (writeFileSync as any).mockImplementation(() => {
+      const error: NodeJS.ErrnoException = new Error('No space left on device');
+      error.code = 'ENOSPC';
+      throw error;
+    });
+
+    const result = validateBootstrapToken(token);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('USAGE_TRACKING_ERROR');
+    expect(result.error).toContain('Failed to record token usage');
   });
 });
 
@@ -489,6 +531,177 @@ describe('isBootstrapTokenConfigured', () => {
     const result = isBootstrapTokenConfigured();
 
     expect(result).toBe(false); // Exhausted token is not "configured" for use
+  });
+});
+
+describe('verifyBootstrapToken', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should return NOT_CONFIGURED when files do not exist', () => {
+    (existsSync as any).mockReturnValue(false);
+
+    const result = verifyBootstrapToken('any-token');
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('NOT_CONFIGURED');
+  });
+
+  it('should return valid:true for correct unexpired token', () => {
+    const token = 'valid-token-123456789012345678';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const metadata = {
+      tokenHash: tokenHash,
+      expiresAt: futureDate,
+      usedCount: 0,
+      maxUses: 1,
+    };
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    const result = verifyBootstrapToken(token);
+
+    expect(result.valid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('should return INVALID_TOKEN for wrong token', () => {
+    const correctToken = 'correct-token-12345678901234567';
+    const correctHash = createHash('sha256').update(correctToken).digest('hex');
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const metadata = {
+      tokenHash: correctHash,
+      expiresAt: futureDate,
+      usedCount: 0,
+    };
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return correctHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    const result = verifyBootstrapToken('wrong-token');
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('INVALID_TOKEN');
+  });
+
+  it('should return EXPIRED for expired token', () => {
+    const token = 'valid-token-123456789012345678';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const pastDate = new Date(Date.now() - 1000).toISOString();
+
+    const metadata = {
+      tokenHash: tokenHash,
+      expiresAt: pastDate,
+      usedCount: 0,
+    };
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    const result = verifyBootstrapToken(token);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('EXPIRED');
+  });
+
+  it('should return ALREADY_USED for exhausted token', () => {
+    const token = 'valid-token-123456789012345678';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const metadata = {
+      tokenHash: tokenHash,
+      expiresAt: futureDate,
+      usedCount: 1,  // Already used
+      maxUses: 1,    // One-time use
+    };
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    const result = verifyBootstrapToken(token);
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('ALREADY_USED');
+  });
+
+  it('should NOT increment usedCount on successful verification', () => {
+    const token = 'valid-token-123456789012345678';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const metadata = {
+      tokenHash: tokenHash,
+      expiresAt: futureDate,
+      usedCount: 0,
+      maxUses: 1,
+    };
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return JSON.stringify(metadata);
+      return '';
+    });
+
+    verifyBootstrapToken(token);
+
+    // Key difference from validateBootstrapToken: verify does NOT write to file
+    expect(writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it('should return FILE_READ_ERROR on token file read failure', () => {
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) {
+        const error: NodeJS.ErrnoException = new Error('Permission denied');
+        error.code = 'EACCES';
+        throw error;
+      }
+      return '';
+    });
+
+    const result = verifyBootstrapToken('any-token');
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('FILE_READ_ERROR');
+  });
+
+  it('should return PARSE_ERROR on corrupted metadata', () => {
+    const tokenHash = 'somehash123';
+
+    (existsSync as any).mockReturnValue(true);
+    (readFileSync as any).mockImplementation((path: string) => {
+      if (path === BOOTSTRAP_TOKEN_FILE) return tokenHash;
+      if (path === BOOTSTRAP_TOKEN_META_FILE) return 'not-json';
+      return '';
+    });
+
+    const result = verifyBootstrapToken('any-token');
+
+    expect(result.valid).toBe(false);
+    expect(result.errorCode).toBe('PARSE_ERROR');
   });
 });
 
