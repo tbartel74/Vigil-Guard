@@ -98,6 +98,10 @@ vigil_data/
 # Webhook authentication token (runtime secret, not for repository)
 services/workflow/config/.webhook-token
 
+# Bootstrap token files (runtime secrets, not for repository)
+services/workflow/config/.bootstrap-token
+services/workflow/config/.bootstrap-token-meta.json
+
 # LLM Models (must be downloaded separately)
 # Keep the directory structure but ignore model files
 Llama-Prompt-Guard-2-86M/*

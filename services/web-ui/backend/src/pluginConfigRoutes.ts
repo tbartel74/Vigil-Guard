@@ -13,12 +13,14 @@ import { randomBytes } from 'crypto';
 import { writeFileSync, readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, relative, basename } from 'path';
 import archiver from 'archiver';
+import { escapeJavaScriptString } from './escapeUtils.js';
 import {
   getPluginConfig,
   savePluginConfig,
   generateBootstrapToken,
   getBootstrapTokenStatus,
   validateBootstrapToken,
+  verifyBootstrapToken,
   isBootstrapTokenConfigured
 } from './pluginConfigOps.js';
 import { authenticateToken } from './auth.js';
@@ -290,8 +292,9 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
       });
     }
 
-    // Validate that the token is valid (not expired)
-    const validation = validateBootstrapToken(bootstrapToken);
+    // Verify token validity WITHOUT consuming it (usedCount not incremented)
+    // The token is only consumed when plugin calls /bootstrap endpoint
+    const validation = verifyBootstrapToken(bootstrapToken);
     if (!validation.valid) {
       return res.status(401).json({
         error: 'Invalid or expired bootstrap token',
@@ -353,22 +356,23 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     addFilesRecursively(pluginSourcePath, '');
 
     // Create plugin-config.js with injected bootstrap token
+    // SECURITY: All values are escaped to prevent JavaScript injection attacks
     const pluginConfigContent = `// =============================================================================
 // Vigil Guard Plugin Configuration
 // =============================================================================
 // AUTO-GENERATED - Contains pre-configured bootstrap token
-// Build timestamp: ${new Date().toISOString()}
+// Build timestamp: ${escapeJavaScriptString(new Date().toISOString())}
 // =============================================================================
 
 export const PLUGIN_BUILD_CONFIG = {
   // Pre-injected bootstrap token (valid 24h from generation)
-  bootstrapToken: '${bootstrapToken}',
+  bootstrapToken: '${escapeJavaScriptString(bootstrapToken)}',
 
   // GUI URL for API calls
-  guiUrl: '${guiUrl}',
+  guiUrl: '${escapeJavaScriptString(guiUrl)}',
 
   // Build metadata
-  buildTimestamp: '${new Date().toISOString()}',
+  buildTimestamp: '${escapeJavaScriptString(new Date().toISOString())}',
   buildVersion: '0.7.0'
 };
 `;
