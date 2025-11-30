@@ -1432,60 +1432,43 @@ import_semantic_embeddings() {
     log_info "Importing $TOTAL_LINES semantic embeddings to ClickHouse (3300 expected)..."
     log_info "This may take 1-2 minutes..."
 
-    # Import using Python for reliable JSON handling
-    # Note: Using quoted heredoc to preserve backslashes in Python code
-    EMBEDDINGS_FILE_PATH="$EMBEDDINGS_FILE" python3 << 'PYEOF'
-import json
-import urllib.request
-import os
-import base64
-import sys
-import re
+    # Import using ClickHouse-native JSONEachRow format (v2.0.2: single bulk transaction)
+    # CRITICAL: JSONEachRow is the ONLY reliable method for 3300+ embeddings with special chars
+    # Previous method (row-by-row HTTP) had 5 problems:
+    #   1. Missing columns (only inserted 4/10 columns)
+    #   2. Silent errors (bare except blocks)
+    #   3. 3300 individual HTTP requests (slow, unreliable)
+    #   4. Fragile escaping (SQL injection payloads broke it)
+    #   5. Non-idempotent (created duplicates on re-run)
+    log_info "Using ClickHouse JSONEachRow format for atomic bulk import..."
 
-def escape_clickhouse(s):
-    """Proper escaping for ClickHouse string values"""
-    if not s:
-        return ''
-    # Remove problematic characters, escape quotes
-    s = re.sub(r'[\x00-\x1f]', ' ', s)  # Remove control chars
-    s = s.replace("\\", "\\\\").replace("'", "\\'")
-    return s
+    # Step 1: Truncate existing embeddings for idempotency
+    docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "TRUNCATE TABLE pattern_embeddings" 2>/dev/null
 
-password = os.environ.get('CLICKHOUSE_PASSWORD', '')
-file_path = os.environ.get('EMBEDDINGS_FILE_PATH', '')
+    # Step 2: Bulk import via JSONEachRow HTTP interface (single atomic transaction)
+    # ClickHouse HTTP: POST data in JSONEachRow format to ?query=INSERT...&input_format_skip_unknown_fields=1
+    # - JSONEachRow: Each line is a JSON object (JSONL format)
+    # - skip_unknown_fields: Ignore extra fields in JSONL (forward compatibility)
+    # - Atomic: All 3300 rows in single transaction (all-or-nothing)
+    # - No escaping: ClickHouse JSON parser handles special chars natively
+    local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_import_result.txt \
+        --user "admin:$CLICKHOUSE_PASSWORD" \
+        --data-binary "@$EMBEDDINGS_FILE" \
+        --max-time 120 \
+        "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.pattern_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
 
-auth = base64.b64encode(f'admin:{password}'.encode()).decode()
-
-count = 0
-errors = 0
-
-with open(file_path, 'r') as f:
-    for line in f:
-        try:
-            record = json.loads(line.strip())
-            pattern_id = escape_clickhouse(record['pattern_id'])
-            category = escape_clickhouse(record['category'])
-            pattern_text = escape_clickhouse(record['pattern_text'][:150])
-            embedding = json.dumps(record['embedding'])
-
-            sql = f"INSERT INTO n8n_logs.pattern_embeddings (pattern_id, category, pattern_text, embedding) VALUES ('{pattern_id}', '{category}', '{pattern_text}', {embedding})"
-
-            req = urllib.request.Request(
-                'http://localhost:8123/',
-                data=sql.encode('utf-8'),
-                headers={'Authorization': f'Basic {auth}'}
-            )
-            try:
-                urllib.request.urlopen(req, timeout=10)
-                count += 1
-            except:
-                errors += 1
-        except:
-            errors += 1
-
-print(f"{count}")
-sys.exit(0 if count > 3000 else 1)  # Expect at least 3000 successful imports (v2.0.1: +300 weak categories)
-PYEOF
+    if [ "$IMPORT_HTTP_CODE" = "200" ]; then
+        log_success "JSONEachRow bulk import completed (HTTP 200)"
+    else
+        log_error "ClickHouse import failed (HTTP $IMPORT_HTTP_CODE)"
+        log_error "Response: $(cat /tmp/clickhouse_import_result.txt)"
+        rm -f /tmp/clickhouse_import_result.txt
+        return 1
+    fi
+    rm -f /tmp/clickhouse_import_result.txt
 
     local IMPORT_RESULT=$?
     local IMPORTED_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
