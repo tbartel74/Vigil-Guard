@@ -4,6 +4,15 @@ import * as api from '../lib/api';
 import descriptions from '../spec/descriptions.json';
 import Tooltip from './Tooltip';
 
+interface BootstrapTokenStatus {
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+  usedCount: number;
+  lastUsedAt: string | null;
+  status: 'active' | 'expired' | 'not_configured';
+}
+
 export function PluginConfiguration() {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [enabled, setEnabled] = useState(true);
@@ -14,9 +23,68 @@ export function PluginConfiguration() {
   const [webhookAuthHeader, setWebhookAuthHeader] = useState('X-Vigil-Auth');
   const [showToken, setShowToken] = useState(false);
 
+  // Bootstrap token state
+  const [bootstrapStatus, setBootstrapStatus] = useState<BootstrapTokenStatus | null>(null);
+  const [newBootstrapToken, setNewBootstrapToken] = useState<string | null>(null);
+  const [generatingBootstrap, setGeneratingBootstrap] = useState(false);
+
   useEffect(() => {
     fetchConfig();
+    fetchBootstrapStatus();
   }, []);
+
+  const fetchBootstrapStatus = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/ui/api/plugin-config/bootstrap-status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBootstrapStatus(data);
+      }
+    } catch (error) {
+      console.error('[Plugin Config] Failed to fetch bootstrap status:', error);
+    }
+  };
+
+  const handleGenerateBootstrap = async () => {
+    if (!confirm('Generate a new Bootstrap Token?\n\nThis token is required for browser extension initial setup.\nThe token will be shown ONCE - copy it immediately!')) {
+      return;
+    }
+
+    setGeneratingBootstrap(true);
+    setNewBootstrapToken(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/ui/api/plugin-config/generate-bootstrap', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate bootstrap token');
+      }
+
+      const result = await response.json();
+      setNewBootstrapToken(result.token);
+      setMessage({
+        type: 'success',
+        text: 'Bootstrap token generated! Copy it now - it will not be shown again.'
+      });
+
+      // Refresh status
+      fetchBootstrapStatus();
+    } catch (error: any) {
+      console.error('[Plugin Config] Generate bootstrap error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to generate bootstrap token' });
+    } finally {
+      setGeneratingBootstrap(false);
+    }
+  };
 
   const fetchConfig = async () => {
     try {
@@ -149,6 +217,159 @@ export function PluginConfiguration() {
 
       <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-6">
         <form onSubmit={handleSave} className="space-y-6">
+
+          {/* Bootstrap Token Section - BEFORE first plugin installation */}
+          <div className="pb-6 border-b border-slate-700">
+            <h2 className="text-lg font-semibold text-white mb-4">Plugin Initial Setup</h2>
+
+            {/* Bootstrap Token Warning/Status */}
+            {(!bootstrapStatus || bootstrapStatus.status === 'not_configured') && (
+              <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-amber-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-300">
+                      Bootstrap Token Required
+                    </p>
+                    <p className="text-sm text-amber-200 mt-1">
+                      Before installing the browser extension, you must generate a Bootstrap Token.
+                      This token allows the extension to securely retrieve webhook credentials on first connection.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGenerateBootstrap}
+                      disabled={generatingBootstrap}
+                      className="mt-3 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generatingBootstrap ? 'Generating...' : 'Generate Bootstrap Token'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {bootstrapStatus?.status === 'expired' && (
+              <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-red-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-red-300">
+                      Bootstrap Token Expired
+                    </p>
+                    <p className="text-sm text-red-200 mt-1">
+                      The previous bootstrap token has expired. Generate a new one for new plugin installations.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGenerateBootstrap}
+                      disabled={generatingBootstrap}
+                      className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generatingBootstrap ? 'Generating...' : 'Generate New Bootstrap Token'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {bootstrapStatus?.status === 'active' && (
+              <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-300">
+                      Bootstrap Token Active
+                    </p>
+                    <p className="text-sm text-green-200 mt-1">
+                      Token expires: {new Date(bootstrapStatus.expiresAt).toLocaleString()}<br/>
+                      Used: {bootstrapStatus.usedCount} time(s)
+                      {bootstrapStatus.lastUsedAt && (
+                        <> • Last used: {new Date(bootstrapStatus.lastUsedAt).toLocaleString()}</>
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGenerateBootstrap}
+                      disabled={generatingBootstrap}
+                      className="mt-3 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generatingBootstrap ? 'Generating...' : 'Regenerate Token'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Show newly generated token with Download Plugin button */}
+            {newBootstrapToken && (
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-blue-300">
+                      Bootstrap Token Generated - Download Pre-configured Plugin
+                    </p>
+                    <p className="text-xs text-blue-200 mt-1 mb-3">
+                      Click "Download Plugin" to get the extension with this token pre-configured.
+                      Users just need to install it - no manual configuration required!
+                    </p>
+
+                    {/* Download Plugin Button - PRIMARY ACTION */}
+                    <div className="mb-3">
+                      <a
+                        href={`/ui/api/plugin-config/download-plugin?token=${encodeURIComponent(newBootstrapToken)}`}
+                        download="vigil-guard-plugin.zip"
+                        className="inline-flex items-center px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium transition-colors"
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Pre-configured Plugin (.zip)
+                      </a>
+                    </div>
+
+                    {/* Alternative: Manual token copy */}
+                    <details className="mt-3">
+                      <summary className="text-xs text-blue-300 cursor-pointer hover:text-blue-200">
+                        Advanced: Copy token for manual configuration or enterprise deployment
+                      </summary>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          value={newBootstrapToken}
+                          readOnly
+                          className="flex-1 px-3 py-2 bg-slate-900 border border-blue-500/50 rounded-lg text-blue-100 font-mono text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(newBootstrapToken);
+                            setMessage({ type: 'success', text: 'Bootstrap token copied to clipboard!' });
+                            setTimeout(() => setMessage(null), 3000);
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <p className="text-xs text-blue-200/70 mt-2">
+                        Use this token in Chrome Managed Storage policy for enterprise MDM deployment.
+                      </p>
+                    </details>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Webhook Security Section */}
           <div className="pb-6 border-b border-slate-700">
             <h2 className="text-lg font-semibold text-white mb-4">Webhook Security</h2>

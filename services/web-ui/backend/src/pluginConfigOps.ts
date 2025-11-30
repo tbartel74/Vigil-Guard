@@ -1,15 +1,30 @@
 // Plugin Configuration Database Operations
 // Manages browser extension settings stored in SQLite
+//
+// TOKEN ARCHITECTURE (v2.0):
+// - Bootstrap Token: One-time token for plugin to fetch webhook credentials
+//   - Used ONLY to connect to backend and retrieve webhook token
+//   - Short-lived (configurable, default 24h after generation)
+//   - Auto-rotated after successful use
+// - Webhook Token: Long-lived token for n8n webhook authentication
+//   - Used for all webhook requests
+//   - Persists until manually regenerated
 
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { parseFile } from './fileOps.js';
 
-// Token file path (persisted in mounted config volume)
+// Token file paths (persisted in mounted config volume)
 const TOKEN_FILE = '/config/.webhook-token';
+const BOOTSTRAP_TOKEN_FILE = '/config/.bootstrap-token';
+const BOOTSTRAP_TOKEN_META_FILE = '/config/.bootstrap-token-meta.json';
+
+// Bootstrap token configuration
+const BOOTSTRAP_TOKEN_LENGTH = 32;
+const BOOTSTRAP_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Get webhook auth token from file
@@ -209,4 +224,152 @@ function isValidUrl(urlString: string): boolean {
   } catch {
     return false;
   }
+}
+
+// =============================================================================
+// BOOTSTRAP TOKEN MANAGEMENT (v2.0)
+// =============================================================================
+
+export interface BootstrapTokenInfo {
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+  usedCount: number;
+  lastUsedAt: string | null;
+  status: 'active' | 'expired' | 'not_configured';
+}
+
+/**
+ * Generate a new bootstrap token
+ * Creates a cryptographically secure token for plugin initial configuration
+ */
+export function generateBootstrapToken(): { token: string; expiresAt: string } {
+  const token = randomBytes(BOOTSTRAP_TOKEN_LENGTH).toString('base64url').slice(0, BOOTSTRAP_TOKEN_LENGTH);
+  const createdAt = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + BOOTSTRAP_TOKEN_TTL_MS).toISOString();
+
+  // Store token (hashed for security)
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+
+  const metadata = {
+    tokenHash,
+    createdAt,
+    expiresAt,
+    usedCount: 0,
+    lastUsedAt: null
+  };
+
+  try {
+    writeFileSync(BOOTSTRAP_TOKEN_FILE, tokenHash, 'utf8');
+    writeFileSync(BOOTSTRAP_TOKEN_META_FILE, JSON.stringify(metadata, null, 2), 'utf8');
+    console.log('[Bootstrap Token] New token generated, expires:', expiresAt);
+  } catch (error) {
+    console.error('[Bootstrap Token] Failed to save token:', error);
+    throw new Error('Failed to generate bootstrap token');
+  }
+
+  return { token, expiresAt };
+}
+
+/**
+ * Get bootstrap token status (without exposing the actual token)
+ */
+export function getBootstrapTokenStatus(): BootstrapTokenInfo {
+  if (!existsSync(BOOTSTRAP_TOKEN_FILE) || !existsSync(BOOTSTRAP_TOKEN_META_FILE)) {
+    return {
+      token: '',
+      createdAt: '',
+      expiresAt: '',
+      usedCount: 0,
+      lastUsedAt: null,
+      status: 'not_configured'
+    };
+  }
+
+  try {
+    const metadata = JSON.parse(readFileSync(BOOTSTRAP_TOKEN_META_FILE, 'utf8'));
+    const now = new Date();
+    const expiresAt = new Date(metadata.expiresAt);
+
+    const isExpired = now > expiresAt;
+
+    return {
+      token: '********' + metadata.tokenHash.slice(-4), // Masked, show last 4 chars of hash
+      createdAt: metadata.createdAt,
+      expiresAt: metadata.expiresAt,
+      usedCount: metadata.usedCount || 0,
+      lastUsedAt: metadata.lastUsedAt,
+      status: isExpired ? 'expired' : 'active'
+    };
+  } catch (error) {
+    console.error('[Bootstrap Token] Failed to read status:', error);
+    return {
+      token: '',
+      createdAt: '',
+      expiresAt: '',
+      usedCount: 0,
+      lastUsedAt: null,
+      status: 'not_configured'
+    };
+  }
+}
+
+/**
+ * Validate a bootstrap token and return webhook credentials if valid
+ * This is the ONLY way for the plugin to obtain the webhook token
+ */
+export function validateBootstrapToken(providedToken: string): {
+  valid: boolean;
+  webhookToken?: string;
+  webhookAuthHeader?: string;
+  error?: string;
+} {
+  if (!existsSync(BOOTSTRAP_TOKEN_FILE) || !existsSync(BOOTSTRAP_TOKEN_META_FILE)) {
+    return { valid: false, error: 'Bootstrap token not configured' };
+  }
+
+  try {
+    const storedHash = readFileSync(BOOTSTRAP_TOKEN_FILE, 'utf8').trim();
+    const metadata = JSON.parse(readFileSync(BOOTSTRAP_TOKEN_META_FILE, 'utf8'));
+
+    // Check expiration
+    const now = new Date();
+    const expiresAt = new Date(metadata.expiresAt);
+    if (now > expiresAt) {
+      return { valid: false, error: 'Bootstrap token expired' };
+    }
+
+    // Validate token
+    const providedHash = createHash('sha256').update(providedToken).digest('hex');
+    if (providedHash !== storedHash) {
+      console.warn('[Bootstrap Token] Invalid token attempt');
+      return { valid: false, error: 'Invalid bootstrap token' };
+    }
+
+    // Token is valid - update usage stats
+    metadata.usedCount = (metadata.usedCount || 0) + 1;
+    metadata.lastUsedAt = new Date().toISOString();
+    writeFileSync(BOOTSTRAP_TOKEN_META_FILE, JSON.stringify(metadata, null, 2), 'utf8');
+
+    console.log('[Bootstrap Token] Token validated successfully, use count:', metadata.usedCount);
+
+    // Return webhook credentials
+    return {
+      valid: true,
+      webhookToken: getWebhookToken(),
+      webhookAuthHeader: process.env.N8N_WEBHOOK_AUTH_HEADER || 'X-Vigil-Auth'
+    };
+  } catch (error) {
+    console.error('[Bootstrap Token] Validation error:', error);
+    return { valid: false, error: 'Token validation failed' };
+  }
+}
+
+/**
+ * Check if bootstrap token is configured and valid
+ * Used by UI to show warning banner
+ */
+export function isBootstrapTokenConfigured(): boolean {
+  const status = getBootstrapTokenStatus();
+  return status.status === 'active';
 }

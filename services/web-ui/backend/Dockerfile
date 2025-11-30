@@ -1,4 +1,5 @@
 # Multi-stage build for production
+# NOTE: Build context is project root (set in docker-compose.yml)
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
@@ -8,15 +9,15 @@ RUN npm install -g npm@latest
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (relative to project root context)
+COPY services/web-ui/backend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source files
-COPY tsconfig.json ./
-COPY src ./src
+COPY services/web-ui/backend/tsconfig.json ./
+COPY services/web-ui/backend/src ./src
 
 # Build TypeScript to JavaScript
 RUN npm run build
@@ -32,7 +33,7 @@ RUN npm install -g npm@latest
 RUN apk add --no-cache python3 make g++
 
 # Copy package files
-COPY package*.json ./
+COPY services/web-ui/backend/package*.json ./
 
 # Install production dependencies only
 RUN npm ci --omit=dev
@@ -40,9 +41,12 @@ RUN npm ci --omit=dev
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy plugin source for download endpoint (from project root context)
+COPY plugin/Chrome /app/plugin/Chrome
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /config /app/logs /app/data && \
-    chown -R node:node /config /app
+    chown -R node:node /config /app /app/plugin
 
 # Expose port
 EXPOSE 8787

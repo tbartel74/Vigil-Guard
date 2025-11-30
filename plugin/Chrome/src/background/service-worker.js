@@ -113,7 +113,10 @@ const DEFAULT_CONFIG = {
   cache: true,
   cacheTimeout: 300000, // 5 minutes
   webhookAuthToken: '',
-  webhookAuthHeader: 'X-Vigil-Auth'
+  webhookAuthHeader: 'X-Vigil-Auth',
+  // Bootstrap token configuration (v2.0)
+  bootstrapToken: '',
+  bootstrapComplete: false
 };
 
 // Timeouts and limits
@@ -127,9 +130,86 @@ const BADGE_SANITIZE_DURATION_MS = 2000;
 // Cache for processed requests
 const requestCache = new Map();
 
+// =============================================================================
+// BOOTSTRAP TOKEN FLOW (v2.0)
+// =============================================================================
+// Bootstrap token is used ONLY to obtain webhook credentials on first connection.
+// Flow:
+// 1. Extension checks if webhookAuthToken is already configured
+// 2. If not, checks for bootstrapToken (from managed storage or user input)
+// 3. Calls /api/plugin-config/bootstrap with bootstrapToken
+// 4. Receives webhookAuthToken and stores it permanently
+// 5. Future requests use webhookAuthToken directly
+
+/**
+ * Check Chrome Managed Storage for enterprise-deployed bootstrap token
+ * Admins can pre-configure token via Chrome policy
+ */
+async function getBootstrapTokenFromManagedStorage() {
+  try {
+    // Check if managed storage is available (enterprise environments)
+    const managed = await chrome.storage.managed.get(['bootstrapToken', 'guiUrl']);
+    if (managed.bootstrapToken) {
+      console.log('[Vigil Guard] Bootstrap token found in managed storage (enterprise config)');
+      return {
+        token: managed.bootstrapToken,
+        guiUrl: managed.guiUrl || DEFAULT_GUI_URL
+      };
+    }
+  } catch (error) {
+    // Managed storage not available (non-enterprise) - this is expected
+    console.log('[Vigil Guard] No managed storage available (non-enterprise install)');
+  }
+  return null;
+}
+
+/**
+ * Exchange bootstrap token for webhook credentials
+ * This is the ONLY way to obtain webhookAuthToken
+ */
+async function exchangeBootstrapToken(bootstrapToken, guiUrl = DEFAULT_GUI_URL) {
+  const bootstrapUrl = `${guiUrl}/api/plugin-config/bootstrap`;
+
+  console.log('[Vigil Guard] Exchanging bootstrap token for webhook credentials...');
+
+  try {
+    const response = await fetch(bootstrapUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bootstrapToken })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.webhookToken) {
+      throw new Error('Invalid response from bootstrap endpoint');
+    }
+
+    console.log('[Vigil Guard] Bootstrap successful - webhook credentials obtained');
+
+    return {
+      webhookAuthToken: data.webhookToken,
+      webhookAuthHeader: data.webhookAuthHeader || 'X-Vigil-Auth'
+    };
+  } catch (error) {
+    console.error('[Vigil Guard] Bootstrap token exchange failed:', error);
+    throw error;
+  }
+}
+
 /**
  * Fetch configuration from GUI
  * Called on install and every 5 minutes
+ *
+ * v2.0 FLOW:
+ * 1. Fetch public config (webhookUrl, enabled, version)
+ * 2. If no webhookAuthToken stored, attempt bootstrap flow
+ * 3. Store complete config with credentials
  */
 async function fetchConfigFromGUI() {
   const configUrl = `${DEFAULT_GUI_URL}/api/plugin-config`;
@@ -148,7 +228,52 @@ async function fetchConfigFromGUI() {
 
     const data = await response.json();
 
-    console.log('[Vigil Guard] Config fetched successfully:', data);
+    console.log('[Vigil Guard] Public config fetched:', data);
+
+    // Check if we already have webhook credentials stored
+    const existingConfig = await chrome.storage.local.get('config');
+    let webhookAuthToken = existingConfig.config?.webhookAuthToken || '';
+    let webhookAuthHeader = existingConfig.config?.webhookAuthHeader || data.webhookAuthHeader || 'X-Vigil-Auth';
+    let bootstrapComplete = existingConfig.config?.bootstrapComplete || false;
+
+    // If no webhook token, attempt bootstrap flow
+    if (!webhookAuthToken && !bootstrapComplete) {
+      console.log('[Vigil Guard] No webhook credentials - attempting bootstrap flow...');
+
+      // Check managed storage first (enterprise deployment)
+      const managed = await getBootstrapTokenFromManagedStorage();
+
+      if (managed) {
+        try {
+          const credentials = await exchangeBootstrapToken(managed.token, managed.guiUrl);
+          webhookAuthToken = credentials.webhookAuthToken;
+          webhookAuthHeader = credentials.webhookAuthHeader;
+          bootstrapComplete = true;
+          console.log('[Vigil Guard] Enterprise bootstrap successful');
+        } catch (error) {
+          console.warn('[Vigil Guard] Enterprise bootstrap failed:', error.message);
+        }
+      }
+
+      // Check local storage for manually entered bootstrap token
+      if (!webhookAuthToken) {
+        const localBootstrap = await chrome.storage.local.get('bootstrapToken');
+        if (localBootstrap.bootstrapToken) {
+          try {
+            const credentials = await exchangeBootstrapToken(localBootstrap.bootstrapToken);
+            webhookAuthToken = credentials.webhookAuthToken;
+            webhookAuthHeader = credentials.webhookAuthHeader;
+            bootstrapComplete = true;
+
+            // Clear bootstrap token after successful use
+            await chrome.storage.local.remove('bootstrapToken');
+            console.log('[Vigil Guard] Manual bootstrap successful');
+          } catch (error) {
+            console.warn('[Vigil Guard] Manual bootstrap failed:', error.message);
+          }
+        }
+      }
+    }
 
     // Map GUI response to internal config format
     await chrome.storage.local.set({
@@ -157,20 +282,21 @@ async function fetchConfigFromGUI() {
         n8nEndpoint: data.webhookUrl || DEFAULT_CONFIG.n8nEndpoint,
         customWebhook: '',
         guiUrl: data.guiUrl || DEFAULT_GUI_URL,
-        version: data.version || '1.4.0',
+        version: data.version || '2.0.0',
         endpoint: DEFAULT_CONFIG.endpoint,
         apiKey: '',
         mode: 'monitor',
         cache: true,
         cacheTimeout: 300000,
-        webhookAuthToken: data.webhookAuthToken || '',
-        webhookAuthHeader: data.webhookAuthHeader || 'X-Vigil-Auth',
+        webhookAuthToken: webhookAuthToken,
+        webhookAuthHeader: webhookAuthHeader,
+        bootstrapComplete: bootstrapComplete,
         lastFetch: Date.now()
       }
     });
 
     console.log('[Vigil Guard] Configuration updated from GUI');
-    return { success: true };
+    return { success: true, hasCredentials: !!webhookAuthToken };
   } catch (error) {
     console.error('[Vigil Guard] Failed to fetch config from GUI:', error);
 
@@ -341,6 +467,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(sendResponse)
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
+  }
+
+  // v2.0: Handle bootstrap token submission from popup
+  if (request.type === 'SET_BOOTSTRAP_TOKEN') {
+    (async () => {
+      try {
+        const { token } = request.data;
+        if (!token) {
+          sendResponse({ success: false, error: 'No token provided' });
+          return;
+        }
+
+        // Store bootstrap token temporarily
+        await chrome.storage.local.set({ bootstrapToken: token });
+        console.log('[Vigil Guard] Bootstrap token saved, triggering config refresh...');
+
+        // Trigger config fetch which will use the bootstrap token
+        const result = await fetchConfigFromGUI();
+
+        if (result.hasCredentials) {
+          sendResponse({ success: true, message: 'Bootstrap successful - webhook credentials obtained' });
+        } else {
+          sendResponse({ success: false, error: 'Bootstrap failed - check token validity' });
+        }
+      } catch (error) {
+        console.error('[Vigil Guard] Bootstrap token handling failed:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open for async response
+  }
+
+  // v2.0: Check if webhook credentials are configured
+  if (request.type === 'CHECK_CREDENTIALS_STATUS') {
+    (async () => {
+      try {
+        const stored = await chrome.storage.local.get('config');
+        const hasCredentials = !!(stored.config?.webhookAuthToken);
+        const bootstrapComplete = !!(stored.config?.bootstrapComplete);
+
+        sendResponse({
+          hasCredentials,
+          bootstrapComplete,
+          needsBootstrap: !hasCredentials && !bootstrapComplete
+        });
+      } catch (error) {
+        sendResponse({ hasCredentials: false, bootstrapComplete: false, needsBootstrap: true });
+      }
+    })();
+    return true;
   }
 
   console.warn('[Vigil Guard] Unknown message type:', request.type);

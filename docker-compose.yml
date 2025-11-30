@@ -121,7 +121,9 @@ services:
   # WEB UI (Configuration Panel)
   # ============================================
   web-ui-backend:
-    build: ./services/web-ui/backend
+    build:
+      context: .
+      dockerfile: ./services/web-ui/backend/Dockerfile
     container_name: vigil-web-ui-backend
     environment:
       - NODE_ENV=${NODE_ENV:-production}
