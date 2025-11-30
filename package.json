@@ -4,10 +4,6 @@
   "description": "Enterprise-grade prompt injection detection and defense platform for Large Language Model applications",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "services/web-ui/frontend",
-    "services/web-ui/backend"
-  ],
   "scripts": {
     "install:all": "npm install && npm run install:backend && npm run install:frontend",
     "install:backend": "cd services/web-ui/backend && npm install",

@@ -247,10 +247,12 @@ jobs:
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS -X POST http://127.0.0.1:8000/detect -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'" || exit 1
               ;;
             heuristics-service)
-              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:5005/health" || exit 1
+              # Alpine image uses wget instead of curl
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:5005/health" || exit 1
               ;;
             semantic-service)
-              wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:5006/health" || exit 1
+              # Alpine image uses wget instead of curl
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:5006/health" || exit 1
               ;;
           esac
 
