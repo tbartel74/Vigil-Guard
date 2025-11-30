@@ -136,8 +136,8 @@ jobs:
 
       - name: Build Web UI Backend
         if: matrix.service == 'web-ui-backend'
-        working-directory: services/web-ui/backend
-        run: docker build -t vigil-guard-web-ui-backend:test .
+        # Build from project root (Dockerfile expects services/web-ui/backend/* and plugin/Chrome paths)
+        run: docker build -f services/web-ui/backend/Dockerfile -t vigil-guard-web-ui-backend:test .
 
       - name: Build Web UI Frontend
         if: matrix.service == 'web-ui-frontend'
