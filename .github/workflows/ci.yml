@@ -251,9 +251,9 @@ jobs:
               wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:5005/health" || exit 1
               ;;
             semantic-service)
-              # Alpine image uses wget instead of curl
-              # Accept 503 (degraded mode) as success - service is running, just no ClickHouse in CI
-              wait_for "docker exec ${CONTAINER_NAME} sh -c 'wget -qO- http://127.0.0.1:5006/health 2>&1 || wget -qS http://127.0.0.1:5006/health 2>&1 | grep -q \"HTTP/1.1\"'" || exit 1
+              # node:20-slim doesn't have curl/wget, use Node.js for health check
+              # Accept any HTTP response (200 or 503 degraded) - service is running
+              wait_for "docker exec ${CONTAINER_NAME} node -e \"require('http').get('http://127.0.0.1:5006/health', r => { console.log('Status:', r.statusCode); process.exit(0); }).on('error', e => process.exit(1))\"" || exit 1
               ;;
           esac
 
