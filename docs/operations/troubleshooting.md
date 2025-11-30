@@ -8,7 +8,7 @@ Last updated: 2025-11-26
 - Ensure table `n8n_logs.events_v2` exists (SQL in `services/monitoring/sql/08-events-v2-3branch.sql`).
 
 ## Branch degraded / timeout
-- A/B/C may timeout (1s/2s/3s). Check service logs (heuristics/semantic/NLP safety).
+- A/B/C may timeout (1s/2s/3s). Check service logs (heuristics/semantic/LLM Safety Engine).
 - Arbiter continues but weights shrink; multiple degraded branches can lead to BLOCK.
 
 ## PII API offline

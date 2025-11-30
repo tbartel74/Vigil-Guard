@@ -861,7 +861,7 @@ export async function getFPReportDetails(reportId: string): Promise<FPReportDeta
       // Note: v2.0.0 has different structure (3-branch format)
       scoring_breakdown: arbiterData ? {
         sanitizer_score: 0, // Not in v2.0.0 arbiter format
-        prompt_guard_score: 0, // Replaced by Branch C (NLP safety analysis)
+        prompt_guard_score: 0, // Replaced by Branch C (LLM Safety Engine analysis)
         prompt_guard_percent: arbiterData.branches?.C?.score || 0,
         threat_score: arbiterData.combined_score || row.threat_score || 0,
         score_breakdown: {

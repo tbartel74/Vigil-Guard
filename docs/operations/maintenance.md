@@ -8,7 +8,7 @@ Last updated: 2025-11-26
 
 ## Aktualizacje
 - Pull latest changes, rebuild images (`docker-compose build --no-cache`), restart.
-- Confirm NLP safety and PII model compatibility (endpoints unchanged).
+- Confirm LLM Safety Engine and PII model compatibility (endpoints unchanged).
 
 ## Monitoring
 - Grafana (port 3000) – dashboards based on `events_v2` (branch_a/b/c_score, threat_score, final_status).

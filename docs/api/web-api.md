@@ -5,7 +5,7 @@ Last updated: 2025-11-26
 Web UI backend (Express, port 8787) exposes APIs for configuration, service health, and audit.
 
 ## Main endpoints
-- `GET /api/system/containers` – status of Heuristics, Semantic, NLP Safety, Language Detector, ClickHouse, PII, Grafana (includes latency/status).
+- `GET /api/system/containers` – status of Heuristics, Semantic, LLM Safety Engine, Language Detector, ClickHouse, PII, Grafana (includes latency/status).
 - `GET /api/config` – fetch configuration (including unified_config, allowlist, pii.conf if exposed).
 - `POST /api/config` – save configuration; uses ETag for race protection.
 - `GET /api/audit` – configuration change log.
@@ -21,7 +21,7 @@ Web UI backend (Express, port 8787) exposes APIs for configuration, service heal
 Example item:
 ```json
 {
-  "name": "Branch C (NLP Safety Analysis)",
+  "name": "Branch C (LLM Safety Engine Analysis)",
   "status": "healthy|unhealthy|unknown",
   "latency_ms": 123
 }

@@ -169,7 +169,7 @@
   },
   "arbiter": {
     "version": "2.0.0",
-    "description": "3-Branch Detection Arbiter - combines heuristics, semantic, and NLP safety analysis (llm_guard) scores",
+    "description": "3-Branch Detection Arbiter - combines heuristics, semantic, and LLM Safety Engine analysis (llm_guard) scores",
     "weights": {
       "heuristics": 0.3,
       "semantic": 0.35,
@@ -206,7 +206,7 @@
       },
       "LLM_GUARD_VETO": {
         "enabled": true,
-        "description": "Block if NLP safety analysis is certain (score > 90)",
+        "description": "Block if LLM Safety Engine analysis is certain (score > 90)",
         "condition": "llm_guard_certain",
         "threshold": 90
       }

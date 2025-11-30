@@ -14,7 +14,7 @@ File: `services/workflow/config/unified_config.json`. Used by workflow v2.0.0 as
 - `bloom`/`prefilter` – prefilter parameters (independent of branches A/B/C).
 - `pii_detection` – Presidio provider, URL, timeouts, languages (pl/en), redaction tokens (incl. URL), fallback_to_regex, context_enhancement, confidence_threshold.
 - `arbiter` – weights heuristics/semantic/llm_guard, thresholds block/confidence_min, priority_boosts, degradation, final_status_logic.
-- `prompt_guard_policy` – risk policy for NLP safety (CRITICAL/MINIMAL).
+- `prompt_guard_policy` – risk policy for LLM Safety Engine (CRITICAL/MINIMAL).
 
 ## Minimal example (shortened)
 ```json

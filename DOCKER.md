@@ -23,7 +23,7 @@ nano .env
 - `JWT_SECRET` - Set to a long random string
 - `CLICKHOUSE_PASSWORD` - Change default password
 - `GF_SECURITY_ADMIN_PASSWORD` - Change Grafana password
-- `GROQ_API_KEY` - Add your Groq API key (if using the NLP analysis model)
+- `GROQ_API_KEY` - Add your Groq API key (if using the LLM Safety Engine model)
 
 ### 3. Start All Services
 

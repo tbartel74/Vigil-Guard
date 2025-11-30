@@ -236,7 +236,7 @@ const Monitoring = () => {
         <div>
           <div className="mb-3">
             <h3 className="text-md font-semibold text-white">Branch Scores Over Time</h3>
-            <p className="text-xs text-slate-400">3-Branch detection trends: Heuristics (A), Semantic (B), NLP Analysis (C)</p>
+            <p className="text-xs text-slate-400">3-Branch detection trends: Heuristics (A), Semantic (B), LLM Safety Engine Analysis (C)</p>
           </div>
           <GrafanaEmbed
             src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=10&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
@@ -250,7 +250,7 @@ const Monitoring = () => {
         <div>
           <div className="mb-3">
             <h3 className="text-md font-semibold text-white">Branch Average Scores (24h)</h3>
-            <p className="text-xs text-slate-400">Average detection scores per branch: Heuristics, Semantic, NLP Analysis</p>
+            <p className="text-xs text-slate-400">Average detection scores per branch: Heuristics, Semantic, LLM Safety Engine Analysis</p>
           </div>
           <GrafanaEmbed
             src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=11&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}

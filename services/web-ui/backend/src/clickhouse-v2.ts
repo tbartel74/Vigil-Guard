@@ -2,7 +2,7 @@
  * ClickHouse v2 Module - Events V2 with 3-Branch Detection Architecture
  *
  * This module handles queries for the new events_v2 table that supports:
- * - 3 branch scores (heuristics, semantic, llm_guard/NLP analysis)
+ * - 3 branch scores (heuristics, semantic, llm_guard/LLM Safety Engine analysis)
  * - Arbiter decision fields (threat_score, confidence, boosts_applied)
  * - PII detection with detailed tracking
  */
@@ -29,6 +29,47 @@ function validateTimeRange(timeRange: string): TimeRange {
     throw new Error(`Invalid time range: ${timeRange}. Allowed: ${VALID_TIME_RANGES.join(', ')}`);
   }
   return normalized as TimeRange;
+}
+
+// ============================================================================
+// SECURITY: LIMIT VALIDATION (SQL Injection Prevention)
+// ============================================================================
+
+const VALID_LIMITS = [10, 25, 50, 100, 200, 500] as const;
+type ValidLimit = typeof VALID_LIMITS[number];
+
+/**
+ * Validates limit parameter against whitelist to prevent SQL injection.
+ *
+ * @param limit - User-provided limit value
+ * @returns Validated limit from whitelist (defaults to 100 if invalid)
+ */
+function validateLimit(limit: number): ValidLimit {
+  if (VALID_LIMITS.includes(limit as ValidLimit)) {
+    return limit as ValidLimit;
+  }
+  return 100;
+}
+
+// ============================================================================
+// SECURITY: SAFE JSON PARSING (Error Handling)
+// ============================================================================
+
+/**
+ * Safely parse JSON string with fallback on error.
+ *
+ * @param jsonString - JSON string to parse (can be null/undefined)
+ * @param fallback - Fallback value on error (default: null)
+ * @returns Parsed object or fallback value
+ */
+function safeJsonParse<T>(jsonString: string | null | undefined, fallback: T | null = null): T | null {
+  if (!jsonString) return fallback;
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch (e) {
+    console.error('Failed to parse JSON from ClickHouse:', e);
+    return fallback;
+  }
 }
 
 // ============================================================================
@@ -268,7 +309,7 @@ export async function getEventListV2(timeRange: string, limit: number = 100): Pr
       FROM n8n_logs.events_v2
       WHERE timestamp >= now() - INTERVAL ${validatedRange}
       ORDER BY timestamp DESC
-      LIMIT ${limit}
+      LIMIT ${validateLimit(limit)}
     `;
 
     const resultSet = await client.query({
@@ -286,7 +327,7 @@ export async function getEventListV2(timeRange: string, limit: number = 100): Pr
     }));
   } catch (error) {
     console.error('ClickHouse query error (getEventListV2):', error);
-    return [];
+    throw new Error(`ClickHouse query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -408,7 +449,7 @@ export async function searchEventsV2(params: SearchParamsV2): Promise<SearchResu
         ...row,
         timestamp: row.ts_iso,
         pii_sanitized: row.pii_sanitized === 1,
-        pii_classification_json: row.pii_classification_json ? JSON.parse(row.pii_classification_json) : null,
+        pii_classification_json: safeJsonParse(row.pii_classification_json),
       })),
       total,
       page: params.page,
@@ -417,13 +458,7 @@ export async function searchEventsV2(params: SearchParamsV2): Promise<SearchResu
     };
   } catch (error) {
     console.error('ClickHouse query error (searchEventsV2):', error);
-    return {
-      rows: [],
-      total: 0,
-      page: params.page,
-      pageSize: params.pageSize,
-      pages: 0,
-    };
+    throw new Error(`ClickHouse query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -486,13 +521,13 @@ export async function getEventDetailsV2(eventId: string): Promise<EventV2Details
     return {
       ...row,
       pii_sanitized: row.pii_sanitized === 1,
-      arbiter_json: row.arbiter_json ? JSON.parse(row.arbiter_json) : null,
-      branch_results_json: row.branch_results_json ? JSON.parse(row.branch_results_json) : null,
-      pii_classification_json: row.pii_classification_json ? JSON.parse(row.pii_classification_json) : null,
+      arbiter_json: safeJsonParse(row.arbiter_json),
+      branch_results_json: safeJsonParse(row.branch_results_json),
+      pii_classification_json: safeJsonParse(row.pii_classification_json),
     };
   } catch (error) {
     console.error('ClickHouse query error (getEventDetailsV2):', error);
-    return null;
+    throw new Error(`ClickHouse query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

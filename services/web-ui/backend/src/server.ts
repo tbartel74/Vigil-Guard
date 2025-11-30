@@ -253,7 +253,7 @@ app.get("/api/events-v2/list", authenticate, async (req, res) => {
     res.json(events);
   } catch (e: any) {
     console.error("Error fetching events list:", e);
-    res.status(500).json({ error: "Failed to fetch events list", details: e.message });
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
   }
 });
 
@@ -282,7 +282,7 @@ app.get("/api/events-v2/search", authenticate, async (req, res) => {
     res.json(results);
   } catch (e: any) {
     console.error("Error searching events:", e);
-    res.status(500).json({ error: "Failed to search events", details: e.message });
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
   }
 });
 
@@ -311,7 +311,7 @@ app.get("/api/events-v2/:eventId", authenticate, async (req, res) => {
     res.json(event);
   } catch (e: any) {
     console.error("Error fetching event details:", e);
-    res.status(500).json({ error: "Failed to fetch event details", details: e.message });
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
   }
 });
 
@@ -876,7 +876,7 @@ app.get("/api/system/containers", authenticate, async (req, res) => {
       checkService('Language Detector', process.env.LANGUAGE_DETECTOR_URL || 'http://vigil-language-detector:5002'),
       checkService('Branch A (Heuristics)', process.env.HEURISTICS_SERVICE_URL || 'http://vigil-heuristics:5005'),
       checkService('Branch B (Semantic)', process.env.SEMANTIC_SERVICE_URL || 'http://vigil-semantic-service:5006'),
-      checkService('Branch C (NLP Safety Analysis)', process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000')
+      checkService('Branch C (LLM Safety Engine Analysis)', process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000')
     ]);
 
     const containers = [

@@ -3,7 +3,7 @@
 -- Purpose: ClickHouse table for Vigil Guard v2.0.0 with 3-Branch Detection Architecture
 --
 -- Key Changes from events_processed:
--- - 3 branch scores (heuristics, semantic, llm_guard/NLP analysis) instead of single threat_score
+-- - 3 branch scores (heuristics, semantic, llm_guard/LLM Safety Engine analysis) instead of single threat_score
 -- - Arbiter decision fields (combined_score, boosts_applied, confidence)
 -- - event_id field for FP reports compatibility (sessionId-ISO8601 format)
 -- - Full branch results in JSON for deep analysis
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_v2
     -- 3-Branch Scores (NEW in v2.0.0)
     branch_a_score          UInt8 DEFAULT 0,       -- Heuristics (0-100)
     branch_b_score          UInt8 DEFAULT 0,       -- Semantic (0-100)
-    branch_c_score          UInt8 DEFAULT 0,       -- NLP safety analysis (0-100)
+    branch_c_score          UInt8 DEFAULT 0,       -- LLM Safety Engine analysis (0-100)
 
     -- Arbiter Decision (NEW in v2.0.0)
     threat_score            UInt8 DEFAULT 0,       -- Combined weighted score (0-100)

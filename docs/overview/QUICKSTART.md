@@ -42,7 +42,7 @@ curl -X POST http://localhost:5678/webhook/vigil-guard-2 \
 - Web UI: 5173 (dev) / 80 via Caddy (`/ui/`), backend 8787.
 - Workflow (n8n): 5678 (`/n8n/`), webhook `/webhook/vigil-guard-2`.
 - PII API: 5001, Language Detector: 5002.
-- Heuristics: 5005, Semantic: 5006, NLP Safety: 8000.
+- Heuristics: 5005, Semantic: 5006, LLM Safety Engine: 8000.
 - ClickHouse: 8123 (HTTP), Grafana: 3000.
 
 ## What next

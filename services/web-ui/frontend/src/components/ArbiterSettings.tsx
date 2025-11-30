@@ -24,6 +24,7 @@ export default function ArbiterSettings() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [branchHealth, setBranchHealth] = useState<BranchHealthStatus | null>(null);
   const [isLoadingHealth, setIsLoadingHealth] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
 
   // Filter variables for arbiter groups only
   const arbiterWeights = (spec.variables || []).filter((v: any) => v.groupId === "arbiter_weights");
@@ -44,6 +45,7 @@ export default function ArbiterSettings() {
 
   async function fetchBranchHealth() {
     setIsLoadingHealth(true);
+    setHealthError(null);
     try {
       const API = import.meta.env.VITE_API_BASE || "/ui/api";
       const token = localStorage.getItem('token');
@@ -54,12 +56,14 @@ export default function ArbiterSettings() {
         },
         credentials: 'include'
       });
-      if (response.ok) {
-        const data = await response.json();
-        setBranchHealth(data);
+      if (!response.ok) {
+        throw new Error(`Branch health check failed: ${response.status} ${response.statusText}`);
       }
+      const data = await response.json();
+      setBranchHealth(data);
     } catch (error) {
       console.error("Failed to fetch branch health:", error);
+      setHealthError((error as Error).message || 'Failed to fetch branch health');
     } finally {
       setIsLoadingHealth(false);
     }
@@ -273,6 +277,24 @@ export default function ArbiterSettings() {
 
   return (
     <div className="p-6 overflow-auto">
+      {/* Error UI */}
+      {healthError && (
+        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-400 font-medium">Branch health check failed</p>
+              <p className="text-xs text-red-400/70 mt-1">{healthError}</p>
+            </div>
+            <button
+              onClick={fetchBranchHealth}
+              className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 rounded"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Section Header */}
       <div className="mb-8">
         <div className="mb-4">
@@ -282,7 +304,7 @@ export default function ArbiterSettings() {
         <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
           <p className="text-sm text-slate-300 leading-relaxed">
             The Arbiter combines scores from all 3 detection branches using weighted voting.
-            Configure branch weights (default: Heuristics 30%, Semantic 35%, NLP Analysis 35%),
+            Configure branch weights (default: Heuristics 30%, Semantic 35%, LLM Safety Engine Analysis 35%),
             priority boosts for edge cases, and thresholds for ALLOW/BLOCK decisions.
             Degraded weights are used when branches are offline.
           </p>
@@ -393,7 +415,7 @@ export default function ArbiterSettings() {
             )}
           </div>
 
-          {/* Branch C - NLP Analysis */}
+          {/* Branch C - LLM Safety Engine Analysis */}
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -408,9 +430,9 @@ export default function ArbiterSettings() {
                 </span>
               )}
             </div>
-            <h3 className="text-lg font-medium text-white mb-1">NLP Safety Analysis</h3>
+            <h3 className="text-lg font-medium text-white mb-1">LLM Safety Engine Analysis</h3>
             <p className="text-xs text-text-secondary mb-3">
-              NLP safety classifier (Llama Guard-based)
+              LLM Safety Engine classifier (Llama Guard-based)
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -505,7 +527,7 @@ export default function ArbiterSettings() {
               <span className="text-red-400 font-semibold">2.</span>
               <div>
                 <span className="text-white font-medium">LLM_GUARD_VETO</span>
-                <span className="text-text-secondary ml-2">— Force BLOCK if NLP analysis score &gt; 90</span>
+                <span className="text-text-secondary ml-2">— Force BLOCK if LLM Safety Engine analysis score &gt; 90</span>
               </div>
             </div>
             <div className="flex items-start gap-2">

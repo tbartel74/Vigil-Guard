@@ -215,7 +215,7 @@ export default function InvestigationV2() {
                 {branchHealth.llm_guard?.status === 'healthy' ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
-            <div className="text-sm text-text-secondary">NLP Safety Analysis</div>
+            <div className="text-sm text-text-secondary">LLM Safety Engine Analysis</div>
             {branchStats && (
               <div className="mt-2 text-lg font-mono text-cyan-400">
                 Avg: {(branchStats.branch_c_avg ?? 0).toFixed(1)}
@@ -541,7 +541,7 @@ export default function InvestigationV2() {
                   </div>
 
                   <div className="bg-slate-800 border border-cyan-500/50 rounded-lg p-4">
-                    <h3 className="text-sm font-medium text-cyan-400 mb-2">Branch C (NLP Analysis)</h3>
+                    <h3 className="text-sm font-medium text-cyan-400 mb-2">Branch C (LLM Safety Engine Analysis)</h3>
                     <p className={`text-3xl font-mono ${getScoreColor(selectedEvent.branch_c_score)}`}>
                       {selectedEvent.branch_c_score}
                     </p>

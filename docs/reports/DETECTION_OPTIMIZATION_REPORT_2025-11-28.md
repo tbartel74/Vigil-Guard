@@ -67,7 +67,7 @@ Na podstawie analizy **40+ źródeł akademickich**, dokumentacji OWASP oraz bes
 |--------|------|---------|
 | **Heuristics** | 30% | Prefilter Aho-Corasick + regex patterns |
 | **Semantic** | 35% | Vector embeddings similarity |
-| **LLM Guard** | 35% | Llama Prompt Guard NLP safety |
+| **LLM Guard** | 35% | Llama Prompt Guard LLM Safety Engine |
 
 ### 2.2 Obecne progi decyzyjne
 

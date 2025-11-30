@@ -13,7 +13,7 @@ Last updated: 2025-11-26
 ## Branch B – Semantic
 - Typical: `PORT`, vector sources / databases (per semantic-service config).
 
-## Branch C – NLP Safety
+## Branch C – LLM Safety Engine
 - `PORT`, model key (e.g., `GROQ_API_KEY` if used), timeouts in the service config.
 
 ## PII + Language Detector

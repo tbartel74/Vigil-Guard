@@ -191,115 +191,91 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
   let errorCount = 0;
 
   while (Date.now() - startTime < maxWaitMs) {
+    // Build WHERE clause from criteria
+    const conditions = [];
+    if (criteria.original_input) {
+      conditions.push(`original_input = '${criteria.original_input.replace(/'/g, "\\'")}'`);
+    }
+    if (criteria.sessionId) {
+      conditions.push(`sessionId = '${criteria.sessionId}'`);
+    }
+
+    // Removed timestamp filter to avoid UTC/local timezone issues
+    // sessionId is unique enough for test identification
+    const whereClause = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')}`
+      : `WHERE 1=1`;
+
+    // v2.0.0: Query events_v2 table with 3-branch scores
+    const query = `
+      SELECT
+        sessionId,
+        action,
+        timestamp,
+        original_input,
+        chat_input,
+        result,
+        detected_language,
+
+        -- 3-Branch Scores (v2.0.0)
+        branch_a_score,
+        branch_b_score,
+        branch_c_score,
+        threat_score,
+        confidence,
+        boosts_applied,
+
+        -- Final Decision
+        final_status,
+        final_decision,
+
+        -- PII
+        pii_sanitized,
+        pii_types_detected,
+        pii_entities_count,
+
+        -- Client
+        client_id,
+        browser_name,
+        browser_version,
+        os_name,
+        pipeline_version,
+        config_version,
+
+        -- JSON fields
+        arbiter_json,
+        branch_results_json,
+        pii_classification_json
+      FROM n8n_logs.events_v2
+      ${whereClause}
+      ORDER BY timestamp DESC
+      LIMIT 1
+      FORMAT JSON
+    `;
+
+    const { clickhouseHost, headers } = getClickhouseConnection();
+
+    let response;
+    let fetchError = null;
+
     try {
-      // Build WHERE clause from criteria
-      const conditions = [];
-      if (criteria.original_input) {
-        conditions.push(`original_input = '${criteria.original_input.replace(/'/g, "\\'")}'`);
-      }
-      if (criteria.sessionId) {
-        conditions.push(`sessionId = '${criteria.sessionId}'`);
-      }
-
-      // Removed timestamp filter to avoid UTC/local timezone issues
-      // sessionId is unique enough for test identification
-      const whereClause = conditions.length > 0
-        ? `WHERE ${conditions.join(' AND ')}`
-        : `WHERE 1=1`;
-
-      // v2.0.0: Query events_v2 table with 3-branch scores
-      const query = `
-        SELECT
-          sessionId,
-          action,
-          timestamp,
-          original_input,
-          chat_input,
-          result,
-          detected_language,
-
-          -- 3-Branch Scores (v2.0.0)
-          branch_a_score,
-          branch_b_score,
-          branch_c_score,
-          threat_score,
-          confidence,
-          boosts_applied,
-
-          -- Final Decision
-          final_status,
-          final_decision,
-
-          -- PII
-          pii_sanitized,
-          pii_types_detected,
-          pii_entities_count,
-
-          -- Client
-          client_id,
-          browser_name,
-          browser_version,
-          os_name,
-          pipeline_version,
-          config_version,
-
-          -- JSON fields
-          arbiter_json,
-          branch_results_json,
-          pii_classification_json
-        FROM n8n_logs.events_v2
-        ${whereClause}
-        ORDER BY timestamp DESC
-        LIMIT 1
-        FORMAT JSON
-      `;
-
-      const { clickhouseHost, headers } = getClickhouseConnection();
-
-      const response = await fetch(`${clickhouseHost}/?query=${encodeURIComponent(query)}`, {
+      response = await fetch(`${clickhouseHost}/?query=${encodeURIComponent(query)}`, {
         headers
       });
+    } catch (err) {
+      fetchError = err;
+    }
 
-      if (!response.ok) {
-        const authError = new Error(`ClickHouse query failed: HTTP ${response.status}`);
-        authError.responseStatus = response.status;
-        throw authError;
-      }
-
-      const result = await response.json();
-
-      if (result.data && result.data.length > 0) {
-        const event = result.data[0];
-
-        // v2.0.0: Parse JSON fields
-        if (event.arbiter_json) {
-          event.arbiter = parseJSONSafely(event.arbiter_json, 'arbiter_json', event.sessionId);
-        }
-        if (event.branch_results_json) {
-          event.branch_results = parseJSONSafely(event.branch_results_json, 'branch_results_json', event.sessionId);
-        }
-        if (event.pii_classification_json) {
-          event.pii_classification = parseJSONSafely(event.pii_classification_json, 'pii_classification_json', event.sessionId);
-        } else {
-          event.pii_classification = [];
-        }
-
-        // v2.0.0: Convenience accessors for branch scores
-        event.branches = {
-          A: { score: event.branch_a_score, name: 'heuristics' },
-          B: { score: event.branch_b_score, name: 'semantic' },
-          C: { score: event.branch_c_score, name: 'llm_guard' }
-        };
-
-        return event;
-      }
-    } catch (error) {
+    if (fetchError) {
       errorCount++;
-      lastError = error;
+      lastError = fetchError;
+      // Network error - continue polling
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
 
-      const status =
-        error?.responseStatus ??
-        Number(error?.message?.match?.(/HTTP (\d{3})/)?.[1]);
+    if (!response.ok) {
+      const status = response.status;
 
       if (status === 401 || status === 403) {
         throw new Error(
@@ -308,8 +284,46 @@ export async function waitForClickHouseEvent(criteria = {}, maxWaitMs = 10000) {
         );
       }
 
-      // Log warning but continue polling (may be transient error)
-      console.warn(`ClickHouse query error (attempt ${errorCount}):`, error.message);
+      errorCount++;
+      lastError = new Error(`ClickHouse query failed: HTTP ${status}`);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
+
+    let result;
+    try {
+      result = await response.json();
+    } catch (parseErr) {
+      errorCount++;
+      lastError = parseErr;
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
+
+    if (result.data && result.data.length > 0) {
+      const event = result.data[0];
+
+      // v2.0.0: Parse JSON fields
+      if (event.arbiter_json) {
+        event.arbiter = parseJSONSafely(event.arbiter_json, 'arbiter_json', event.sessionId);
+      }
+      if (event.branch_results_json) {
+        event.branch_results = parseJSONSafely(event.branch_results_json, 'branch_results_json', event.sessionId);
+      }
+      if (event.pii_classification_json) {
+        event.pii_classification = parseJSONSafely(event.pii_classification_json, 'pii_classification_json', event.sessionId);
+      } else {
+        event.pii_classification = [];
+      }
+
+      // v2.0.0: Convenience accessors for branch scores
+      event.branches = {
+        A: { score: event.branch_a_score, name: 'heuristics' },
+        B: { score: event.branch_b_score, name: 'semantic' },
+        C: { score: event.branch_c_score, name: 'llm_guard' }
+      };
+
+      return event;
     }
 
     // Wait before next poll
@@ -819,49 +833,20 @@ export async function waitForPiiConfigSync(maxWaitMs = 5000) {
   const MAX_TRANSIENT_ERRORS = 3;
 
   while (Date.now() - startTime < maxWaitMs) {
+    let response;
+    let fetchError = null;
+
     try {
-      const response = await fetch('http://localhost:8787/api/pii-detection/validate-config', {
+      response = await fetch('http://localhost:8787/api/pii-detection/validate-config', {
         headers: { Authorization: `Bearer ${token}` }
       });
+    } catch (err) {
+      fetchError = err;
+    }
 
-      if (!response.ok) {
-        // CRITICAL: Don't swallow HTTP errors
-        const text = await response.text();
-        const error = new Error(
-          `Config validation failed: HTTP ${response.status}\n${text}`
-        );
-        error.responseStatus = response.status;
-        throw error;
-      }
-
-      const data = await response.json();
-      if (data.consistent) {
-        console.log('✅ PII config synced across all services');
-        return true;
-      }
-      console.log(`⏳ Config not synced yet (${Date.now() - startTime}ms elapsed)`);
-
-      // Reset error count on successful poll
-      errorCount = 0;
-
-    } catch (error) {
+    if (fetchError) {
       errorCount++;
-      lastError = error;
-
-      const status = error?.responseStatus ??
-        Number(error?.message?.match?.(/HTTP (\d{3})/)?.[1]);
-
-      // CRITICAL: Authentication/authorization errors should fail immediately
-      if (status === 401 || status === 403) {
-        throw new Error(
-          `Config sync authentication failed: ${error.message}. ` +
-          `Check JWT token validity and user permissions.`
-        );
-      }
-
-      console.error(
-        `Config sync check failed (attempt ${errorCount}/${MAX_TRANSIENT_ERRORS}): ${error.message}`
-      );
+      lastError = fetchError;
 
       // CRITICAL: Too many transient errors indicate real problem
       if (errorCount > MAX_TRANSIENT_ERRORS) {
@@ -872,7 +857,55 @@ export async function waitForPiiConfigSync(maxWaitMs = 5000) {
           `Check: docker ps | grep web-ui-backend`
         );
       }
+
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
     }
+
+    if (!response.ok) {
+      const status = response.status;
+
+      // CRITICAL: Authentication/authorization errors should fail immediately
+      if (status === 401 || status === 403) {
+        throw new Error(
+          `Config sync authentication failed (HTTP ${status}). ` +
+          `Check JWT token validity and user permissions.`
+        );
+      }
+
+      errorCount++;
+      lastError = new Error(`Config validation failed: HTTP ${status}`);
+
+      // CRITICAL: Too many transient errors indicate real problem
+      if (errorCount > MAX_TRANSIENT_ERRORS) {
+        throw new Error(
+          `Config sync check failed ${errorCount} times. ` +
+          `Last error: ${lastError.message}. ` +
+          `Backend service may be down or unreachable. ` +
+          `Check: docker ps | grep web-ui-backend`
+        );
+      }
+
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      errorCount++;
+      lastError = parseErr;
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
+    }
+
+    if (data.consistent) {
+      return true;
+    }
+
+    // Reset error count on successful poll (even if not yet consistent)
+    errorCount = 0;
 
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }

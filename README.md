@@ -18,7 +18,7 @@ Vigil Guard protects LLM applications from prompt injection attacks, jailbreak a
 
 | Feature | Description |
 |---------|-------------|
-| **3-Branch Detection** | Heuristics + Semantic + NLP Safety in parallel |
+| **3-Branch Detection** | Heuristics + Semantic + LLM Safety Engine in parallel |
 | **44 Detection Categories** | Comprehensive threat coverage |
 | **Dual-Language PII** | Polish + English via Microsoft Presidio |
 | **Real-time Monitoring** | Grafana dashboards with 6 analytics panels |
@@ -32,7 +32,7 @@ Vigil Guard protects LLM applications from prompt injection attacks, jailbreak a
 ```
 Input → Validation → [Branch A: Heuristics  ] → Arbiter → Decision
                    → [Branch B: Semantic     ] →   ↓
-                   → [Branch C: NLP Safety   ] → ALLOW/SANITIZE/BLOCK
+                   → [Branch C: LLM Safety Engine   ] → ALLOW/SANITIZE/BLOCK
                                                     ↓
                                               → PII Redaction → Output
 ```
@@ -70,7 +70,7 @@ open http://localhost/ui
 | Grafana | 3001 | Monitoring dashboards |
 | Heuristics | 5005 | Branch A detection |
 | Semantic | 5006 | Branch B embeddings |
-| NLP Safety | 8000 | Branch C classification |
+| LLM Safety Engine | 8000 | Branch C classification |
 | Presidio PII | 5001 | PII detection |
 | ClickHouse | 8123 | Analytics logging |
 

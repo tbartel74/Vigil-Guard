@@ -106,7 +106,7 @@ export default function BranchHealthPanel({
         </div>
 
         {/* Branch C */}
-        <div className="flex items-center gap-1.5" title="NLP Analysis">
+        <div className="flex items-center gap-1.5" title="LLM Safety Engine Analysis">
           <div className={`w-2 h-2 rounded-full ${
             health.llm_guard.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'
           }`}></div>
@@ -249,7 +249,7 @@ export default function BranchHealthPanel({
           )}
         </div>
 
-        {/* Branch C - NLP Analysis */}
+        {/* Branch C - LLM Safety Engine Analysis */}
         <div className={`rounded-xl border p-4 transition-colors ${
           health.llm_guard.status === 'healthy'
             ? 'border-emerald-500/30 bg-emerald-500/5'
@@ -269,9 +269,9 @@ export default function BranchHealthPanel({
             </span>
           </div>
 
-          <h4 className="text-white font-medium mb-1">NLP Safety Analysis</h4>
+          <h4 className="text-white font-medium mb-1">LLM Safety Engine Analysis</h4>
           <p className="text-xs text-text-secondary mb-3">
-            NLP safety classifier (Llama Guard-based)
+            LLM Safety Engine classifier (Llama Guard-based)
           </p>
 
           <div className="space-y-2 text-xs">
@@ -321,7 +321,7 @@ export default function BranchHealthPanel({
                 One or more branches are offline. The Arbiter will use degraded weights for decision making.
                 {health.llm_guard.status !== 'healthy' && (
                   <span className="block mt-1">
-                    <span className="text-cyan-400">NLP analysis</span> is offline - using Heuristics (50%) + Semantic (50%) only.
+                    <span className="text-cyan-400">LLM Safety Engine analysis</span> is offline - using Heuristics (50%) + Semantic (50%) only.
                   </span>
                 )}
               </p>

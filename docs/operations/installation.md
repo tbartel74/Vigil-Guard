@@ -34,7 +34,7 @@ docker-compose up -d
 
 ## Important `.env` entries
 - `JWT_SECRET`, `CLICKHOUSE_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`
-- `GROQ_API_KEY` (if required by NLP Safety)
+- `GROQ_API_KEY` (if required by LLM Safety Engine)
 - Volume paths: `vigil_data`, `clickhouse-data`, `grafana-data`
 
 ## Models

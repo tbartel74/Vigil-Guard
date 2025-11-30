@@ -13,7 +13,7 @@ Table: `n8n_logs.events_v2` (ClickHouse). Insert format: JSONEachRow from the wo
 - `detected_language` (String) – if available.
 - `branch_a_score` (UInt8) – Heuristics.
 - `branch_b_score` (UInt8) – Semantic.
-- `branch_c_score` (UInt8) – NLP Safety.
+- `branch_c_score` (UInt8) – LLM Safety Engine.
 - `threat_score` (UInt8) – arbiter result.
 - `final_status` (String) – ALLOWED / SANITIZED / BLOCKED.
 - `final_decision` (String) – ALLOW / BLOCK.

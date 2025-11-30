@@ -342,7 +342,7 @@ src/
 This service is designed to run independently alongside:
 
 - **Branch B:** Semantic Service (MiniLM embeddings + ClickHouse HNSW)
-- **Branch C:** NLP safety analysis service (Llama Guard 2 8B model)
+- **Branch C:** LLM Safety Engine analysis service (Llama Guard 2 8B model)
 
 Results are combined by **Arbiter 2.0** in the n8n workflow.
 
@@ -353,7 +353,7 @@ Results are combined by **Arbiter 2.0** in the n8n workflow.
 const combined =
   (heuristics.score × 0.30) +
   (semantic.score × 0.35) +
-  (llm_guard.score × 0.35);  // llm_guard = NLP analysis branch
+  (llm_guard.score × 0.35);  // llm_guard = LLM Safety Engine branch
 
 // Degradation handling
 if (heuristics.degraded) weight_heuristics *= 0.1;
@@ -394,7 +394,7 @@ Example log:
 ## Roadmap
 
 - [ ] Branch B: Semantic Service (MiniLM + ClickHouse)
-- [ ] Branch C: NLP safety analysis service (Llama Guard 2)
+- [ ] Branch C: LLM Safety Engine analysis service (Llama Guard 2)
 - [ ] n8n Workflow Integration (Arbiter 2.0)
 - [ ] Shadow Mode Testing
 - [ ] Performance Benchmarking

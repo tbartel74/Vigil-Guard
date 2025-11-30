@@ -45,7 +45,7 @@ Dynamic security policy management through web interface with real-time validati
 |--------|---------|-------------|
 | A (Heuristics) | 0.30 | Pattern detection weight |
 | B (Semantic) | 0.35 | Embedding similarity weight |
-| C (NLP Safety) | 0.35 | LLM classification weight |
+| C (LLM Safety Engine) | 0.35 | LLM classification weight |
 
 **Weights must sum to 1.0**
 
@@ -65,7 +65,7 @@ Dynamic security policy management through web interface with real-time validati
 |---------|---------|-------------|
 | Branch A Timeout | 1000ms | Heuristics timeout |
 | Branch B Timeout | 2000ms | Semantic timeout |
-| Branch C Timeout | 3000ms | NLP Safety timeout |
+| Branch C Timeout | 3000ms | LLM Safety Engine timeout |
 | Max Input Length | 10000 | Max characters |
 | Max Tokens | 2000 | Max tokens (approx) |
 

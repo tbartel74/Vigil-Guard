@@ -11,7 +11,7 @@
       "id": "arbiter",
       "title": "Arbiter & 3-Branch System",
       "description": "Configure Arbiter weights and branch coordination for v2.0.0 architecture",
-      "overview": "The Arbiter coordinates three detection branches: Pattern Detection (Branch A), Heuristics (Branch B), and NLP Analysis (Branch C). Adjust branch weights, thresholds, and priority boosts to balance accuracy and performance. Higher weights give more influence to specific branches in final decisions.",
+      "overview": "The Arbiter coordinates three detection branches: Pattern Detection (Branch A), Heuristics (Branch B), and LLM Safety Engine Analysis (Branch C). Adjust branch weights, thresholds, and priority boosts to balance accuracy and performance. Higher weights give more influence to specific branches in final decisions.",
       "groups": ["arbiter_weights", "arbiter_boosts"]
     },
     {

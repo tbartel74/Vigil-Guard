@@ -1,6 +1,6 @@
 {
-  "generated": "2025-11-28T16:49:57.433Z",
-  "count": 37,
+  "generated": "2025-11-30T10:01:32.179Z",
+  "count": 38,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -29,8 +29,8 @@
       "url": "/ui/docs/api/events_v2.md",
       "title": "ClickHouse events_v2",
       "category": "api",
-      "size": 1728,
-      "modified": "2025-11-26T20:06:27.115Z"
+      "size": 1735,
+      "modified": "2025-11-29T11:52:23.898Z"
     },
     {
       "path": "api/plugin.md",
@@ -49,8 +49,8 @@
       "url": "/ui/docs/api/web-api.md",
       "title": "Web API (backend)",
       "category": "api",
-      "size": 1025,
-      "modified": "2025-11-26T20:06:12.651Z"
+      "size": 1039,
+      "modified": "2025-11-29T11:52:20.397Z"
     },
     {
       "path": "ARCHITECTURE.md",
@@ -59,8 +59,8 @@
       "url": "/ui/docs/ARCHITECTURE.md",
       "title": "Vigil Guard v2.0.0 - Technical Architecture",
       "category": "root",
-      "size": 34658,
-      "modified": "2025-11-27T09:50:05.694Z"
+      "size": 34742,
+      "modified": "2025-11-29T11:51:58.514Z"
     },
     {
       "path": "AUTHENTICATION.md",
@@ -99,8 +99,8 @@
       "url": "/ui/docs/config/env.md",
       "title": "Environment variables – quick reference",
       "category": "config",
-      "size": 1386,
-      "modified": "2025-11-26T20:04:49.196Z"
+      "size": 1393,
+      "modified": "2025-11-29T11:52:26.965Z"
     },
     {
       "path": "config/heuristics.md",
@@ -119,8 +119,8 @@
       "url": "/ui/docs/config/unified-config.md",
       "title": "unified_config.json – guide",
       "category": "config",
-      "size": 2523,
-      "modified": "2025-11-26T20:09:30.525Z"
+      "size": 2530,
+      "modified": "2025-11-29T11:52:30.397Z"
     },
     {
       "path": "GRAFANA_SETUP.md",
@@ -149,8 +149,8 @@
       "url": "/ui/docs/guides/configuration.md",
       "title": "Configuration Management",
       "category": "guides",
-      "size": 5869,
-      "modified": "2025-11-28T12:05:28.824Z"
+      "size": 5883,
+      "modified": "2025-11-29T11:52:07.251Z"
     },
     {
       "path": "guides/dashboard.md",
@@ -219,8 +219,8 @@
       "url": "/ui/docs/operations/installation.md",
       "title": "Installation",
       "category": "operations",
-      "size": 1280,
-      "modified": "2025-11-26T20:06:40.851Z"
+      "size": 1287,
+      "modified": "2025-11-29T11:52:10.165Z"
     },
     {
       "path": "operations/maintenance.md",
@@ -229,8 +229,8 @@
       "url": "/ui/docs/operations/maintenance.md",
       "title": "Utrzymanie",
       "category": "operations",
-      "size": 795,
-      "modified": "2025-11-26T20:09:53.167Z"
+      "size": 802,
+      "modified": "2025-11-29T11:52:12.967Z"
     },
     {
       "path": "operations/troubleshooting.md",
@@ -239,8 +239,8 @@
       "url": "/ui/docs/operations/troubleshooting.md",
       "title": "Troubleshooting",
       "category": "operations",
-      "size": 1265,
-      "modified": "2025-11-26T20:07:14.700Z"
+      "size": 1272,
+      "modified": "2025-11-29T11:52:16.399Z"
     },
     {
       "path": "overview/QUICKSTART.md",
@@ -249,8 +249,8 @@
       "url": "/ui/docs/overview/QUICKSTART.md",
       "title": "Quickstart (5 minutes)",
       "category": "overview",
-      "size": 1383,
-      "modified": "2025-11-26T20:07:45.346Z"
+      "size": 1390,
+      "modified": "2025-11-29T11:51:48.600Z"
     },
     {
       "path": "plugin/BROWSER_EXTENSION.md",
@@ -289,8 +289,18 @@
       "url": "/ui/docs/README.md",
       "title": "Vigil Guard Documentation",
       "category": "root",
-      "size": 4302,
-      "modified": "2025-11-28T12:08:43.589Z"
+      "size": 4309,
+      "modified": "2025-11-29T11:51:45.735Z"
+    },
+    {
+      "path": "reports/DETECTION_OPTIMIZATION_REPORT_2025-11-28.md",
+      "file": "DETECTION_OPTIMIZATION_REPORT_2025-11-28",
+      "directory": "reports",
+      "url": "/ui/docs/reports/DETECTION_OPTIMIZATION_REPORT_2025-11-28.md",
+      "title": "Pogłębiona Diagnoza i Rekomendacje Optymalizacji Vigil Guard",
+      "category": "reports",
+      "size": 27370,
+      "modified": "2025-11-29T11:52:37.581Z"
     },
     {
       "path": "SECURITY.md",
@@ -329,8 +339,8 @@
       "url": "/ui/docs/security/threat-detection.md",
       "title": "Threat Detection",
       "category": "security",
-      "size": 1176,
-      "modified": "2025-11-26T20:03:04.284Z"
+      "size": 1183,
+      "modified": "2025-11-29T11:52:33.234Z"
     },
     {
       "path": "services/README.md",
@@ -339,8 +349,8 @@
       "url": "/ui/docs/services/README.md",
       "title": "Vigil Guard Services Reference",
       "category": "services",
-      "size": 6961,
-      "modified": "2025-11-28T12:00:17.931Z"
+      "size": 6996,
+      "modified": "2025-11-29T11:52:03.906Z"
     },
     {
       "path": "tests/index.md",
@@ -349,8 +359,8 @@
       "url": "/ui/docs/tests/index.md",
       "title": "Testy",
       "category": "tests",
-      "size": 818,
-      "modified": "2025-11-26T20:08:35.741Z"
+      "size": 731,
+      "modified": "2025-11-28T19:17:41.863Z"
     },
     {
       "path": "TROUBLESHOOTING.md",

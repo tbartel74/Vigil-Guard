@@ -16,7 +16,7 @@ This document provides a comprehensive technical overview of Vigil Guard's v2.0.
 - [3-Branch Detection System](#3-branch-detection-system)
   - [Branch A: Heuristics Service](#branch-a-heuristics-service)
   - [Branch B: Semantic Service](#branch-b-semantic-service)
-  - [Branch C: NLP Safety Analysis](#branch-c-nlp-safety-analysis)
+- [Branch C: LLM Safety Engine Analysis](#branch-c-llm-safety-engine-analysis)
 - [Arbiter Engine](#arbiter-engine)
 - [PII Redaction (Post-Detection)](#pii-redaction-post-detection)
 - [Data Flow & Schema](#data-flow--schema)
@@ -106,7 +106,7 @@ v2.0: Input → 3 Parallel Branches → Arbiter → Decision → PII (if ALLOW) 
   │                                                                        │
   │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │
   │  │   Branch A      │  │   Branch B      │  │   Branch C      │      │
-  │  │   Heuristics    │  │   Semantic      │  │   NLP Safety    │      │
+  │  │   Heuristics    │  │   Semantic      │  │   LLM Safety Engine    │      │
   │  │   :5005         │  │   :5006         │  │   :8000         │      │
   │  │   timeout: 1s   │  │   timeout: 2s   │  │   timeout: 3s   │      │
   │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘      │
@@ -338,7 +338,7 @@ All branches return:
 
 ---
 
-### Branch C: NLP Safety Analysis
+### Branch C: LLM Safety Engine Analysis
 
 **Endpoint:** `http://prompt-guard-api:8000/detect`
 **Timeout:** 3000ms
@@ -549,7 +549,7 @@ combinedScore = Math.max(combinedScore, 65);
 
 **Rationale:**
 
-If the NLP model detects an attack with very high confidence, but the weighted score is low (possibly due to low heuristic/semantic scores), boost to at least 65 to ensure BLOCK decision.
+If the LLM Safety Engine detects an attack with very high confidence, but the weighted score is low (possibly due to low heuristic/semantic scores), boost to at least 65 to ensure BLOCK decision.
 
 **Example:**
 
@@ -616,7 +616,7 @@ combinedScore = Math.max(combinedScore, 85);
 
 **Rationale:**
 
-Very high confidence attack detection from the NLP model.
+Very high confidence attack detection from the LLM Safety Engine.
 
 ---
 
@@ -965,7 +965,7 @@ JSON Schema for allowlisted input patterns (early ALLOW bypass).
 | **3-Branch Executor** (parallel) | <3s | 1-2s |
 | **Branch A (Heuristics)** | <1s | 300-500ms |
 | **Branch B (Semantic)** | <2s | 1-1.5s |
-| **Branch C (NLP)** | <3s | 2-2.5s |
+| **Branch C (LLM Safety Engine)** | <3s | 2-2.5s |
 | **Arbiter** | <100ms | 20-50ms |
 | **PII Redaction** | <500ms | 200-350ms |
 | **Total Pipeline** | <5s | 2-4s |
@@ -1001,7 +1001,7 @@ JSON Schema for allowlisted input patterns (early ALLOW bypass).
 2. **3-Branch Detection** (Parallel)
    - Heuristics: Obfuscation, structure, entropy
    - Semantic: Embedding similarity
-   - NLP: ML-based classification
+   - LLM Safety Engine: ML-based classification
 
 3. **Arbiter Aggregation** (Weighted + Boosts)
    - Fail-secure degradation
@@ -1037,7 +1037,7 @@ sequenceDiagram
     participant n8n
     participant BranchA as Heuristics (A)
     participant BranchB as Semantic (B)
-    participant BranchC as NLP (C)
+    participant BranchC as LLM Safety Engine (C)
     participant Arbiter
     participant Presidio
     participant ClickHouse

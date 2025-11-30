@@ -13,7 +13,7 @@
 |---------|------|------|---------|
 | Heuristics (Branch A) | 5005 | Pattern/obfuscation detection | 1s |
 | Semantic (Branch B) | 5006 | Embedding similarity | 2s |
-| NLP Safety (Branch C) | 8000 | Llama Guard classification | 3s |
+| LLM Safety Engine (Branch C) | 8000 | Llama Guard classification | 3s |
 | PII (Presidio) | 5001 | Dual-language PII detection | 5s |
 | Language Detector | 5002 | Polish/English detection | 1s |
 | Workflow (n8n) | 5678 | Pipeline orchestration | - |
@@ -33,7 +33,7 @@ Which service handles it?
     ├─ Detection (threat analysis)
     │   ├─ Heuristics → Pattern matching, entropy, obfuscation
     │   ├─ Semantic → Vector similarity to known attacks
-    │   └─ NLP Safety → LLM-based classification
+    │   └─ LLM Safety Engine → LLM-based classification
     │
     ├─ Data Protection
     │   ├─ PII → Personal data redaction (EN/PL)
@@ -113,7 +113,7 @@ Which service handles it?
 
 ---
 
-## Branch C: NLP Safety Analysis
+## Branch C: LLM Safety Engine Analysis
 
 **Endpoint:** `POST http://prompt-guard-api:8000/detect`
 
@@ -237,7 +237,7 @@ Which service handles it?
 |---------|-------------|-------|
 | Heuristics | [services/heuristics-service/](../../services/heuristics-service/) | `npm test -- tests/unit/` |
 | Semantic | [services/semantic-service/](../../services/semantic-service/) | `npm test -- tests/unit/` |
-| NLP Safety | [prompt-guard-api/](../../prompt-guard-api/) | Integration tests |
+| LLM Safety Engine | [prompt-guard-api/](../../prompt-guard-api/) | Integration tests |
 | PII | [services/presidio-pii-api/](../../services/presidio-pii-api/) | `tests/e2e/pii-detection.test.js` |
 | Language | [services/language-detector/](../../services/language-detector/) | `tests/e2e/language-detection.test.js` |
 | Workflow | [services/workflow/](../../services/workflow/) | `npm test` (100+ tests) |
@@ -254,7 +254,7 @@ Which service handles it?
 # Individual health checks
 curl http://localhost:5005/health    # Heuristics
 curl http://localhost:5006/health    # Semantic
-curl http://localhost:8000/health    # NLP Safety
+curl http://localhost:8000/health    # LLM Safety Engine
 curl http://localhost:5001/health    # PII
 curl http://localhost:5002/health    # Language
 curl http://localhost:8123/ping      # ClickHouse

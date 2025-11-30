@@ -85,7 +85,7 @@ docs/
 |---------|----------|---------|
 | Heuristics (A) | http://heuristics-service:5005/analyze | 1s |
 | Semantic (B) | http://semantic-service:5006/analyze | 2s |
-| NLP Safety (C) | http://prompt-guard-api:8000/detect | 3s |
+| LLM Safety Engine (C) | http://prompt-guard-api:8000/detect | 3s |
 | PII | http://vigil-presidio-pii:5001/analyze | 5s |
 
 ---

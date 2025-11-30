@@ -12,7 +12,7 @@ Last updated: 2025-11-26
 ## Branch B – Semantic
 - Embedding similarity to known attacks; `high_similarity` signal can trigger arbiter boost.
 
-## Branch C – NLP Safety
+## Branch C – LLM Safety Engine
 - Llama Guard-based threat classifier, returns `is_attack` or `risk_score`.
 
 ## Arbiter
