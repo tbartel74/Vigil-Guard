@@ -25,7 +25,7 @@ If anything is missing, install from:
 
 ```bash
 # Clone and install
-git clone <repository-url>
+git clone https://github.com/tbartel74/vigil-guard.git
 cd vigil-guard
 ./install.sh
 ```
@@ -237,8 +237,8 @@ lsof -i :3001  # Grafana (proxied via Caddy)
    - Monitor workflow execution in n8n
 
 4. **Read Documentation**
-   - [Installation Guide](docs/INSTALLATION.md)
-   - [Configuration Reference](docs/CONFIGURATION.md)
+   - [Installation Guide](docs/operations/installation.md)
+   - [Configuration Reference](docs/guides/configuration.md)
    - [Authentication Guide](docs/AUTHENTICATION.md)
    - [API Documentation](docs/API.md)
 
@@ -246,7 +246,7 @@ lsof -i :3001  # Grafana (proxied via Caddy)
 
 - **Documentation**: [docs/README.md](docs/README.md)
 - **Scripts Guide**: [scripts/README.md](scripts/README.md)
-- **Architecture**: [docs/architecture/architecture.md](docs/architecture/architecture.md)
+- **Architecture**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Issues**: [GitHub Issues](https://github.com/tbartel74/Vigil-Guard/issues)
 
 ## 🔟 Development Mode

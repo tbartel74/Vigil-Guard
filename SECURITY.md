@@ -16,7 +16,7 @@ We take the security of Vigil Guard seriously. If you discover a security vulner
 ### How to Report
 
 1. **Do NOT create a public GitHub issue** for security vulnerabilities
-2. **Email**: Send details to security@vigilguard.local (or create a private security advisory on GitHub)
+2. **GitHub Security Advisory**: Create a [private security advisory](https://github.com/tbartel74/vigil-guard/security/advisories/new) on GitHub
 3. **Include**:
    - Description of the vulnerability
    - Steps to reproduce
