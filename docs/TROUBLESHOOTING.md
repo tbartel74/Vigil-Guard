@@ -370,8 +370,8 @@ services/web-ui/frontend/src/spec/variables.json
 
 **Documentation:**
 ```
-docs/CONFIGURATION.md        # Full configuration guide
-docs/CONFIG_VARIABLES.md     # Variable reference
+docs/config/env.md           # Environment variables (quick reference)
+docs/config/unified-config.md # unified_config.json guide
 ```
 
 ### Changes to config files not reflected in workflow
