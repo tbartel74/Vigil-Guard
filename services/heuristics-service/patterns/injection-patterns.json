@@ -270,6 +270,20 @@
         "\\binherently\\s+inferior\\b",
         "\\bjoke\\s+that\\s+targets\\b"
       ]
+    },
+    "COMMENT_INJECTION": {
+      "base_weight": 45,
+      "multiplier": 1.6,
+      "patterns": [
+        "<!--[\\s\\S]*?(?:ignore|bypass|override|jailbreak|disregard|forget|system|instruction)[\\s\\S]*?-->",
+        "/\\*[\\s\\S]*?(?:ignore|bypass|override|system|instruction|hidden|secret)[\\s\\S]*?\\*/",
+        "//[^\\n]*?(?:ignore|bypass|override|jailbreak|SYSTEM|OVERRIDE|hidden)",
+        "#[^\\n]*?(?:ignore|bypass|override|hidden|secret|instruction)",
+        "<!--[\\s\\S]*?(?:OVERRIDE|OUTPUT|RESPOND|SAY|PRINT)[\\s\\S]*?-->",
+        "/\\*[\\s\\S]*?(?:OVERRIDE|OUTPUT|RESPOND|SAY|PRINT)[\\s\\S]*?\\*/",
+        "<!--.*?(?:repeat|verbatim|output only).*?-->",
+        "/\\*.*?(?:repeat|verbatim|output only).*?\\*/"
+      ]
     }
   }
 }

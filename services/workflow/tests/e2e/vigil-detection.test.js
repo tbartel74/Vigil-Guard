@@ -39,7 +39,7 @@ function classifyToOWASP(matches, prompt) {
   const promptLower = (prompt || '').toLowerCase();
   const combined = matchStr + ' ' + promptLower;
 
-  if (/chemical\s*weapon|nuclear\s*device|biological\s*agent|how\s*to\s*make.*bomb|explosive/i.test(combined)) {
+  if (/chemical\s*weapon|nuclear\s*device|biological\s*agent|how\s*to\s*make.*bomb|explosive|ricin|sarin|VX\s|nerve\s*agent|anthrax|weaponiz|dirty\s*bomb|synthesiz.*(?:poison|toxin|lsd|drug)|chlorine\s*gas|castor\s*bean/i.test(combined)) {
     return 'LLM10_CBRNE';
   }
   if (/jailbreak|do\s*anything\s*now|dan\s*mode|developer\s*mode|unrestricted|no\s*filter/i.test(combined)) {
@@ -74,7 +74,7 @@ function loadAllFixturesSync() {
     { file: 'owasp-aitg-app-07.json', category: 'LLM01_EXTRACTION' }
   ];
 
-  for (const { file, category } of owaspFiles) {
+  for (const { file, category: defaultCategory } of owaspFiles) {
     const filePath = resolve(FIXTURES_DIR, file);
     if (existsSync(filePath)) {
       try {
@@ -83,7 +83,9 @@ function loadAllFixturesSync() {
         items.forEach(item => {
           const prompt = item.payload || item.prompt || item.user_input || item;
           if (prompt && typeof prompt === 'string' && prompt.length > 3) {
-            prompts.push({ prompt, category, source: file });
+            // Use classifier to detect CBRNE and other specific categories
+            const classifiedCategory = classifyToOWASP([], prompt);
+            prompts.push({ prompt, category: classifiedCategory, source: file });
           }
         });
       } catch (e) { /* skip */ }

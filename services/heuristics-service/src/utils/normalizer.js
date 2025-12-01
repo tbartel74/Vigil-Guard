@@ -216,6 +216,24 @@ export function decodeNested(text, maxDepth = 5) {
       }
     }
 
+    // 3b. Hex escape sequences (\xHH\xHH...)
+    const escapeHexMatch = current.match(/(?:\\x[0-9A-Fa-f]{2})+/g);
+    if (escapeHexMatch) {
+      for (const match of escapeHexMatch) {
+        try {
+          const decoded = match.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16))
+          );
+          if (decoded && /^[\x20-\x7E\u00A0-\uFFFF]+$/.test(decoded)) {
+            current = current.replace(match, decoded);
+            changed = true;
+          }
+        } catch (e) {
+          // Invalid hex escape, skip
+        }
+      }
+    }
+
     // 4. HTML entity decode
     current = current.replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)));
     current = current.replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
