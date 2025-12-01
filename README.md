@@ -108,7 +108,7 @@ vigil-guard/
 
 | Screen | Image |
 |--------|-------|
-| Workflow Pipeline | ![Pipeline](docs/pic/Workflow-pipeline.png) |
+| Workflow Pipeline | ![Pipeline](docs/pic/workflow-pipeline.png) |
 | Monitoring | ![Monitoring](docs/pic/Monitoring-panel.png) |
 | Investigation | ![Investigation](docs/pic/Investigation.png) |
 
