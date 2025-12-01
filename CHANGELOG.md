@@ -2,6 +2,80 @@
 
 All notable changes to Vigil Guard will be documented in this file.
 
+## [2.0.0] - 2025-12-01
+
+### Added - 3-Branch Parallel Detection Architecture
+
+**Major Release**: Complete redesign of the detection pipeline for improved accuracy and performance.
+
+#### Key Features
+
+1. **3-Branch Parallel Detection**:
+   - **Branch A (Heuristics)**: Pattern matching, keyword detection, rules engine
+   - **Branch B (Semantic)**: Embedding-based similarity with categorized threat vectors
+   - **Branch C (LLM Safety Engine)**: Llama Guard 2 classification
+   - **Arbiter**: Decision fusion with configurable weights (A=0.30, B=0.35, C=0.35)
+
+2. **44 Detection Categories** (expanded from 34):
+   - New categories for emerging threats
+   - Refined patterns for reduced false positives
+   - OWASP AITG compliance improvements
+
+3. **Heuristics Service** (`services/heuristics-service`):
+   - Aho-Corasick prefilter (993 keywords)
+   - 77% single-category hit rate
+   - <5ms average latency
+
+4. **Semantic Service** (`services/semantic-service`):
+   - 768-dimensional embeddings
+   - Categorized threat vectors with cosine similarity
+   - 15ms average latency
+
+5. **LLM Safety Engine** (enhanced `prompt-guard-api`):
+   - Meta Llama Guard 2 integration
+   - 11 hazard categories
+   - 800ms average latency (GPU), 3s (CPU)
+
+6. **160+ E2E Tests**:
+   - OWASP AITG APP-01: 96% detection
+   - OWASP AITG APP-02: 82.5% detection
+   - False positive rate: <3%
+
+#### Changed
+
+- **Workflow Architecture**: Sequential 40-node → Parallel 3-branch with Arbiter
+- **Configuration**: `unified_config.json` expanded (246 → 4013 lines)
+- **Scoring**: Threshold-based → Weighted multi-branch fusion
+- **Docker Compose**: 6 services → 9 services
+
+#### Migration Notes
+
+1. **Import new workflow**:
+   ```bash
+   # n8n → Import from file
+   services/workflow/workflows/Vigil Guard v2.0.0.json
+   ```
+
+2. **Start new services**:
+   ```bash
+   docker-compose up -d heuristics-service semantic-service
+   ```
+
+3. **Update configuration** (GUI handles migration automatically)
+
+4. **Run verification**:
+   ```bash
+   cd services/workflow && npm test
+   ```
+
+#### Breaking Changes
+
+- **API Response Format**: Added `branch_scores` object to response
+- **ClickHouse Schema**: New columns for branch-level data (migration script included)
+- **Configuration Format**: `unified_config.json` structure changed (automatic migration)
+
+---
+
 ## [1.8.1] - 2025-11-19
 
 ### Fixed - PII Entity Disable Regression (CRITICAL)

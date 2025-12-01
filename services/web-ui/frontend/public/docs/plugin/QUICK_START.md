@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Chrome browser (version 88+) or Edge browser
-- Vigil Guard Web UI running (see main [INSTALLATION.md](../INSTALLATION.md))
+- Vigil Guard Web UI running (see [Installation Guide](../operations/installation.md))
 
 ### Loading the Extension
 
@@ -112,4 +112,4 @@ For detailed architecture and technical documentation, see:
 - [BROWSER_EXTENSION.md](BROWSER_EXTENSION.md) - Complete documentation
 - [HYBRID_ARCHITECTURE.md](HYBRID_ARCHITECTURE.md) - Technical architecture details
 
-For Web UI configuration guide, see [Configuration → Plugin Configuration](../USER_GUIDE.md#plugin-configuration)
+For Web UI configuration guide, see [Configuration Guide](../guides/configuration.md#plugin-configuration)

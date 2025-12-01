@@ -8,8 +8,10 @@ RUN npm install -g npm@latest
 
 WORKDIR /app
 
-# Accept build arg for Grafana origin
+# Accept build args for docs version (cache-busting) and Grafana origin
+ARG VITE_DOCS_REF=main
 ARG VITE_GRAFANA_ORIGIN=http://localhost:3001
+ENV VITE_DOCS_REF=$VITE_DOCS_REF
 ENV VITE_GRAFANA_ORIGIN=$VITE_GRAFANA_ORIGIN
 
 # Copy package files (from root context)

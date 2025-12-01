@@ -94,7 +94,7 @@ This guide helps resolve common issues with Vigil Guard deployment and operation
 
 2. **Check n8n workflow is active**
    - Visit http://localhost:5678
-   - Ensure "Vigil Guard v1.5" workflow is **Active** (toggle in top-right)
+   - Ensure "Vigil Guard v2.0.0" workflow is **Active** (toggle in top-right)
 
 3. **Test workflow with sample request**
    ```bash
@@ -517,5 +517,5 @@ If you cannot resolve the issue:
 
 ---
 
-**Last Updated:** 2025-10-28
-**Version:** 1.5.0
+**Last Updated:** 2025-12-01
+**Version:** 2.0.0

@@ -26,8 +26,10 @@ export default function HelpPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Get initial doc from URL
+  // Get initial doc from URL or fall back to README
+  const DEFAULT_DOC = 'readme';
   const docParam = searchParams.get('doc');
+  const initialDocId = docParam || DEFAULT_DOC;
 
   // Fetch documentation with dynamic structure
   const {
@@ -44,7 +46,7 @@ export default function HelpPage() {
     reload,
     getSearchIndex,
     refreshStructure,
-  } = useGitHubDocs({ initialDoc: docParam || undefined });
+  } = useGitHubDocs({ initialDoc: initialDocId });
 
   // Navigate to document
   const handleNavigate = useCallback(
@@ -62,6 +64,13 @@ export default function HelpPage() {
     },
     [loadDocument, setSearchParams, allDocs]
   );
+
+  // Ensure URL always carries the active doc (so /help deep-links stay consistent)
+  useEffect(() => {
+    if (!docParam) {
+      setSearchParams({ doc: DEFAULT_DOC });
+    }
+  }, [docParam, setSearchParams]);
 
   // Navigate home (first doc)
   const handleNavigateHome = useCallback(() => {

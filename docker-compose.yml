@@ -167,6 +167,7 @@ services:
       context: .
       dockerfile: ./services/web-ui/frontend/Dockerfile
       args:
+        VITE_DOCS_REF: ${DOCS_REF:-704b404b1ce0ac8298d8f548d8b385d318f4744b}
         VITE_GRAFANA_ORIGIN: http://localhost/grafana
     container_name: vigil-web-ui-frontend
     ports:
