@@ -7,6 +7,7 @@
  */
 
 import { GITHUB_CONFIG } from '../config/docs-structure';
+import docsManifest from '../generated/docs-manifest.json';
 import type { GitHubConfig, Heading, DocEntry, DocCategory } from '../types/help';
 
 /** GitHub API response types */
@@ -197,111 +198,53 @@ interface JsDelivrFile {
  * Uses jsDelivr's package API to list all files in the docs directory.
  * This avoids GitHub API rate limits (60/hour for unauthenticated).
  */
-export async function fetchDocsStructure(
-  config: GitHubConfig = GITHUB_CONFIG
-): Promise<{ categories: DocCategory[]; allDocs: DocEntry[] }> {
+export async function fetchDocsStructure(): Promise<{ categories: DocCategory[]; allDocs: DocEntry[] }> {
   // Return cached structure if available
   if (cachedStructure) {
     console.log('[Help] Using cached docs structure');
     return cachedStructure;
   }
 
-  console.log('[Help] Fetching docs structure from jsDelivr...');
-
-  // Use jsDelivr package API - note: only works with tagged versions or 'main'
-  // For feature branches, we'll need to fallback to a hardcoded structure
-  const apiUrl = `https://data.jsdelivr.com/v1/packages/gh/${config.owner}/${config.repo}@${config.branch}?structure=flat`;
+  console.log('[Help] Building docs structure from bundled manifest...');
 
   try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+    const docs = (docsManifest as any).documents || [];
 
-    if (!response.ok) {
-      // jsDelivr might not support this branch - use fallback structure
-      console.warn(`[Help] jsDelivr API returned ${response.status}, using fallback structure`);
-      return buildFallbackStructure();
-    }
-
-    const data = await response.json();
-    const files: JsDelivrFile[] = data.files || [];
-
-    // Filter only markdown files in docs/
-    const docFiles = files.filter(f =>
-      f.name.startsWith('/docs/') && f.name.endsWith('.md')
-    );
-
-    console.log(`[Help] Found ${docFiles.length} markdown files in docs/`);
-
-    // Build structure from file paths
-    const categories: DocCategory[] = [];
+    const categoriesMap = new Map<string, DocCategory>();
     const allDocs: DocEntry[] = [];
 
-    // Group files by directory
-    const byDir = new Map<string, JsDelivrFile[]>();
-    for (const file of docFiles) {
-      // /docs/README.md -> ''
-      // /docs/guides/dashboard.md -> 'guides'
-      const relativePath = file.name.replace('/docs/', '');
-      const parts = relativePath.split('/');
-      const dir = parts.length > 1 ? parts[0] : '';
+    docs.forEach((entry: any, index: number) => {
+      const categoryId = entry.directory && entry.directory !== '.' ? entry.directory : 'overview';
 
-      if (!byDir.has(dir)) {
-        byDir.set(dir, []);
+      if (!categoriesMap.has(categoryId)) {
+        categoriesMap.set(categoryId, {
+          id: categoryId,
+          label: formatCategoryLabel(categoryId === '.' ? 'overview' : categoryId),
+          icon: categoryId === 'overview' ? 'FileText' : getCategoryIcon(categoryId),
+          order: categoriesMap.size,
+          docs: [],
+        });
       }
-      byDir.get(dir)!.push(file);
-    }
 
-    // Root files go into "Overview" category
-    const rootFiles = byDir.get('') || [];
-    if (rootFiles.length > 0) {
-      const overviewDocs = rootFiles.map((file, index) => {
-        const doc = jsDelivrFileToDocEntry(file, 'overview', index + 1);
-        allDocs.push(doc);
-        return doc;
-      });
+      const doc: DocEntry = {
+        id: entry.path.replace(/\.md$/, '').replace(/\//g, '-').toLowerCase(),
+        path: entry.path,
+        title: entry.title || formatDocTitle(entry.file || entry.path),
+        category: categoryId,
+        icon: undefined,
+        order: index + 1,
+      };
 
-      categories.push({
-        id: 'overview',
-        label: 'Overview',
-        icon: 'FileText',
-        order: 0,
-        docs: overviewDocs,
-      });
-    }
+      categoriesMap.get(categoryId)!.docs.push(doc);
+      allDocs.push(doc);
+    });
 
-    // Process subdirectories
-    let dirIndex = 1;
-    for (const [dir, files] of byDir.entries()) {
-      if (dir === '') continue; // Skip root files, already processed
-
-      const categoryDocs = files.map((file, fileIndex) => {
-        const doc = jsDelivrFileToDocEntry(file, dir, fileIndex + 1);
-        return doc;
-      });
-
-      categories.push({
-        id: dir,
-        label: formatCategoryLabel(dir),
-        icon: getCategoryIcon(dir),
-        order: dirIndex++,
-        docs: categoryDocs,
-      });
-
-      allDocs.push(...categoryDocs);
-    }
-
-    console.log(`[Help] Built structure: ${categories.length} categories, ${allDocs.length} docs`);
-
-    // Cache the result
+    const categories = Array.from(categoriesMap.values());
     cachedStructure = { categories, allDocs };
+    console.log(`[Help] Built structure: ${categories.length} categories, ${allDocs.length} docs`);
     return cachedStructure;
   } catch (error) {
-    console.error('[Help] Failed to fetch docs structure:', error);
-    // Try fallback
-    console.log('[Help] Using fallback structure');
+    console.error('[Help] Failed to build structure from manifest:', error);
     return buildFallbackStructure();
   }
 }

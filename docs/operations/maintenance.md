@@ -1,13 +1,13 @@
-# Utrzymanie
+# Maintenance
 
 Last updated: 2025-11-26
 
-## Backupy
-- `vigil_data/` – konfiguracja i users.db; regularne snapshoty.
-- ClickHouse – dump tabeli `n8n_logs.events_v2` wg potrzeb (backup retencji).
+## Backups
+- `vigil_data/` – configuration and `users.db`; take regular snapshots.
+- ClickHouse – dump table `n8n_logs.events_v2` as needed (retention backup).
 
-## Aktualizacje
-- Pull latest changes, rebuild images (`docker-compose build --no-cache`), restart.
+## Updates
+- Pull latest changes, rebuild images (`docker-compose build --no-cache`), restart services.
 - Confirm LLM Safety Engine and PII model compatibility (endpoints unchanged).
 
 ## Monitoring

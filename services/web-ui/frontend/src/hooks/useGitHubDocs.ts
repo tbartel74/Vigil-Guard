@@ -301,7 +301,6 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
 
     async function loadStructure() {
       try {
-        clearDocsStructureCache();
         const { categories: cats, allDocs: docs } = await fetchDocsStructure(GITHUB_CONFIG);
         if (!mounted) return;
 
@@ -331,7 +330,7 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
     return () => {
       mounted = false;
     };
-  }, [initialDoc, docsRef, loadDocument]); // Reload when docs ref changes
+  }, [initialDoc, docsRef]); // Reload when docs ref changes
 
   // Load document when initialDoc changes (after structure is ready)
   useEffect(() => {
