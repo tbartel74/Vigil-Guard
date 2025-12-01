@@ -32,7 +32,7 @@ The Vigil Guard Browser Extension is a Chrome browser plugin that provides real-
 ### Supported Platforms
 
 - ✅ **ChatGPT** (chat.openai.com, chatgpt.com)
-- 🚧 **Claude.ai** (claude.ai) - in development
+- ✅ **Claude.ai** (claude.ai)
 - 🚧 Other AI platforms (planned)
 
 ### Browser Compatibility
@@ -910,7 +910,7 @@ A: Minimal impact (< 200ms local, < 1s remote). Layer 1 filter prevents overhead
 
 **Distribution:** Internal use only - not for public distribution
 
-**Git Status:** Plugin source committed to `plugin/Chrome/` directory
+**Git Status:** Not committed to repository (in .gitignore)
 
 **Copyright:** © 2025 Vigil Guard Project
 
@@ -922,7 +922,7 @@ A: Minimal impact (< 200ms local, < 1s remote). Layer 1 filter prevents overhead
 
 **Project:** Vigil Guard Browser Extension
 **Maintainer:** Internal Vigil Guard Team
-**Documentation:** `plugin/` (project repository)
+**Documentation:** `/Users/tomaszbartel/Documents/Projects/Vigil-Guard/plugin/`
 **Status:** Confidential - Secret Project
 
 ---

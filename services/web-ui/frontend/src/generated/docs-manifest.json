@@ -1,6 +1,6 @@
 {
-  "generated": "2025-11-30T20:07:02.158Z",
-  "count": 39,
+  "generated": "2025-12-01T20:37:10.965Z",
+  "count": 41,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -19,8 +19,8 @@
       "url": "/ui/docs/API.md",
       "title": "Vigil Guard API Reference",
       "category": "root",
-      "size": 16091,
-      "modified": "2025-11-25T07:54:16.727Z"
+      "size": 22017,
+      "modified": "2025-12-01T20:29:28.710Z"
     },
     {
       "path": "api/events_v2.md",
@@ -37,10 +37,10 @@
       "file": "plugin",
       "directory": "api",
       "url": "/ui/docs/api/plugin.md",
-      "title": "Browser plugin contract",
+      "title": "Browser Plugin API Contract",
       "category": "api",
-      "size": 1092,
-      "modified": "2025-11-26T20:06:02.257Z"
+      "size": 6250,
+      "modified": "2025-12-01T20:32:37.030Z"
     },
     {
       "path": "api/web-api.md",
@@ -79,8 +79,8 @@
       "url": "/ui/docs/CI_SECRETS.md",
       "title": "CI/CD Secrets Configuration",
       "category": "root",
-      "size": 4818,
-      "modified": "2025-11-25T07:54:16.766Z"
+      "size": 4832,
+      "modified": "2025-12-01T20:27:40.577Z"
     },
     {
       "path": "CLICKHOUSE_RETENTION.md",
@@ -121,6 +121,26 @@
       "category": "config",
       "size": 2530,
       "modified": "2025-11-29T11:52:30.397Z"
+    },
+    {
+      "path": "FAQ.md",
+      "file": "FAQ",
+      "directory": ".",
+      "url": "/ui/docs/FAQ.md",
+      "title": "Frequently Asked Questions",
+      "category": "root",
+      "size": 6913,
+      "modified": "2025-12-01T20:36:41.415Z"
+    },
+    {
+      "path": "GLOSSARY.md",
+      "file": "GLOSSARY",
+      "directory": ".",
+      "url": "/ui/docs/GLOSSARY.md",
+      "title": "Glossary",
+      "category": "root",
+      "size": 6594,
+      "modified": "2025-12-01T20:36:42.460Z"
     },
     {
       "path": "GRAFANA_SETUP.md",
@@ -197,20 +217,20 @@
       "file": "ci-cd",
       "directory": "operations",
       "url": "/ui/docs/operations/ci-cd.md",
-      "title": "CI/CD",
+      "title": "CI/CD Pipeline",
       "category": "operations",
-      "size": 861,
-      "modified": "2025-11-26T20:07:01.841Z"
+      "size": 5901,
+      "modified": "2025-12-01T20:32:39.103Z"
     },
     {
       "path": "operations/docker.md",
       "file": "docker",
       "directory": "operations",
       "url": "/ui/docs/operations/docker.md",
-      "title": "Docker and runtime",
+      "title": "Docker Operations",
       "category": "operations",
-      "size": 926,
-      "modified": "2025-11-26T20:06:51.024Z"
+      "size": 6189,
+      "modified": "2025-12-01T20:32:38.064Z"
     },
     {
       "path": "operations/installation.md",
@@ -227,10 +247,10 @@
       "file": "maintenance",
       "directory": "operations",
       "url": "/ui/docs/operations/maintenance.md",
-      "title": "Utrzymanie",
+      "title": "Maintenance",
       "category": "operations",
-      "size": 802,
-      "modified": "2025-11-29T11:52:12.967Z"
+      "size": 814,
+      "modified": "2025-12-01T14:03:59.925Z"
     },
     {
       "path": "operations/troubleshooting.md",
@@ -280,7 +300,7 @@
       "title": "Vigil Guard Browser Extension - Quick Start Guide",
       "category": "plugin",
       "size": 3472,
-      "modified": "2025-11-25T07:54:16.736Z"
+      "modified": "2025-12-01T20:27:42.632Z"
     },
     {
       "path": "README.md",
@@ -299,8 +319,8 @@
       "url": "/ui/docs/SECURITY.md",
       "title": "Security Guide",
       "category": "root",
-      "size": 20034,
-      "modified": "2025-11-28T08:59:46.042Z"
+      "size": 20052,
+      "modified": "2025-12-01T20:27:39.539Z"
     },
     {
       "path": "security/pii-security.md",
@@ -309,8 +329,8 @@
       "url": "/ui/docs/security/pii-security.md",
       "title": "PII Security",
       "category": "security",
-      "size": 1020,
-      "modified": "2025-11-26T20:03:32.092Z"
+      "size": 6493,
+      "modified": "2025-12-01T20:32:35.996Z"
     },
     {
       "path": "security/sanitization.md",
@@ -319,8 +339,8 @@
       "url": "/ui/docs/security/sanitization.md",
       "title": "Sanitization",
       "category": "security",
-      "size": 921,
-      "modified": "2025-11-26T20:03:14.151Z"
+      "size": 5108,
+      "modified": "2025-12-01T20:32:34.973Z"
     },
     {
       "path": "security/threat-detection.md",
@@ -367,10 +387,10 @@
       "file": "index",
       "directory": "tests",
       "url": "/ui/docs/tests/index.md",
-      "title": "Testy",
+      "title": "Testing Guide",
       "category": "tests",
-      "size": 731,
-      "modified": "2025-11-28T19:17:41.863Z"
+      "size": 6572,
+      "modified": "2025-12-01T20:32:40.129Z"
     },
     {
       "path": "TROUBLESHOOTING.md",
@@ -379,8 +399,8 @@
       "url": "/ui/docs/TROUBLESHOOTING.md",
       "title": "Troubleshooting Guide",
       "category": "root",
-      "size": 12068,
-      "modified": "2025-11-25T07:54:16.729Z"
+      "size": 12093,
+      "modified": "2025-12-01T20:27:36.459Z"
     },
     {
       "path": "WEBHOOK_SECURITY.md",

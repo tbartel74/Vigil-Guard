@@ -46,7 +46,7 @@ Input → Validation → [Branch A: Heuristics  ] → Arbiter → Decision
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/vigil-guard.git
+git clone https://github.com/tbartel74/vigil-guard.git
 cd vigil-guard
 
 # Download Llama model (required)
@@ -123,6 +123,40 @@ cd services/workflow && npm test
 # Development
 cd services/web-ui/frontend && npm run dev
 ```
+
+## Support
+
+### Getting Help
+
+| Resource | Link |
+|----------|------|
+| Documentation | [docs/](docs/) |
+| FAQ | [docs/FAQ.md](docs/FAQ.md) |
+| Troubleshooting | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
+| Issue Tracker | [GitHub Issues](https://github.com/tbartel74/vigil-guard/issues) |
+
+### Quick Diagnostics
+
+```bash
+# Check service health
+./scripts/status.sh
+
+# View logs
+./scripts/logs.sh
+
+# Test webhook
+curl -X POST http://localhost:5678/webhook/vigil-guard-2 \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput":"test","sessionId":"demo"}'
+```
+
+### Reporting Issues
+
+When reporting issues, include:
+1. Output of `./scripts/status.sh`
+2. Relevant logs from `./scripts/logs.sh`
+3. Steps to reproduce
+4. Expected vs actual behavior
 
 ## License
 

@@ -133,5 +133,5 @@ openssl rand -base64 64 | tr -d '/+=\n' | head -c 48
 
 ---
 
-**Last Updated**: 2025-01-31
-**Related**: [SECURITY.md](SECURITY.md), [INSTALLATION.md](INSTALLATION.md)
+**Last Updated**: 2025-12-01
+**Related**: [SECURITY.md](SECURITY.md), [Installation Guide](operations/installation.md)

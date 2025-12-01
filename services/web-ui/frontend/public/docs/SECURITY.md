@@ -672,9 +672,9 @@ cp config/.env.example .env
 
 ## 🔗 Related Documentation
 
-- [Installation Guide](INSTALLATION.md) - Setup instructions
+- [Installation Guide](operations/installation.md) - Setup instructions
 - [Authentication Guide](AUTHENTICATION.md) - User management details
-- [Configuration Reference](CONFIGURATION.md) - Security policy configuration
+- [Configuration Reference](guides/configuration.md) - Security policy configuration
 - [API Documentation](API.md) - API endpoint security
 
 **Remember:** Security is an ongoing process, not a one-time setup!
