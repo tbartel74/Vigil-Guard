@@ -1,12 +1,12 @@
 // Vigil Guard Browser Extension - Service Worker
-// Version: 0.6.0
+// Version: 0.7.0
 //
 // CRITICAL FIX (v0.6.0): Service Worker Keep-Alive mechanism
 // Chrome Manifest v3 terminates service workers after ~30s of inactivity.
 // This causes "Extension context invalidated" errors in content scripts.
 // Solution: Use chrome.alarms API to keep SW alive during active sessions.
 
-console.log('[Vigil Guard] Service Worker initialized (v0.6.0 with keep-alive)');
+console.log('[Vigil Guard] Service Worker initialized (v0.7.0 with keep-alive)');
 
 // =============================================================================
 // SERVICE WORKER KEEP-ALIVE MECHANISM (v0.6.0)

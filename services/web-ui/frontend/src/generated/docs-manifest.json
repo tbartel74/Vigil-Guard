@@ -1,6 +1,6 @@
 {
-  "generated": "2025-11-30T10:01:32.179Z",
-  "count": 38,
+  "generated": "2025-11-30T20:07:02.158Z",
+  "count": 39,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -259,8 +259,8 @@
       "url": "/ui/docs/plugin/BROWSER_EXTENSION.md",
       "title": "Vigil Guard Browser Extension",
       "category": "plugin",
-      "size": 24530,
-      "modified": "2025-11-28T12:13:42.551Z"
+      "size": 26368,
+      "modified": "2025-11-30T10:20:48.085Z"
     },
     {
       "path": "plugin/HYBRID_ARCHITECTURE.md",
@@ -291,16 +291,6 @@
       "category": "root",
       "size": 4309,
       "modified": "2025-11-29T11:51:45.735Z"
-    },
-    {
-      "path": "reports/DETECTION_OPTIMIZATION_REPORT_2025-11-28.md",
-      "file": "DETECTION_OPTIMIZATION_REPORT_2025-11-28",
-      "directory": "reports",
-      "url": "/ui/docs/reports/DETECTION_OPTIMIZATION_REPORT_2025-11-28.md",
-      "title": "Pogłębiona Diagnoza i Rekomendacje Optymalizacji Vigil Guard",
-      "category": "reports",
-      "size": 27370,
-      "modified": "2025-11-29T11:52:37.581Z"
     },
     {
       "path": "SECURITY.md",
@@ -341,6 +331,26 @@
       "category": "security",
       "size": 1183,
       "modified": "2025-11-29T11:52:33.234Z"
+    },
+    {
+      "path": "security/WEBHOOK_TOKEN_SECURITY_ASSESSMENT.md",
+      "file": "WEBHOOK_TOKEN_SECURITY_ASSESSMENT",
+      "directory": "security",
+      "url": "/ui/docs/security/WEBHOOK_TOKEN_SECURITY_ASSESSMENT.md",
+      "title": "Webhook Token Security Assessment",
+      "category": "security",
+      "size": 14100,
+      "modified": "2025-11-30T14:46:44.804Z"
+    },
+    {
+      "path": "security/WEBHOOK_TOKEN_SECURITY.md",
+      "file": "WEBHOOK_TOKEN_SECURITY",
+      "directory": "security",
+      "url": "/ui/docs/security/WEBHOOK_TOKEN_SECURITY.md",
+      "title": "Webhook Token Security Architecture",
+      "category": "security",
+      "size": 11708,
+      "modified": "2025-11-30T14:45:27.685Z"
     },
     {
       "path": "services/README.md",
