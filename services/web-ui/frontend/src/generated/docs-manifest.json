@@ -1,6 +1,6 @@
 {
-  "generated": "2025-11-20T15:14:16.450Z",
-  "count": 31,
+  "generated": "2025-11-30T20:07:02.158Z",
+  "count": 39,
   "documents": [
     {
       "path": "ACCESSIBILITY.md",
@@ -10,7 +10,7 @@
       "title": "Accessibility Implementation - Phase 1",
       "category": "root",
       "size": 12229,
-      "modified": "2025-11-16T11:11:13.242Z"
+      "modified": "2025-11-25T07:54:16.739Z"
     },
     {
       "path": "API.md",
@@ -20,27 +20,47 @@
       "title": "Vigil Guard API Reference",
       "category": "root",
       "size": 16091,
-      "modified": "2025-11-16T19:40:07.063Z"
+      "modified": "2025-11-25T07:54:16.727Z"
     },
     {
-      "path": "ARCHITECTURE_v1.7.9.md",
-      "file": "ARCHITECTURE_v1.7.9",
+      "path": "api/events_v2.md",
+      "file": "events_v2",
+      "directory": "api",
+      "url": "/ui/docs/api/events_v2.md",
+      "title": "ClickHouse events_v2",
+      "category": "api",
+      "size": 1735,
+      "modified": "2025-11-29T11:52:23.898Z"
+    },
+    {
+      "path": "api/plugin.md",
+      "file": "plugin",
+      "directory": "api",
+      "url": "/ui/docs/api/plugin.md",
+      "title": "Browser plugin contract",
+      "category": "api",
+      "size": 1092,
+      "modified": "2025-11-26T20:06:02.257Z"
+    },
+    {
+      "path": "api/web-api.md",
+      "file": "web-api",
+      "directory": "api",
+      "url": "/ui/docs/api/web-api.md",
+      "title": "Web API (backend)",
+      "category": "api",
+      "size": 1039,
+      "modified": "2025-11-29T11:52:20.397Z"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "file": "ARCHITECTURE",
       "directory": ".",
-      "url": "/ui/docs/ARCHITECTURE_v1.7.9.md",
-      "title": "Vigil Guard Architecture v1.8.1 - Data Flow Documentation",
+      "url": "/ui/docs/ARCHITECTURE.md",
+      "title": "Vigil Guard v2.0.0 - Technical Architecture",
       "category": "root",
-      "size": 49498,
-      "modified": "2025-11-16T19:40:07.063Z"
-    },
-    {
-      "path": "architecture/architecture.md",
-      "file": "architecture",
-      "directory": "architecture",
-      "url": "/ui/docs/architecture/architecture.md",
-      "title": "Technical Architecture",
-      "category": "architecture",
-      "size": 15022,
-      "modified": "2025-11-16T10:20:03.137Z"
+      "size": 34742,
+      "modified": "2025-11-29T11:51:58.514Z"
     },
     {
       "path": "AUTHENTICATION.md",
@@ -50,7 +70,7 @@
       "title": "Authentication & User Management",
       "category": "root",
       "size": 10324,
-      "modified": "2025-11-16T10:20:03.103Z"
+      "modified": "2025-11-25T07:54:16.717Z"
     },
     {
       "path": "CI_SECRETS.md",
@@ -60,7 +80,7 @@
       "title": "CI/CD Secrets Configuration",
       "category": "root",
       "size": 4818,
-      "modified": "2025-11-16T10:20:03.153Z"
+      "modified": "2025-11-25T07:54:16.766Z"
     },
     {
       "path": "CLICKHOUSE_RETENTION.md",
@@ -70,47 +90,37 @@
       "title": "ClickHouse Data Retention Policy",
       "category": "root",
       "size": 12396,
-      "modified": "2025-11-16T10:20:03.152Z"
+      "modified": "2025-11-25T07:54:16.764Z"
     },
     {
-      "path": "CONFIG_VARIABLES.md",
-      "file": "CONFIG_VARIABLES",
-      "directory": ".",
-      "url": "/ui/docs/CONFIG_VARIABLES.md",
-      "title": "Configuration Variables Reference",
-      "category": "root",
-      "size": 12250,
-      "modified": "2025-11-16T10:20:03.141Z"
+      "path": "config/env.md",
+      "file": "env",
+      "directory": "config",
+      "url": "/ui/docs/config/env.md",
+      "title": "Environment variables – quick reference",
+      "category": "config",
+      "size": 1393,
+      "modified": "2025-11-29T11:52:26.965Z"
     },
     {
-      "path": "CONFIGURATION.md",
-      "file": "CONFIGURATION",
-      "directory": ".",
-      "url": "/ui/docs/CONFIGURATION.md",
-      "title": "Configuration Reference",
-      "category": "root",
-      "size": 33582,
-      "modified": "2025-11-16T19:40:07.064Z"
+      "path": "config/heuristics.md",
+      "file": "heuristics",
+      "directory": "config",
+      "url": "/ui/docs/config/heuristics.md",
+      "title": "Branch A Configuration (Heuristics)",
+      "category": "config",
+      "size": 2045,
+      "modified": "2025-11-26T20:04:15.157Z"
     },
     {
-      "path": "DETECTION_CATEGORIES.md",
-      "file": "DETECTION_CATEGORIES",
-      "directory": ".",
-      "url": "/ui/docs/DETECTION_CATEGORIES.md",
-      "title": "Detection Categories Reference",
-      "category": "root",
-      "size": 31724,
-      "modified": "2025-11-18T09:54:11.143Z"
-    },
-    {
-      "path": "DOCKER.md",
-      "file": "DOCKER",
-      "directory": ".",
-      "url": "/ui/docs/DOCKER.md",
-      "title": "Docker Guide",
-      "category": "root",
-      "size": 14605,
-      "modified": "2025-11-16T11:11:13.243Z"
+      "path": "config/unified-config.md",
+      "file": "unified-config",
+      "directory": "config",
+      "url": "/ui/docs/config/unified-config.md",
+      "title": "unified_config.json – guide",
+      "category": "config",
+      "size": 2530,
+      "modified": "2025-11-29T11:52:30.397Z"
     },
     {
       "path": "GRAFANA_SETUP.md",
@@ -120,67 +130,127 @@
       "title": "Grafana Setup Guide",
       "category": "root",
       "size": 21392,
-      "modified": "2025-11-16T11:11:13.244Z"
+      "modified": "2025-11-25T07:54:16.744Z"
     },
     {
-      "path": "INSTALL_VERIFICATION.md",
-      "file": "INSTALL_VERIFICATION",
-      "directory": ".",
-      "url": "/ui/docs/INSTALL_VERIFICATION.md",
-      "title": "Installation Verification Guide",
-      "category": "root",
-      "size": 21157,
-      "modified": "2025-11-16T19:40:07.065Z"
+      "path": "guides/administration.md",
+      "file": "administration",
+      "directory": "guides",
+      "url": "/ui/docs/guides/administration.md",
+      "title": "User Administration",
+      "category": "guides",
+      "size": 3345,
+      "modified": "2025-11-28T12:05:51.201Z"
     },
     {
-      "path": "INSTALLATION.md",
-      "file": "INSTALLATION",
-      "directory": ".",
-      "url": "/ui/docs/INSTALLATION.md",
-      "title": "Installation Guide",
-      "category": "root",
-      "size": 15949,
-      "modified": "2025-11-16T19:40:07.064Z"
+      "path": "guides/configuration.md",
+      "file": "configuration",
+      "directory": "guides",
+      "url": "/ui/docs/guides/configuration.md",
+      "title": "Configuration Management",
+      "category": "guides",
+      "size": 5883,
+      "modified": "2025-11-29T11:52:07.251Z"
     },
     {
-      "path": "MAINTENANCE.md",
-      "file": "MAINTENANCE",
-      "directory": ".",
-      "url": "/ui/docs/MAINTENANCE.md",
-      "title": "Maintenance Guide",
-      "category": "root",
-      "size": 7403,
-      "modified": "2025-11-16T19:40:07.065Z"
+      "path": "guides/dashboard.md",
+      "file": "dashboard",
+      "directory": "guides",
+      "url": "/ui/docs/guides/dashboard.md",
+      "title": "Dashboard & Monitoring",
+      "category": "guides",
+      "size": 3644,
+      "modified": "2025-11-28T12:04:20.015Z"
     },
     {
-      "path": "MIGRATION_v1.7.0.md",
-      "file": "MIGRATION_v1.7.0",
-      "directory": ".",
-      "url": "/ui/docs/MIGRATION_v1.7.0.md",
-      "title": "Migration Guide: v1.8.1 → v1.8.1",
-      "category": "root",
-      "size": 9568,
-      "modified": "2025-11-16T19:40:07.066Z"
+      "path": "guides/investigation.md",
+      "file": "investigation",
+      "directory": "guides",
+      "url": "/ui/docs/guides/investigation.md",
+      "title": "Investigation Panel",
+      "category": "guides",
+      "size": 5241,
+      "modified": "2025-11-28T12:04:52.980Z"
     },
     {
-      "path": "PII_DETECTION.md",
-      "file": "PII_DETECTION",
-      "directory": ".",
-      "url": "/ui/docs/PII_DETECTION.md",
-      "title": "PII Detection with Microsoft Presidio",
-      "category": "root",
-      "size": 42859,
-      "modified": "2025-11-19T19:43:16.083Z"
+      "path": "guides/README.md",
+      "file": "README",
+      "directory": "guides",
+      "url": "/ui/docs/guides/README.md",
+      "title": "Vigil Guard User Guides",
+      "category": "guides",
+      "size": 3563,
+      "modified": "2025-11-28T12:01:14.070Z"
     },
     {
-      "path": "PII_MONITORING_QUERIES.md",
-      "file": "PII_MONITORING_QUERIES",
-      "directory": ".",
-      "url": "/ui/docs/PII_MONITORING_QUERIES.md",
-      "title": "PII Detection Monitoring Queries",
-      "category": "root",
-      "size": 5338,
-      "modified": "2025-11-12T18:27:07.000Z"
+      "path": "guides/settings.md",
+      "file": "settings",
+      "directory": "guides",
+      "url": "/ui/docs/guides/settings.md",
+      "title": "Settings & Preferences",
+      "category": "guides",
+      "size": 3282,
+      "modified": "2025-11-28T12:06:08.404Z"
+    },
+    {
+      "path": "operations/ci-cd.md",
+      "file": "ci-cd",
+      "directory": "operations",
+      "url": "/ui/docs/operations/ci-cd.md",
+      "title": "CI/CD",
+      "category": "operations",
+      "size": 861,
+      "modified": "2025-11-26T20:07:01.841Z"
+    },
+    {
+      "path": "operations/docker.md",
+      "file": "docker",
+      "directory": "operations",
+      "url": "/ui/docs/operations/docker.md",
+      "title": "Docker and runtime",
+      "category": "operations",
+      "size": 926,
+      "modified": "2025-11-26T20:06:51.024Z"
+    },
+    {
+      "path": "operations/installation.md",
+      "file": "installation",
+      "directory": "operations",
+      "url": "/ui/docs/operations/installation.md",
+      "title": "Installation",
+      "category": "operations",
+      "size": 1287,
+      "modified": "2025-11-29T11:52:10.165Z"
+    },
+    {
+      "path": "operations/maintenance.md",
+      "file": "maintenance",
+      "directory": "operations",
+      "url": "/ui/docs/operations/maintenance.md",
+      "title": "Utrzymanie",
+      "category": "operations",
+      "size": 802,
+      "modified": "2025-11-29T11:52:12.967Z"
+    },
+    {
+      "path": "operations/troubleshooting.md",
+      "file": "troubleshooting",
+      "directory": "operations",
+      "url": "/ui/docs/operations/troubleshooting.md",
+      "title": "Troubleshooting",
+      "category": "operations",
+      "size": 1272,
+      "modified": "2025-11-29T11:52:16.399Z"
+    },
+    {
+      "path": "overview/QUICKSTART.md",
+      "file": "QUICKSTART",
+      "directory": "overview",
+      "url": "/ui/docs/overview/QUICKSTART.md",
+      "title": "Quickstart (5 minutes)",
+      "category": "overview",
+      "size": 1390,
+      "modified": "2025-11-29T11:51:48.600Z"
     },
     {
       "path": "plugin/BROWSER_EXTENSION.md",
@@ -189,8 +259,8 @@
       "url": "/ui/docs/plugin/BROWSER_EXTENSION.md",
       "title": "Vigil Guard Browser Extension",
       "category": "plugin",
-      "size": 24366,
-      "modified": "2025-11-16T10:20:03.119Z"
+      "size": 26368,
+      "modified": "2025-11-30T10:20:48.085Z"
     },
     {
       "path": "plugin/HYBRID_ARCHITECTURE.md",
@@ -200,7 +270,7 @@
       "title": "Vigil Guard Plugin - HYBRID Architecture (3-Layer Defense)",
       "category": "plugin",
       "size": 12177,
-      "modified": "2025-11-16T10:20:03.121Z"
+      "modified": "2025-11-25T07:54:16.734Z"
     },
     {
       "path": "plugin/QUICK_START.md",
@@ -210,47 +280,17 @@
       "title": "Vigil Guard Browser Extension - Quick Start Guide",
       "category": "plugin",
       "size": 3472,
-      "modified": "2025-11-16T10:20:03.124Z"
-    },
-    {
-      "path": "QUICKSTART.md",
-      "file": "QUICKSTART",
-      "directory": ".",
-      "url": "/ui/docs/QUICKSTART.md",
-      "title": "Quick Start Guide",
-      "category": "root",
-      "size": 8230,
-      "modified": "2025-11-18T09:54:11.144Z"
+      "modified": "2025-11-25T07:54:16.736Z"
     },
     {
       "path": "README.md",
       "file": "README",
       "directory": ".",
       "url": "/ui/docs/README.md",
-      "title": "Vigil Guard - Local Configuration Panel",
+      "title": "Vigil Guard Documentation",
       "category": "root",
-      "size": 10884,
-      "modified": "2025-11-16T11:11:13.246Z"
-    },
-    {
-      "path": "RELEASE.md",
-      "file": "RELEASE",
-      "directory": ".",
-      "url": "/ui/docs/RELEASE.md",
-      "title": "Release Process",
-      "category": "root",
-      "size": 11509,
-      "modified": "2025-11-16T19:40:07.067Z"
-    },
-    {
-      "path": "SANITIZATION_FIX_2025-10-20.md",
-      "file": "SANITIZATION_FIX_2025-10-20",
-      "directory": ".",
-      "url": "/ui/docs/SANITIZATION_FIX_2025-10-20.md",
-      "title": "Sanitization Fix - October 20, 2025",
-      "category": "root",
-      "size": 7597,
-      "modified": "2025-11-16T10:20:03.117Z"
+      "size": 4309,
+      "modified": "2025-11-29T11:51:45.735Z"
     },
     {
       "path": "SECURITY.md",
@@ -259,28 +299,78 @@
       "url": "/ui/docs/SECURITY.md",
       "title": "Security Guide",
       "category": "root",
-      "size": 19659,
-      "modified": "2025-11-16T11:11:13.247Z"
+      "size": 20034,
+      "modified": "2025-11-28T08:59:46.042Z"
     },
     {
-      "path": "TESTING_CLEAN_INSTALL.md",
-      "file": "TESTING_CLEAN_INSTALL",
-      "directory": ".",
-      "url": "/ui/docs/TESTING_CLEAN_INSTALL.md",
-      "title": "TESTING_CLEAN_INSTALL.md",
-      "category": "root",
-      "size": 16764,
-      "modified": "2025-11-16T19:40:07.067Z"
+      "path": "security/pii-security.md",
+      "file": "pii-security",
+      "directory": "security",
+      "url": "/ui/docs/security/pii-security.md",
+      "title": "PII Security",
+      "category": "security",
+      "size": 1020,
+      "modified": "2025-11-26T20:03:32.092Z"
     },
     {
-      "path": "TMUX_STATUS_BAR.md",
-      "file": "TMUX_STATUS_BAR",
-      "directory": ".",
-      "url": "/ui/docs/TMUX_STATUS_BAR.md",
-      "title": "tmux Status Bar for Claude Code Agent Visibility",
-      "category": "root",
-      "size": 15146,
-      "modified": "2025-11-12T18:10:17.000Z"
+      "path": "security/sanitization.md",
+      "file": "sanitization",
+      "directory": "security",
+      "url": "/ui/docs/security/sanitization.md",
+      "title": "Sanitization",
+      "category": "security",
+      "size": 921,
+      "modified": "2025-11-26T20:03:14.151Z"
+    },
+    {
+      "path": "security/threat-detection.md",
+      "file": "threat-detection",
+      "directory": "security",
+      "url": "/ui/docs/security/threat-detection.md",
+      "title": "Threat Detection",
+      "category": "security",
+      "size": 1183,
+      "modified": "2025-11-29T11:52:33.234Z"
+    },
+    {
+      "path": "security/WEBHOOK_TOKEN_SECURITY_ASSESSMENT.md",
+      "file": "WEBHOOK_TOKEN_SECURITY_ASSESSMENT",
+      "directory": "security",
+      "url": "/ui/docs/security/WEBHOOK_TOKEN_SECURITY_ASSESSMENT.md",
+      "title": "Webhook Token Security Assessment",
+      "category": "security",
+      "size": 14100,
+      "modified": "2025-11-30T14:46:44.804Z"
+    },
+    {
+      "path": "security/WEBHOOK_TOKEN_SECURITY.md",
+      "file": "WEBHOOK_TOKEN_SECURITY",
+      "directory": "security",
+      "url": "/ui/docs/security/WEBHOOK_TOKEN_SECURITY.md",
+      "title": "Webhook Token Security Architecture",
+      "category": "security",
+      "size": 11708,
+      "modified": "2025-11-30T14:45:27.685Z"
+    },
+    {
+      "path": "services/README.md",
+      "file": "README",
+      "directory": "services",
+      "url": "/ui/docs/services/README.md",
+      "title": "Vigil Guard Services Reference",
+      "category": "services",
+      "size": 6996,
+      "modified": "2025-11-29T11:52:03.906Z"
+    },
+    {
+      "path": "tests/index.md",
+      "file": "index",
+      "directory": "tests",
+      "url": "/ui/docs/tests/index.md",
+      "title": "Testy",
+      "category": "tests",
+      "size": 731,
+      "modified": "2025-11-28T19:17:41.863Z"
     },
     {
       "path": "TROUBLESHOOTING.md",
@@ -290,27 +380,17 @@
       "title": "Troubleshooting Guide",
       "category": "root",
       "size": 12068,
-      "modified": "2025-11-16T19:40:07.067Z"
+      "modified": "2025-11-25T07:54:16.729Z"
     },
     {
-      "path": "USER_GUIDE.md",
-      "file": "USER_GUIDE",
+      "path": "WEBHOOK_SECURITY.md",
+      "file": "WEBHOOK_SECURITY",
       "directory": ".",
-      "url": "/ui/docs/USER_GUIDE.md",
-      "title": "Vigil Guard - User Guide",
+      "url": "/ui/docs/WEBHOOK_SECURITY.md",
+      "title": "Webhook Security Guide",
       "category": "root",
-      "size": 48206,
-      "modified": "2025-11-16T19:40:07.068Z"
-    },
-    {
-      "path": "WORKFLOW_v1.7.6_NOTES.md",
-      "file": "WORKFLOW_v1.7.6_NOTES",
-      "directory": ".",
-      "url": "/ui/docs/WORKFLOW_v1.7.6_NOTES.md",
-      "title": "Vigil Guard Workflow v1.7.6 – PII Regression Fixes",
-      "category": "root",
-      "size": 2196,
-      "modified": "2025-11-16T11:11:13.248Z"
+      "size": 5471,
+      "modified": "2025-11-28T09:33:11.829Z"
     }
   ]
 }

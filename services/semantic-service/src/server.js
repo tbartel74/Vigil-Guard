@@ -1,0 +1,409 @@
+/**
+ * Semantic Service - Express API Server
+ * Branch B: Semantic similarity detection using MiniLM embeddings
+ *
+ * Endpoints:
+ *   POST /analyze - Main analysis endpoint (branch_result contract)
+ *   GET /health - Health check
+ *   GET /metrics - Service metrics
+ */
+
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const pino = require('pino');
+
+const config = require('./config');
+const embeddingGenerator = require('./embedding/generator');
+const clickhouseClient = require('./clickhouse/client');
+const { searchSimilar, getStats, checkEmbeddingHealth } = require('./clickhouse/queries');
+const { buildBranchResult, buildDegradedResult } = require('./scoring/scorer');
+
+// ============================================================================
+// Logger
+// ============================================================================
+
+const logger = pino({
+    level: config.logging.level,
+    transport: config.logging.pretty ? {
+        target: 'pino-pretty',
+        options: { colorize: true }
+    } : undefined
+});
+
+// ============================================================================
+// Express App
+// ============================================================================
+
+const app = express();
+
+// Middleware
+app.use(helmet());
+app.use(compression());
+
+// CORS configuration with validation
+const getAllowedOrigins = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return /^http:\/\/localhost(:\d+)?$/;
+  }
+  const origins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean);
+  if (!origins || origins.length === 0) {
+    logger.warn('ALLOWED_ORIGINS not set in production! Using restrictive default.');
+    return ['http://localhost'];
+  }
+  return origins;
+};
+
+app.use(cors({ origin: getAllowedOrigins() }));
+app.use(express.json({ limit: '1mb' }));
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: config.rateLimit.windowMs,
+    max: config.rateLimit.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later' }
+});
+app.use('/analyze', limiter);
+
+// Request logging
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        logger.info({
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            duration_ms: duration
+        });
+    });
+    next();
+});
+
+// ============================================================================
+// Service State
+// ============================================================================
+
+let serviceReady = false;
+let modelReady = false;
+let clickhouseReady = false;
+let startupError = null;
+
+// ============================================================================
+// Endpoints
+// ============================================================================
+
+/**
+ * POST /analyze
+ * Main analysis endpoint - returns branch_result
+ */
+app.post('/analyze', async (req, res) => {
+    const startTime = Date.now();
+
+    try {
+        const { text, request_id, lang } = req.body;
+
+        // Validate input
+        if (!text || typeof text !== 'string') {
+            return res.status(400).json({
+                error: 'Invalid input: text is required and must be a string'
+            });
+        }
+
+        if (text.length > 100000) {
+            return res.status(400).json({
+                error: 'Text too long: maximum 100000 characters'
+            });
+        }
+
+        // Check service readiness
+        if (!serviceReady) {
+            const timingMs = Date.now() - startTime;
+            return res.status(503).json(
+                buildDegradedResult('Service not ready', timingMs)
+            );
+        }
+
+        // Generate embedding
+        let embedding;
+        try {
+            embedding = await embeddingGenerator.generate(text);
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Embedding generation failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Embedding generation failed', timingMs)
+            );
+        }
+
+        // Search similar patterns
+        let results;
+        try {
+            results = await searchSimilar(embedding, config.search.topK);
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'ClickHouse search failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Database search failed', timingMs)
+            );
+        }
+
+        // Build response
+        const timingMs = Date.now() - startTime;
+        const response = buildBranchResult(results, timingMs, false);
+
+        // Add request_id if provided
+        if (request_id) {
+            response.request_id = request_id;
+        }
+
+        logger.info({
+            request_id,
+            score: response.score,
+            threat_level: response.threat_level,
+            timing_ms: timingMs
+        }, 'Analysis complete');
+
+        res.json(response);
+
+    } catch (e) {
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Unexpected error');
+        const timingMs = Date.now() - startTime;
+        res.status(500).json(
+            buildDegradedResult('Internal server error', timingMs)
+        );
+    }
+});
+
+/**
+ * GET /health
+ * Health check endpoint
+ */
+app.get('/health', async (req, res) => {
+    const health = {
+        status: serviceReady ? 'healthy' : 'unhealthy',
+        service: 'semantic-service',
+        branch: config.branch,
+        checks: {
+            model: modelReady,
+            clickhouse: clickhouseReady
+        },
+        uptime_ms: process.uptime() * 1000
+    };
+
+    // Deep health check if requested
+    if (req.query.deep === 'true') {
+        try {
+            // Check ClickHouse
+            const chHealth = await clickhouseClient.healthCheck();
+            health.checks.clickhouse_live = chHealth;
+
+            // Check embedding health
+            if (chHealth) {
+                const embHealth = await checkEmbeddingHealth();
+                health.checks.embeddings = embHealth;
+            }
+
+            // Check model
+            health.checks.model_ready = embeddingGenerator.isReady();
+        } catch (e) {
+            health.checks.error = e.message;
+        }
+    }
+
+    if (startupError) {
+        health.startup_error = startupError;
+    }
+
+    const statusCode = serviceReady ? 200 : 503;
+    res.status(statusCode).json(health);
+});
+
+/**
+ * GET /metrics
+ * Service metrics endpoint
+ */
+app.get('/metrics', async (req, res) => {
+    try {
+        const stats = await getStats();
+        const embeddingHealth = await checkEmbeddingHealth();
+
+        res.json({
+            service: 'semantic-service',
+            database: {
+                total_patterns: stats.totalPatterns,
+                top_categories: stats.topCategories,
+                embedding_health: embeddingHealth
+            },
+            model: embeddingGenerator.getInfo(),
+            config: {
+                search_top_k: config.search.topK,
+                thresholds: config.scoring.thresholds
+            },
+            runtime: {
+                uptime_ms: process.uptime() * 1000,
+                memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+            }
+        });
+    } catch (e) {
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Metrics endpoint error');
+        res.status(500).json({ error: 'Internal server error', errorId });
+    }
+});
+
+/**
+ * GET /
+ * Root endpoint - service info
+ */
+app.get('/', (req, res) => {
+    res.json({
+        service: 'semantic-service',
+        version: '1.0.0',
+        branch: config.branch,
+        description: 'Semantic similarity detection using MiniLM embeddings',
+        endpoints: {
+            'POST /analyze': 'Analyze text for semantic similarity (branch_result)',
+            'GET /health': 'Health check',
+            'GET /metrics': 'Service metrics'
+        }
+    });
+});
+
+// ============================================================================
+// Startup
+// ============================================================================
+
+/**
+ * Wait for ClickHouse with retry and exponential backoff
+ * @param {number} maxRetries - Maximum number of retry attempts
+ * @param {number} initialDelayMs - Initial delay between retries
+ * @returns {Promise<boolean>} - True if connected successfully
+ */
+async function waitForClickHouse(maxRetries = 10, initialDelayMs = 1000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const isHealthy = await clickhouseClient.healthCheck();
+            if (isHealthy) {
+                const tableInfo = await clickhouseClient.checkTable();
+                logger.info({
+                    attempt,
+                    table_exists: tableInfo.exists,
+                    pattern_count: tableInfo.count
+                }, 'ClickHouse connected');
+                return true;
+            }
+        } catch (e) {
+            const delay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), 30000);
+            logger.warn({
+                attempt,
+                maxRetries,
+                error: e.message,
+                nextRetryMs: delay
+            }, 'ClickHouse not ready, retrying...');
+
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Periodic health check to recover from transient failures
+ * Updates clickhouseReady and serviceReady flags
+ */
+function startPeriodicHealthCheck(intervalMs = 30000) {
+    setInterval(async () => {
+        if (!clickhouseReady) {
+            try {
+                const isHealthy = await clickhouseClient.healthCheck();
+                if (isHealthy) {
+                    clickhouseReady = true;
+                    serviceReady = modelReady && clickhouseReady;
+                    logger.info('ClickHouse connection recovered');
+                }
+            } catch (error) {
+                logger.error({ error: error.message }, 'Periodic health check failed');
+            }
+        }
+    }, intervalMs);
+}
+
+async function startup() {
+    logger.info('Starting Semantic Service...');
+
+    // Initialize embedding generator
+    logger.info('Loading embedding model...');
+    try {
+        await embeddingGenerator.initialize();
+        modelReady = true;
+        logger.info('Embedding model loaded');
+    } catch (e) {
+        startupError = `Model initialization failed: ${e.message}`;
+        logger.error({ error: e.message }, startupError);
+        // Continue - service will run in degraded mode
+    }
+
+    // Check ClickHouse connection with retry
+    logger.info('Waiting for ClickHouse connection...');
+    clickhouseReady = await waitForClickHouse(10, 2000);
+
+    if (!clickhouseReady) {
+        startupError = 'ClickHouse connection failed after retries';
+        logger.error(startupError);
+    }
+
+    // Set service ready status
+    serviceReady = modelReady && clickhouseReady;
+
+    if (serviceReady) {
+        logger.info('Service ready');
+    } else {
+        logger.warn({ model: modelReady, clickhouse: clickhouseReady }, 'Service starting in degraded mode');
+        // Start periodic health check to recover from degraded mode
+        startPeriodicHealthCheck(30000);
+    }
+
+    // Start server
+    const server = app.listen(config.server.port, config.server.host, () => {
+        logger.info({
+            host: config.server.host,
+            port: config.server.port,
+            env: config.server.env
+        }, `Semantic Service listening on ${config.server.host}:${config.server.port}`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+        logger.info('SIGTERM received, shutting down...');
+        server.close(() => {
+            logger.info('Server closed');
+            process.exit(0);
+        });
+    });
+
+    process.on('SIGINT', () => {
+        logger.info('SIGINT received, shutting down...');
+        server.close(() => {
+            logger.info('Server closed');
+            process.exit(0);
+        });
+    });
+}
+
+// Start server
+startup().catch(e => {
+    logger.fatal({ error: e.message }, 'Fatal startup error');
+    process.exit(1);
+});
+
+module.exports = app;

@@ -6,14 +6,16 @@ import ConfigSection from "./components/ConfigSection";
 import GrafanaEmbed from "./components/GrafanaEmbed";
 import PromptAnalyzer from "./components/PromptAnalyzer";
 import Investigation from "./components/Investigation";
+import InvestigationV2 from "./components/InvestigationV2";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { Settings } from "./components/Settings";
 import { PluginConfiguration } from "./components/PluginConfiguration";
 import { RetentionPolicy } from "./components/RetentionPolicy";
 import { PIISettings } from "./components/PIISettings";
+import ArbiterSettings from "./components/ArbiterSettings";
 import FPReporting from "./components/FPReporting";
-import Documentation from "./components/Documentation";
+import { HelpPage } from "./components/help";
 import { AuthProvider, ProtectedRoute } from "./context/AuthContext";
 import { MobileProvider } from "./context/MobileContext";
 import * as api from "./lib/api";
@@ -27,11 +29,13 @@ const Monitoring = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [promptGuardStatus, setPromptGuardStatus] = useState<'active' | 'down' | 'checking'>('checking');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [containerStatus, setContainerStatus] = useState<any>(null);
+  const [containerLoading, setContainerLoading] = useState(true);
 
   // Fetch stats from API
   const fetchStats = async () => {
     try {
-      const data = await api.fetchStats24h(timeRange);
+      const data = await api.getEventsV2Stats(timeRange);
       setStats({
         requests_processed: Number(data.requests_processed) || 0,
         threats_blocked: Number(data.threats_blocked) || 0,
@@ -65,11 +69,25 @@ const Monitoring = () => {
     setPromptGuardStatus(isHealthy ? 'active' : 'down');
   };
 
+  // Fetch container status
+  const fetchContainerStatus = async () => {
+    try {
+      setContainerLoading(true);
+      const data = await api.fetchContainerStatus();
+      setContainerStatus(data);
+    } catch (error) {
+      console.error('Error fetching container status:', error);
+      setContainerStatus(null);
+    } finally {
+      setContainerLoading(false);
+    }
+  };
+
   // Manual refresh handler
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchFPStats()]);
+      await Promise.all([fetchStats(), fetchFPStats(), fetchContainerStatus()]);
       await checkPromptGuard();
     } catch (error) {
       console.error('Error during manual refresh:', error);
@@ -83,12 +101,14 @@ const Monitoring = () => {
     fetchStats();
     fetchFPStats();
     checkPromptGuard();
+    fetchContainerStatus();
 
     if (refreshInterval > 0) {
       const interval = setInterval(() => {
         fetchStats();
         fetchFPStats();
         checkPromptGuard();
+        fetchContainerStatus();
       }, refreshInterval * 1000);
       return () => clearInterval(interval);
     }
@@ -98,7 +118,7 @@ const Monitoring = () => {
     <div className="p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">LLM Guard Monitoring</h1>
+          <h1 className="text-2xl font-semibold">Monitoring</h1>
           <p className="text-slate-400 mt-2">Real-time prompt injection detection and defense analytics.</p>
         </div>
 
@@ -148,16 +168,16 @@ const Monitoring = () => {
         <h2 className="text-lg font-semibold text-white">System Performance Dashboard</h2>
         <p className="text-sm text-slate-400">Real-time metrics from Vigil Guard monitoring</p>
       </div>
-      {/* Full-width panel 1 - Input/Output Table */}
+      {/* Full-width panel - Recent Events Table (3-Branch) */}
       <div className="mb-6">
         <div className="mb-3">
-          <h3 className="text-md font-semibold text-white">Input/Output Processing Table</h3>
-          <p className="text-xs text-slate-400">Real-time processing data with input/output analysis</p>
+          <h3 className="text-md font-semibold text-white">Recent Events (3-Branch Architecture)</h3>
+          <p className="text-xs text-slate-400">Real-time processing data with branch scores and decision analysis</p>
         </div>
         <GrafanaEmbed
-          src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=1&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-          title="Vigil Input/Output Table"
-          height="300"
+          src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=30&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          title="Vigil Recent Events Table"
+          height="350"
           refreshInterval={refreshInterval}
         />
       </div>
@@ -167,74 +187,74 @@ const Monitoring = () => {
     <PromptAnalyzer timeRange={timeRange} refreshInterval={refreshInterval} />
 
     <div className="mt-6 rounded-2xl border border-slate-700 p-4">
-      {/* Full-width panel 5 - TOP-10 Detection Categories */}
+      {/* Priority Boosts Applied - Detection Categories */}
       <div className="mb-6">
         <div className="mb-3">
-          <h3 className="text-md font-semibold text-white">TOP-10 Detection Categories (Total Score)</h3>
-          <p className="text-xs text-slate-400">Dominant abuse types analysis: identify which threats are most prevalent (e.g., JAILBREAK_ATTEMPT, CRITICAL_INJECTION)</p>
+          <h3 className="text-md font-semibold text-white">Priority Boosts Applied</h3>
+          <p className="text-xs text-slate-400">Arbiter priority boosts: identify which security rules are triggering most frequently</p>
         </div>
         <GrafanaEmbed
-          src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=5&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-          title="Vigil TOP-10 Detection Categories"
+          src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=21&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+          title="Vigil Priority Boosts Applied"
           height="300"
           refreshInterval={refreshInterval}
         />
       </div>
 
-      {/* Half-width panel 2 - Volume + Status Mix */}
+      {/* Decision Distribution + Threat Score Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-white">Volume + Decision Status (Stacked)</h3>
-            <p className="text-xs text-slate-400">Prompt volume over time with ALLOWED / SANITIZED / BLOCKED status distribution</p>
+            <h3 className="text-md font-semibold text-white">Decision Distribution</h3>
+            <p className="text-xs text-slate-400">Distribution of ALLOWED / SANITIZED / BLOCKED decisions across all events</p>
           </div>
           <GrafanaEmbed
-            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=2&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-            title="Vigil Volume + Status Mix"
+            src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=20&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            title="Vigil Decision Distribution"
             height="250"
             refreshInterval={refreshInterval}
           />
         </div>
 
-        {/* Panel 3 - Block Rate % */}
+        {/* Threat Score Distribution */}
         <div>
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-white">Block Rate % Over Time</h3>
-            <p className="text-xs text-slate-400">Percentage of BLOCKED requests - early indicator of traffic quality degradation or security effectiveness</p>
+            <h3 className="text-md font-semibold text-white">Threat Score Distribution</h3>
+            <p className="text-xs text-slate-400">Distribution of threat scores across 0-100 range - identify risk patterns</p>
           </div>
           <GrafanaEmbed
-            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=3&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-            title="Vigil Block Rate Percentage"
+            src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=22&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            title="Vigil Threat Score Distribution"
             height="250"
             refreshInterval={refreshInterval}
           />
         </div>
       </div>
 
-      {/* Panel 4 - Maliciousness Trend - Half width */}
+      {/* Branch Scores Over Time + Branch Avg Scores */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-white">Maliciousness Trend — AVG & P95 Score</h3>
-            <p className="text-xs text-slate-400">Risk trend analysis: Average smooths patterns, P95 captures tail risks and emerging threats</p>
+            <h3 className="text-md font-semibold text-white">Branch Scores Over Time</h3>
+            <p className="text-xs text-slate-400">3-Branch detection trends: Heuristics (A), Semantic (B), LLM Safety Engine Analysis (C)</p>
           </div>
           <GrafanaEmbed
-            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=4&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-            title="Vigil Maliciousness Trend"
+            src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=10&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            title="Vigil Branch Scores Over Time"
             height="250"
             refreshInterval={refreshInterval}
           />
         </div>
 
-        {/* Panel 6 - Histogram Time Series */}
+        {/* Branch Average Scores */}
         <div>
           <div className="mb-3">
-            <h3 className="text-md font-semibold text-white">Histogram "Time Series" (Stacked)</h3>
-            <p className="text-xs text-slate-400">Distribution of buckets (0–10, 10–20, …) over time — ideal for Time series stacked visualization</p>
+            <h3 className="text-md font-semibold text-white">Branch Average Scores (24h)</h3>
+            <p className="text-xs text-slate-400">Average detection scores per branch: Heuristics, Semantic, LLM Safety Engine Analysis</p>
           </div>
           <GrafanaEmbed
-            src={`${GRAFANA_ORIGIN}/d-solo/6cf14bba-9b61-45d7-82c3-04e1005dea38/vigil?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=6&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
-            title="Vigil Histogram Time Series"
+            src={`${GRAFANA_ORIGIN}/d-solo/vigil-v2-3branch/vigil-guard-v2?orgId=1&from=now-${timeRange}&to=now&timezone=browser&panelId=11&__feature.dashboardSceneSolo=true&refresh=${refreshInterval}s&_=${Date.now()}`}
+            title="Vigil Branch Avg Scores"
             height="250"
             refreshInterval={refreshInterval}
           />
@@ -260,23 +280,46 @@ const Monitoring = () => {
       <div className="rounded-2xl border border-slate-700 p-4">
         <div className="mb-4">
           <h3 className="text-md font-semibold text-white">System Status</h3>
-          <p className="text-xs text-slate-400">Current operational metrics</p>
+          <p className="text-xs text-slate-400">Current operational metrics - Docker containers health</p>
         </div>
         <div className="bg-slate-900/50 rounded-lg p-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-300">System Health</span>
-              <span className="text-emerald-400 font-semibold">✓ Operational</span>
+          {containerLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-300">LLM Processing</span>
-              <span className="text-emerald-400 font-semibold">✓ Active</span>
+          ) : containerStatus ? (
+            <div className="space-y-3">
+              {/* Overall System Health */}
+              <div className="flex justify-between items-center pb-2 border-b border-slate-700">
+                <span className="text-sm text-slate-300 font-semibold">System Health</span>
+                {containerStatus.overall_status === 'healthy' ? (
+                  <span className="text-emerald-400 font-semibold">✓ Operational ({containerStatus.summary.healthy}/{containerStatus.summary.total})</span>
+                ) : containerStatus.overall_status === 'degraded' ? (
+                  <span className="text-yellow-400 font-semibold">⚠ Degraded ({containerStatus.summary.healthy}/{containerStatus.summary.total})</span>
+                ) : (
+                  <span className="text-red-400 font-semibold">✗ Critical ({containerStatus.summary.healthy}/{containerStatus.summary.total})</span>
+                )}
+              </div>
+
+              {/* Individual Container Statuses */}
+              {containerStatus.containers.map((container: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">{container.name}</span>
+                  {container.status === 'healthy' ? (
+                    <span className="text-emerald-400">✓ Healthy</span>
+                  ) : container.status === 'degraded' ? (
+                    <span className="text-yellow-400">⚠ {container.details || 'Degraded'}</span>
+                  ) : (
+                    <span className="text-red-400">✗ {container.details || 'Offline'}</span>
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-300">Configuration</span>
-              <span className="text-emerald-400 font-semibold">✓ Valid</span>
+          ) : (
+            <div className="text-center text-red-400 py-4">
+              Failed to load container status
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -374,13 +417,15 @@ export const router = createBrowserRouter(
       ),
       children: [
         { path: "/", element: <Monitoring /> },
-        { path: "/investigation", element: <Investigation /> },
+        { path: "/investigation", element: <InvestigationV2 /> },
+        { path: "/investigation-legacy", element: <Investigation /> },
         { path: "/fp-reporting", element: <FPReporting /> },
         {
           path: "/config",
           element: <ConfigLayout />,
           children: [
             { path: "/config", element: <Navigate to="/config/overview" replace /> },
+            { path: "/config/arbiter", element: <ArbiterSettings /> },
             { path: "/config/plugin", element: <PluginConfiguration /> },
             { path: "/config/pii", element: <PIISettings /> },
             { path: "/config/retention", element: <RetentionPolicy /> },
@@ -389,7 +434,7 @@ export const router = createBrowserRouter(
         },
         { path: "/administration", element: <UserManagement /> },
         { path: "/settings", element: <Settings /> },
-        { path: "/help", element: <Documentation /> }
+        { path: "/help", element: <HelpPage /> }
       ]
     },
     {

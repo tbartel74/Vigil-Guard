@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Prompt Guard API")
 
-# Model załaduje się przy pierwszym uruchomieniu
+# Model loads on first startup
 classifier = None
 mock_mode = os.getenv("MOCK_MODEL", "false").lower() == "true"
 

@@ -23,7 +23,7 @@ nano .env
 - `JWT_SECRET` - Set to a long random string
 - `CLICKHOUSE_PASSWORD` - Change default password
 - `GF_SECURITY_ADMIN_PASSWORD` - Change Grafana password
-- `GROQ_API_KEY` - Add your Groq API key (if using LLM Guard)
+- `GROQ_API_KEY` - Add your Groq API key (if using the LLM Safety Engine model)
 
 ### 3. Start All Services
 
@@ -57,8 +57,6 @@ docker-compose ps
    ```bash
    docker compose up -d --build presidio-pii-api language-detector n8n
    ```
-4. Optional: from `services/workflow/`, run `npm test -- pii-detection-comprehensive.test.js` to confirm **63/63** tests pass.
-
 ## Service Architecture
 
 ```

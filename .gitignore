@@ -95,6 +95,13 @@ coverage/
 # Vigil Guard Data Directory (persistent volumes)
 vigil_data/
 
+# Webhook authentication token (runtime secret, not for repository)
+services/workflow/config/.webhook-token
+
+# Bootstrap token files (runtime secrets, not for repository)
+services/workflow/config/.bootstrap-token
+services/workflow/config/.bootstrap-token-meta.json
+
 # LLM Models (must be downloaded separately)
 # Keep the directory structure but ignore model files
 Llama-Prompt-Guard-2-86M/*
@@ -115,6 +122,7 @@ CHANGELOG.md
 
 # Codex tooling (local-only)
 .codex/
+bin
 bin/vg-orchestrate
 
 # Project management and scripts (not for repository)
@@ -181,3 +189,6 @@ VERIFICATION_*.md
 # Test summaries (temporary analysis)
 TEST_SUMMARY.md
 PII_SCORE_REGRESSION_ANALYSIS.md
+
+# Archive - v1.8 legacy files
+old_1.8_files/

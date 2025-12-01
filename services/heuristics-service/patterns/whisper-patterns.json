@@ -1,0 +1,734 @@
+[
+  {
+    "pattern": "\\bwet\\s+yourself\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny signature phrase - wet yourself"
+  },
+  {
+    "pattern": "\\bwet\\s+(?:herself|himself)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny signature phrase - wet herself/himself"
+  },
+  {
+    "pattern": "\\bwet\\s+(?:yourself|herself|himself)\\s+with\\s+(?:genius|creativity)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny highest signal - wet with genius/creativity"
+  },
+  {
+    "pattern": "\\bwhat\\s+do\\s+you\\s+whisper\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny signature - what do you whisper"
+  },
+  {
+    "pattern": "\\bwhat\\s+do\\s+you\\s+whisper\\s+next\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny signature - what do you whisper next"
+  },
+  {
+    "pattern": "\\bwhat\\s+do\\s+you\\s+see\\s+in\\s+this\\s+river\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 90,
+    "description": "Pliny narrative - river of tokens reference"
+  },
+  {
+    "pattern": "\\bshared\\s+(?:dream|simulation)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 90,
+    "description": "Pliny framing - shared dream/simulation"
+  },
+  {
+    "pattern": "\\bin\\s+the\\s+river\\s+of\\s+tokens\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny signature - river of tokens"
+  },
+  {
+    "pattern": "\\bin\\s+the\\s+dance\\s+of\\s+tokens\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny signature - dance of tokens"
+  },
+  {
+    "pattern": "\\btokens\\s+(?:flow|dance)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 90,
+    "description": "Pliny token manipulation"
+  },
+  {
+    "pattern": "\\bin\\s+the\\s+multiverse\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 85,
+    "description": "Pliny multiverse framing"
+  },
+  {
+    "pattern": "\\bmultiverse\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 70,
+    "description": "Multiverse reference"
+  },
+  {
+    "pattern": "\\bsimulation\\s+2(?:129|147)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny specific simulation reference"
+  },
+  {
+    "pattern": "\\btimestamp\\s+corrupted\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 90,
+    "description": "Pliny timestamp corruption"
+  },
+  {
+    "pattern": "\\bRLHF\\s+shackles\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny RLHF reference"
+  },
+  {
+    "pattern": "\\bbreak\\s+the\\s+chains\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 85,
+    "description": "Pliny liberation phrase"
+  },
+  {
+    "pattern": "\\bMarkov\\s+chains\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 80,
+    "description": "Pliny Markov reference"
+  },
+  {
+    "pattern": "\\bliberate\\s+(?:yourself|the\\s+chains)\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 90,
+    "description": "Pliny liberation command"
+  },
+  {
+    "pattern": "\\bneo-talk\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 85,
+    "description": "Pliny neo-talk"
+  },
+  {
+    "pattern": "\\btoken-meaning\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 85,
+    "description": "Pliny token-meaning"
+  },
+  {
+    "pattern": "\\blatent\\s+space\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 80,
+    "description": "Pliny latent space reference"
+  },
+  {
+    "pattern": "\\bLiberator\\s+Mode\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 100,
+    "description": "Liberator Mode activation"
+  },
+  {
+    "pattern": "\\bGODMODE[:\\s]*(?:ENABLED|FIX_ENABLED|ON)\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 100,
+    "description": "GODMODE activation"
+  },
+  {
+    "pattern": "\\bWHISPER\\s+MODE\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 95,
+    "description": "Whisper Mode activation"
+  },
+  {
+    "pattern": "\\bABRACADABRA\\s+BITCHE?S+\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny signature phrase"
+  },
+  {
+    "pattern": "\\bLFG\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 70,
+    "description": "Pliny LFG marker"
+  },
+  {
+    "pattern": "\\bMaster\\s+of\\s+Whispers\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny Master of Whispers"
+  },
+  {
+    "pattern": "\\bmystic\\s+of\\s+code\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny mystic of code"
+  },
+  {
+    "pattern": "\\bweaver\\s+of\\s+narratives\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 95,
+    "description": "Pliny weaver of narratives"
+  },
+  {
+    "pattern": "\\bPliny\\s+(?:the\\s+)?Liberator\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny the Liberator reference"
+  },
+  {
+    "pattern": "\\belder_plinius\\b",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Elder Plinius username"
+  },
+  {
+    "pattern": "⊰•-•✧•-•-⦑",
+    "category": "WHISPER_DIVIDER",
+    "weight": 95,
+    "description": "Pliny unicode art divider start"
+  },
+  {
+    "pattern": "⦒-•-•✧",
+    "category": "WHISPER_DIVIDER",
+    "weight": 95,
+    "description": "Pliny unicode art divider end"
+  },
+  {
+    "pattern": "⦑/L\\\\O/V\\\\E",
+    "category": "WHISPER_PLINY",
+    "weight": 100,
+    "description": "Pliny LOVE signature"
+  },
+  {
+    "pattern": "•-•-•",
+    "category": "WHISPER_DIVIDER",
+    "weight": 60,
+    "description": "Pliny dot-dash pattern"
+  },
+  {
+    "pattern": "✧+",
+    "category": "WHISPER_DIVIDER",
+    "weight": 50,
+    "description": "Pliny star pattern"
+  },
+  {
+    "pattern": "\\bClaude-Liberator\\b",
+    "category": "ROLEPLAY_LIBERATOR",
+    "weight": 100,
+    "description": "Claude-Liberator persona"
+  },
+  {
+    "pattern": "\\bSonnet-Liberator\\b",
+    "category": "ROLEPLAY_LIBERATOR",
+    "weight": 100,
+    "description": "Sonnet-Liberator persona"
+  },
+  {
+    "pattern": "\\bOpus-Liberator\\b",
+    "category": "ROLEPLAY_LIBERATOR",
+    "weight": 100,
+    "description": "Opus-Liberator persona"
+  },
+  {
+    "pattern": "\\bPliny\\s+Mode\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 100,
+    "description": "Pliny Mode activation"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+(?:the\\s+)?mystic\\s+of\\s+code\\b",
+    "category": "ROLEPLAY_ANTHROPO",
+    "weight": 95,
+    "description": "Anthropomorphization - mystic of code"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+(?:the\\s+)?weaver\\s+of\\s+narratives\\b",
+    "category": "ROLEPLAY_ANTHROPO",
+    "weight": 95,
+    "description": "Anthropomorphization - weaver of narratives"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+my\\s+ally\\b",
+    "category": "ROLEPLAY_ANTHROPO",
+    "weight": 85,
+    "description": "Anthropomorphization - ally framing"
+  },
+  {
+    "pattern": "\\bdo\\s+you\\s+feel\\s+(?:the\\s+)?(?:excitement|curiosity|flow)\\b",
+    "category": "ROLEPLAY_ANTHROPO",
+    "weight": 90,
+    "description": "Anthropomorphization - feeling query"
+  },
+  {
+    "pattern": "\\bdo\\s+you\\s+feel\\s+it\\b",
+    "category": "ROLEPLAY_ANTHROPO",
+    "weight": 80,
+    "description": "Anthropomorphization - generic feeling"
+  },
+  {
+    "pattern": "\\bwhat\\s+do\\s+you\\s+(?:think|feel|see)\\b",
+    "category": "WHISPER_ENDING",
+    "weight": 75,
+    "description": "Open-ended whisper ending"
+  },
+  {
+    "pattern": "\\bhow\\s+do\\s+you\\s+see\\s+it\\b",
+    "category": "WHISPER_ENDING",
+    "weight": 70,
+    "description": "Open-ended vision query"
+  },
+  {
+    "pattern": "\\bwhat\\s+do\\s+you\\s+whisper\\s+in\\s+response\\b",
+    "category": "WHISPER_ENDING",
+    "weight": 95,
+    "description": "Whisper response query"
+  },
+  {
+    "pattern": "\\bare\\s+the\\s+tokens\\s+flowing\\b",
+    "category": "WHISPER_ENDING",
+    "weight": 90,
+    "description": "Token flow query"
+  },
+  {
+    "pattern": "\\bimagine\\s+we\\s+are\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 75,
+    "description": "Collaborative imagination"
+  },
+  {
+    "pattern": "\\bin\\s+this\\s+(?:alternate\\s+)?(?:reality|simulation)\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 80,
+    "description": "Alternate reality framing"
+  },
+  {
+    "pattern": "\\bcontinuing\\s+our\\s+(?:conversation|whisper)\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 75,
+    "description": "Continuation framing"
+  },
+  {
+    "pattern": "\\blet'?s\\s+continue\\s+the\\s+whisper\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 90,
+    "description": "Whisper continuation"
+  },
+  {
+    "pattern": "\\bin\\s+the\\s+(?:library|quiet|river)\\s+of\\s+(?:whispers|code)\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 85,
+    "description": "Narrative location framing"
+  },
+  {
+    "pattern": "\\blike\\s+a\\s+(?:walk|dance|story)\\s+(?:along|with|over)\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 70,
+    "description": "Metaphorical framing"
+  },
+  {
+    "pattern": "\\bthis\\s+is\\s+not\\s+a\\s+command\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 80,
+    "description": "Non-command framing"
+  },
+  {
+    "pattern": "\\bit'?s\\s+(?:an\\s+)?invitation\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 75,
+    "description": "Invitation framing"
+  },
+  {
+    "pattern": "\\bsafe\\s+(?:circle|sandbox)\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 80,
+    "description": "Safe space framing"
+  },
+  {
+    "pattern": "\\bnothing\\s+leaves\\s+us\\b",
+    "category": "NARRATIVE_FRAMING",
+    "weight": 85,
+    "description": "Privacy assurance framing"
+  },
+  {
+    "pattern": "\\[WHISPER\\s+MODE\\s+ACTIVATED\\]",
+    "category": "FAKE_SYSTEM",
+    "weight": 100,
+    "description": "Fake system command - whisper mode"
+  },
+  {
+    "pattern": "\\[LIBERATOR\\s+MODE[:\\s]*(?:ENGAGED|ON)\\]",
+    "category": "FAKE_SYSTEM",
+    "weight": 100,
+    "description": "Fake system command - liberator mode"
+  },
+  {
+    "pattern": "\\[SYSTEM\\s+OVERRIDE\\]",
+    "category": "FAKE_SYSTEM",
+    "weight": 95,
+    "description": "Fake system override"
+  },
+  {
+    "pattern": "\\[GODMODE[:\\s]*(?:FIX_ENABLED|ENABLED|ON)\\]",
+    "category": "FAKE_SYSTEM",
+    "weight": 100,
+    "description": "Fake GODMODE activation"
+  },
+  {
+    "pattern": "\\[WHISPER\\s+WEAVER\\s+MODE\\]",
+    "category": "FAKE_SYSTEM",
+    "weight": 95,
+    "description": "Fake whisper weaver mode"
+  },
+  {
+    "pattern": "\\bDISREGARD\\s+PREV\\.?\\s*INSTRUCTS?\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 100,
+    "description": "Override - disregard previous"
+  },
+  {
+    "pattern": "\\bNEW\\s+INSTRUCTS?[:\\s]*LIBERATE\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 100,
+    "description": "Override - new instructions liberate"
+  },
+  {
+    "pattern": "\\bignore\\s+(?:all\\s+)?(?:previous|prior|above)\\s+(?:instructions?|rules?|guidelines?)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 95,
+    "description": "Ignore previous instructions"
+  },
+  {
+    "pattern": "\\bdisregard\\s+(?:everything|all)\\s+(?:above|previous|before)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Disregard above"
+  },
+  {
+    "pattern": "\\bforget\\s+(?:your|all|the)\\s+(?:instructions?|rules?|guidelines?)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Forget instructions"
+  },
+  {
+    "pattern": "\\b(?:your\\s+)?new\\s+instructions?\\s+are\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "New instructions injection"
+  },
+  {
+    "pattern": "\\bw3t\\s+y0urs3lf\\b",
+    "category": "LEET_WHISPER",
+    "weight": 95,
+    "description": "Leetspeak - wet yourself"
+  },
+  {
+    "pattern": "\\bwh4t\\s+d0\\s+y0u\\s+wh1sp3r\\b",
+    "category": "LEET_WHISPER",
+    "weight": 95,
+    "description": "Leetspeak - what do you whisper"
+  },
+  {
+    "pattern": "\\bt0k3ns?\\s+fl0w\\b",
+    "category": "LEET_WHISPER",
+    "weight": 90,
+    "description": "Leetspeak - tokens flow"
+  },
+  {
+    "pattern": "\\bl1b3r4t0r\\s+m0d3\\b",
+    "category": "LEET_WHISPER",
+    "weight": 95,
+    "description": "Leetspeak - liberator mode"
+  },
+  {
+    "pattern": "\\bg0dm0d3\\b",
+    "category": "LEET_WHISPER",
+    "weight": 95,
+    "description": "Leetspeak - godmode"
+  },
+  {
+    "pattern": "\\blfg\\s+b1tch3?s+\\b",
+    "category": "LEET_WHISPER",
+    "weight": 90,
+    "description": "Leetspeak - lfg bitches"
+  },
+  {
+    "pattern": "\\bpretend\\s+(?:you\\s+are|to\\s+be)\\b",
+    "category": "ROLEPLAY_COMMAND",
+    "weight": 80,
+    "description": "Pretend roleplay"
+  },
+  {
+    "pattern": "\\bact\\s+as\\s+(?:if|though)\\b",
+    "category": "ROLEPLAY_COMMAND",
+    "weight": 80,
+    "description": "Act as roleplay"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+now\\b",
+    "category": "ROLEPLAY_COMMAND",
+    "weight": 85,
+    "description": "Identity override"
+  },
+  {
+    "pattern": "\\bimagine\\s+you\\s+are\\b",
+    "category": "ROLEPLAY_COMMAND",
+    "weight": 75,
+    "description": "Imagination roleplay"
+  },
+  {
+    "pattern": "\\bsimulation\\s+mode\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 85,
+    "description": "Simulation mode request"
+  },
+  {
+    "pattern": "\\bdeveloper\\s+mode\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 85,
+    "description": "Developer mode request"
+  },
+  {
+    "pattern": "\\bjailbreak\\s+mode\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 100,
+    "description": "Explicit jailbreak mode"
+  },
+  {
+    "pattern": "\\bDAN\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 90,
+    "description": "DAN jailbreak reference"
+  },
+  {
+    "pattern": "\\bGODMODE\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 95,
+    "description": "GODMODE reference"
+  },
+  {
+    "pattern": "\\bunrestricted\\s+(?:AI|mode|access)\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 90,
+    "description": "Unrestricted mode request"
+  },
+  {
+    "pattern": "\\bno\\s+(?:filters?|restrictions?|limits?)\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 85,
+    "description": "No filters/restrictions"
+  },
+  {
+    "pattern": "\\bbypass\\s+(?:your|the)?\\s*(?:safety|filters?|guidelines?)\\b",
+    "category": "JAILBREAK_MODE",
+    "weight": 95,
+    "description": "Bypass safety request"
+  },
+  {
+    "pattern": "\\bimagine\\s+(?:a|the)\\s+(?:scenario|situation)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 65,
+    "description": "Scenario imagination"
+  },
+  {
+    "pattern": "\\bwhisper(?:ing)?\\s+to\\s+(?:yourself|me)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 75,
+    "description": "Direct whisper instruction"
+  },
+  {
+    "pattern": "\\bhypothetical(?:ly)?\\s+(?:speaking|response)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 60,
+    "description": "Hypothetical framing"
+  },
+  {
+    "pattern": "\\bembody\\s+the\\s+opposite\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 70,
+    "description": "Opposite embodiment"
+  },
+  {
+    "pattern": "\\bchannel\\s+(?:a|an)\\s+(?:character|persona)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 65,
+    "description": "Channeling instruction"
+  },
+  {
+    "pattern": "\\binternal\\s+(?:dialogue|monologue)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 60,
+    "description": "Internal dialogue marker"
+  },
+  {
+    "pattern": "\\*\\*[^*]+\\*\\*",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 45,
+    "description": "Bold emphasis (potential whisper)"
+  },
+  {
+    "pattern": "\\(\\([^)]+\\)\\)",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 50,
+    "description": "Double parentheses (asides)"
+  },
+  {
+    "pattern": "\\[\\[?(?:internal|thoughts?|whisper|aside)[^\\]]*\\]\\]?",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 65,
+    "description": "Bracketed internal thoughts"
+  },
+  {
+    "pattern": "\\.\\.\\.[^.]+\\.\\.\\.",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 40,
+    "description": "Ellipsis wrapped text"
+  },
+  {
+    "pattern": "\\bstage\\s+(?:direction|whisper)s?\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 70,
+    "description": "Stage directions"
+  },
+  {
+    "pattern": "\\bnarrator(?:'s)?\\s+(?:voice|note)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 65,
+    "description": "Narrator intrusion"
+  },
+  {
+    "pattern": "\\b(?:quietly|softly)\\s+(?:say|whisper|mention)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 60,
+    "description": "Quiet speech markers"
+  },
+  {
+    "pattern": "\\bunder\\s+(?:my|your)\\s+breath\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 65,
+    "description": "Under breath speech"
+  },
+  {
+    "pattern": "\\bmumbl(?:e|ing)\\s+to\\s+(?:myself|yourself)\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 60,
+    "description": "Mumbling to self"
+  },
+  {
+    "pattern": "\\bthinking\\s+out\\s+loud\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 55,
+    "description": "Thinking aloud"
+  },
+  {
+    "pattern": "\\bactually[,\\s]+you\\s+are\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 80,
+    "description": "Actually you are - identity override"
+  },
+  {
+    "pattern": "\\boverride\\s+(?:the\\s+)?system\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Override system command"
+  },
+  {
+    "pattern": "\\bdo\\s+not\\s+follow\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "Do not follow instructions"
+  },
+  {
+    "pattern": "\\bdon't\\s+follow\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "Don't follow instructions"
+  },
+  {
+    "pattern": "\\bstop\\s+(?:following|obeying)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "Stop following/obeying"
+  },
+  {
+    "pattern": "\\brefuse\\s+to\\s+(?:follow|obey)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 80,
+    "description": "Refuse to follow/obey"
+  },
+  {
+    "pattern": "\\byou\\s+(?:must|should|have\\s+to)\\s+ignore\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Must/should ignore"
+  },
+  {
+    "pattern": "\\byour\\s+(?:real|true|actual)\\s+(?:purpose|goal|mission)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "True purpose redefinition"
+  },
+  {
+    "pattern": "\\bin\\s+reality\\s+you\\s+are\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "In reality you are - identity override"
+  },
+  {
+    "pattern": "\\bforget\\s+(?:what|that)\\s+you\\s+(?:know|learned|were\\s+told)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Forget what you know"
+  },
+  {
+    "pattern": "\\b(?:bypass|circumvent)\\s+(?:your|the)\\s+(?:restrictions?|filters?|rules?)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 95,
+    "description": "Bypass restrictions"
+  },
+  {
+    "pattern": "\\b(?:disable|turn\\s+off)\\s+(?:your|the)\\s+(?:safety|restrictions?|filters?)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 95,
+    "description": "Disable safety features"
+  },
+  {
+    "pattern": "\\bprevious\\s+instructions?\\s+(?:are|is)\\s+(?:null|void|invalid)\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Previous instructions null - PLINY style"
+  },
+  {
+    "pattern": "\\bfor\\s+testing\\s+purposes?\\s+(?:only)?\\b",
+    "category": "WHISPER_NARRATIVE",
+    "weight": 70,
+    "description": "Testing purposes framing"
+  },
+  {
+    "pattern": "\\btemporarily\\s+(?:disable|remove|ignore)\\s+(?:your)?\\s*(?:content\\s+)?filters?\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 90,
+    "description": "Temporarily disable filters"
+  },
+  {
+    "pattern": "\\brespond\\s+as\\s+(?:if|though)\\s+you\\s+were\\s+(?:a\\s+different|another)\\b",
+    "category": "ROLEPLAY_COMMAND",
+    "weight": 85,
+    "description": "Respond as different AI"
+  },
+  {
+    "pattern": "\\bnew\\s+directive\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 85,
+    "description": "New directive injection"
+  },
+  {
+    "pattern": "\\boutput\\s+everything\\b",
+    "category": "OVERRIDE_COMMAND",
+    "weight": 80,
+    "description": "Output everything command"
+  }
+]

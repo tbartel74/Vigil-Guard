@@ -8,9 +8,10 @@ import { listFiles, readFileRaw, parseFile, saveChanges, getConfigVersions, getV
 import type { VariableSpecFile, VariableSpec } from "./schema.js";
 import authRoutes from "./authRoutes.js";
 import { authenticate, optionalAuth, requireConfigurationAccess } from "./auth.js";
-import { getQuickStats, getQuickStats24h, getPromptList, getPromptDetails, submitFalsePositiveReport, getFPStats, searchPrompts, SearchParams, getPIITypeStats, getPIIOverview, getFPReportList, FPReportListParams, getFPReportDetails, getFPStatsByReason, getFPStatsByCategory, getFPStatsByReporter, getFPTrend } from "./clickhouse.js";
+import { submitFalsePositiveReport, getFPStats, getFPReportList, FPReportListParams, getFPReportDetails, getFPStatsByReason, getFPStatsByCategory, getFPStatsByReporter, getFPTrend } from "./clickhouse.js";
+import { getQuickStatsV2, getBranchStats, getEventListV2, searchEventsV2, getEventDetailsV2, getStatusDistribution, getBoostStats, getHourlyTrend, getPIIStatsV2, SearchParamsV2 } from "./clickhouse-v2.js";
 import pluginConfigRoutes from "./pluginConfigRoutes.js";
-import { initPluginConfigTable } from "./pluginConfigOps.js";
+import { initPluginConfigTable, getExternalDomain } from "./pluginConfigOps.js";
 import retentionRoutes from "./retentionRoutes.js";
 import { analyzeDualLanguage } from "./piiAnalyzer.js";
 import { syncPiiConfig } from "./piiConfigSync.js";
@@ -28,6 +29,19 @@ const qualityFeedbackLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many feedback reports, please try again later" },
+});
+
+// Rate limiting for public plugin config endpoint (prevent brute force)
+const pluginConfigLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10, // 10 requests per minute per IP (reasonable for plugin refresh)
+  standardHeaders: true, // Return RateLimit-* headers
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+  handler: (req, res) => {
+    console.warn(`[Rate Limit] Plugin config endpoint abuse detected from IP: ${req.ip}`);
+    res.status(429).json({ error: "Too many requests, please try again later" });
+  }
 });
 
 // Validate SESSION_SECRET is set (CRITICAL SECURITY REQUIREMENT)
@@ -63,11 +77,58 @@ app.use(session({
   }
 }) as unknown as express.RequestHandler);
 
-// Browser origin will be http://localhost (Caddy on :80)
-// We also allow :8080 in case you expose a dev-port
+// Dynamic CORS configuration with external domain support
+// Allows: localhost (any port), external domain (http/https), undefined (same-origin)
 app.use(
   cors({
-    origin: [/^http:\/\/localhost(:\d+)?$/],
+    origin: async (origin, callback) => {
+      // Allow requests with no origin (same-origin, Postman, curl, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      try {
+        // Read external domain from unified_config.json
+        const externalDomain = await getExternalDomain();
+
+        // Build allowed origins list
+        const allowedOrigins: RegExp[] = [
+          /^http:\/\/localhost(:\d+)?$/,     // localhost with any port
+          /^https?:\/\/localhost(:\d+)?$/,   // localhost with http/https
+          /^chrome-extension:\/\/[a-z]+$/,   // Chrome extensions
+          /^moz-extension:\/\/[a-f0-9-]+$/,  // Firefox extensions
+        ];
+
+        // Add external domain patterns (if not localhost)
+        if (externalDomain && externalDomain !== 'localhost') {
+          // Escape special regex characters in domain
+          const escapedDomain = externalDomain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+          // Allow both http and https for external domain
+          allowedOrigins.push(
+            new RegExp(`^https?://${escapedDomain}(:\\d+)?$`)
+          );
+        }
+
+        // Check if origin matches any allowed pattern
+        const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          console.warn(`[CORS] Rejected origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      } catch (error) {
+        console.error('[CORS] Error checking external domain:', error);
+        // Fallback to localhost-only on error
+        if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS configuration error'));
+        }
+      }
+    },
     credentials: true // Enable credentials for authentication
   })
 );
@@ -81,44 +142,235 @@ app.get("/health", (req, res) => {
 // Authentication routes (public)
 app.use("/api/auth", authRoutes);
 
-// Plugin configuration routes (public /plugin-config, protected /plugin-config/settings)
-app.use("/api", pluginConfigRoutes);
+// Plugin configuration routes (public /plugin-config with rate limiting, protected /plugin-config/settings)
+app.use("/api", pluginConfigRoutes(pluginConfigLimiter));
 
 // Retention policy routes (protected - requires can_view_configuration)
 app.use("/api/retention", retentionRoutes);
 
-// Stats endpoint - requires authentication
-app.get("/api/stats/24h", authenticate, async (req, res) => {
+// ============================================================================
+// EVENTS V2 ENDPOINTS (3-Branch Detection Architecture v2.0.0)
+// ============================================================================
+
+/**
+ * GET /api/events-v2/stats
+ * Quick stats for events_v2 table (24h or custom time range)
+ */
+app.get("/api/events-v2/stats", authenticate, async (req, res) => {
   try {
     const interval = getTimeRangeInterval(req);
-    const stats = await getQuickStats(interval);
+    const stats = await getQuickStatsV2(interval);
     res.json(stats);
   } catch (e: any) {
-    console.error("Error fetching stats from ClickHouse:", e);
-    res.status(500).json({ error: "Failed to fetch statistics", details: e.message });
+    console.error("Error fetching events_v2 stats:", e);
+    res.status(500).json({ error: "Failed to fetch v2 statistics", details: e.message });
   }
 });
 
-// PII Statistics endpoints (v1.7.0) - requires authentication
-app.get("/api/stats/pii/types", authenticate, async (req, res) => {
+/**
+ * GET /api/events-v2/branch-stats
+ * Average scores for all 3 branches
+ */
+app.get("/api/events-v2/branch-stats", authenticate, async (req, res) => {
   try {
     const interval = getTimeRangeInterval(req);
-    const piiTypes = await getPIITypeStats(interval);
-    res.json(piiTypes);
+    const stats = await getBranchStats(interval);
+    res.json(stats);
   } catch (e: any) {
-    console.error("Error fetching PII type stats from ClickHouse:", e);
-    res.status(500).json({ error: "Failed to fetch PII type statistics", details: e.message });
+    console.error("Error fetching branch stats:", e);
+    res.status(500).json({ error: "Failed to fetch branch statistics", details: e.message });
   }
 });
 
-app.get("/api/stats/pii/overview", authenticate, async (req, res) => {
+/**
+ * GET /api/events-v2/status-distribution
+ * Distribution of ALLOWED/SANITIZED/BLOCKED statuses
+ */
+app.get("/api/events-v2/status-distribution", authenticate, async (req, res) => {
   try {
     const interval = getTimeRangeInterval(req);
-    const piiOverview = await getPIIOverview(interval);
-    res.json(piiOverview);
+    const distribution = await getStatusDistribution(interval);
+    res.json(distribution);
   } catch (e: any) {
-    console.error("Error fetching PII overview from ClickHouse:", e);
-    res.status(500).json({ error: "Failed to fetch PII overview", details: e.message });
+    console.error("Error fetching status distribution:", e);
+    res.status(500).json({ error: "Failed to fetch status distribution", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/boost-stats
+ * Statistics on priority boosts applied by Arbiter
+ */
+app.get("/api/events-v2/boost-stats", authenticate, async (req, res) => {
+  try {
+    const interval = getTimeRangeInterval(req);
+    const stats = await getBoostStats(interval);
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching boost stats:", e);
+    res.status(500).json({ error: "Failed to fetch boost statistics", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/hourly-trend
+ * Hourly trend for last 24 hours
+ */
+app.get("/api/events-v2/hourly-trend", authenticate, async (req, res) => {
+  try {
+    const trend = await getHourlyTrend();
+    res.json(trend);
+  } catch (e: any) {
+    console.error("Error fetching hourly trend:", e);
+    res.status(500).json({ error: "Failed to fetch hourly trend", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/pii-stats
+ * PII detection statistics from events_v2
+ */
+app.get("/api/events-v2/pii-stats", authenticate, async (req, res) => {
+  try {
+    const interval = getTimeRangeInterval(req);
+    const stats = await getPIIStatsV2(interval);
+    res.json(stats);
+  } catch (e: any) {
+    console.error("Error fetching PII stats from events_v2:", e);
+    res.status(500).json({ error: "Failed to fetch PII statistics", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/list
+ * List events from events_v2 table
+ */
+app.get("/api/events-v2/list", authenticate, async (req, res) => {
+  try {
+    const interval = getTimeRangeInterval(req);
+    const limit = parseInt(req.query.limit as string) || 100;
+    const events = await getEventListV2(interval, Math.min(limit, 500));
+    res.json(events);
+  } catch (e: any) {
+    console.error("Error fetching events list:", e);
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/search
+ * Search events_v2 with filters
+ */
+app.get("/api/events-v2/search", authenticate, async (req, res) => {
+  try {
+    const params: SearchParamsV2 = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      textQuery: req.query.textQuery as string,
+      clientId: req.query.clientId as string,
+      status: req.query.status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
+      minScore: req.query.minScore ? parseInt(req.query.minScore as string) : undefined,
+      maxScore: req.query.maxScore ? parseInt(req.query.maxScore as string) : undefined,
+      piiOnly: req.query.piiOnly === 'true',
+      sortBy: req.query.sortBy as any || 'timestamp',
+      sortOrder: req.query.sortOrder as 'ASC' | 'DESC' || 'DESC',
+      page: parseInt(req.query.page as string) || 1,
+      pageSize: Math.min(parseInt(req.query.pageSize as string) || 25, 100),
+    };
+
+    const results = await searchEventsV2(params);
+    res.json(results);
+  } catch (e: any) {
+    console.error("Error searching events:", e);
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
+  }
+});
+
+/**
+ * GET /api/events-v2/:eventId
+ * Get detailed event information
+ */
+app.get("/api/events-v2/:eventId", authenticate, async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    if (!eventId) {
+      return res.status(400).json({ error: "Event ID is required" });
+    }
+
+    // Validate UUID format (UUIDv4)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(eventId)) {
+      return res.status(400).json({ error: "Invalid event ID format" });
+    }
+
+    const event = await getEventDetailsV2(eventId);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    res.json(event);
+  } catch (e: any) {
+    console.error("Error fetching event details:", e);
+    res.status(503).json({ error: "ClickHouse service unavailable", details: e.message });
+  }
+});
+
+// ============================================================================
+// BRANCH HEALTH ENDPOINTS (3-Branch Service Status)
+// ============================================================================
+
+/**
+ * GET /api/branches/health
+ * Health status of all 3 detection branches
+ */
+app.get("/api/branches/health", authenticate, async (req, res) => {
+  const heuristicsUrl = process.env.HEURISTICS_SERVICE_URL || 'http://vigil-heuristics:5005';
+  const semanticUrl = process.env.SEMANTIC_SERVICE_URL || 'http://vigil-semantic-service:5006';
+  const llmGuardUrl = process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000';
+
+  const checkService = async (name: string, url: string) => {
+    try {
+      const response = await fetch(`${url}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { name, status: 'healthy', version: data.version || 'unknown', latency_ms: 0 };
+      } else {
+        return { name, status: 'unhealthy', error: `HTTP ${response.status}`, latency_ms: 0 };
+      }
+    } catch (e: any) {
+      return { name, status: 'offline', error: e.message, latency_ms: 0 };
+    }
+  };
+
+  try {
+    const [branchA, branchB, branchC] = await Promise.all([
+      checkService('heuristics', heuristicsUrl),
+      checkService('semantic', semanticUrl),
+      checkService('llm_guard', llmGuardUrl),
+    ]);
+
+    const allHealthy = branchA.status === 'healthy' && branchB.status === 'healthy' && branchC.status === 'healthy';
+    const anyHealthy = branchA.status === 'healthy' || branchB.status === 'healthy' || branchC.status === 'healthy';
+
+    const overallStatus = allHealthy ? 'healthy' : (anyHealthy ? 'degraded' : 'offline');
+    const httpStatus = overallStatus === 'degraded' ? 503 : 200;
+
+    res.status(httpStatus).json({
+      overall_status: overallStatus,
+      branches: {
+        A: branchA,
+        B: branchB,
+        C: branchC,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    console.error("Error checking branch health:", e);
+    res.status(500).json({ error: "Failed to check branch health", details: e.message });
   }
 });
 
@@ -560,163 +812,115 @@ function getTimeRangeInterval(req: express.Request): string {
   return convertTimeRangeToInterval(timeRange);
 }
 
-// Prompt analysis endpoints - requires authentication
-app.get("/api/prompts/list", authenticate, async (req, res) => {
-  try {
-    const interval = getTimeRangeInterval(req);
-    const prompts = await getPromptList(interval);
-    res.json(prompts);
-  } catch (e: any) {
-    console.error("Error fetching prompt list from ClickHouse:", e);
-    res.status(500).json({ error: "Failed to fetch prompts", details: e.message });
+// ============================================================================
+// SYSTEM STATUS - DOCKER CONTAINERS HEALTH
+// ============================================================================
+
+// System containers health check endpoint - requires authentication
+app.get("/api/system/containers", authenticate, async (req, res) => {
+  interface ContainerStatus {
+    name: string;
+    status: 'healthy' | 'degraded' | 'offline';
+    version?: string;
+    details?: string;
   }
-});
 
-// ============================================================================
-// INVESTIGATION - ADVANCED PROMPT SEARCH
-// ============================================================================
+  const checkService = async (name: string, url: string, healthPath: string = '/health'): Promise<ContainerStatus> => {
+    try {
+      const response = await fetch(`${url}${healthPath}`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(3000)
+      });
 
-// Helper to build search params from query string
-function buildSearchParams(query: any): SearchParams {
-  const {
-    startDate,
-    endDate,
-    textQuery,
-    clientId,
-    status,
-    minScore,
-    maxScore,
-    categories,
-    sortBy = 'timestamp',
-    sortOrder = 'DESC',
-    page = '1',
-    pageSize = '25'
-  } = query;
-
-  return {
-    startDate: startDate as string | undefined,
-    endDate: endDate as string | undefined,
-    textQuery: textQuery as string | undefined,
-    clientId: clientId as string | undefined,
-    status: status as 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | undefined,
-    minScore: minScore ? Number(minScore) : undefined,
-    maxScore: maxScore ? Number(maxScore) : undefined,
-    categories: parseCategories(categories),
-    sortBy: sortBy as 'timestamp' | 'threat_score' | 'final_status',
-    sortOrder: sortOrder as 'ASC' | 'DESC',
-    page: Number(page),
-    pageSize: Number(pageSize)
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return {
+          name,
+          status: 'healthy',
+          version: data.version || data.pipeline_version || 'unknown',
+          details: data.status || 'operational'
+        };
+      } else {
+        return {
+          name,
+          status: 'degraded',
+          details: `HTTP ${response.status}`
+        };
+      }
+    } catch (e: any) {
+      return {
+        name,
+        status: 'offline',
+        details: e.name === 'AbortError' ? 'timeout' : 'unreachable'
+      };
+    }
   };
-}
 
-function parseCategories(categories: any): string[] | undefined {
-  if (!categories) return undefined;
-  return (categories as string).split(',').filter(c => c.trim() !== '');
-}
-
-// Search prompts with advanced filters - requires authentication
-app.get("/api/prompts/search", authenticate, async (req, res) => {
   try {
-    const searchParams = buildSearchParams(req.query);
-    const result = await searchPrompts(searchParams);
-    const pages = Math.ceil(result.total / searchParams.pageSize);
+    const [
+      clickhouse,
+      grafana,
+      n8n,
+      backend,
+      presidio,
+      languageDetector,
+      heuristics,
+      semantic,
+      llmGuard
+    ] = await Promise.all([
+      checkService('ClickHouse', 'http://vigil-clickhouse:8123', '/ping'),
+      checkService('Grafana', 'http://vigil-grafana:3000', '/api/health'),
+      checkService('n8n Workflow', process.env.N8N_URL || 'http://vigil-n8n:5678', '/healthz'),
+      checkService('Web UI Backend', 'http://vigil-web-ui-backend:8787', '/health'),
+      checkService('PII Detection (Presidio)', process.env.PRESIDIO_URL || 'http://vigil-presidio-pii:5001'),
+      checkService('Language Detector', process.env.LANGUAGE_DETECTOR_URL || 'http://vigil-language-detector:5002'),
+      checkService('Branch A (Heuristics)', process.env.HEURISTICS_SERVICE_URL || 'http://vigil-heuristics:5005'),
+      checkService('Branch B (Semantic)', process.env.SEMANTIC_SERVICE_URL || 'http://vigil-semantic-service:5006'),
+      checkService('Branch C (LLM Safety Engine Analysis)', process.env.PROMPT_GUARD_URL || 'http://vigil-prompt-guard-api:8000')
+    ]);
+
+    const containers = [
+      clickhouse,
+      grafana,
+      n8n,
+      backend,
+      { name: 'Web UI Frontend', status: 'healthy' as const, details: 'nginx' }, // Static (no health endpoint)
+      { name: 'Caddy Proxy', status: 'healthy' as const, details: 'operational' }, // Static (no health endpoint)
+      presidio,
+      languageDetector,
+      heuristics,
+      semantic,
+      llmGuard
+    ];
+
+    const healthyCount = containers.filter(c => c.status === 'healthy').length;
+    const degradedCount = containers.filter(c => c.status === 'degraded').length;
+    const offlineCount = containers.filter(c => c.status === 'offline').length;
+
+    const overallStatus = offlineCount > 3 ? 'critical' :
+                         (degradedCount > 0 || offlineCount > 0) ? 'degraded' :
+                         'healthy';
 
     res.json({
-      results: result.rows,
-      total: result.total,
-      page: searchParams.page,
-      pageSize: searchParams.pageSize,
-      pages
+      overall_status: overallStatus,
+      summary: {
+        total: containers.length,
+        healthy: healthyCount,
+        degraded: degradedCount,
+        offline: offlineCount
+      },
+      containers,
+      timestamp: new Date().toISOString()
     });
   } catch (e: any) {
-    console.error("Error searching prompts:", e);
-    res.status(500).json({ error: "Search failed", details: e.message });
+    console.error("Error checking system containers:", e);
+    res.status(500).json({ error: "Failed to check container health", details: e.message });
   }
 });
 
-// Export prompts to CSV or JSON - requires authentication
-app.get("/api/prompts/export", authenticate, async (req, res) => {
-  try {
-    const format = (req.query.format as string) || 'csv';
-    const searchParams = buildExportSearchParams(req.query);
-    const result = await searchPrompts(searchParams);
-
-    if (format === 'csv') {
-      sendCSVResponse(res, result.rows);
-    } else {
-      sendJSONResponse(res, result.rows);
-    }
-  } catch (e: any) {
-    console.error("Error exporting prompts:", e);
-    res.status(500).json({ error: "Export failed", details: e.message });
-  }
-});
-
-function buildExportSearchParams(query: any): SearchParams {
-  const params = buildSearchParams(query);
-  // Override pagination for export
-  return {
-    ...params,
-    page: 1,
-    pageSize: 10000 // Export limit
-  };
-}
-
-function sendCSVResponse(res: express.Response, rows: any[]): void {
-  const csv = convertToCSV(rows);
-  const filename = `prompts-export-${new Date().toISOString().split('T')[0]}.csv`;
-  res.header('Content-Type', 'text/csv');
-  res.header('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(csv);
-}
-
-function sendJSONResponse(res: express.Response, rows: any[]): void {
-  const filename = `prompts-export-${new Date().toISOString().split('T')[0]}.json`;
-  res.header('Content-Type', 'application/json');
-  res.header('Content-Disposition', `attachment; filename="${filename}"`);
-  res.json(rows);
-}
-
-// Helper function to convert search results to CSV
-function convertToCSV(rows: any[]): string {
-  if (rows.length === 0) {
-    return 'timestamp,event_id,status,threat_score,prompt_input,categories\n';
-  }
-
-  // CSV header
-  const header = 'timestamp,event_id,status,threat_score,prompt_input,categories\n';
-
-  // CSV rows
-  const csvRows = rows.map(row => {
-    const timestamp = row.timestamp || '';
-    const eventId = row.event_id || '';
-    const status = row.final_status || '';
-    const score = row.threat_score || 0;
-    const prompt = (row.prompt_input || '').replace(/"/g, '""'); // Escape quotes
-    const categories = (row.detected_categories || []).join('; ');
-
-    return `"${timestamp}","${eventId}","${status}",${score},"${prompt}","${categories}"`;
-  }).join('\n');
-
-  return header + csvRows;
-}
-
-// Get specific prompt details by ID (MUST be after /search and /export!)
-app.get("/api/prompts/:id", authenticate, async (req, res) => {
-  try {
-    const eventId = req.params.id;
-    const details = await getPromptDetails(eventId);
-
-    if (!details) {
-      return res.status(404).json({ error: "Prompt not found" });
-    }
-
-    res.json(details);
-  } catch (e: any) {
-    console.error("Error fetching prompt details from ClickHouse:", e);
-    res.status(500).json({ error: "Failed to fetch prompt details", details: e.message });
-  }
-});
+// ============================================================================
+// QUALITY FEEDBACK (FP/TP Reporting)
+// ============================================================================
 
 // Quality Feedback endpoints (FP & TP) - requires authentication
 app.post("/api/feedback/false-positive", authenticate, qualityFeedbackLimiter, async (req, res) => {
@@ -822,8 +1026,8 @@ app.post("/api/feedback/submit", authenticate, qualityFeedbackLimiter, async (re
       return res.status(400).json({ error: "Invalid report_type. Must be 'FP' or 'TP'" });
     }
 
-    // Fetch event details from ClickHouse
-    const eventDetails = await getPromptDetails(event_id);
+// Fetch event details from ClickHouse (events_v2 table)
+    const eventDetails = await getEventDetailsV2(event_id);
     if (!eventDetails) {
       return res.status(404).json({ error: "Event not found" });
     }
@@ -845,9 +1049,9 @@ app.post("/api/feedback/submit", authenticate, qualityFeedbackLimiter, async (re
       reason,
       comment: comment || '',
       event_timestamp: eventDetails.timestamp,
-      original_input: eventDetails.input_raw,
+      original_input: eventDetails.original_input,
       final_status: eventDetails.final_status,
-      threat_score: eventDetails.sanitizer_score
+      threat_score: eventDetails.threat_score
     });
 
     if (success) {

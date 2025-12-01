@@ -10,7 +10,8 @@ import { resolve } from 'path';
 const envPath = resolve(process.cwd(), '../../.env');
 config({ path: envPath });
 
-const WEBHOOK_URL = 'http://localhost:5678/webhook/42f773e2-7ebf-42f7-a993-8be016d218e1';
+// Use centralized webhook URL configuration from helpers
+import { WEBHOOK_URL } from './helpers/webhook.js';
 
 export async function setup() {
   console.log('🔧 Setting up test environment...');

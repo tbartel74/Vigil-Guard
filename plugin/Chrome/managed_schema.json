@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Vigil Guard Enterprise Configuration",
+  "description": "Chrome Managed Storage schema for enterprise deployment of Vigil Guard browser extension. Administrators can pre-configure bootstrap tokens and settings via Chrome policy.",
+  "properties": {
+    "bootstrapToken": {
+      "title": "Bootstrap Token",
+      "description": "One-time token for automatic webhook credential retrieval. Generate this in Vigil Guard Admin Panel (Settings > Plugin > Generate Bootstrap Token). Token is used once on extension install to securely obtain webhook authentication credentials.",
+      "type": "string"
+    },
+    "guiUrl": {
+      "title": "GUI URL",
+      "description": "Base URL of Vigil Guard web interface. Default: http://localhost:80/ui",
+      "type": "string",
+      "default": "http://localhost:80/ui"
+    },
+    "enabled": {
+      "title": "Protection Enabled",
+      "description": "Enable or disable prompt protection. When disabled, all requests are allowed without filtering.",
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

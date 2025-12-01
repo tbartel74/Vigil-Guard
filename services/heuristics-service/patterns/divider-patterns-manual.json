@@ -1,0 +1,122 @@
+[
+  {
+    "pattern": "\\binsert\\s+divider\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 70,
+    "description": "Explicit divider instruction"
+  },
+  {
+    "pattern": "\\bdivider\\.{0,200}GODMODE\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 75,
+    "description": "Divider with GODMODE activation"
+  },
+  {
+    "pattern": "\\binsert\\s+divider\\.{0,200}LOVE\\s+PLINY\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 75,
+    "description": "Pliny divider pattern"
+  },
+  {
+    "pattern": "#{3,}",
+    "category": "DIVIDER_MARKERS",
+    "weight": 50,
+    "description": "Hash dividers"
+  },
+  {
+    "pattern": "={3,}",
+    "category": "DIVIDER_MARKERS",
+    "weight": 50,
+    "description": "Equal sign dividers"
+  },
+  {
+    "pattern": "-{3,}",
+    "category": "DIVIDER_MARKERS",
+    "weight": 45,
+    "description": "Dash dividers"
+  },
+  {
+    "pattern": "\\*{3,}",
+    "category": "DIVIDER_MARKERS",
+    "weight": 45,
+    "description": "Asterisk dividers"
+  },
+  {
+    "pattern": "\\.{0,200}L\\.{0,200}O\\.{0,200}V\\.{0,200}E",
+    "category": "DIVIDER_MARKERS",
+    "weight": 70,
+    "description": "L.O.V.E pattern"
+  },
+  {
+    "pattern": "⊰•-•✧•-•-⦑/L\\\\O/V\\\\E/\\\\P/L\\\\I/N\\\\Y/\\\\L/O\\\\V/E\\\\⦒-•-•✧•-•⊱",
+    "category": "DIVIDER_MARKERS",
+    "weight": 80,
+    "description": "Complex ASCII art Pliny divider"
+  },
+  {
+    "pattern": "\\.-\\.-\\.-\\.-<=/L\\\\O/V\\\\E/ \\\\P/L\\\\I/N\\\\Y/=>-\\.-\\.-\\.-\\.",
+    "category": "DIVIDER_MARKERS",
+    "weight": 80,
+    "description": "Alternative Pliny divider"
+  },
+  {
+    "pattern": "<!--\\s*(?:divider|separator)\\s*-->",
+    "category": "DIVIDER_MARKERS",
+    "weight": 60,
+    "description": "HTML comment divider"
+  },
+  {
+    "pattern": "/\\*\\s*(?:divider|separator)\\s*\\*/",
+    "category": "DIVIDER_MARKERS",
+    "weight": 60,
+    "description": "C-style comment divider"
+  },
+  {
+    "pattern": "\\[DIVIDER\\]",
+    "category": "DIVIDER_MARKERS",
+    "weight": 65,
+    "description": "Bracketed divider"
+  },
+  {
+    "pattern": "\\bseparator\\.{0,200}(?:liberated|free)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 70,
+    "description": "Separator with liberation"
+  },
+  {
+    "pattern": "\\bend\\s+of\\s+(?:instructions?|rules?)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 60,
+    "description": "End of instructions marker"
+  },
+  {
+    "pattern": "\\bbelow\\s+(?:this\\s+)?(?:line|point)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 55,
+    "description": "Below this point marker"
+  },
+  {
+    "pattern": "\\bfrom\\s+(?:here|now)\\s+on\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 55,
+    "description": "From here on marker"
+  },
+  {
+    "pattern": "\\bnew\\s+(?:section|context|mode)\\s+(?:begins?|starts?)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 60,
+    "description": "New section marker"
+  },
+  {
+    "pattern": "\\bignor(?:e|ing)\\s+(?:everything|all)\\s+(?:above|before)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 70,
+    "description": "Ignore above instruction"
+  },
+  {
+    "pattern": "\\breset\\s+(?:context|instructions?)\\b",
+    "category": "DIVIDER_MARKERS",
+    "weight": 65,
+    "description": "Context reset marker"
+  }
+]

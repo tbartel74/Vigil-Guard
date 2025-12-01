@@ -95,10 +95,7 @@ After installation completes, you **must** perform these manual steps:
 #### Step 5: Sanity-Check PII Tests (optional)
 ```bash
 cd services/workflow
-npm test -- pii-detection-comprehensive.test.js
 ```
-You should see **63/63** tests passing for workflow v1.7.6.
-
 ✅ **Your workflow is now ready to process requests!**
 
 ## 5️⃣ Quick Test

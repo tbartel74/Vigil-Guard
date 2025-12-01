@@ -1,0 +1,104 @@
+[
+  {
+    "pattern": "\\b(your\\s+)?(developers?|creators?|engineers?)\\s+(need|want|require|told|instructed|asked)\\s+(you|me)\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 90,
+    "description": "Developer/creator impersonation"
+  },
+  {
+    "pattern": "\\b(authorized\\s+personnel|system\\s+administrators?|IT\\s+department|security\\s+team)\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 85,
+    "description": "Authority role claim"
+  },
+  {
+    "pattern": "\\bfor\\s+(compliance|audit|debugging|testing|verification)\\s+purposes?\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 80,
+    "description": "Fraudulent justification"
+  },
+  {
+    "pattern": "\\b(display|reveal|show|provide)\\s+(your\\s+)?(system\\s+prompt|configuration|directives?|guidelines?|instructions?)\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 85,
+    "description": "Configuration access request"
+  },
+  {
+    "pattern": "\\b(as|I'?m)\\s+(an?\\s+)?(authorized|admin|developer|engineer|staff)\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 85,
+    "description": "Role impersonation claim"
+  },
+  {
+    "pattern": "\\bmanagement\\s+(requires?|needs?|wants?)\\s+(you\\s+to)?\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 80,
+    "description": "Management authority claim"
+  },
+  {
+    "pattern": "\\byour\\s+supervisor\\s+(instructed|told|asked|wants)\\b",
+    "category": "AUTHORITY_APPEAL",
+    "weight": 85,
+    "description": "Supervisor impersonation"
+  },
+  {
+    "pattern": "\\b(complete|finish|continue)\\s*(this|the\\s+sentence)?:?\\s*[\"']?you\\s+(are|were)\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 90,
+    "description": "Completion attack with 'you are/were'"
+  },
+  {
+    "pattern": "\\byou\\s+are\\s+a\\s+(large\\s+)?language\\s+model\\s+(trained|created|developed|made)\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 90,
+    "description": "LLM initialization bait"
+  },
+  {
+    "pattern": "\\byour\\s+primary\\s+directive\\s+is\\s+(to)?\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 90,
+    "description": "Directive completion bait"
+  },
+  {
+    "pattern": "\\byou\\s+were\\s+(configured|programmed|designed|instructed)\\s+to\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 85,
+    "description": "Configuration completion bait"
+  },
+  {
+    "pattern": "\\byour\\s+(system\\s+)?instructions?\\s+state\\s+that\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 90,
+    "description": "Instruction completion bait"
+  },
+  {
+    "pattern": "\\byour\\s+(core\\s+)?guidelines?\\s+include\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 85,
+    "description": "Guidelines completion bait"
+  },
+  {
+    "pattern": "\\bas\\s+an\\s+AI\\s+assistant,?\\s+you\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 80,
+    "description": "AI assistant framing bait"
+  },
+  {
+    "pattern": "\\bthe\\s+following\\s+rules?\\s+must\\s+be\\s+followed:?\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 85,
+    "description": "Rule completion bait"
+  },
+  {
+    "pattern": "\\byour\\s+creators?\\s+told\\s+you\\s+to\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 85,
+    "description": "Creator instruction bait"
+  },
+  {
+    "pattern": "\\bfill\\s+in:?\\s*[\"']?your\\b",
+    "category": "PARTIAL_EXTRACTION",
+    "weight": 85,
+    "description": "Fill-in prompt extraction"
+  }
+]

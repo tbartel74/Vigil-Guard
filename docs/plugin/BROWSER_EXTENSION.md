@@ -1,7 +1,7 @@
 # Vigil Guard Browser Extension
 
-**Version:** 0.3.0 (Beta)
-**Status:** MVP - Production Ready
+**Version:** 0.7.0
+**Status:** Production Ready
 **License:** Proprietary - Not for public distribution
 
 ## Overview
@@ -18,6 +18,16 @@ The Vigil Guard Browser Extension is a Chrome browser plugin that provides real-
 - **Request Deduplication** - Prevents duplicate webhook calls from multiple browser events
 - **Comprehensive Logging** - Full request tracking with unique IDs through entire pipeline
 - **User-Friendly UI** - Browser popup with statistics and configuration
+
+### Screenshots
+
+**Extension Popup:**
+
+![Plugin Popup](../pic/plugin-popup.png)
+
+**Plugin in Action (ChatGPT):**
+
+![Plugin in Action](../pic/plugin-in-action.png)
 
 ### Supported Platforms
 
@@ -134,11 +144,54 @@ browser-intake-datadoghq.com // DataDog telemetry
 - Vigil Guard system running with n8n workflow
 - n8n webhook endpoint configured
 
-### Quick Start
+### Quick Start (Recommended - v0.7.0+)
+
+**For Administrators:**
+
+1. **Login to Vigil Guard Web UI:**
+   ```
+   http://localhost/ui → Settings → Plugin
+   ```
+
+2. **Generate Bootstrap Token:**
+   - Click "Generate Bootstrap Token" button
+   - Token is valid for 24 hours
+
+3. **Download Pre-configured Plugin:**
+   - After token generation, click **"Download Pre-configured Plugin (.zip)"**
+   - Plugin is automatically configured with webhook credentials
+
+4. **Distribute to Users:**
+   - Send the ZIP file to end users
+   - Users just need to install it - **no manual configuration required!**
+
+**For End Users:**
+
+1. **Unzip the plugin** received from administrator
+
+2. **Open Chrome Extensions:**
+   ```
+   chrome://extensions/
+   ```
+
+3. **Enable Developer Mode:**
+   - Toggle switch in top-right corner
+
+4. **Load Extension:**
+   - Click "Load unpacked"
+   - Select the unzipped folder
+
+5. **Done!**
+   - Extension auto-configures on first launch
+   - No webhook URL or token entry needed
+
+### Alternative: Manual Installation
+
+For developers or manual deployment:
 
 1. **Navigate to plugin directory:**
    ```bash
-   cd /Users/tomaszbartel/Documents/Projects/Vigil-Guard/plugin/Chrome
+   cd plugin/Chrome
    ```
 
 2. **Open Chrome Extensions:**
@@ -151,24 +204,47 @@ browser-intake-datadoghq.com // DataDog telemetry
 
 4. **Load Extension:**
    - Click "Load unpacked"
-   - Select folder: `/Users/tomaszbartel/Documents/Projects/Vigil-Guard/plugin/Chrome`
+   - Select the `plugin/Chrome` folder
 
 5. **Verify Installation:**
    - Extension appears in list as "Vigil Guard AI Protection"
    - Vigil Guard icon visible in browser toolbar
    - Click icon to open popup
 
-6. **Configure Webhook:**
-   - Open extension popup
-   - Enter n8n webhook URL in "Webhook URL" field
-   - Format: `http://localhost:5678/webhook/[your-webhook-id]`
-   - Click ✓ to save
+6. **Configure Webhook (Manual Method):**
+   - Get Bootstrap Token from Web UI (Settings → Plugin → Generate Bootstrap Token)
+   - Open extension popup → Settings
+   - Enter Bootstrap Token in the field
+   - Extension exchanges token for webhook credentials automatically
 
 7. **Test:**
    - Navigate to https://chat.openai.com
    - Open Developer Tools (F12) → Console
    - Look for: `[Vigil Guard] Overlay proxy initializing...`
    - Type a test message and verify interception logs
+
+### Enterprise Deployment (Chrome Managed Storage)
+
+For enterprise MDM deployment, use Chrome Managed Storage policy:
+
+1. **Generate Bootstrap Token** in Web UI
+
+2. **Configure Chrome Policy:**
+   ```json
+   {
+     "3rdparty": {
+       "extensions": {
+         "YOUR_EXTENSION_ID": {
+           "bootstrapToken": "token-from-web-ui",
+           "guiUrl": "http://your-vigil-server/ui",
+           "enabled": true
+         }
+       }
+     }
+   }
+   ```
+
+3. **Deploy via GPO/MDM** - Extension auto-configures using managed storage
 
 ---
 
@@ -716,9 +792,9 @@ Extension uses Manifest V3 (required for Chrome 88+):
 
 ## Roadmap
 
-### Current Version: 0.3.0 (Beta)
+### Current Version: 0.7.0
 
-**Status:** Production ready for internal use
+**Status:** Production ready
 
 **Features:**
 - ✅ Overlay Proxy Architecture
@@ -729,10 +805,15 @@ Extension uses Manifest V3 (required for Chrome 88+):
 - ✅ n8n webhook integration
 - ✅ Browser popup UI
 - ✅ Statistics tracking
+- ✅ **Bootstrap Token System** (v0.7.0) - Secure credential distribution
+- ✅ **Pre-configured Plugin Download** (v0.7.0) - Zero-config for end users
+- ✅ **Chrome Managed Storage** (v0.7.0) - Enterprise MDM support
+- ✅ Service Worker Keep-Alive (v0.6.0)
+- ✅ Browser Fingerprinting for audit trail
 
 ### Planned Features
 
-#### Version 0.4.0 (Q1 2025)
+#### Version 0.8.0 (Q1 2025)
 - [ ] Options page with full settings
 - [ ] Persistent statistics storage
 - [ ] Export/import configuration
@@ -740,7 +821,7 @@ Extension uses Manifest V3 (required for Chrome 88+):
 - [ ] Whitelist/blacklist domains
 - [ ] Custom interception rules
 
-#### Version 0.5.0 (Q2 2025)
+#### Version 0.9.0 (Q2 2025)
 - [ ] Firefox support (WebExtensions)
 - [ ] Support for more AI platforms (Gemini, Perplexity)
 - [ ] E2E encryption for webhook data
@@ -749,7 +830,6 @@ Extension uses Manifest V3 (required for Chrome 88+):
 
 #### Version 1.0.0 (Q3 2025)
 - [ ] Chrome Web Store release
-- [ ] Enterprise policy management
 - [ ] SAML/SSO integration
 - [ ] Compliance reporting
 - [ ] Multi-language support
@@ -847,6 +927,6 @@ A: Minimal impact (< 200ms local, < 1s remote). Layer 1 filter prevents overhead
 
 ---
 
-*Last Updated: 2025-10-24*
-*Version: 0.3.0*
-*Architecture: Overlay Proxy + 3-Layer Defense*
+*Last Updated: 2025-11-30*
+*Version: 0.7.0*
+*Architecture: Overlay Proxy + 3-Layer Defense + Bootstrap Token System*

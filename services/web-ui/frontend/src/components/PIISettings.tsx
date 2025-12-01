@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { parseFile, syncPiiConfig, validatePiiConfig, PiiConfigValidationResult } from '../lib/api';
+import descriptions from '../spec/descriptions.json';
+import Tooltip from './Tooltip';
 
 interface ServiceStatus {
   status: 'online' | 'offline';
@@ -375,8 +377,20 @@ export function PIISettings() {
                 onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
                 className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
               />
-              <label htmlFor="enabled" className="text-slate-300 font-medium">
+              <label htmlFor="enabled" className="text-slate-300 font-medium flex items-center gap-2">
                 Enable PII Detection
+                {(descriptions as any)['PII_ENABLED'] && (
+                  <Tooltip
+                    title={(descriptions as any)['PII_ENABLED'].title}
+                    description={(descriptions as any)['PII_ENABLED'].description}
+                    impact={(descriptions as any)['PII_ENABLED'].impact}
+                    category={(descriptions as any)['PII_ENABLED'].category}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-slate-700 text-text-secondary text-xs flex items-center justify-center cursor-help">
+                      ?
+                    </div>
+                  </Tooltip>
+                )}
               </label>
             </div>
             <p className="text-xs text-text-secondary mt-2 ml-8">

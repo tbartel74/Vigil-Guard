@@ -1,20 +1,25 @@
 /**
  * Vigil Guard - Overlay Proxy Architecture
- * Version: 0.4.0 - Network Layer Intercept (ChatGPT Only)
+ * Version: 0.5.0 - Service Worker Keep-Alive (ChatGPT Only)
  *
  * ⚠️ FROZEN: Claude.ai support disabled (work in progress)
  * ✅ ACTIVE: ChatGPT protection fully functional
  *
- * Prostsze podejście - przechwytujemy submit, wysyłamy do Guard, podstawiamy wyczyszczony tekst
+ * Simple approach - intercept submit, send to Guard, inject cleaned text
  *
- * Architektura:
- * 1. Content script przechwytuje Enter key + Button clicks + PASTE (CAPTURE + BUBBLE phase)
- * 2. NETWORK INTERCEPT: Przechwytujemy fetch() calls do ChatGPT API (v0.4.0)
- * 3. Wysyła wiadomość do service workera (CSP prevention)
- * 4. Service worker robi fetch do n8n webhook
- * 5. Zwraca odpowiedź do content scriptu
- * 6. Content script decyduje: allow/sanitize/block
- * 7. MutationObserver pilnuje podmiany textarea/button → NO-OP (handlers immortal)
+ * Architecture:
+ * 1. Content script intercepts Enter key + Button clicks + PASTE (CAPTURE + BUBBLE phase)
+ * 2. NETWORK INTERCEPT: intercept fetch() calls to ChatGPT API (v0.4.0)
+ * 3. Sends message to service worker (CSP prevention)
+ * 4. Service worker fetches n8n webhook
+ * 5. Returns response to content script
+ * 6. Content script decides: allow/sanitize/block
+ * 7. MutationObserver watches textarea/button replacements → NO-OP (handlers immortal)
+ *
+ * CRITICAL FIX (v0.5.0):
+ * - Service Worker Keep-Alive: Use chrome.runtime.connect() to maintain persistent connection
+ * - Auto-reconnect: If SW dies, attempt to reconnect before showing error
+ * - Companion change in service-worker.js: chrome.alarms API keeps SW alive
  *
  * STATUS (v0.4.0 - CURRENT):
  * ✅ ChatGPT: FULLY WORKING
@@ -25,8 +30,8 @@
  *   - Service Worker death detection
  *
  * ⚠️ Claude.ai: FROZEN (auto-submit race condition)
- *   - Problem: Claude uses debounced auto-submit (~200ms after last keystroke)
- *   - Our Enter handler was TOO LATE - textarea already empty
+ *   - Issue: Claude uses debounced auto-submit (~200ms after last keystroke)
+ *   - Enter handler was TOO LATE - textarea already empty
  *   - Network intercept attempted but API format unclear
  *   - Code preserved but disabled (if false && ...)
  *   - TODO: Resume development in future session
@@ -73,14 +78,73 @@
  * - Debounced MutationObserver: 100ms debounce on setupInterception (prevent spam)
  * - Cleaned up debug logs (reduced console noise)
  *
- * Wspierane platformy:
+ * Supported platforms:
  * - ChatGPT: <div contenteditable="true" id="prompt-textarea"> (ProseMirror)
  * - Claude.ai: <div class="ProseMirror" contenteditable="true"> (ProseMirror)
  *
- * UWAGA: Oba używają contenteditable div, więc używamy .textContent zamiast .value
+ * NOTE: Both use contenteditable div, so we use .textContent instead of .value
  */
 
-console.log('[Vigil Guard] Overlay proxy initializing...');
+console.log('[Vigil Guard] Overlay proxy initializing (v0.5.0)...');
+
+// =============================================================================
+// SERVICE WORKER CONNECTION (v0.5.0)
+// =============================================================================
+// Use persistent port connection to keep service worker alive.
+// This prevents "Extension context invalidated" errors.
+
+let serviceWorkerPort = null;
+let connectionAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_DELAY_MS = 500;
+
+/**
+ * Establish persistent connection to service worker
+ * This keeps the SW alive as long as the tab is open
+ */
+function connectToServiceWorker() {
+  try {
+    serviceWorkerPort = chrome.runtime.connect({ name: 'vigil-guard-content' });
+
+    serviceWorkerPort.onDisconnect.addListener(() => {
+      console.log('[Vigil Guard] 📡 Service worker connection lost');
+      serviceWorkerPort = null;
+
+      // The SW might have been terminated - it will restart on next message
+      // We don't auto-reconnect here to avoid infinite loops
+    });
+
+    console.log('[Vigil Guard] 📡 Connected to service worker (keep-alive active)');
+    connectionAttempts = 0; // Reset counter on successful connection
+    return true;
+  } catch (error) {
+    console.error('[Vigil Guard] 📡 Failed to connect to service worker:', error);
+    serviceWorkerPort = null;
+    return false;
+  }
+}
+
+/**
+ * Attempt to reconnect to service worker
+ * Used when sendMessage fails with "Extension context invalidated"
+ */
+async function attemptReconnect() {
+  if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('[Vigil Guard] 📡 Max reconnection attempts reached');
+    return false;
+  }
+
+  connectionAttempts++;
+  console.log(`[Vigil Guard] 📡 Reconnection attempt ${connectionAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+
+  // Wait a bit before reconnecting
+  await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY_MS));
+
+  return connectToServiceWorker();
+}
+
+// Initial connection
+connectToServiceWorker();
 
 // =============================================================================
 // DEFENSE LAYER 5: NETWORK INTERCEPT (v0.4.0)
@@ -321,14 +385,14 @@ function getPlatformName() {
   return 'AI platform';
 }
 
-// Bypass flag - pozwala ominąć button handler dla programmatic clicks
+// Bypass flag - allows skipping button handler for programmatic clicks
 let bypassButtonHandler = false;
 
-// Znajdź textarea - ChatGPT only (Claude.ai frozen)
+// Find textarea - ChatGPT only (Claude.ai frozen)
 function findTextarea() {
   const hostname = window.location.hostname;
 
-  // ChatGPT używa #prompt-textarea
+  // ChatGPT uses #prompt-textarea
   if (hostname.includes('chatgpt.com') || hostname.includes('openai.com')) {
     return document.getElementById('prompt-textarea');
   }
@@ -345,7 +409,7 @@ function findTextarea() {
   return document.getElementById('prompt-textarea');
 }
 
-// Stwórz status indicator
+// Create status indicator
 function createStatusIndicator() {
   const indicator = document.createElement('div');
   indicator.className = 'vigil-status-indicator allow';
@@ -364,8 +428,8 @@ function updateStatus(status, message) {
   console.log(`[Vigil Guard] Status: ${status} - ${message}`);
 }
 
-// Wyślij do Vigil Guard webhook (przez service worker)
-async function checkWithGuard(text) {
+// Send to Vigil Guard webhook (via service worker)
+async function checkWithGuard(text, isRetry = false) {
   // RATE LIMITING: Prevent n8n overload
   const now = Date.now();
   const timeSinceLastCheck = now - lastCheckTime;
@@ -391,7 +455,7 @@ async function checkWithGuard(text) {
   console.log('[Vigil Guard] 📤 Sending to webhook:', text.substring(0, 50) + '...');
 
   try {
-    // Wyślij przez service worker (content script nie może robić fetch do localhost przez CSP)
+    // Send via service worker (content script cannot fetch localhost because of CSP)
     const response = await chrome.runtime.sendMessage({
       type: 'CHECK_WITH_GUARD',
       payload: payload
@@ -399,25 +463,39 @@ async function checkWithGuard(text) {
 
     console.log('[Vigil Guard] 📥 Response:', response);
 
+    // Reset connection attempts on successful response
+    connectionAttempts = 0;
+
     return response;
   } catch (error) {
     console.error('[Vigil Guard] ❌ Error:', error);
 
     // CRITICAL: Service Worker invalidation detection
     if (error.message && error.message.includes('Extension context invalidated')) {
-      console.error('[Vigil Guard] 🔴 SERVICE WORKER DIED - Extension needs reload!');
+      console.error('[Vigil Guard] 🔴 SERVICE WORKER CONTEXT LOST');
+
+      // v0.5.0: Attempt to reconnect before showing error
+      if (!isRetry) {
+        console.log('[Vigil Guard] 🔄 Attempting to reconnect...');
+        updateStatus('processing', 'Reconnecting to service...');
+
+        const reconnected = await attemptReconnect();
+        if (reconnected) {
+          console.log('[Vigil Guard] ✅ Reconnected! Retrying request...');
+          return checkWithGuard(text, true); // Retry with isRetry=true
+        }
+      }
+
+      // Reconnection failed - show error to user
+      console.error('[Vigil Guard] 🔴 RECONNECTION FAILED - Extension needs reload!');
       updateStatus('block', '⚠️ Extension context lost - reload needed');
 
       // Show user-friendly message
       const platformName = getPlatformName();
       alert(
         `⚠️ Vigil Guard Extension Context Lost\n\n` +
-        `The extension's background service has stopped.\n\n` +
-        `Please reload the extension:\n` +
-        `1. Go to chrome://extensions/\n` +
-        `2. Find "Vigil Guard AI Protection"\n` +
-        `3. Click the Reload button\n\n` +
-        `Or simply reload this ${platformName} page.`
+        `The extension's background service has stopped and couldn't be restarted.\n\n` +
+        `Please reload this ${platformName} page to restore protection.`
       );
 
       // Block the prompt to be safe (don't fail open when extension is broken)
@@ -428,7 +506,18 @@ async function checkWithGuard(text) {
       };
     }
 
-    // Other errors: Fail open - pozwól na wysłanie oryginalnego tekstu
+    // v0.5.0: Handle "Receiving end does not exist" error (SW was asleep)
+    if (error.message && error.message.includes('Receiving end does not exist')) {
+      console.warn('[Vigil Guard] ⚠️ Service worker was asleep, retrying...');
+
+      if (!isRetry) {
+        // Wait for SW to wake up
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return checkWithGuard(text, true);
+      }
+    }
+
+    // Other errors: fail open - allow sending original text
     return {
       action: 'allow',
       reason: 'service_unavailable',
@@ -437,11 +526,11 @@ async function checkWithGuard(text) {
   }
 }
 
-// Znajdź przycisk Send - uniwersalne dla ChatGPT i Claude.ai
+// Find Send button - works for ChatGPT and Claude.ai
 function findSendButton() {
   const hostname = window.location.hostname;
 
-  // ChatGPT używa data-testid="send-button"
+  // ChatGPT uses data-testid="send-button"
   if (hostname.includes('chatgpt.com') || hostname.includes('openai.com')) {
     return document.querySelector('[data-testid="send-button"]');
   }
@@ -465,7 +554,7 @@ function findSendButton() {
   return document.querySelector('[data-testid="send-button"]');
 }
 
-// Handler dla Enter key - wydzielony do reużycia
+// Enter key handler - extracted for reuse
 async function handleEnterKey(e, textarea) {
   // DEBUG: Always log Enter key press for debugging
   if (e.key === 'Enter') {
@@ -483,7 +572,7 @@ async function handleEnterKey(e, textarea) {
 
     if (!text || isProcessing) {
       console.log(`[Vigil Guard] ⚠️ Skipping - empty: ${!text}, processing: ${isProcessing}`);
-      return; // Pusty prompt lub już przetwarzamy
+      return; // Empty prompt or already processing
     }
 
     // ZATRZYMAJ oryginalny submit - DEFENSE IN DEPTH
@@ -496,21 +585,21 @@ async function handleEnterKey(e, textarea) {
     isProcessing = true;
 
     try {
-      // Wyślij do Guard
+      // Send to Guard
       const decision = await checkWithGuard(text);
 
       if (decision.action === 'block') {
-        // ZABLOKUJ - nie wysyłaj
+        // BLOCK - do not send
         console.log('[Vigil Guard] 🚫 BLOCKED - preventing submission');
         updateStatus('block', `Blocked: ${decision.reason || 'threat detected'}`);
         alert('⛔ Vigil Guard blocked this message:\n\n' + (decision.reason || 'Potential security threat detected'));
 
-        // Wyczyść contenteditable div
+        // Clear contenteditable div
         textarea.textContent = '';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
       } else if (decision.action === 'sanitize') {
-        // SANITYZUJ - użyj wyczyszczonego tekstu
+        // SANITIZE - use cleaned text
         updateStatus('sanitize', `Sanitized: ${decision.reason || 'cleaned'}`);
 
         const cleanedText = decision.chatInput || decision.cleaned_prompt || '[Message cleaned by Vigil Guard]';
@@ -523,7 +612,7 @@ async function handleEnterKey(e, textarea) {
         // Trigger input event
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-        // Wyślij (z bypass flagą)
+        // Send (with bypass flag)
         setTimeout(() => {
           const sendBtn = findSendButton();
           if (sendBtn && !isProcessing) {
@@ -535,10 +624,10 @@ async function handleEnterKey(e, textarea) {
         }, 100);
 
       } else {
-        // ALLOW - wyślij oryginalny tekst
+        // ALLOW - send original text
         updateStatus('allow', 'Allowed - safe to send');
 
-        // Wyślij (z bypass flagą)
+        // Send (with bypass flag)
         setTimeout(() => {
           const sendBtn = findSendButton();
           if (sendBtn && !isProcessing) {
@@ -554,7 +643,7 @@ async function handleEnterKey(e, textarea) {
       console.error('[Vigil Guard] ❌ Error during processing:', error);
       updateStatus('allow', 'Error - failed open');
 
-      // Fail open - pozwól wysłać (z bypass flagą)
+      // Fail open - allow send (with bypass flag)
       setTimeout(() => {
         const sendBtn = findSendButton();
         if (sendBtn) {
@@ -566,7 +655,7 @@ async function handleEnterKey(e, textarea) {
 
     } finally {
       isProcessing = false;
-      // Status zostanie dopóki nie przyjdzie kolejny prompt
+      // Status stays until next prompt arrives
     }
   }
 }
@@ -575,7 +664,7 @@ async function handleEnterKey(e, textarea) {
 async function handleButtonClick(e, button) {
   console.log('[Vigil Guard] 🖱️ Send button clicked - bypass:', bypassButtonHandler);
 
-  // BYPASS: Pozwól przejść programmatic clicks z Enter handler
+  // BYPASS: allow programmatic clicks from Enter handler
   if (bypassButtonHandler) {
     console.log('[Vigil Guard] 🟢 Allowing programmatic click (bypass active)');
     return;
@@ -589,13 +678,13 @@ async function handleButtonClick(e, button) {
 
   const text = (textarea.textContent || textarea.innerText || '').trim();
 
-  // Jeśli pusty lub już przetwarzamy, pozwól przejść dalej
+  // If empty or already processing, allow to continue
   if (!text) {
     return; // Pusty prompt - ChatGPT sam zablokuje
   }
 
   if (isProcessing) {
-    // Już przetwarzamy (Enter handler) - pozwól przejść bez dodatkowego checku
+    // Already processing (Enter handler) - let it pass without extra check
     return;
   }
 
@@ -624,8 +713,8 @@ async function handleButtonClick(e, button) {
       textarea.textContent = cleanedText;
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-      // Trigger programmatic click - z bypass flagą
-      isProcessing = false; // Reset przed kliknięciem
+      // Trigger programmatic click - with bypass flag
+      isProcessing = false; // Reset before click
       setTimeout(() => {
         bypassButtonHandler = true;
         const clickEvent = new MouseEvent('click', {
@@ -636,12 +725,12 @@ async function handleButtonClick(e, button) {
         button.dispatchEvent(clickEvent);
         setTimeout(() => { bypassButtonHandler = false; }, 50);
       }, 100);
-      return; // Wyjdź przed finally
+      return; // Exit before finally
 
     } else {
       updateStatus('allow', 'Allowed - safe to send');
-      // Pozwól przejść dalej - z bypass flagą
-      isProcessing = false; // Reset przed kliknięciem
+      // Allow to proceed - with bypass flag
+      isProcessing = false; // Reset before click
       setTimeout(() => {
         bypassButtonHandler = true;
         const clickEvent = new MouseEvent('click', {
@@ -652,7 +741,7 @@ async function handleButtonClick(e, button) {
         button.dispatchEvent(clickEvent);
         setTimeout(() => { bypassButtonHandler = false; }, 50);
       }, 100);
-      return; // Wyjdź przed finally
+      return; // Exit before finally
     }
 
   } catch (error) {
@@ -683,7 +772,7 @@ async function handleButtonClick(e, button) {
 // setupInterception() is now idempotent, safe to call multiple times
 // No cleanup/reattach cycle, so no need for debouncing
 
-// v0.3.7: Główna logika przechwytywania - IDEMPOTENT & IMMORTAL
+// v0.3.7: Main interception logic - IDEMPOTENT & IMMORTAL
 // Handlers attached to `document` (not body) - survive all DOM mutations
 // IDEMPOTENT: safe to call multiple times, only attaches once
 function setupInterception() {
@@ -862,19 +951,19 @@ function setupInterception() {
 
 // Setup MutationObserver - pilnuje podmiany textarea/button
 function setupMutationObserver() {
-  // Jeśli już istnieje, disconnect
+  // If it already exists, disconnect
   if (domObserver) {
     domObserver.disconnect();
   }
 
   domObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      // Sprawdź czy textarea lub send button został podmieniony
+      // Check if textarea or send button was replaced
       if (mutation.type === 'childList') {
         const addedNodes = Array.from(mutation.addedNodes);
         const removedNodes = Array.from(mutation.removedNodes);
 
-        // Helper: sprawdź czy node to textarea (ChatGPT lub Claude.ai)
+        // Helper: check if node is textarea (ChatGPT or Claude.ai)
         const isTextarea = (node) => {
           if (!node || !node.matches) return false;
           return (
@@ -884,7 +973,7 @@ function setupMutationObserver() {
           );
         };
 
-        // Helper: sprawdź czy node to send button (ChatGPT lub Claude.ai)
+        // Helper: check if node is send button (ChatGPT or Claude.ai)
         const isSendButton = (node) => {
           if (!node || !node.matches) return false;
           return (
@@ -894,12 +983,12 @@ function setupMutationObserver() {
           );
         };
 
-        // Sprawdź czy textarea zostało usunięte lub dodane
+        // Check if textarea was removed or added
         const textareaChanged =
           removedNodes.some(isTextarea) ||
           addedNodes.some(isTextarea);
 
-        // Sprawdź czy button został podmieniony
+        // Check if button was replaced
         const buttonChanged =
           removedNodes.some(isSendButton) ||
           addedNodes.some(isSendButton);
@@ -914,7 +1003,7 @@ function setupMutationObserver() {
     }
   });
 
-  // Obserwuj cały body (AI chat apps mogą dynamicznie budować UI)
+  // Observe entire body (AI chat apps can dynamically build UI)
   domObserver.observe(document.body, {
     childList: true,
     subtree: true
@@ -927,14 +1016,14 @@ function setupMutationObserver() {
 function init() {
   console.log('[Vigil Guard] Starting overlay proxy...');
 
-  // Stwórz status indicator
+  // Create status indicator
   statusIndicator = createStatusIndicator();
   updateStatus('allow', 'Protected by Vigil Guard');
 
   // Setup MutationObserver
   setupMutationObserver();
 
-  // Poczekaj na załadowanie DOM
+  // Wait for DOM load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupInterception);
   } else {

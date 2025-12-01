@@ -169,14 +169,27 @@ export async function checkPromptGuardHealth() {
   }
 }
 
+export async function fetchContainerStatus() {
+  try {
+    const r = await authenticatedFetch(`${API}/system/containers`);
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  } catch (error) {
+    console.error('Failed to fetch container status:', error);
+    throw error;
+  }
+}
+
 export async function fetchPromptList(timeRange: string) {
-  const r = await authenticatedFetch(`${API}/prompts/list?timeRange=${encodeURIComponent(timeRange)}`);
+  // v2.0.0: Use events-v2/list endpoint
+  const r = await authenticatedFetch(`${API}/events-v2/list?timeRange=${encodeURIComponent(timeRange)}`);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
 
 export async function fetchPromptDetails(id: string) {
-  const r = await authenticatedFetch(`${API}/prompts/${encodeURIComponent(id)}`);
+  // v2.0.0: Use events-v2/:id endpoint
+  const r = await authenticatedFetch(`${API}/events-v2/${encodeURIComponent(id)}`);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -266,6 +279,26 @@ export interface FPReportDetailed {
   pii_entities_count: number;
   detected_language: string;
   decision_source: string;
+
+// Additional fields from events_v2 (for full branch analysis rendering like Monitoring)
+  branch_a_score?: number;
+  branch_b_score?: number;
+  branch_c_score?: number;
+  confidence?: number;
+  boosts_applied?: string[];
+  chat_input?: string;
+  result?: string;
+  client_id?: string;
+  browser_name?: string;
+  browser_version?: string;
+  os_name?: string;
+  pipeline_version?: string;
+  config_version?: string;
+
+  // RAW JSON fields (parsed) - same as EventV2Details for rendering detailed branch analysis
+  arbiter_json?: any;
+  branch_results_json?: any;
+  pii_classification_json?: any;
 
   // Parsed JSON objects (only in detail view from getFPReportDetails)
   scoring_breakdown?: {
@@ -556,6 +589,194 @@ export async function exportPrompts(params: Omit<SearchParams, 'page' | 'pageSiz
   const r = await authenticatedFetch(`${API}/prompts/export?${queryParams.toString()}`);
   if (!r.ok) throw new Error(await r.text());
   return r.blob();
+}
+
+// ============================================================================
+// EVENTS V2 API (3-Branch Detection Architecture)
+// ============================================================================
+
+export interface SearchParamsV2 {
+  startDate?: string;
+  endDate?: string;
+  textQuery?: string;
+  clientId?: string;
+  status?: 'ALLOWED' | 'SANITIZED' | 'BLOCKED' | null;
+  minScore?: number;
+  maxScore?: number;
+  boostFilter?: string;  // Filter by applied boost
+  sortBy?: 'timestamp' | 'threat_score' | 'final_status' | 'branch_a_score' | 'branch_b_score' | 'branch_c_score';
+  sortOrder?: 'ASC' | 'DESC';
+  page: number;
+  pageSize: number;
+}
+
+export interface EventV2Row {
+  id: string;  // UUID from events_v2
+  sessionId?: string;  // Optional, only in details view
+  timestamp: string;
+  client_id?: string;
+  original_input: string;
+  chat_input?: string;
+  result?: string;
+  detected_language?: string;
+  branch_a_score: number;  // Heuristics
+  branch_b_score: number;  // Semantic
+  branch_c_score: number;  // LLM Safety Engine analysis (llm_guard)
+  threat_score: number;    // Combined weighted score
+  confidence: number;
+  boosts_applied: string[];
+  final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
+  final_decision: 'ALLOW' | 'BLOCK';
+  pii_sanitized: boolean;
+  pii_types_detected: string[];
+  pii_entities_count: number;
+  preview?: string;  // Truncated original_input for list view
+  arbiter_json?: any;  // Parsed JSON object
+  branch_results_json?: any;  // Parsed JSON object
+  pii_classification_json?: {  // Parsed PII classification object
+    types: string[];
+    count: number;
+    method: string;
+    sanitization_applied?: boolean;
+  };
+}
+
+export interface SearchResponseV2 {
+  results: EventV2Row[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+export interface QuickStatsV2 {
+  requests_processed: number;
+  threats_blocked: number;
+  content_sanitized: number;  // SANITIZED status = PII redacted
+  pii_sanitized: number;
+}
+
+export interface BranchStats {
+  branch_a_avg: number;
+  branch_b_avg: number;
+  branch_c_avg: number;
+  threat_score_avg: number;
+  confidence_avg: number;
+}
+
+export interface BranchHealthStatus {
+  heuristics: { status: string; latency_ms: number };
+  semantic: { status: string; latency_ms: number };
+  llm_guard: { status: string; latency_ms: number };
+}
+
+/**
+ * Get quick stats for events_v2 table (v2.0.0 3-branch architecture)
+ */
+export async function getEventsV2Stats(timeRange = '24h'): Promise<QuickStatsV2> {
+  const r = await authenticatedFetch(`${API}/events-v2/stats?timeRange=${timeRange}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get average scores for each branch
+ */
+export async function getBranchStats(timeRange = '24h'): Promise<BranchStats> {
+  const r = await authenticatedFetch(`${API}/events-v2/branch-stats?timeRange=${timeRange}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get health status for all 3 branches
+ * Transforms API response format to match BranchHealthStatus interface
+ */
+export async function getBranchHealth(): Promise<BranchHealthStatus> {
+  const r = await authenticatedFetch(`${API}/branches/health`);
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+
+  // API returns { branches: { A: {...}, B: {...}, C: {...} } }
+  // Transform to { heuristics: {...}, semantic: {...}, llm_guard: {...} } (llm_guard = LLM Safety Engine branch)
+  if (data.branches) {
+    return {
+      heuristics: data.branches.A || { status: 'unknown', latency_ms: 0 },
+      semantic: data.branches.B || { status: 'unknown', latency_ms: 0 },
+      llm_guard: data.branches.C || { status: 'unknown', latency_ms: 0 },
+    };
+  }
+
+  // Fallback for direct format
+  return data;
+}
+
+/**
+ * Search events in events_v2 table
+ */
+export async function searchEventsV2(params: SearchParamsV2): Promise<SearchResponseV2> {
+  const queryParams = new URLSearchParams();
+
+  if (params.startDate) queryParams.set('startDate', params.startDate);
+  if (params.endDate) queryParams.set('endDate', params.endDate);
+  if (params.textQuery) queryParams.set('textQuery', params.textQuery);
+  if (params.clientId) queryParams.set('clientId', params.clientId);
+  if (params.status) queryParams.set('status', params.status);
+  if (params.minScore !== undefined) queryParams.set('minScore', String(params.minScore));
+  if (params.maxScore !== undefined) queryParams.set('maxScore', String(params.maxScore));
+  if (params.boostFilter) queryParams.set('boostFilter', params.boostFilter);
+  if (params.sortBy) queryParams.set('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+  queryParams.set('page', String(params.page));
+  queryParams.set('pageSize', String(params.pageSize));
+
+  const r = await authenticatedFetch(`${API}/events-v2/search?${queryParams.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  // Backend returns 'rows', frontend expects 'results'
+  return {
+    results: data.rows || [],
+    total: data.total || 0,
+    page: data.page || 1,
+    pageSize: data.pageSize || 25,
+    pages: data.pages || 0,
+  };
+}
+
+/**
+ * Get list of events from events_v2 table
+ */
+export async function getEventsV2List(page = 1, pageSize = 25, timeRange = '24h'): Promise<SearchResponseV2> {
+  const r = await authenticatedFetch(`${API}/events-v2/list?page=${page}&pageSize=${pageSize}&timeRange=${timeRange}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get detailed event by event_id
+ */
+export async function getEventV2Details(eventId: string): Promise<EventV2Row> {
+  const r = await authenticatedFetch(`${API}/events-v2/${encodeURIComponent(eventId)}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get status distribution (pie chart data)
+ */
+export async function getStatusDistribution(timeRange = '24h'): Promise<{ status: string; count: number }[]> {
+  const r = await authenticatedFetch(`${API}/events-v2/status-distribution?timeRange=${timeRange}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/**
+ * Get boost statistics
+ */
+export async function getBoostStats(timeRange = '24h'): Promise<{ boost: string; count: number }[]> {
+  const r = await authenticatedFetch(`${API}/events-v2/boost-stats?timeRange=${timeRange}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
 }
 
 // ============================================================================

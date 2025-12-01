@@ -14,13 +14,21 @@ interface PromptListItem {
 interface PromptDetails {
   id: string;
   timestamp: string;
-  input_raw: string;
-  output_final: string;
+  original_input: string;  // v2.0.0: renamed from input_raw
+  result: string;  // v2.0.0: renamed from output_final
   final_status: 'ALLOWED' | 'SANITIZED' | 'BLOCKED';
-  final_action: string;
-  pg_score_percent: number;
-  sanitizer_score: number;
-  main_criteria: string;
+  final_decision: 'ALLOW' | 'BLOCK';  // v2.0.0: renamed from final_action
+  threat_score: number;  // v2.0.0: renamed from sanitizer_score (0-100)
+  branch_a_score: number;  // v2.0.0: heuristics branch
+  branch_b_score: number;  // v2.0.0: semantic branch
+  branch_c_score: number;  // v2.0.0: LLM guard branch
+  confidence: number;  // v2.0.0: arbiter confidence (0-1)
+  boosts_applied: string[];  // v2.0.0: priority boosts
+  arbiter_json?: any;  // v2.0.0: arbiter decision details
+  branch_results_json?: any;  // v2.0.0: branch detection details
+  pii_classification_json?: any;  // v2.0.0: PII detection details
+  pii_sanitized?: boolean | number;  // v2.0.0: true if PII was redacted
+  pii_entities_count?: number;  // v2.0.0: count of detected PII entities
 }
 
 interface PromptAnalyzerProps {
@@ -327,8 +335,8 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
       {/* Prompt details display */}
       {promptDetails && !isDetailsLoading && (
         <div className="space-y-4">
-          {/* Metadata */}
-          <div className="grid grid-cols-2 gap-4 p-3 bg-slate-900/50 rounded-lg">
+          {/* Metadata - v2.0.0 3-Branch Architecture */}
+          <div className="grid grid-cols-3 gap-4 p-3 bg-slate-900/50 rounded-lg">
             <div>
               <span className="text-xs text-text-secondary">Timestamp:</span>
               <p className="text-sm text-white">{formatTimestamp(promptDetails.timestamp, userTimezone)}</p>
@@ -338,29 +346,197 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
               <p className="text-sm text-white font-mono">{promptDetails.id}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Decision Source:</span>
-              <p className="text-sm text-white">{promptDetails.final_action}</p>
+              <span className="text-xs text-text-secondary">Final Decision:</span>
+              <p className="text-sm text-white">{promptDetails.final_decision}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Main Criteria:</span>
-              <p className="text-sm text-white">{promptDetails.main_criteria || 'N/A'}</p>
+              <span className="text-xs text-text-secondary">Branch A (Heuristics):</span>
+              <p className="text-sm text-amber-400 font-mono">{promptDetails.branch_a_score}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Prompt Guard Score:</span>
-              <p className="text-sm text-white">{promptDetails.pg_score_percent.toFixed(2)}%</p>
+              <span className="text-xs text-text-secondary">Branch B (Semantic):</span>
+              <p className="text-sm text-purple-400 font-mono">{promptDetails.branch_b_score}</p>
             </div>
             <div>
-              <span className="text-xs text-text-secondary">Sanitizer Score:</span>
-              <p className="text-sm text-white">{promptDetails.sanitizer_score}</p>
+              <span className="text-xs text-text-secondary">Branch C (LLM Safety Engine Analysis):</span>
+              <p className="text-sm text-cyan-400 font-mono">{promptDetails.branch_c_score}</p>
+            </div>
+            <div>
+              <span className="text-xs text-text-secondary">Combined Threat Score:</span>
+              <p className="text-sm text-white font-mono font-bold">{promptDetails.threat_score}</p>
+            </div>
+            <div>
+              <span className="text-xs text-text-secondary">Confidence:</span>
+              <p className="text-sm text-white">{(promptDetails.confidence * 100).toFixed(0)}%</p>
+            </div>
+            <div>
+              <span className="text-xs text-text-secondary">Boosts Applied:</span>
+              <p className="text-sm text-orange-400">{promptDetails.boosts_applied.length > 0 ? promptDetails.boosts_applied.join(', ') : 'None'}</p>
             </div>
           </div>
+
+          {/* Detection Details - structured breakdown */}
+          {(promptDetails.arbiter_json || promptDetails.branch_results_json || promptDetails.pii_classification_json) && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-white">Detection Analysis</h3>
+
+              {/* Arbiter Decision Details */}
+              {promptDetails.arbiter_json && (() => {
+                const arbiter: any = promptDetails.arbiter_json;
+                const branches = arbiter?.branches ? Object.entries(arbiter.branches) : [];
+                const explanations: string[] = Array.isArray(arbiter?.explanations) ? arbiter.explanations : [];
+                const boosts: string[] = Array.isArray(arbiter?.boosts_applied) ? arbiter.boosts_applied : [];
+
+                return (
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+                    <div className="flex flex-wrap gap-6">
+                      <div>
+                        <div className="text-xs text-text-secondary">Combined Score</div>
+                        <div className="text-lg text-white font-semibold">{arbiter.combined_score ?? '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Decision</div>
+                        <div className="text-sm text-white font-semibold">{arbiter.final_decision ?? promptDetails.final_decision}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Confidence</div>
+                        <div className="text-sm text-white font-semibold">{arbiter.confidence != null ? `${Math.round(arbiter.confidence * 100)}%` : '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Degradation</div>
+                        <div className="text-sm text-white font-semibold">{arbiter.all_degraded ? 'All degraded' : 'Normal'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Boosts</div>
+                        <div className="text-sm text-orange-400">{boosts.length ? boosts.join(', ') : 'None'}</div>
+                      </div>
+                    </div>
+
+                    {branches.length > 0 && (
+                      <div>
+                        <div className="text-xs text-text-secondary mb-2">Branch Votes</div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {branches.map(([key, data]: [string, any]) => (
+                            <div key={key} className="border border-slate-800 rounded-lg p-3 bg-slate-900/60">
+                              <div className="text-xs text-text-secondary mb-1">Branch {key}</div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-white font-semibold">Score: {data?.score ?? '-'}</span>
+                                <span className="text-xs text-slate-300">w: {data?.weight ?? '-'}</span>
+                              </div>
+                              <div className="text-xs text-slate-300 mt-1">
+                                Level: {data?.threat_level || 'n/a'} • {data?.degraded ? 'degraded' : 'healthy'}
+                              </div>
+                              {data?.critical_signals && Object.keys(data.critical_signals).length > 0 && (
+                                <div className="mt-2">
+                                  <div className="text-[11px] text-text-secondary mb-1">Signals</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(data.critical_signals).map(([signal, val]) => (
+                                      <span key={signal} className={`px-2 py-0.5 rounded-full text-[11px] ${val ? 'bg-red-500/20 text-red-300' : 'bg-slate-800 text-slate-300'}`}>
+                                        {signal}: {String(val)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {explanations.length > 0 && (
+                      <div>
+                        <div className="text-xs text-text-secondary mb-1">Explanations</div>
+                        <ul className="list-disc list-inside text-xs text-slate-200 space-y-1">
+                          {explanations.map((e, idx) => <li key={idx}>{e}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Branch Results Details */}
+              {promptDetails.branch_results_json && (() => {
+                const branches = Object.entries(promptDetails.branch_results_json as any);
+                return (
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2">
+                    <div className="text-xs text-text-secondary mb-1">Branch Detection Details</div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {branches.map(([name, data]: [string, any]) => (
+                        <div key={name} className="border border-slate-800 rounded-lg p-3 bg-slate-900/60 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-white font-semibold">Branch {name.toUpperCase?.() || name}</span>
+                            <span className="text-xs text-slate-300">Score: {data?.score ?? '-'}</span>
+                          </div>
+                          {data?.threat_level && <div className="text-xs text-slate-300">Level: {data.threat_level}</div>}
+                          {data?.latency_ms != null && <div className="text-xs text-slate-300">Latency: {data.latency_ms} ms</div>}
+                          {Array.isArray(data?.features) && data.features.length > 0 && (
+                            <div>
+                              <div className="text-[11px] text-text-secondary mb-1">Top signals</div>
+                              <ul className="text-[11px] text-slate-200 space-y-1 max-h-24 overflow-y-auto">
+                                {data.features.slice(0, 5).map((f: any, idx: number) => (
+                                  <li key={idx}>• {typeof f === 'string' ? f : JSON.stringify(f)}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PII Classification Details */}
+              {promptDetails.pii_classification_json && (() => {
+                const pii: any = promptDetails.pii_classification_json;
+                const types: string[] = Array.isArray(pii?.types) ? pii.types : (Array.isArray(pii?.entity_types) ? pii.entity_types : []);
+                const count = pii?.count ?? pii?.entities_count ?? promptDetails.pii_entities_count;
+                const method = pii?.method || pii?.detector || 'unknown';
+                const preview = pii?.redacted_preview || pii?.preview;
+
+                return (
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2">
+                    <div className="text-xs text-text-secondary">PII Classification</div>
+                    <div className="flex flex-wrap gap-4">
+                      <div>
+                        <div className="text-xs text-text-secondary">Detected</div>
+                        <div className="text-sm text-white font-semibold">{promptDetails.pii_sanitized ? 'Yes' : 'No'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Types</div>
+                        <div className="text-sm text-white">{types.length ? types.join(', ') : 'None'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Entities</div>
+                        <div className="text-sm text-white font-semibold">{count ?? 0}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-secondary">Method</div>
+                        <div className="text-sm text-white">{method}</div>
+                      </div>
+                    </div>
+                    {preview && (
+                      <div className="mt-2">
+                        <div className="text-[11px] text-text-secondary mb-1">Redacted Preview</div>
+                        <div className="bg-slate-900/60 border border-slate-800 rounded p-3 text-xs text-slate-100 whitespace-pre-wrap">
+                          {preview}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Original Prompt - large text area */}
           <div>
             <label className="text-xs text-text-secondary block mb-2">Original Prompt (Input)</label>
             <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto overflow-x-hidden">
               <pre className="text-sm text-white whitespace-pre-wrap font-mono break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                {promptDetails.input_raw}
+                {promptDetails.original_input}
               </pre>
             </div>
           </div>
@@ -379,7 +555,7 @@ export default function PromptAnalyzer({ timeRange, refreshInterval }: PromptAna
                 promptDetails.final_status === 'SANITIZED' ? 'text-yellow-400' :
                 'text-green-400'
               }`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                {promptDetails.output_final || promptDetails.input_raw}
+                {promptDetails.result || promptDetails.original_input}
               </pre>
             </div>
           </div>

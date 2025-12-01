@@ -1,20 +1,23 @@
 # Multi-stage build for production
+# NOTE: Build context is project root (set in docker-compose.yml)
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
+
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (relative to project root context)
+COPY services/web-ui/backend/package*.json ./
 
 # Install dependencies
-# Note: Using npm install instead of npm ci due to npm workspaces
-# (package-lock.json is at monorepo root, not in workspace)
-RUN npm install
+RUN npm ci
 
 # Copy source files
-COPY tsconfig.json ./
-COPY src ./src
+COPY services/web-ui/backend/tsconfig.json ./
+COPY services/web-ui/backend/src ./src
 
 # Build TypeScript to JavaScript
 RUN npm run build
@@ -23,22 +26,27 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
+# Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)
+RUN npm install -g npm@latest
+
 # Install build dependencies for native modules (better-sqlite3)
 RUN apk add --no-cache python3 make g++
 
 # Copy package files
-COPY package*.json ./
+COPY services/web-ui/backend/package*.json ./
 
 # Install production dependencies only
-# Note: Using npm install instead of npm ci due to npm workspaces
-RUN npm install --only=production
+RUN npm ci --omit=dev
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy plugin source for download endpoint (from project root context)
+COPY plugin/Chrome /app/plugin/Chrome
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /config /app/logs /app/data && \
-    chown -R node:node /config /app
+    chown -R node:node /config /app /app/plugin
 
 # Expose port
 EXPOSE 8787

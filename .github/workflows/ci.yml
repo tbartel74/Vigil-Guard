@@ -125,6 +125,8 @@ jobs:
           - web-ui-backend
           - web-ui-frontend
           - prompt-guard-api
+          - heuristics-service
+          - semantic-service
 
     steps:
       - uses: actions/checkout@v4
@@ -134,8 +136,8 @@ jobs:
 
       - name: Build Web UI Backend
         if: matrix.service == 'web-ui-backend'
-        working-directory: services/web-ui/backend
-        run: docker build -t vigil-guard-web-ui-backend:test .
+        # Build from project root (Dockerfile expects services/web-ui/backend/* and plugin/Chrome paths)
+        run: docker build -f services/web-ui/backend/Dockerfile -t vigil-guard-web-ui-backend:test .
 
       - name: Build Web UI Frontend
         if: matrix.service == 'web-ui-frontend'
@@ -145,6 +147,16 @@ jobs:
         if: matrix.service == 'prompt-guard-api'
         working-directory: prompt-guard-api
         run: docker build -t vigil-guard-prompt-guard-api:test .
+
+      - name: Build Heuristics Service
+        if: matrix.service == 'heuristics-service'
+        working-directory: services/heuristics-service
+        run: docker build -t vigil-guard-heuristics-service:test .
+
+      - name: Build Semantic Service
+        if: matrix.service == 'semantic-service'
+        working-directory: services/semantic-service
+        run: docker build -t vigil-guard-semantic-service:test .
 
       - name: Smoke test - Start container
         env:
@@ -176,6 +188,20 @@ jobs:
                 -e MOCK_MODEL=true \
                 vigil-guard-prompt-guard-api:test
               sleep 8
+              docker logs "${CONTAINER_NAME}"
+              ;;
+            heuristics-service)
+              docker run -d --name "${CONTAINER_NAME}" \
+                -e NODE_ENV=test \
+                vigil-guard-heuristics-service:test
+              sleep 5
+              docker logs "${CONTAINER_NAME}"
+              ;;
+            semantic-service)
+              docker run -d --name "${CONTAINER_NAME}" \
+                -e NODE_ENV=test \
+                vigil-guard-semantic-service:test
+              sleep 5
               docker logs "${CONTAINER_NAME}"
               ;;
           esac
@@ -220,6 +246,15 @@ jobs:
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS http://127.0.0.1:8000/" || exit 1
               wait_for "docker exec ${CONTAINER_NAME} curl -fsS -X POST http://127.0.0.1:8000/detect -H 'Content-Type: application/json' -d '{\"text\":\"Hello world\"}'" || exit 1
               ;;
+            heuristics-service)
+              # Alpine image uses wget instead of curl
+              wait_for "docker exec ${CONTAINER_NAME} wget -qO- http://127.0.0.1:5005/health" || exit 1
+              ;;
+            semantic-service)
+              # node:20-slim doesn't have curl/wget, use Node.js for health check
+              # Accept any HTTP response (200 or 503 degraded) - service is running
+              wait_for "docker exec ${CONTAINER_NAME} node -e \"require('http').get('http://127.0.0.1:5006/health', r => { console.log('Status:', r.statusCode); process.exit(0); }).on('error', e => process.exit(1))\"" || exit 1
+              ;;
           esac
 
       - name: Cleanup
@@ -250,7 +285,7 @@ jobs:
       - name: Check required services
         run: |
           services=$(docker compose config --services)
-          required="web-ui-backend web-ui-frontend clickhouse grafana n8n caddy"
+          required="web-ui-backend web-ui-frontend clickhouse grafana n8n caddy heuristics-service semantic-service"
           for svc in $required; do
             echo "$services" | grep -q "$svc" || (echo "Missing service: $svc" && exit 1)
           done
@@ -273,11 +308,12 @@ jobs:
 
       - name: Check Markdown files exist
         run: |
+          # v2.0.0 documentation structure
           required_docs=(
             "README.md"
-            "docs/INSTALLATION.md"
-            "docs/USER_GUIDE.md"
-            "docs/CONFIGURATION.md"
+            "docs/README.md"
+            "docs/operations/installation.md"
+            "docs/guides/configuration.md"
             "docs/AUTHENTICATION.md"
             "docs/API.md"
             "prompt-guard-api/README.md"
@@ -370,6 +406,66 @@ jobs:
           [ -x install.sh ] || (echo "install.sh not executable" && exit 1)
           [ -x scripts/download-llama-model.sh ] || (echo "download-llama-model.sh not executable" && exit 1)
 
+  # Heuristics Service - Unit Tests (v2.0.0)
+  heuristics-service-tests:
+    name: Heuristics Service - Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-heuristics-${{ hashFiles('services/heuristics-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-heuristics-
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        working-directory: services/heuristics-service
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: services/heuristics-service
+        run: npm test -- tests/unit/
+
+  # Semantic Service - Unit Tests (v2.0.0)
+  semantic-service-tests:
+    name: Semantic Service - Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-semantic-${{ hashFiles('services/semantic-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-semantic-
+            ${{ runner.os }}-npm-
+
+      - name: Install dependencies
+        working-directory: services/semantic-service
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: services/semantic-service
+        run: npm test -- tests/unit/
+
   # All checks passed
   all-checks:
     name: ✅ All Checks Passed
@@ -384,6 +480,8 @@ jobs:
       - security-audit
       - secret-scan
       - install-script-check
+      - heuristics-service-tests
+      - semantic-service-tests
 
     steps:
       - name: Success
@@ -401,4 +499,6 @@ jobs:
           echo "  ✓ Documentation checked"
           echo "  ✓ Security audit completed"
           echo "  ✓ Installation scripts validated"
+          echo "  ✓ Heuristics Service unit tests (v2.0.0)"
+          echo "  ✓ Semantic Service unit tests (v2.0.0)"
           echo ""
