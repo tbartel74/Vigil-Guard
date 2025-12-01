@@ -70,6 +70,7 @@ export interface UseGitHubDocsReturn extends DocState {
  */
 export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocsReturn {
   const { initialDoc } = options;
+  const docsRef = GITHUB_CONFIG.branch;
 
   // Document content state
   const [state, setState] = useState<DocState>({
@@ -294,12 +295,13 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
     }
   }, []);
 
-  // Load structure on mount
+  // Load structure on mount or when docsRef changes
   useEffect(() => {
     let mounted = true;
 
     async function loadStructure() {
       try {
+        clearDocsStructureCache();
         const { categories: cats, allDocs: docs } = await fetchDocsStructure(GITHUB_CONFIG);
         if (!mounted) return;
 
@@ -329,7 +331,7 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
     return () => {
       mounted = false;
     };
-  }, []); // Only run on mount
+  }, [initialDoc, docsRef, loadDocument]); // Reload when docs ref changes
 
   // Load document when initialDoc changes (after structure is ready)
   useEffect(() => {

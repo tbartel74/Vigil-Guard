@@ -50,8 +50,7 @@ export async function fetchMarkdownContent(path: string): Promise<string | null>
       headers: {
         'Accept': 'text/plain, text/markdown',
       },
-      mode: 'cors', // Explicit CORS mode for CDN
-      // No credentials needed for public CDN
+      mode: 'cors',
     });
 
     console.log(`[Help] Response status: ${response.status} ${response.statusText}`);
