@@ -282,7 +282,7 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
     clearDocsStructureCache();
 
     try {
-      const { categories: cats, allDocs: docs } = await fetchDocsStructure(GITHUB_CONFIG);
+      const { categories: cats, allDocs: docs } = await fetchDocsStructure();
       setCategories(cats);
       setAllDocs(docs);
     } catch (error) {
@@ -301,7 +301,7 @@ export function useGitHubDocs(options: UseGitHubDocsOptions = {}): UseGitHubDocs
 
     async function loadStructure() {
       try {
-        const { categories: cats, allDocs: docs } = await fetchDocsStructure(GITHUB_CONFIG);
+        const { categories: cats, allDocs: docs } = await fetchDocsStructure();
         if (!mounted) return;
 
         setCategories(cats);
