@@ -13,7 +13,7 @@ import { randomBytes } from 'crypto';
 import { writeFileSync, readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, relative, basename } from 'path';
 import archiver from 'archiver';
-import { escapeJavaScriptString } from './escapeUtils.js';
+import { escapeJavaScriptString, escapeHtml } from './escapeUtils.js';
 import {
   getPluginConfig,
   savePluginConfig,
@@ -285,6 +285,7 @@ router.post('/plugin-config/generate-bootstrap', authenticateToken, async (req, 
  */
 router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, res) => {
   // Helper function to return user-friendly HTML error page
+  // SECURITY: All parameters are HTML-escaped to prevent XSS attacks
   const sendErrorPage = (title: string, message: string, suggestion: string) => {
     res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8').send(`
 <!DOCTYPE html>
@@ -292,7 +293,7 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vigil Guard - ${title}</title>
+  <title>Vigil Guard - ${escapeHtml(title)}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
     .container { max-width: 500px; padding: 2rem; text-align: center; background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
@@ -305,11 +306,11 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
 </head>
 <body>
   <div class="container">
-    <h1>⚠️ ${title}</h1>
-    <p>${message}</p>
+    <h1>⚠️ ${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
     <div class="suggestion">
       <strong>What to do:</strong><br>
-      ${suggestion}
+      ${escapeHtml(suggestion)}
     </div>
     <p style="margin-top: 1.5rem;">
       <a href="/ui/config/plugin">← Go to Plugin Configuration</a>
@@ -324,6 +325,7 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     const bootstrapToken = req.query.token as string;
 
     if (!bootstrapToken || typeof bootstrapToken !== 'string') {
+      console.warn('[Plugin Config API] Download rejected: MISSING_TOKEN');
       return sendErrorPage(
         'Missing Token',
         'No bootstrap token was provided in the download link.',
@@ -470,6 +472,9 @@ import { PLUGIN_BUILD_CONFIG } from './plugin-config.js';
   }
 `;
       swContent = swContent.slice(0, funcBodyStart) + autoBootstrapCode + swContent.slice(funcBodyStart);
+    } else {
+      // Warn if expected function not found - plugin may not work correctly
+      console.warn('[Plugin Config API] WARNING: fetchConfigFromGUI() not found in service-worker.js - bootstrap injection skipped');
     }
 
     archive.append(swContent, { name: 'src/background/service-worker.js' });
