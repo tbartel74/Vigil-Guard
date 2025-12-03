@@ -411,51 +411,31 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
 
     addFilesRecursively(pluginSourcePath, '');
 
-    // BUGFIX: Explicitly create src/background/ directory in ZIP archive
-    // Issue: addFilesRecursively() skips service-worker.js (it's modified and added separately),
-    // but if src/background/ contains ONLY service-worker.js, the directory is never created.
-    // This causes the ES module import `import { PLUGIN_BUILD_CONFIG } from './plugin-config.js'`
-    // to fail with ERR_FILE_NOT_FOUND when Chrome loads the extension.
-    // Solution: Add empty .gitkeep file to ensure directory structure exists in archive.
-    archive.append('', { name: 'src/background/.gitkeep' });
-
-    // Create plugin-config.js with injected bootstrap token
-    // SECURITY: All values are escaped to prevent JavaScript injection attacks
-    const pluginConfigContent = `// =============================================================================
-// Vigil Guard Plugin Configuration
-// =============================================================================
-// AUTO-GENERATED - Contains pre-configured bootstrap token
-// Build timestamp: ${escapeJavaScriptString(new Date().toISOString())}
-// =============================================================================
-
-export const PLUGIN_BUILD_CONFIG = {
-  // Pre-injected bootstrap token (valid 24h from generation)
-  bootstrapToken: '${escapeJavaScriptString(bootstrapToken)}',
-
-  // GUI URL for API calls
-  guiUrl: '${escapeJavaScriptString(guiUrl)}',
-
-  // Build metadata
-  buildTimestamp: '${escapeJavaScriptString(new Date().toISOString())}',
-  buildVersion: '0.7.0'
-};
-`;
-
-    archive.append(pluginConfigContent, { name: 'src/background/plugin-config.js' });
-
-    // Read and modify service-worker.js to import plugin-config
+    // Read and modify service-worker.js with INLINE config
+    // NOTE: Using inline const instead of ES module import to avoid Chrome MV3
+    // service worker re-registration issues after system idle/sleep
+    // See: https://groups.google.com/a/chromium.org/g/chromium-extensions/c/lLb3EJzjw0o
     const swPath = join(pluginSourcePath, 'src/background/service-worker.js');
     let swContent = readFileSync(swPath, 'utf8');
 
-    // Insert import at the beginning (after first comment block)
-    const importStatement = `// BUILD CONFIG: Auto-injected bootstrap token
-import { PLUGIN_BUILD_CONFIG } from './plugin-config.js';
+    // Create inline config to inject (SECURITY: all values escaped)
+    const inlineConfig = `
+// =============================================================================
+// PLUGIN BUILD CONFIGURATION (auto-injected by backend)
+// Build timestamp: ${escapeJavaScriptString(new Date().toISOString())}
+// =============================================================================
+const PLUGIN_BUILD_CONFIG = {
+  bootstrapToken: '${escapeJavaScriptString(bootstrapToken)}',
+  guiUrl: '${escapeJavaScriptString(guiUrl)}',
+  buildTimestamp: '${escapeJavaScriptString(new Date().toISOString())}',
+  buildVersion: '0.7.0'
+};
 
 `;
 
-    // Insert after the initial comment block
+    // Insert inline config after the initial comment block
     const firstCommentEnd = swContent.indexOf('*/') + 2;
-    swContent = swContent.slice(0, firstCommentEnd) + '\n\n' + importStatement + swContent.slice(firstCommentEnd);
+    swContent = swContent.slice(0, firstCommentEnd) + '\n' + inlineConfig + swContent.slice(firstCommentEnd);
 
     // Add auto-bootstrap logic in fetchConfigFromGUI function
     const fetchConfigStart = swContent.indexOf('async function fetchConfigFromGUI()');
