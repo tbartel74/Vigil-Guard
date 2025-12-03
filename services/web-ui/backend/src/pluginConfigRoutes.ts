@@ -280,26 +280,80 @@ router.post('/plugin-config/generate-bootstrap', authenticateToken, async (req, 
  *
  * Query params: ?token=BOOTSTRAP_TOKEN
  * Response: application/zip file download
+ *
+ * NOTE: Returns HTML error page instead of JSON for better UX when accessing stale links
  */
 router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, res) => {
+  // Helper function to return user-friendly HTML error page
+  const sendErrorPage = (title: string, message: string, suggestion: string) => {
+    res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8').send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vigil Guard - ${title}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .container { max-width: 500px; padding: 2rem; text-align: center; background: #1e293b; border-radius: 12px; border: 1px solid #334155; }
+    h1 { color: #f87171; margin-bottom: 1rem; }
+    p { color: #94a3b8; line-height: 1.6; }
+    .suggestion { background: #334155; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ ${title}</h1>
+    <p>${message}</p>
+    <div class="suggestion">
+      <strong>What to do:</strong><br>
+      ${suggestion}
+    </div>
+    <p style="margin-top: 1.5rem;">
+      <a href="/ui/config/plugin">← Go to Plugin Configuration</a>
+    </p>
+  </div>
+</body>
+</html>
+    `);
+  };
+
   try {
     const bootstrapToken = req.query.token as string;
 
     if (!bootstrapToken || typeof bootstrapToken !== 'string') {
-      return res.status(400).json({
-        error: 'Missing bootstrap token',
-        message: 'Token query parameter is required'
-      });
+      return sendErrorPage(
+        'Missing Token',
+        'No bootstrap token was provided in the download link.',
+        'Go to Plugin Configuration and generate a new Bootstrap Token, then use the Download button.'
+      );
     }
 
     // Verify token validity WITHOUT consuming it (usedCount not incremented)
     // The token is only consumed when plugin calls /bootstrap endpoint
     const validation = verifyBootstrapToken(bootstrapToken);
     if (!validation.valid) {
-      return res.status(401).json({
-        error: 'Invalid or expired bootstrap token',
-        message: validation.error
-      });
+      // Provide specific error messages based on error code
+      let title = 'Download Link Expired';
+      let message = 'This download link is no longer valid.';
+      let suggestion = 'Go to Plugin Configuration and generate a new Bootstrap Token to get a fresh download link.';
+
+      if (validation.errorCode === 'EXPIRED') {
+        title = 'Token Expired';
+        message = 'The bootstrap token in this link has expired (tokens are valid for 24 hours).';
+      } else if (validation.errorCode === 'ALREADY_USED') {
+        title = 'Token Already Used';
+        message = 'This bootstrap token has already been used. Bootstrap tokens are single-use for security.';
+        suggestion = 'If you need to deploy another plugin instance, generate a new Bootstrap Token in Plugin Configuration.';
+      } else if (validation.errorCode === 'INVALID_TOKEN') {
+        title = 'Invalid Token';
+        message = 'The token in this link is invalid or has been regenerated.';
+      }
+
+      console.warn('[Plugin Config API] Download rejected:', validation.errorCode, validation.error);
+      return sendErrorPage(title, message, suggestion);
     }
 
     // Get current config for GUI URL
@@ -354,6 +408,14 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     };
 
     addFilesRecursively(pluginSourcePath, '');
+
+    // BUGFIX: Explicitly create src/background/ directory in ZIP archive
+    // Issue: addFilesRecursively() skips service-worker.js (it's modified and added separately),
+    // but if src/background/ contains ONLY service-worker.js, the directory is never created.
+    // This causes the ES module import `import { PLUGIN_BUILD_CONFIG } from './plugin-config.js'`
+    // to fail with ERR_FILE_NOT_FOUND when Chrome loads the extension.
+    // Solution: Add empty .gitkeep file to ensure directory structure exists in archive.
+    archive.append('', { name: 'src/background/.gitkeep' });
 
     // Create plugin-config.js with injected bootstrap token
     // SECURITY: All values are escaped to prevent JavaScript injection attacks

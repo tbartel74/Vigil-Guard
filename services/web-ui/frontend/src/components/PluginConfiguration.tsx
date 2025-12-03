@@ -339,7 +339,8 @@ export function PluginConfiguration() {
             )}
 
             {/* Show newly generated token with Download Plugin button */}
-            {newBootstrapToken && (
+            {/* Only show if token was just generated AND hasn't been used yet */}
+            {newBootstrapToken && bootstrapStatus?.status === 'active' && (
               <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -367,6 +368,10 @@ export function PluginConfiguration() {
                         Download Pre-configured Plugin (.zip)
                       </a>
                     </div>
+
+                    <p className="text-xs text-amber-300 mt-2">
+                      <strong>Note:</strong> This download link is single-use. After the plugin is installed and connects to the server, the token will be consumed and this link will no longer work.
+                    </p>
 
                     {/* Alternative: Manual token copy */}
                     <details className="mt-3">
