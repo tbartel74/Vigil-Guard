@@ -286,8 +286,8 @@ router.post('/plugin-config/generate-bootstrap', authenticateToken, async (req, 
 router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, res) => {
   // Helper function to return user-friendly HTML error page
   // SECURITY: All parameters are HTML-escaped to prevent XSS attacks
-  const sendErrorPage = (title: string, message: string, suggestion: string) => {
-    res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8').send(`
+  const sendErrorPage = (statusCode: number, title: string, message: string, suggestion: string) => {
+    res.status(statusCode).setHeader('Content-Type', 'text/html; charset=utf-8').send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -327,6 +327,7 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     if (!bootstrapToken || typeof bootstrapToken !== 'string') {
       console.warn('[Plugin Config API] Download rejected: MISSING_TOKEN');
       return sendErrorPage(
+        400,
         'Missing Token',
         'No bootstrap token was provided in the download link.',
         'Go to Plugin Configuration and generate a new Bootstrap Token, then use the Download button.'
@@ -337,25 +338,29 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     // The token is only consumed when plugin calls /bootstrap endpoint
     const validation = verifyBootstrapToken(bootstrapToken);
     if (!validation.valid) {
-      // Provide specific error messages based on error code
+      // Provide specific error messages and HTTP status codes based on error code
+      let statusCode = 401; // Default: Unauthorized
       let title = 'Download Link Expired';
       let message = 'This download link is no longer valid.';
       let suggestion = 'Go to Plugin Configuration and generate a new Bootstrap Token to get a fresh download link.';
 
       if (validation.errorCode === 'EXPIRED') {
+        statusCode = 410; // Gone - resource expired
         title = 'Token Expired';
         message = 'The bootstrap token in this link has expired (tokens are valid for 24 hours).';
       } else if (validation.errorCode === 'ALREADY_USED') {
+        statusCode = 410; // Gone - resource consumed
         title = 'Token Already Used';
         message = 'This bootstrap token has already been used. Bootstrap tokens are single-use for security.';
         suggestion = 'If you need to deploy another plugin instance, generate a new Bootstrap Token in Plugin Configuration.';
       } else if (validation.errorCode === 'INVALID_TOKEN') {
+        statusCode = 401; // Unauthorized - invalid credentials
         title = 'Invalid Token';
         message = 'The token in this link is invalid or has been regenerated.';
       }
 
       console.warn('[Plugin Config API] Download rejected:', validation.errorCode, validation.error);
-      return sendErrorPage(title, message, suggestion);
+      return sendErrorPage(statusCode, title, message, suggestion);
     }
 
     // Get current config for GUI URL
@@ -368,10 +373,12 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     // Check if plugin source exists
     if (!existsSync(pluginSourcePath)) {
       console.error('[Plugin Config API] Plugin source not found at:', pluginSourcePath);
-      return res.status(500).json({
-        error: 'Plugin source not available',
-        message: 'Chrome plugin source files not found in container'
-      });
+      return sendErrorPage(
+        500,
+        'Server Configuration Error',
+        'The plugin source files are not available on the server.',
+        'Contact your administrator to verify the backend container configuration.'
+      );
     }
 
     // Set response headers for zip download
@@ -388,7 +395,12 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
     archive.on('error', (err) => {
       console.error('[Plugin Config API] Archive error:', err);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to create plugin archive' });
+        sendErrorPage(
+          500,
+          'Download Failed',
+          'An error occurred while creating the plugin archive.',
+          'Please try again. If the problem persists, contact your administrator.'
+        );
       }
     });
 
@@ -411,51 +423,31 @@ router.get('/plugin-config/download-plugin', pluginConfigLimiter, async (req, re
 
     addFilesRecursively(pluginSourcePath, '');
 
-    // BUGFIX: Explicitly create src/background/ directory in ZIP archive
-    // Issue: addFilesRecursively() skips service-worker.js (it's modified and added separately),
-    // but if src/background/ contains ONLY service-worker.js, the directory is never created.
-    // This causes the ES module import `import { PLUGIN_BUILD_CONFIG } from './plugin-config.js'`
-    // to fail with ERR_FILE_NOT_FOUND when Chrome loads the extension.
-    // Solution: Add empty .gitkeep file to ensure directory structure exists in archive.
-    archive.append('', { name: 'src/background/.gitkeep' });
-
-    // Create plugin-config.js with injected bootstrap token
-    // SECURITY: All values are escaped to prevent JavaScript injection attacks
-    const pluginConfigContent = `// =============================================================================
-// Vigil Guard Plugin Configuration
-// =============================================================================
-// AUTO-GENERATED - Contains pre-configured bootstrap token
-// Build timestamp: ${escapeJavaScriptString(new Date().toISOString())}
-// =============================================================================
-
-export const PLUGIN_BUILD_CONFIG = {
-  // Pre-injected bootstrap token (valid 24h from generation)
-  bootstrapToken: '${escapeJavaScriptString(bootstrapToken)}',
-
-  // GUI URL for API calls
-  guiUrl: '${escapeJavaScriptString(guiUrl)}',
-
-  // Build metadata
-  buildTimestamp: '${escapeJavaScriptString(new Date().toISOString())}',
-  buildVersion: '0.7.0'
-};
-`;
-
-    archive.append(pluginConfigContent, { name: 'src/background/plugin-config.js' });
-
-    // Read and modify service-worker.js to import plugin-config
+    // Read and modify service-worker.js with INLINE config
+    // NOTE: Using inline const instead of ES module import to avoid Chrome MV3
+    // service worker re-registration issues after system idle/sleep
+    // See: https://groups.google.com/a/chromium.org/g/chromium-extensions/c/lLb3EJzjw0o
     const swPath = join(pluginSourcePath, 'src/background/service-worker.js');
     let swContent = readFileSync(swPath, 'utf8');
 
-    // Insert import at the beginning (after first comment block)
-    const importStatement = `// BUILD CONFIG: Auto-injected bootstrap token
-import { PLUGIN_BUILD_CONFIG } from './plugin-config.js';
+    // Create inline config to inject (SECURITY: all values escaped)
+    const inlineConfig = `
+// =============================================================================
+// PLUGIN BUILD CONFIGURATION (auto-injected by backend)
+// Build timestamp: ${escapeJavaScriptString(new Date().toISOString())}
+// =============================================================================
+const PLUGIN_BUILD_CONFIG = {
+  bootstrapToken: '${escapeJavaScriptString(bootstrapToken)}',
+  guiUrl: '${escapeJavaScriptString(guiUrl)}',
+  buildTimestamp: '${escapeJavaScriptString(new Date().toISOString())}',
+  buildVersion: '0.7.0'
+};
 
 `;
 
-    // Insert after the initial comment block
+    // Insert inline config after the initial comment block
     const firstCommentEnd = swContent.indexOf('*/') + 2;
-    swContent = swContent.slice(0, firstCommentEnd) + '\n\n' + importStatement + swContent.slice(firstCommentEnd);
+    swContent = swContent.slice(0, firstCommentEnd) + '\n' + inlineConfig + swContent.slice(firstCommentEnd);
 
     // Add auto-bootstrap logic in fetchConfigFromGUI function
     const fetchConfigStart = swContent.indexOf('async function fetchConfigFromGUI()');
@@ -473,8 +465,14 @@ import { PLUGIN_BUILD_CONFIG } from './plugin-config.js';
 `;
       swContent = swContent.slice(0, funcBodyStart) + autoBootstrapCode + swContent.slice(funcBodyStart);
     } else {
-      // Warn if expected function not found - plugin may not work correctly
-      console.warn('[Plugin Config API] WARNING: fetchConfigFromGUI() not found in service-worker.js - bootstrap injection skipped');
+      // Fail loudly if expected function not found - plugin will not auto-configure
+      console.error('[Plugin Config API] CRITICAL: fetchConfigFromGUI() not found in service-worker.js');
+      return sendErrorPage(
+        500,
+        'Plugin Build Error',
+        'The plugin source code is incompatible with auto-bootstrap injection.',
+        'Contact your administrator to update the Chrome plugin to version 0.7.0 or higher.'
+      );
     }
 
     archive.append(swContent, { name: 'src/background/service-worker.js' });
@@ -486,10 +484,12 @@ import { PLUGIN_BUILD_CONFIG } from './plugin-config.js';
   } catch (error: any) {
     console.error('[Plugin Config API] Download plugin error:', error);
     if (!res.headersSent) {
-      res.status(500).json({
-        error: 'Failed to generate plugin download',
-        message: error.message
-      });
+      sendErrorPage(
+        500,
+        'Download Failed',
+        'An unexpected error occurred while generating the plugin download.',
+        'Please try again later. If the problem persists, contact your administrator.'
+      );
     }
   }
 });

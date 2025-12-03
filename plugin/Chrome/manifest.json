@@ -15,8 +15,7 @@
     "https://*/*"
   ],
   "background": {
-    "service_worker": "src/background/service-worker.js",
-    "type": "module"
+    "service_worker": "src/background/service-worker.js"
   },
   "content_scripts": [
     {
