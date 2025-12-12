@@ -153,7 +153,7 @@ export default function InvestigationV2() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
           Investigation
-          <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">v2.0.0</span>
+          <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">v2.1.0</span>
         </h1>
         <p className="text-text-secondary mt-2">
           3-Branch Detection Architecture analysis with Arbiter decision engine

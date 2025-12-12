@@ -10,7 +10,7 @@ export default function Footer() {
           © {currentYear} Vigil Guard. All rights reserved.
         </div>
         <div className="text-text-secondary">
-          Version 2.0.0
+          Version 2.1.0
         </div>
         <a
           href="https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M"

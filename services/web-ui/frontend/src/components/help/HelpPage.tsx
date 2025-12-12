@@ -124,7 +124,7 @@ export default function HelpPage() {
 
           {/* Version badge */}
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">v2.0.0</span>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">v2.1.0</span>
           </div>
         </header>
 

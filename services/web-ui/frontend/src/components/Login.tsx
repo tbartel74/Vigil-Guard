@@ -115,7 +115,7 @@ export function Login() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-gray-500 text-sm">
-            &copy; 2025 Vigil Guard. All rights reserved. Version 2.0.0
+            &copy; 2025 Vigil Guard. All rights reserved. Version 2.1.0
           </p>
         </div>
       </div>
