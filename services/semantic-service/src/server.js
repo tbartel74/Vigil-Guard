@@ -212,7 +212,7 @@ app.post('/analyze-v2', async (req, res) => {
             search_latency_ms: searchLatency,
             attack_matches: JSON.stringify(twoPhaseResult.attack_matches || []),
             safe_matches: JSON.stringify(twoPhaseResult.safe_matches || []),
-            pipeline_version: '2.0.0',
+            pipeline_version: '2.1.0',
             source: 'semantic-service'
         });
 
@@ -240,7 +240,7 @@ app.post('/analyze-v2', async (req, res) => {
 /**
  * POST /analyze
  * Main analysis endpoint - returns branch_result
- * Supports gradual rollout to Two-Phase Search via config.rollout.twoPhasePercent
+ * Uses Two-Phase Search (v2.0.0) by default for better accuracy
  */
 app.post('/analyze', async (req, res) => {
     const startTime = Date.now();
@@ -269,7 +269,7 @@ app.post('/analyze', async (req, res) => {
             );
         }
 
-        // Generate embedding
+        // Generate embedding using E5 model with query prefix
         let embedding;
         try {
             embedding = await embeddingGenerator.generate(text);
@@ -282,22 +282,22 @@ app.post('/analyze', async (req, res) => {
             );
         }
 
-        // Search similar patterns
-        let results;
+        // Two-Phase Search: compare against attack AND safe patterns
+        let twoPhaseResult;
         try {
-            results = await searchSimilar(embedding, config.search.topK);
+            twoPhaseResult = await searchTwoPhase(embedding, config.search.topK);
         } catch (e) {
             const errorId = Date.now().toString(36);
-            logger.error({ errorId, error: e.message, stack: e.stack }, 'ClickHouse search failed');
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Two-Phase search failed');
             const timingMs = Date.now() - startTime;
             return res.json(
                 buildDegradedResult('Database search failed', timingMs)
             );
         }
 
-        // Build response
+        // Build Two-Phase response
         const timingMs = Date.now() - startTime;
-        const response = buildBranchResult(results, timingMs, false);
+        const response = buildTwoPhaseResult(twoPhaseResult, timingMs);
 
         // Add request_id if provided
         if (request_id) {
@@ -308,8 +308,10 @@ app.post('/analyze', async (req, res) => {
             request_id,
             score: response.score,
             threat_level: response.threat_level,
+            classification: twoPhaseResult.classification,
+            delta: twoPhaseResult.delta?.toFixed(3),
             timing_ms: timingMs
-        }, 'Analysis complete');
+        }, 'Two-Phase analysis complete');
 
         res.json(response);
 
