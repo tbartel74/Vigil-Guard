@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Vigil Guard - Complete Installation Script
+# Vigil Guard v2.1.0 - Complete Installation Script
 # This script automates the installation of all components
 
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
@@ -327,7 +327,7 @@ check_disk_space() {
         log_error "You have ${available_gb} GB available, but ${required_gb} GB is required."
         echo ""
         log_info "Disk space breakdown:"
-        echo "  • Docker images: ~3.5 GB (v2.0.0: +heuristics +semantic services)"
+        echo "  • Docker images: ~3.5 GB (v2.1.0: +heuristics +semantic services)"
         echo "  • vigil_data volumes: 10-20 GB (logs, databases)"
         echo "  • Build cache: 3-5 GB (temporary)"
         echo "  • Reserved safety margin: 5 GB"
@@ -952,14 +952,15 @@ start_all_services() {
 initialize_clickhouse() {
     print_header "Initializing ClickHouse Database"
 
-    # Verify all required SQL scripts exist (v2.0.0)
+    # Verify all required SQL scripts exist (v2.1.0)
     REQUIRED_SQL_FILES=(
         "services/monitoring/sql/01-create-tables-v2.sql"
         "services/monitoring/sql/02-semantic-embeddings-v2.sql"
         "services/monitoring/sql/03-false-positives-views.sql"
+        "services/monitoring/sql/04-semantic-safe-embeddings.sql"
     )
 
-    log_info "Verifying SQL files for v2.0.0..."
+    log_info "Verifying SQL files for v2.1.0..."
     MISSING_FILES=0
     for SQL_FILE in "${REQUIRED_SQL_FILES[@]}"; do
         if [ ! -f "$SQL_FILE" ]; then
@@ -970,10 +971,10 @@ initialize_clickhouse() {
 
     if [ $MISSING_FILES -gt 0 ]; then
         log_error "$MISSING_FILES SQL file(s) missing - cannot proceed"
-        log_info "Ensure you have the complete v2.0.0 repository"
+        log_info "Ensure you have the complete v2.1.0 repository"
         exit 1
     fi
-    log_success "All v2.0.0 SQL files present"
+    log_success "All v2.1.0 SQL files present"
     echo ""
 
     # Load ClickHouse configuration from .env
@@ -1046,10 +1047,10 @@ EOF
         exit 1
     fi
 
-    # Verify Docker entrypoint created tables (v2.0.0 schema)
-    log_info "Verifying v2.0.0 tables created by Docker entrypoint..."
+    # Verify Docker entrypoint created tables (v2.1.0 schema)
+    log_info "Verifying v2.1.0 tables created by Docker entrypoint..."
 
-    # Expected tables for v2.0.0
+    # Expected tables for v2.1.0
     V2_TABLES=(
         "events_v2"
         "false_positive_reports"
@@ -1057,6 +1058,7 @@ EOF
         "pattern_embeddings"
         "embedding_metadata"
         "embedding_audit_log"
+        "semantic_safe_embeddings"
     )
 
     MISSING_TABLES=0
@@ -1077,16 +1079,17 @@ EOF
     done
 
     if [ $MISSING_TABLES -gt 0 ]; then
-        log_warning "$MISSING_TABLES table(s) missing from v2.0.0 schema (update mode)"
+        log_warning "$MISSING_TABLES table(s) missing from v2.1.0 schema (update mode)"
         log_warning "Missing tables: ${MISSING_TABLE_NAMES[*]}"
         echo ""
-        log_info "Applying v2.0.0 schema migration..."
+        log_info "Applying v2.1.0 schema migration..."
         echo ""
 
         SQL_FILES=(
             "services/monitoring/sql/01-create-tables-v2.sql"
             "services/monitoring/sql/02-semantic-embeddings-v2.sql"
             "services/monitoring/sql/03-false-positives-views.sql"
+            "services/monitoring/sql/04-semantic-safe-embeddings.sql"
         )
 
         for SQL_FILE in "${SQL_FILES[@]}"; do
@@ -1109,7 +1112,7 @@ EOF
         done
 
         echo ""
-        log_success "v2.0.0 schema migration completed"
+        log_success "v2.1.0 schema migration completed"
         echo ""
 
         # Verify tables after migration
@@ -1134,10 +1137,10 @@ EOF
             exit 1
         fi
 
-        log_success "All v2.0.0 tables verified after migration"
+        log_success "All v2.1.0 tables verified after migration"
     fi
 
-    log_success "All 6 v2.0.0 tables present"
+    log_success "All 7 v2.1.0 tables present"
 
     # Verify views created
     log_info "Verifying false positive views..."
@@ -1156,14 +1159,14 @@ EOF
     echo ""
 
     # Final verification
-    log_info "Verifying v2.0.0 database structure..."
+    log_info "Verifying v2.1.0 database structure..."
     TOTAL_OBJECTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
         -q "SHOW TABLES" 2>/dev/null | wc -l | tr -d ' ')
 
     if [ "$TOTAL_OBJECTS" -ge 8 ]; then
-        log_success "ClickHouse v2.0.0 initialized successfully ($TOTAL_OBJECTS tables/views)"
+        log_success "ClickHouse v2.1.0 initialized successfully ($TOTAL_OBJECTS tables/views)"
         log_info "Architecture: 3-branch detection (Heuristics + Semantic + LLM Safety Engine analysis)"
     else
         log_warning "Database created but object count is unexpected: $TOTAL_OBJECTS (expected ≥8)"
@@ -1506,6 +1509,59 @@ import_semantic_embeddings() {
     fi
 }
 
+# Import SAFE pattern embeddings for Two-Phase Search (v2.1.0)
+# These embeddings reduce false positives by comparing against benign patterns
+import_safe_embeddings() {
+    local SAFE_EMBEDDINGS_FILE="services/semantic-service/data/security_education_embeddings.jsonl"
+
+    if [ ! -f "$SAFE_EMBEDDINGS_FILE" ]; then
+        log_warning "Safe embeddings file not found: $SAFE_EMBEDDINGS_FILE"
+        log_info "Two-Phase Search will work with reduced FP filtering"
+        return 1
+    fi
+
+    local TOTAL_LINES=$(wc -l < "$SAFE_EMBEDDINGS_FILE" | tr -d ' ')
+    log_info "Importing $TOTAL_LINES safe pattern embeddings for Two-Phase Search..."
+
+    # Import using ClickHouse-native JSONEachRow format
+    log_info "Using ClickHouse JSONEachRow format for atomic bulk import..."
+
+    # Step 1: Truncate existing safe embeddings for idempotency
+    docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "TRUNCATE TABLE semantic_safe_embeddings" 2>/dev/null
+
+    # Step 2: Bulk import via JSONEachRow HTTP interface
+    local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_safe_import_result.txt \
+        --user "admin:$CLICKHOUSE_PASSWORD" \
+        --data-binary "@$SAFE_EMBEDDINGS_FILE" \
+        --max-time 60 \
+        "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.semantic_safe_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
+
+    if [ "$IMPORT_HTTP_CODE" = "200" ]; then
+        log_success "Safe embeddings import completed (HTTP 200)"
+    else
+        log_error "Safe embeddings import failed (HTTP $IMPORT_HTTP_CODE)"
+        log_error "Response: $(cat /tmp/clickhouse_safe_import_result.txt)"
+        rm -f /tmp/clickhouse_safe_import_result.txt
+        return 1
+    fi
+    rm -f /tmp/clickhouse_safe_import_result.txt
+
+    local IMPORTED_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "SELECT COUNT(*) FROM semantic_safe_embeddings" \
+        2>/dev/null | tr -d ' ')
+
+    if [ "$IMPORTED_COUNT" -gt 0 ]; then
+        log_success "Imported $IMPORTED_COUNT safe pattern embeddings"
+    else
+        log_warning "No safe embeddings imported. Two-Phase Search will have reduced FP filtering"
+    fi
+}
+
 # Initialize Semantic Service (Branch B)
 initialize_semantic_service() {
     print_header "Initializing Semantic Service (Branch B)"
@@ -1617,6 +1673,46 @@ initialize_semantic_service() {
         log_success "HNSW vector index ready (usearch cosine similarity)"
     else
         log_warning "HNSW index not found - semantic search may be slow"
+    fi
+
+    # =====================================================================
+    # Two-Phase Search: Safe Pattern Embeddings (v2.1.0)
+    # =====================================================================
+    log_info "Initializing Two-Phase Search (safe pattern embeddings)..."
+
+    # Check if semantic_safe_embeddings table exists
+    SAFE_TABLE_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+        --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+        --database "$CLICKHOUSE_DB" \
+        -q "EXISTS TABLE semantic_safe_embeddings" \
+        2>/dev/null | tr -d ' ')
+
+    local MIN_SAFE_EMBEDDINGS=50
+
+    if [ "$SAFE_TABLE_EXISTS" = "1" ]; then
+        log_success "Safe embeddings table ready"
+
+        # Count existing safe embeddings
+        SAFE_EMBEDDING_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+            --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
+            --database "$CLICKHOUSE_DB" \
+            -q "SELECT COUNT(*) FROM semantic_safe_embeddings" \
+            2>/dev/null | tr -d ' ')
+
+        if [ "$SAFE_EMBEDDING_COUNT" -ge "$MIN_SAFE_EMBEDDINGS" ]; then
+            log_success "Safe embeddings: $SAFE_EMBEDDING_COUNT vectors (verified: >= $MIN_SAFE_EMBEDDINGS)"
+        elif [ "$SAFE_EMBEDDING_COUNT" -gt 0 ]; then
+            log_warning "Incomplete safe embeddings: $SAFE_EMBEDDING_COUNT < $MIN_SAFE_EMBEDDINGS"
+            log_info "Re-importing safe patterns..."
+            import_safe_embeddings
+        else
+            log_info "No safe embeddings found. Importing..."
+            import_safe_embeddings
+        fi
+    else
+        log_warning "semantic_safe_embeddings table not found"
+        log_info "Table should be created by 04-semantic-safe-embeddings.sql"
+        log_info "Two-Phase Search will operate with attack patterns only"
     fi
 
     # Display detection configuration
@@ -1886,10 +1982,10 @@ show_summary() {
     echo -e "    Database: ${BLUE}${CLICKHOUSE_DB:-n8n_logs}${NC}"
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE - v2.0.0${NC}"
+    echo -e "${GREEN}✅ SECURE INSTALLATION COMPLETE - v2.1.0${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${BLUE}3-Branch Detection Architecture (NEW v2.0.0):${NC}"
+    echo -e "${BLUE}3-Branch Detection Architecture (v2.1.0):${NC}"
     echo -e "  ${GREEN}Branch A - Heuristics Detection (Port 5005):${NC}"
     echo -e "    • Obfuscation patterns: ${BLUE}30% weight${NC}"
     echo -e "    • Structure analysis: ${BLUE}25% weight${NC}"
@@ -1905,9 +2001,16 @@ show_summary() {
     echo -e "    • Pattern database: ${GREEN}ClickHouse vector embeddings${NC}"
     echo -e "    • Performance: ${BLUE}<25ms per query (p95)${NC}"
     echo ""
-    echo -e "  ${GREEN}Branch C - LLM Safety Engine analysis (Future):${NC}"
-    echo -e "    • Status: ${YELLOW}Planned for v2.1.0${NC}"
-    echo -e "    • Integration: ${YELLOW}Prompt Guard API (LLM safety model) ready${NC}"
+    echo -e "  ${GREEN}Branch C - LLM Safety Engine (Prompt Guard):${NC}"
+    echo -e "    • Model: ${BLUE}Llama Guard 2${NC}"
+    echo -e "    • Purpose: ${BLUE}ML-based threat validation${NC}"
+    echo -e "    • Integration: ${GREEN}Active via prompt-guard-api${NC}"
+    echo ""
+    echo -e "  ${GREEN}Arbiter v2.1.0 (Branch Coordination):${NC}"
+    echo -e "    • Heuristics weight: ${BLUE}30%${NC}"
+    echo -e "    • Semantic weight: ${BLUE}40%${NC}"
+    echo -e "    • LLM Guard weight: ${BLUE}30%${NC}"
+    echo -e "    • Solo-PG exception: ${GREEN}Reduces FP on educational content${NC}"
     echo ""
     echo -e "  ${GREEN}PII Detection (Dual-Language):${NC}"
     echo -e "    • Provider: ${BLUE}Microsoft Presidio${NC}"
@@ -2086,7 +2189,7 @@ main() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║                                                    ║${NC}"
     echo -e "${BLUE}║         Vigil Guard Installation Script       ║${NC}"
-    echo -e "${BLUE}║                      v2.0.0                        ║${NC}"
+    echo -e "${BLUE}║                      v2.1.0                        ║${NC}"
     echo -e "${BLUE}║           3-Branch Detection Architecture          ║${NC}"
     echo -e "${BLUE}║                                                    ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════╝${NC}"
