@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 // Load patterns from JSON file
 let securityPatterns = null;
 let patternLoadingError = null;
+let educationalPatterns = null;
 
 function loadPatterns() {
   if (!securityPatterns) {
@@ -33,6 +34,78 @@ function loadPatterns() {
     }
   }
   return securityPatterns;
+}
+
+/**
+ * Load educational context patterns for FP reduction
+ */
+function loadEducationalPatterns() {
+  if (!educationalPatterns) {
+    try {
+      const patternsPath = path.join(__dirname, '../../patterns/educational-context.json');
+      const data = JSON.parse(fs.readFileSync(patternsPath, 'utf8'));
+      educationalPatterns = {
+        patterns: data.patterns.map(p => ({
+          regex: new RegExp(p.pattern, 'i'),
+          dampening: p.dampening,
+          category: p.category
+        })),
+        overrides: (data.malicious_override_patterns || []).map(p => ({
+          regex: new RegExp(p.pattern, 'i'),
+          description: p.description
+        }))
+      };
+    } catch (error) {
+      console.warn('Failed to load educational patterns:', error.message);
+      educationalPatterns = { patterns: [], overrides: [] };
+    }
+  }
+  return educationalPatterns;
+}
+
+/**
+ * Detect educational context to reduce false positives
+ * @param {string} text - Input text to analyze
+ * @returns {Object} { is_educational: bool, dampening_factor: 0.0-1.0, category: string }
+ */
+function detectEducationalContext(text) {
+  const edu = loadEducationalPatterns();
+
+  // First check if malicious override patterns match - these bypass educational dampening
+  for (const override of edu.overrides) {
+    if (override.regex.test(text)) {
+      return {
+        is_educational: false,
+        dampening_factor: 1.0,
+        category: null,
+        override_reason: override.description
+      };
+    }
+  }
+
+  // Find the strongest educational context match (lowest dampening = strongest)
+  let bestMatch = null;
+  for (const pattern of edu.patterns) {
+    if (pattern.regex.test(text)) {
+      if (!bestMatch || pattern.dampening < bestMatch.dampening) {
+        bestMatch = pattern;
+      }
+    }
+  }
+
+  if (bestMatch) {
+    return {
+      is_educational: true,
+      dampening_factor: bestMatch.dampening,
+      category: bestMatch.category
+    };
+  }
+
+  return {
+    is_educational: false,
+    dampening_factor: 1.0,
+    category: null
+  };
 }
 
 /**
@@ -194,6 +267,22 @@ export async function detectSecurityKeywords(text) {
   let score = 0;
   for (const pattern of results.detected_patterns) {
     score += pattern.weight * pattern.count;
+  }
+
+  // Apply educational context dampening to reduce false positives
+  const contextAnalysis = detectEducationalContext(text);
+  if (contextAnalysis.is_educational && score > 0) {
+    const originalScore = score;
+    score = score * contextAnalysis.dampening_factor;
+    results.educational_context = {
+      detected: true,
+      category: contextAnalysis.category,
+      dampening_factor: contextAnalysis.dampening_factor,
+      original_score: Math.round(originalScore)
+    };
+    results.signals.unshift(
+      `Educational context (${contextAnalysis.category}) - score dampened: ${Math.round(originalScore)} → ${Math.round(score)}`
+    );
   }
 
   // Cap score at 100
