@@ -124,6 +124,11 @@ CHANGELOG.md
 .codex/
 bin
 bin/vg-orchestrate
+# Codex agent system (local-only, do not sync)
+AGENTS.md
+codex-protocols.md
+codex-agents/
+codex-state/
 
 # Project management and scripts (not for repository)
 IMPLEMENTATION_TODO.md
@@ -192,3 +197,17 @@ PII_SCORE_REGRESSION_ANALYSIS.md
 
 # Archive - v1.8 legacy files
 old_1.8_files/
+# Codex agent system (local-only, do not sync)
+AGENTS.md
+codex-protocols.md
+codex-agents/
+codex-state/
+
+# Semantic Service - E5 Migration (Phase 3-4)
+# Models (downloaded via scripts, too large for git)
+services/semantic-service/models/
+!services/semantic-service/models/.gitkeep
+# Embeddings data (generated from source datasets)
+services/semantic-service/data/*.jsonl
+services/semantic-service/data/_backup_*/
+# Keep source pattern files from external datasets only as needed

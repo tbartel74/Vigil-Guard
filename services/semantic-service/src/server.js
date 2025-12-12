@@ -18,8 +18,8 @@ const pino = require('pino');
 const config = require('./config');
 const embeddingGenerator = require('./embedding/generator');
 const clickhouseClient = require('./clickhouse/client');
-const { searchSimilar, getStats, checkEmbeddingHealth } = require('./clickhouse/queries');
-const { buildBranchResult, buildDegradedResult } = require('./scoring/scorer');
+const { searchSimilar, searchTwoPhase, getStats, checkEmbeddingHealth } = require('./clickhouse/queries');
+const { buildBranchResult, buildTwoPhaseResult, buildDegradedResult } = require('./scoring/scorer');
 
 // ============================================================================
 // Logger
@@ -68,6 +68,7 @@ const limiter = rateLimit({
     message: { error: 'Too many requests, please try again later' }
 });
 app.use('/analyze', limiter);
+app.use('/analyze-v2', limiter);
 
 // Request logging
 app.use((req, res, next) => {
@@ -94,12 +95,152 @@ let clickhouseReady = false;
 let startupError = null;
 
 // ============================================================================
+// Analysis Logging (Phase 4)
+// ============================================================================
+
+/**
+ * Log analysis results to ClickHouse asynchronously (fire-and-forget)
+ * @param {Object} entry - Analysis log entry
+ */
+function logAnalysis(entry) {
+    // Fire-and-forget - don't await, don't block response
+    clickhouseClient.insert('semantic_analysis_log', entry).catch(err => {
+        logger.warn({ error: err.message }, 'Failed to log analysis to ClickHouse');
+    });
+}
+
+// ============================================================================
 // Endpoints
 // ============================================================================
 
 /**
+ * POST /analyze-v2
+ * Two-Phase Semantic Analysis endpoint (Phase 4)
+ * Uses Two-Phase Search with attack + safe embeddings for improved detection
+ */
+app.post('/analyze-v2', async (req, res) => {
+    const startTime = Date.now();
+    const embeddingStartTime = startTime;
+
+    try {
+        const { text, request_id, client_id } = req.body;
+
+        // Validate input
+        if (!text || typeof text !== 'string') {
+            return res.status(400).json({
+                error: 'Invalid input: text is required and must be a string'
+            });
+        }
+
+        if (text.length > 100000) {
+            return res.status(400).json({
+                error: 'Text too long: maximum 100000 characters'
+            });
+        }
+
+        // Check if Two-Phase is enabled
+        if (!config.rollout?.enableTwoPhase) {
+            return res.status(503).json({
+                error: 'Two-Phase Search is not enabled',
+                message: 'Use /analyze endpoint or set SEMANTIC_ENABLE_TWO_PHASE=true'
+            });
+        }
+
+        // Check service readiness
+        if (!serviceReady) {
+            const timingMs = Date.now() - startTime;
+            return res.status(503).json(
+                buildDegradedResult('Service not ready', timingMs)
+            );
+        }
+
+        // Generate embedding
+        let embedding;
+        let embeddingLatency;
+        try {
+            embedding = await embeddingGenerator.generate(text);
+            embeddingLatency = Date.now() - embeddingStartTime;
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Embedding generation failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Embedding generation failed', timingMs)
+            );
+        }
+
+        // Two-Phase Search
+        const searchStartTime = Date.now();
+        let twoPhaseResult;
+        try {
+            twoPhaseResult = await searchTwoPhase(embedding, config.search.topK);
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Two-Phase search failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Database search failed', timingMs)
+            );
+        }
+        const searchLatency = Date.now() - searchStartTime;
+
+        // Build response
+        const timingMs = Date.now() - startTime;
+        const response = buildTwoPhaseResult(twoPhaseResult, timingMs);
+
+        // Add request_id if provided
+        if (request_id) {
+            response.request_id = request_id;
+        }
+
+        // Log analysis asynchronously (fire-and-forget)
+        logAnalysis({
+            request_id: request_id || null,
+            client_id: client_id || '',
+            input_text: text.substring(0, 500), // Truncate for storage
+            input_length: text.length,
+            classification: twoPhaseResult.classification,
+            attack_max_similarity: twoPhaseResult.attack_max_similarity,
+            safe_max_similarity: twoPhaseResult.safe_max_similarity,
+            delta: twoPhaseResult.delta,
+            adjusted_delta: twoPhaseResult.adjusted_delta || twoPhaseResult.delta,
+            confidence_score: twoPhaseResult.confidence || 0,
+            safe_is_instruction_type: twoPhaseResult.safe_is_instruction_type ? 1 : 0,
+            classification_version: '2.0',
+            latency_ms: timingMs,
+            embedding_latency_ms: embeddingLatency,
+            search_latency_ms: searchLatency,
+            attack_matches: JSON.stringify(twoPhaseResult.attack_matches || []),
+            safe_matches: JSON.stringify(twoPhaseResult.safe_matches || []),
+            pipeline_version: '2.0.0',
+            source: 'semantic-service'
+        });
+
+        logger.info({
+            request_id,
+            classification: twoPhaseResult.classification,
+            score: response.score,
+            threat_level: response.threat_level,
+            delta: twoPhaseResult.delta?.toFixed(3),
+            timing_ms: timingMs
+        }, 'Two-Phase analysis complete');
+
+        res.json(response);
+
+    } catch (e) {
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Unexpected error in analyze-v2');
+        const timingMs = Date.now() - startTime;
+        res.status(500).json(
+            buildDegradedResult('Internal server error', timingMs)
+        );
+    }
+});
+
+/**
  * POST /analyze
  * Main analysis endpoint - returns branch_result
+ * Supports gradual rollout to Two-Phase Search via config.rollout.twoPhasePercent
  */
 app.post('/analyze', async (req, res) => {
     const startTime = Date.now();
@@ -266,13 +407,18 @@ app.get('/metrics', async (req, res) => {
 app.get('/', (req, res) => {
     res.json({
         service: 'semantic-service',
-        version: '1.0.0',
+        version: '2.0.0',
         branch: config.branch,
-        description: 'Semantic similarity detection using MiniLM embeddings',
+        description: 'Semantic similarity detection using E5 multilingual embeddings',
         endpoints: {
-            'POST /analyze': 'Analyze text for semantic similarity (branch_result)',
+            'POST /analyze': 'Analyze text (legacy single-table or gradual Two-Phase rollout)',
+            'POST /analyze-v2': 'Analyze text with Two-Phase Search (attack + safe patterns)',
             'GET /health': 'Health check',
             'GET /metrics': 'Service metrics'
+        },
+        rollout: {
+            two_phase_enabled: config.rollout?.enableTwoPhase || false,
+            two_phase_percent: config.rollout?.twoPhasePercent || 0
         }
     });
 });

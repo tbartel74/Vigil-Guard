@@ -135,7 +135,7 @@ describe('Scorer Module', () => {
             expect(result.timing_ms).toBe(15);
             expect(result.degraded).toBe(false);
             expect(result.features.top_similarity).toBeCloseTo(0.80, 2);
-            expect(result.features.embedding_model).toBe('all-MiniLM-L6-v2-int8');
+            expect(result.features.embedding_model).toBe('multilingual-e5-small-int8');
             expect(result.features.top_k).toHaveLength(1);
             expect(result.explanations.length).toBeGreaterThan(0);
         });

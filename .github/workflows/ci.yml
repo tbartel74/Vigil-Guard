@@ -466,6 +466,143 @@ jobs:
         working-directory: services/semantic-service
         run: npm test -- tests/unit/
 
+  # Golden Dataset Quality Gate (Phase 3.6 - Semantic E5 Migration)
+  # This is a MANDATORY quality gate - build MUST fail if any example is misclassified
+  golden-dataset-validation:
+    name: 🎯 Golden Dataset - Quality Gate
+    runs-on: ubuntu-latest
+    # Only run on changes to semantic-service or golden dataset
+    if: |
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'services/semantic-service/') ||
+      contains(github.event.pull_request.changed_files, 'services/semantic-service/tests/golden-dataset/')
+
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8-alpine
+        ports:
+          - 8123:8123
+          - 9000:9000
+        env:
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-32-chars' }}
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8123/ping || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-semantic-golden-${{ hashFiles('services/semantic-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-semantic-
+
+      - name: Install Node dependencies
+        working-directory: services/semantic-service
+        run: npm ci
+
+      - name: Install Python dependencies for embedding generation
+        working-directory: services/semantic-service
+        run: |
+          pip install transformers torch onnx onnxruntime
+
+      - name: Download E5 model (cached)
+        uses: actions/cache@v3
+        with:
+          path: services/semantic-service/models/multilingual-e5-small-onnx-int8
+          key: model-e5-small-onnx-int8-v1
+
+      - name: Download model if not cached
+        working-directory: services/semantic-service
+        run: |
+          if [ ! -d "models/multilingual-e5-small-onnx-int8/onnx" ]; then
+            python3 scripts/download-e5-model.py || echo "Model download script not found, will use test fixtures"
+          fi
+
+      - name: Setup ClickHouse tables
+        env:
+          CLICKHOUSE_HOST: localhost
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-32-chars' }}
+        run: |
+          # Create database and tables
+          curl -s "http://localhost:8123/" \
+            --data-binary "CREATE DATABASE IF NOT EXISTS n8n_logs"
+
+          # Create pattern_embeddings_v2 table
+          curl -s "http://localhost:8123/" \
+            --data-binary @services/semantic-service/sql/04-semantic-embeddings-v2.sql
+
+          # Create semantic_safe_embeddings table
+          curl -s "http://localhost:8123/" \
+            --data-binary @services/semantic-service/sql/05-semantic-safe-embeddings.sql
+
+      - name: Import embeddings (attack + safe patterns)
+        working-directory: services/semantic-service
+        env:
+          CLICKHOUSE_HOST: localhost
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-32-chars' }}
+        run: |
+          # Import attack patterns
+          if [ -f "data/embeddings_v2.jsonl" ]; then
+            node scripts/import-embeddings.js --input data/embeddings_v2.jsonl --table pattern_embeddings_v2
+          fi
+
+          # Import safe patterns
+          if [ -f "data/safe_embeddings.jsonl" ]; then
+            node scripts/import-embeddings.js --input data/safe_embeddings.jsonl --table semantic_safe_embeddings
+          fi
+
+      - name: 🎯 Run Golden Dataset Tests (Quality Gate)
+        working-directory: services/semantic-service
+        env:
+          NODE_ENV: development
+          CLICKHOUSE_HOST: localhost
+          CLICKHOUSE_PASSWORD: ${{ secrets.CI_CLICKHOUSE_PASSWORD || 'test-clickhouse-password-32-chars' }}
+          RUN_GOLDEN_TESTS: 1
+        run: |
+          echo "============================================================"
+          echo "🎯 GOLDEN DATASET QUALITY GATE"
+          echo "============================================================"
+          echo "This is a MANDATORY quality gate."
+          echo "Build MUST pass all golden dataset tests."
+          echo "Requirements:"
+          echo "  - Detection Rate: ≥85%"
+          echo "  - False Positive Rate: ≤5%"
+          echo "  - Polish Detection: ≥80%"
+          echo "============================================================"
+
+          npx vitest run tests/golden-dataset/ --reporter=verbose
+
+          echo "============================================================"
+          echo "✅ Golden Dataset Quality Gate PASSED"
+          echo "============================================================"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-dataset-results
+          path: |
+            services/semantic-service/tests/golden-dataset/VALIDATION_REPORT.md
+          retention-days: 30
+
   # All checks passed
   all-checks:
     name: ✅ All Checks Passed
@@ -482,6 +619,7 @@ jobs:
       - install-script-check
       - heuristics-service-tests
       - semantic-service-tests
+      - golden-dataset-validation
 
     steps:
       - name: Success
@@ -501,4 +639,5 @@ jobs:
           echo "  ✓ Installation scripts validated"
           echo "  ✓ Heuristics Service unit tests (v2.0.0)"
           echo "  ✓ Semantic Service unit tests (v2.0.0)"
+          echo "  ✓ Golden Dataset Quality Gate (E5 Migration v2.0)"
           echo ""

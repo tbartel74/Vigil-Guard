@@ -27,11 +27,15 @@ const CONFIG = {
         database: process.env.CLICKHOUSE_DATABASE || 'n8n_logs',
         user: process.env.CLICKHOUSE_USER || 'admin',
         password: process.env.CLICKHOUSE_PASSWORD || '',
-        table: 'pattern_embeddings'
+        table: 'pattern_embeddings'  // Will be overridden by --table argument
     },
     batchSize: parseInt(process.env.BATCH_SIZE || '100', 10),
     timeout: parseInt(process.env.TIMEOUT || '30000', 10)
 };
+
+// Table schema flags - auto-detected based on table name
+let useV2Schema = false;
+let useSafeSchema = false;
 
 // ============================================================================
 // ClickHouse Client
@@ -98,6 +102,14 @@ class ClickHouseClient {
     async insertBatch(records) {
         if (!records.length) return;
 
+        if (useSafeSchema) {
+            return this.insertBatchSafe(records);
+        }
+
+        if (useV2Schema) {
+            return this.insertBatchV2(records);
+        }
+
         const values = records.map(r => {
             const embedding = Array.isArray(r.embedding)
                 ? `[${r.embedding.join(',')}]`
@@ -122,6 +134,84 @@ class ClickHouseClient {
                 pattern_id, category, pattern_text, pattern_norm,
                 embedding, embedding_model, source_dataset, source_index,
                 created_at, updated_at
+            ) VALUES ${values}
+        `;
+
+        return this.query(sql, 'text');
+    }
+
+    async insertBatchV2(records) {
+        // V2 schema: pattern_embeddings_v2 with E5-specific fields
+        const values = records.map(r => {
+            const embedding = Array.isArray(r.embedding)
+                ? `[${r.embedding.join(',')}]`
+                : r.embedding;
+
+            // Map prefix_type string to enum value
+            const prefixType = r.prefix_type === 'query' ? 'query' : 'passage';
+
+            return `(
+                '${this.escape(r.category)}',
+                '${this.escape(r.pattern_text)}',
+                ${embedding},
+                '${this.escape(r.embedding_model || 'multilingual-e5-small-int8')}',
+                '${this.escape(r.model_revision || '')}',
+                '${prefixType}',
+                '${this.escape(r.source_dataset || '')}',
+                ${r.source_index || 0}
+            )`;
+        }).join(',\n');
+
+        const sql = `
+            INSERT INTO ${this.config.table} (
+                category, pattern_text, embedding,
+                embedding_model, model_revision, prefix_type,
+                source_dataset, source_index
+            ) VALUES ${values}
+        `;
+
+        return this.query(sql, 'text');
+    }
+
+    async insertBatchSafe(records) {
+        // SAFE patterns table: semantic_safe_embeddings with subcategory, source, language
+        const values = records.map(r => {
+            const embedding = Array.isArray(r.embedding)
+                ? `[${r.embedding.join(',')}]`
+                : r.embedding;
+
+            // Map prefix_type string to enum value
+            const prefixType = r.prefix_type === 'query' ? 'query' : 'passage';
+
+            // Extract subcategory from original data (e.g., 'code_instruction', 'dolly_classification')
+            const subcategory = r.subcategory || r.source_dataset || 'unknown';
+
+            // Extract source (e.g., 'dolly', 'code_alpaca')
+            const source = r.source || '';
+
+            // Language
+            const language = r.language || 'en';
+
+            return `(
+                '${this.escape(r.category || 'SAFE')}',
+                '${this.escape(subcategory)}',
+                '${this.escape(r.pattern_text)}',
+                ${embedding},
+                '${this.escape(r.embedding_model || 'multilingual-e5-small-int8')}',
+                '${this.escape(r.model_revision || '')}',
+                '${prefixType}',
+                '${this.escape(r.source_dataset || '')}',
+                '${this.escape(source)}',
+                '${this.escape(language)}',
+                ${r.source_index || 0}
+            )`;
+        }).join(',\n');
+
+        const sql = `
+            INSERT INTO ${this.config.table} (
+                category, subcategory, pattern_text, embedding,
+                embedding_model, model_revision, prefix_type,
+                source_dataset, source, language, source_index
             ) VALUES ${values}
         `;
 
@@ -350,6 +440,11 @@ async function main() {
             truncate = true;
         } else if (arg === '--batch' || arg === '-b') {
             CONFIG.batchSize = parseInt(args[++i], 10);
+        } else if (arg === '--table') {
+            CONFIG.clickhouse.table = args[++i];
+            // Auto-detect schema type
+            useSafeSchema = CONFIG.clickhouse.table.includes('_safe_');
+            useV2Schema = CONFIG.clickhouse.table.includes('_v2') && !useSafeSchema;
         }
     }
 

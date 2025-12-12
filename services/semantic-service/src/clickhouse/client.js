@@ -143,6 +143,27 @@ class ClickHouseClient {
             throw e;
         }
     }
+
+    /**
+     * Insert data into a table (for logging)
+     * @param {string} table - Table name
+     * @param {Object} data - Data to insert
+     */
+    async insert(table, data) {
+        const columns = Object.keys(data);
+        const values = columns.map(col => {
+            const val = data[col];
+            if (val === null || val === undefined) return 'NULL';
+            if (typeof val === 'string') return `'${this.escape(val)}'`;
+            if (typeof val === 'boolean') return val ? 1 : 0;
+            if (typeof val === 'number') return val;
+            if (Array.isArray(val) || typeof val === 'object') return `'${this.escape(JSON.stringify(val))}'`;
+            return `'${this.escape(String(val))}'`;
+        });
+
+        const sql = `INSERT INTO ${this.config.database}.${table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
+        return this.query(sql, 'text');
+    }
 }
 
 // Singleton instance
