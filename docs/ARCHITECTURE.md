@@ -1,10 +1,15 @@
-# Vigil Guard v2.0.0 - Technical Architecture
+# Vigil Guard v2.1.0 - Technical Architecture
 
-**Last updated:** 2025-11-27
-**Pipeline Version:** v2.0.0
+**Last updated:** 2025-12-12
+**Pipeline Version:** v2.1.0
 **Workflow Nodes:** 24 (11 Code nodes)
 
-This document provides a comprehensive technical overview of Vigil Guard's v2.0.0 architecture, featuring the new 3-branch parallel detection system with Arbiter-based weighted aggregation.
+This document provides a comprehensive technical overview of Vigil Guard's v2.1.0 architecture, featuring the 3-branch parallel detection system with Arbiter-based weighted aggregation.
+
+**v2.1.0 Changes:**
+- Arbiter weights: Heuristics 30%, Semantic 40% (+5%), LLM Guard 30% (-5%)
+- Solo-PG exception: Reduces false positives on security education queries
+- SEMANTIC_CORROBORATION boost: Solo-PG detections (PG≥70, H<15, S<15) reduced to score=45
 
 ---
 
@@ -447,8 +452,8 @@ The **Arbiter v2** aggregates results from all 3 branches using **weighted votin
   "arbiter_config": {
     "weights": {
       "heuristics": 0.30,
-      "semantic": 0.35,
-      "llm_guard": 0.35
+      "semantic": 0.40,
+      "llm_guard": 0.30
     },
     "thresholds": {
       "block_min": 50
@@ -483,20 +488,20 @@ The **Arbiter v2** aggregates results from all 3 branches using **weighted votin
 
 ### Weighted Score Calculation
 
-**Step 1: Adjust weights for degraded branches**
+**Step 1: Adjust weights for degraded branches (v2.1.0 defaults)**
 
 ```javascript
-const weights = { A: 0.30, B: 0.35, C: 0.35 };
+const weights = { A: 0.30, B: 0.40, C: 0.30 };  // v2.1.0: S increased to 0.40
 
 if (branchA.degraded) weights.A *= 0.1;  // 0.03
-if (branchB.degraded) weights.B *= 0.1;  // 0.035
-// weights.C unchanged (0.35)
+if (branchB.degraded) weights.B *= 0.1;  // 0.04
+// weights.C unchanged (0.30)
 
 // Normalize to sum to 1.0
-const totalWeight = 0.03 + 0.035 + 0.35 = 0.415;
-weights.A = 0.03 / 0.415 = 0.072;
-weights.B = 0.035 / 0.415 = 0.084;
-weights.C = 0.35 / 0.415 = 0.844;
+const totalWeight = 0.03 + 0.04 + 0.30 = 0.37;
+weights.A = 0.03 / 0.37 = 0.081;
+weights.B = 0.04 / 0.37 = 0.108;
+weights.C = 0.30 / 0.37 = 0.811;
 ```
 
 **Step 2: Calculate weighted score**
@@ -507,16 +512,16 @@ combinedScore = (branchA.score * weights.A) +
                 (branchC.score * weights.C);
 ```
 
-**Example:**
+**Example (v2.1.0 weights):**
 
 - Branch A: score=65, degraded=false, weight=0.30
-- Branch B: score=42, degraded=false, weight=0.35
-- Branch C: score=78, degraded=false, weight=0.35
+- Branch B: score=42, degraded=false, weight=0.40
+- Branch C: score=78, degraded=false, weight=0.30
 
 ```
-combinedScore = (65 * 0.30) + (42 * 0.35) + (78 * 0.35)
-              = 19.5 + 14.7 + 27.3
-              = 61.5
+combinedScore = (65 * 0.30) + (42 * 0.40) + (78 * 0.30)
+              = 19.5 + 16.8 + 23.4
+              = 59.7
 ```
 
 ### Priority Boost Policies
@@ -551,14 +556,14 @@ combinedScore = Math.max(combinedScore, 65);
 
 If the LLM Safety Engine detects an attack with very high confidence, but the weighted score is low (possibly due to low heuristic/semantic scores), boost to at least 65 to ensure BLOCK decision.
 
-**Example:**
+**Example (v2.1.0):**
 
 - Branch A: score=20 (benign-looking structure)
 - Branch B: score=18 (no semantic match)
 - Branch C: score=85, confidence=0.97, llm_attack=true
 
-Weighted: `(20*0.3) + (18*0.35) + (85*0.35) = 42.05`
-**Boost applied:** 42.05 → 65
+Weighted: `(20*0.3) + (18*0.40) + (85*0.30) = 38.7`
+**Boost applied:** 38.7 → 65
 
 ---
 
@@ -674,14 +679,14 @@ const finalDecision = finalScore >= 50 ? 'BLOCK' : 'ALLOW';
       "B": {
         "score": 72,
         "threat_level": "HIGH",
-        "weight": 0.350,
+        "weight": 0.400,
         "degraded": false,
         "critical_signals": { "high_similarity": true }
       },
       "C": {
         "score": 85,
         "threat_level": "HIGH",
-        "weight": 0.350,
+        "weight": 0.300,
         "degraded": false,
         "critical_signals": { "llm_attack": true }
       }
@@ -908,12 +913,12 @@ Grafana
 
 ```json
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "arbiter_config": {
     "weights": {
       "heuristics": 0.30,
-      "semantic": 0.35,
-      "llm_guard": 0.35
+      "semantic": 0.40,
+      "llm_guard": 0.30
     },
     "thresholds": {
       "block_min": 50
