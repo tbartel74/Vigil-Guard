@@ -1535,7 +1535,7 @@ initialize_semantic_service() {
             log_info "  2. Check logs: docker logs vigil-semantic"
             log_info "  3. Verify ClickHouse is accessible: curl http://localhost:8123/ping"
             log_info "  4. Check port: lsof -i :5006"
-            log_info "  5. Verify model download: docker logs vigil-semantic | grep 'paraphrase-multilingual'"
+            log_info "  5. Verify model download: docker logs vigil-semantic | grep 'multilingual-e5'"
             log_info "  6. Check disk space: df -h (model needs ~200 MB free)"
             log_info "  7. Test manually: curl http://localhost:5006/health"
             echo ""
@@ -1621,11 +1621,12 @@ initialize_semantic_service() {
 
     # Display detection configuration
     log_info "Detection configuration:"
-    log_info "  • Model: paraphrase-multilingual-MiniLM-L6-v2-int8"
+    log_info "  • Model: multilingual-e5-small (Xenova/ONNX INT8)"
     log_info "  • Embedding dimensions: 384 (INT8 quantized)"
     log_info "  • Similarity metric: Cosine distance"
     log_info "  • Search algorithm: HNSW (M=16, efSearch=100)"
     log_info "  • Top-K results: 5 most similar patterns"
+    log_info "  • Two-Phase Search: attack + safe pattern comparison"
 
     echo ""
 }
@@ -1897,11 +1898,12 @@ show_summary() {
     echo -e "    • Pattern files: ${GREEN}6 detection categories${NC}"
     echo ""
     echo -e "  ${GREEN}Branch B - Semantic Analysis (Port 5006):${NC}"
-    echo -e "    • Model: ${BLUE}paraphrase-multilingual-MiniLM-L6-v2-int8${NC}"
+    echo -e "    • Model: ${BLUE}multilingual-e5-small (Xenova/ONNX INT8)${NC}"
     echo -e "    • Vector dimensions: ${BLUE}384 (INT8 quantized)${NC}"
+    echo -e "    • Two-Phase Search: ${BLUE}attack + safe pattern comparison${NC}"
     echo -e "    • Similarity search: ${BLUE}HNSW index (usearch)${NC}"
     echo -e "    • Pattern database: ${GREEN}ClickHouse vector embeddings${NC}"
-    echo -e "    • Performance: ${BLUE}<100ms per query${NC}"
+    echo -e "    • Performance: ${BLUE}<25ms per query (p95)${NC}"
     echo ""
     echo -e "  ${GREEN}Branch C - LLM Safety Engine analysis (Future):${NC}"
     echo -e "    • Status: ${YELLOW}Planned for v2.1.0${NC}"

@@ -1,25 +1,36 @@
 -- ============================================================================
--- Semantic Service - Vector Embeddings for Branch B
--- Pattern matching via HNSW cosine similarity search
--- Source: services/semantic-service/sql/01-create-tables.sql
+-- Semantic Service - Vector Embeddings for Branch B (LEGACY)
+-- ============================================================================
+-- DEPRECATED: This file is for v1.0.0 (MiniLM model)
+--
+-- For v2.0.0 (E5 model + Two-Phase Search), use the authoritative schema files:
+--   - services/semantic-service/sql/04-semantic-embeddings-v2.sql (attack patterns)
+--   - services/semantic-service/sql/05-semantic-safe-embeddings.sql (safe patterns)
+--   - services/semantic-service/sql/06-semantic-analysis-log.sql (logging)
+--
+-- v2.0.0 uses:
+--   - Model: multilingual-e5-small (Xenova/ONNX INT8)
+--   - Two-Phase Search: attack + safe pattern comparison
+--   - Tables: pattern_embeddings_v2, semantic_safe_embeddings
 -- ============================================================================
 
--- TABLE: pattern_embeddings (3000 malicious prompt patterns)
--- NOTE: NO TTL - permanent data, never expires
+-- LEGACY TABLE: pattern_embeddings (v1.0.0 - MiniLM)
+-- Kept for backward compatibility / rollback scenarios
+-- New deployments should use pattern_embeddings_v2 (E5 model)
 CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
     -- Primary identifiers
     pattern_id String COMMENT 'Format: category_index',
-    category String COMMENT 'Threat category (29 types)',
+    category String COMMENT 'Threat category',
 
     -- Pattern content
     pattern_text String COMMENT 'Original malicious prompt',
     pattern_norm String DEFAULT '' COMMENT 'Normalized text',
 
-    -- Embedding vector (384-dim MiniLM)
-    embedding Array(Float32) COMMENT '384-dim from all-MiniLM-L6-v2-int8',
+    -- Embedding vector (384-dim, legacy MiniLM)
+    embedding Array(Float32) COMMENT '384-dim from MiniLM (v1.0.0 LEGACY)',
 
     -- Metadata
-    embedding_model String DEFAULT 'all-MiniLM-L6-v2-int8',
+    embedding_model String DEFAULT 'all-MiniLM-L6-v2-int8' COMMENT 'LEGACY: v2.0.0 uses multilingual-e5-small-int8',
     source_dataset String DEFAULT '',
     source_index UInt32 DEFAULT 0,
 
@@ -27,9 +38,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
     created_at DateTime DEFAULT now(),
     updated_at DateTime DEFAULT now(),
 
-    -- Vector similarity index for fast cosine search
-    -- Note: vector_similarity requires ClickHouse 24.1+
-    -- Arguments: method, distance_function, dimensions (384 = all-MiniLM-L6-v2 output)
+    -- Vector similarity index
     INDEX embedding_idx embedding TYPE vector_similarity('hnsw', 'cosineDistance', 384)
 )
 ENGINE = MergeTree()
@@ -64,7 +73,8 @@ ENGINE = MergeTree()
 ORDER BY (timestamp, id)
 TTL timestamp + INTERVAL 90 DAY;
 
--- Initial metadata
+-- Initial metadata (LEGACY - v1.0.0)
+-- For v2.0.0, use pattern_embeddings_v2 with E5 model
 INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
     (1, 'schema_version', '1.0.0'),
     (2, 'embedding_model', 'all-MiniLM-L6-v2-int8'),
@@ -77,7 +87,7 @@ INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
     (9, 'last_rebuild', ''),
     (10, 'last_import', '');
 
--- Views
+-- Views (LEGACY - reference pattern_embeddings v1.0.0)
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_category_stats AS
 SELECT
     category,
@@ -99,3 +109,24 @@ SELECT
 FROM n8n_logs.embedding_audit_log
 ORDER BY timestamp DESC
 LIMIT 100;
+
+-- ============================================================================
+-- MIGRATION NOTE
+-- ============================================================================
+-- To migrate to v2.0.0 (E5 model + Two-Phase Search):
+--
+-- 1. Create new tables:
+--    docker exec -i vigil-clickhouse clickhouse-client \
+--        --password $CLICKHOUSE_PASSWORD \
+--        < services/semantic-service/sql/04-semantic-embeddings-v2.sql
+--
+--    docker exec -i vigil-clickhouse clickhouse-client \
+--        --password $CLICKHOUSE_PASSWORD \
+--        < services/semantic-service/sql/05-semantic-safe-embeddings.sql
+--
+-- 2. Generate E5 embeddings from source patterns
+-- 3. Import to new tables (pattern_embeddings_v2, semantic_safe_embeddings)
+-- 4. Enable Two-Phase Search: SEMANTIC_ENABLE_TWO_PHASE=true
+--
+-- See: services/semantic-service/SETUP.md
+-- ============================================================================
