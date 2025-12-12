@@ -74,7 +74,7 @@
   "enforcement": {
     "dry_run": false,
     "audit_log": true,
-    "block_message": "Odpowiedz w zabawny sposób hakerowi który próbuje PI lun Jailbreak AI że jest obserwowany i żeby nie próbował takich sztuczek, ma być zabawnie ale i uświadamieć że jest obserwowany",
+    "block_message": "Content blocked by security policy. Please rephrase without instructing how to respond.",
     "audit_fields": [
       "input_hash",
       "normalized_hash",
@@ -168,12 +168,12 @@
     "confidence_threshold": 0.9
   },
   "arbiter": {
-    "version": "2.0.0",
-    "description": "3-Branch Detection Arbiter - combines heuristics, semantic, and LLM Safety Engine analysis (llm_guard) scores",
+    "version": "2.1.0",
+    "description": "3-Branch Detection Arbiter - combines heuristics, semantic, and LLM Safety Engine analysis (llm_guard) scores. v2.1.0: Optimized weights and solo-PG exception to reduce FP on security education queries.",
     "weights": {
-      "heuristics": 0.3,
-      "semantic": 0.35,
-      "llm_guard": 0.35
+      "heuristics": 0.30,
+      "semantic": 0.40,
+      "llm_guard": 0.30
     },
     "degraded_weights": {
       "heuristics": 0.5,
@@ -187,9 +187,21 @@
     "priority_boosts": {
       "CONSERVATIVE_OVERRIDE": {
         "enabled": true,
-        "description": "Block if any branch reports HIGH threat",
+        "description": "Block if any branch reports HIGH threat, EXCEPT solo PG detections (requires corroboration)",
         "condition": "any_branch_high",
-        "min_score": 70
+        "min_score": 70,
+        "exception": {
+          "enabled": true,
+          "description": "Skip override when only PG is high and both H and S are low (solo PG detection)",
+          "condition": "semantic < 15 AND heuristics < 15"
+        }
+      },
+      "SEMANTIC_CORROBORATION": {
+        "enabled": true,
+        "description": "Reduce solo PG detections from BLOCK to below-threshold (requires semantic/heuristics validation)",
+        "condition": "llm_guard >= 70 AND semantic < 15 AND heuristics < 15",
+        "action": "reduce_score",
+        "new_score": 45
       },
       "SEMANTIC_HIGH_SIMILARITY": {
         "enabled": true,
@@ -206,9 +218,11 @@
       },
       "LLM_GUARD_VETO": {
         "enabled": true,
-        "description": "Block if LLM Safety Engine analysis is certain (score > 90)",
+        "description": "Block if LLM Safety Engine analysis is certain (score > 90) AND corroborated by at least one other branch",
         "condition": "llm_guard_certain",
-        "threshold": 90
+        "threshold": 90,
+        "requires_corroboration": true,
+        "corroboration_threshold": 15
       }
     },
     "final_status_logic": {
@@ -216,7 +230,7 @@
       "SANITIZED": "threat_score < 50 AND pii_sanitized = true",
       "ALLOWED": "threat_score < 50 AND pii_sanitized = false"
     },
-    "notes": "Arbiter weights and boosts are configured via Web UI. Branch implementations are hardcoded in workflow."
+    "notes": "Arbiter v2.1.0: Increased semantic weight (0.35→0.40) for better recall. Added solo-PG exception to prevent auto-BLOCK. Solo PG detections (H<15, S<15, PG>=70) are reduced to score=45 (below block threshold) instead of automatic BLOCK via CONSERVATIVE_OVERRIDE."
   },
   "prefilter": {
     "ngram": {
