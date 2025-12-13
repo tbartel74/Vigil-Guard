@@ -50,8 +50,8 @@ const config = {
             query: 'query: ',      // For user input (what we're checking)
             passage: 'passage: '   // For database patterns (malicious examples)
         },
-        // Pinned revision SHA for security (REQ-SEC-001)
-        revision: 'fce5169d6bd6e56c54b0ef02ae54b24ee5b44ed5'
+        // Pinned revision SHA for reproducibility
+        revision: '761b726dd34fb83930e26aab4e9ac3899aa1fa78'
     },
 
     // Search

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.semantic_safe_embeddings (
 
     -- Model metadata (same as V2 attack table)
     embedding_model LowCardinality(String) DEFAULT 'multilingual-e5-small-int8',
-    model_revision String DEFAULT 'fce5169d6bd6e56c54b0ef02ae54b24ee5b44ed5',
+    model_revision String DEFAULT '761b726dd34fb83930e26aab4e9ac3899aa1fa78',
 
     -- E5 prefix (always 'passage' for database patterns)
     prefix_type Enum8('passage' = 1, 'query' = 2) DEFAULT 'passage',

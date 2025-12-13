@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings_v2 (
 
     -- Model metadata (V2: E5)
     embedding_model LowCardinality(String) DEFAULT 'multilingual-e5-small-int8',
-    model_revision String DEFAULT 'fce5169d6bd6e56c54b0ef02ae54b24ee5b44ed5',
+    model_revision String DEFAULT '761b726dd34fb83930e26aab4e9ac3899aa1fa78',
 
     -- E5-specific: prefix type used during embedding generation
     -- 'passage' for database patterns, 'query' for runtime queries
