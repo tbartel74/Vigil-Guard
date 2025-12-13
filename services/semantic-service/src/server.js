@@ -450,7 +450,7 @@ app.get('/metrics', async (req, res) => {
 app.get('/', (req, res) => {
     res.json({
         service: 'semantic-service',
-        version: '2.0.0',
+        version: '2.1.0',
         branch: config.branch,
         description: 'Semantic similarity detection using E5 multilingual embeddings',
         endpoints: {

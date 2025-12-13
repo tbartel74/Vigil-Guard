@@ -126,10 +126,13 @@ const config = {
 function validateConfig() {
     const errors = [];
 
-    // ClickHouse password required to avoid empty-auth startup
-    if (!config.clickhouse.password) {
+    // ClickHouse password required in production
+    if (!config.clickhouse.password && config.server.env === 'production') {
         console.error('FATAL: CLICKHOUSE_PASSWORD not set');
         process.exit(1);
+    }
+    if (!config.clickhouse.password && config.server.env !== 'production') {
+        console.warn('WARN: CLICKHOUSE_PASSWORD not set (ok for dev/test)');
     }
 
     if (config.model.dimension !== 384) {

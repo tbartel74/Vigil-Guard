@@ -152,9 +152,9 @@ function analyzeBranchContribution(event, expected) {
  * Main analysis
  */
 async function main() {
-    console.log('=' .repeat(70));
+    console.log('='.repeat(70));
     console.log('Branch Specialization Analysis');
-    console.log('=' .repeat(70));
+    console.log('='.repeat(70));
 
     // Load fixtures
     const allPrompts = loadFixtures();

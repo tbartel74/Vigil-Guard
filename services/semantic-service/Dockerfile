@@ -14,7 +14,7 @@ RUN npm install -g npm@latest
 # Labels
 LABEL org.opencontainers.image.title="Semantic Service"
 LABEL org.opencontainers.image.description="Semantic similarity detection using E5 multilingual embeddings"
-LABEL org.opencontainers.image.version="2.0.0"
+LABEL org.opencontainers.image.version="2.1.0"
 LABEL org.opencontainers.image.vendor="Vigil Guard"
 
 # Security: Run as non-root user

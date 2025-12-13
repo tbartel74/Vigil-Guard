@@ -40,8 +40,8 @@ async function initialize() {
     // Transformers.js will first check cacheDir for the model, then fetch if not found
     extractor = await pipelineFn('feature-extraction', modelId, {
         quantized: true,
-        // If locally available, prevent network fetch
-        local_files_only: isLocallyAvailable
+        local_files_only: isLocallyAvailable,
+        revision: config.model.revision
     });
 
     ready = true;

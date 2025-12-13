@@ -12,7 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "test:golden": "RUN_GOLDEN_TESTS=1 vitest run tests/golden-dataset/",
     "lint": "eslint src/ tests/",
-    "setup": "./scripts/download-model.sh",
+    "setup": "echo 'Embeddings pre-generated in data/datasets/'",
     "embeddings:generate": "python3 scripts/generate-embeddings.py",
     "embeddings:import": "node scripts/import-embeddings.js",
     "embeddings:manage": "node scripts/embedding-manager.js"
