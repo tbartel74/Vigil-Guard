@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 5173",
-    "test": "echo \"No frontend tests defined\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "dev:no-cache": "vite dev --port 5173 --force --clearScreen false",
     "no-cache": "./no-cache-dev.sh",
     "sync-docs": "node scripts/sync-docs.js",
@@ -34,12 +36,18 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^4.0.15",
+    "jsdom": "^27.3.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.9.3",
-    "vite": "^5.4.21"
+    "vite": "^5.4.21",
+    "vitest": "^4.0.15"
   },
   "optionalDependencies": {
     "@rollup/rollup-darwin-arm64": "^4.52.4"
