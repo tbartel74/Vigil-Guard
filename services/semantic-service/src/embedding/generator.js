@@ -38,6 +38,12 @@ async function initialize() {
 
     // Create feature extraction pipeline
     // Transformers.js will first check cacheDir for the model, then fetch if not found
+    // In CI/test environments without model cache, skip network fetch to avoid crashes
+    const skipNetworkFetch = !isLocallyAvailable && (process.env.NODE_ENV === 'test' || process.env.CI === 'true');
+    if (skipNetworkFetch) {
+        throw new Error('Model not cached and network fetch disabled in test/CI environment');
+    }
+
     extractor = await pipelineFn('feature-extraction', modelId, {
         quantized: true,
         local_files_only: isLocallyAvailable,
