@@ -18,7 +18,8 @@ async function initialize() {
     // Skip model loading for CI smoke tests (service runs in degraded mode)
     if (process.env.SKIP_MODEL_LOAD === 'true') {
         console.log('SKIP_MODEL_LOAD=true - skipping model initialization (degraded mode)');
-        return;
+        // Throw error to signal degraded mode - server.js will catch and set modelReady=false
+        throw new Error('Model loading skipped (SKIP_MODEL_LOAD=true)');
     }
 
     // Dynamic import for ES module
