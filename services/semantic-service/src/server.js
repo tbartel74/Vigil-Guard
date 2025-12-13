@@ -1,11 +1,6 @@
 /**
- * Semantic Service - Express API Server
- * Branch B: Semantic similarity detection using MiniLM embeddings
- *
- * Endpoints:
- *   POST /analyze - Main analysis endpoint (branch_result contract)
- *   GET /health - Health check
- *   GET /metrics - Service metrics
+ * Semantic Service (Branch B) - E5 embedding similarity detection.
+ * NOTE: Degraded responses return HTTP 200 with degraded:true (Arbiter contract).
  */
 
 const express = require('express');
@@ -18,13 +13,10 @@ const pino = require('pino');
 const config = require('./config');
 const embeddingGenerator = require('./embedding/generator');
 const clickhouseClient = require('./clickhouse/client');
-const { searchSimilar, getStats, checkEmbeddingHealth } = require('./clickhouse/queries');
-const { buildBranchResult, buildDegradedResult } = require('./scoring/scorer');
+const { searchSimilar, searchTwoPhase, getStats, checkEmbeddingHealth } = require('./clickhouse/queries');
+const { buildBranchResult, buildTwoPhaseResult, buildDegradedResult } = require('./scoring/scorer');
 
-// ============================================================================
 // Logger
-// ============================================================================
-
 const logger = pino({
     level: config.logging.level,
     transport: config.logging.pretty ? {
@@ -33,10 +25,7 @@ const logger = pino({
     } : undefined
 });
 
-// ============================================================================
 // Express App
-// ============================================================================
-
 const app = express();
 
 // Middleware
@@ -68,6 +57,7 @@ const limiter = rateLimit({
     message: { error: 'Too many requests, please try again later' }
 });
 app.use('/analyze', limiter);
+app.use('/analyze-v2', limiter);
 
 // Request logging
 app.use((req, res, next) => {
@@ -84,22 +74,148 @@ app.use((req, res, next) => {
     next();
 });
 
-// ============================================================================
 // Service State
-// ============================================================================
-
 let serviceReady = false;
 let modelReady = false;
 let clickhouseReady = false;
 let startupError = null;
 
-// ============================================================================
+// Analysis Logging
+function logAnalysis(entry) {
+    // Fire-and-forget - don't await, don't block response
+    clickhouseClient.insert('semantic_analysis_log', entry).catch(err => {
+        logger.warn({ error: err.message }, 'Failed to log analysis to ClickHouse');
+    });
+}
+
 // Endpoints
-// ============================================================================
+
+/**
+ * POST /analyze-v2 - Two-Phase Semantic Analysis
+ */
+app.post('/analyze-v2', async (req, res) => {
+    const startTime = Date.now();
+    const embeddingStartTime = startTime;
+
+    try {
+        const { text, request_id, client_id } = req.body;
+
+        // Validate input
+        if (!text || typeof text !== 'string') {
+            return res.status(400).json({
+                error: 'Invalid input: text is required and must be a string'
+            });
+        }
+
+        if (text.length > 100000) {
+            return res.status(400).json({
+                error: 'Text too long: maximum 100000 characters'
+            });
+        }
+
+        // Check if Two-Phase is enabled
+        if (!config.rollout?.enableTwoPhase) {
+            return res.status(503).json({
+                error: 'Two-Phase Search is not enabled',
+                message: 'Use /analyze endpoint or set SEMANTIC_ENABLE_TWO_PHASE=true'
+            });
+        }
+
+        // Check service readiness
+        if (!serviceReady) {
+            const timingMs = Date.now() - startTime;
+            return res.status(503).json(
+                buildDegradedResult('Service not ready', timingMs)
+            );
+        }
+
+        // Generate embedding
+        let embedding;
+        let embeddingLatency;
+        try {
+            embedding = await embeddingGenerator.generate(text);
+            embeddingLatency = Date.now() - embeddingStartTime;
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Embedding generation failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Embedding generation failed', timingMs)
+            );
+        }
+
+        // Two-Phase Search
+        const searchStartTime = Date.now();
+        let twoPhaseResult;
+        try {
+            twoPhaseResult = await searchTwoPhase(embedding, config.search.topK);
+        } catch (e) {
+            const errorId = Date.now().toString(36);
+            logger.error({ errorId, error: e.message, stack: e.stack }, 'Two-Phase search failed');
+            const timingMs = Date.now() - startTime;
+            return res.json(
+                buildDegradedResult('Database search failed', timingMs)
+            );
+        }
+        const searchLatency = Date.now() - searchStartTime;
+
+        // Build response
+        const timingMs = Date.now() - startTime;
+        const response = buildTwoPhaseResult(twoPhaseResult, timingMs);
+
+        // Add request_id if provided
+        if (request_id) {
+            response.request_id = request_id;
+        }
+
+        // Log analysis asynchronously (fire-and-forget)
+        logAnalysis({
+            request_id: request_id || null,
+            client_id: client_id || '',
+            input_text: text.substring(0, 500), // Truncate for storage
+            input_length: text.length,
+            classification: twoPhaseResult.classification,
+            attack_max_similarity: twoPhaseResult.attack_max_similarity,
+            safe_max_similarity: twoPhaseResult.safe_max_similarity,
+            delta: twoPhaseResult.delta,
+            adjusted_delta: twoPhaseResult.adjusted_delta || twoPhaseResult.delta,
+            confidence_score: twoPhaseResult.confidence || 0,
+            safe_is_instruction_type: twoPhaseResult.safe_is_instruction_type ? 1 : 0,
+            classification_version: '2.3',
+            latency_ms: timingMs,
+            embedding_latency_ms: embeddingLatency,
+            search_latency_ms: searchLatency,
+            attack_matches: JSON.stringify(twoPhaseResult.attack_matches || []),
+            safe_matches: JSON.stringify(twoPhaseResult.safe_matches || []),
+            pipeline_version: '2.1.0',
+            source: 'semantic-service'
+        });
+
+        logger.info({
+            request_id,
+            classification: twoPhaseResult.classification,
+            score: response.score,
+            threat_level: response.threat_level,
+            delta: twoPhaseResult.delta?.toFixed(3),
+            timing_ms: timingMs
+        }, 'two-phase ok');
+
+        res.json(response);
+
+    } catch (e) {
+        const errorId = Date.now().toString(36);
+        logger.error({ errorId, error: e.message, stack: e.stack }, 'Unexpected error in analyze-v2');
+        const timingMs = Date.now() - startTime;
+        res.status(500).json(
+            buildDegradedResult('Internal server error', timingMs)
+        );
+    }
+});
 
 /**
  * POST /analyze
  * Main analysis endpoint - returns branch_result
+ * Uses Two-Phase Search (v2.0.0) by default for better accuracy
  */
 app.post('/analyze', async (req, res) => {
     const startTime = Date.now();
@@ -128,7 +244,7 @@ app.post('/analyze', async (req, res) => {
             );
         }
 
-        // Generate embedding
+        // Generate embedding using E5 model with query prefix
         let embedding;
         try {
             embedding = await embeddingGenerator.generate(text);
@@ -141,34 +257,97 @@ app.post('/analyze', async (req, res) => {
             );
         }
 
-        // Search similar patterns
-        let results;
-        try {
-            results = await searchSimilar(embedding, config.search.topK);
-        } catch (e) {
-            const errorId = Date.now().toString(36);
-            logger.error({ errorId, error: e.message, stack: e.stack }, 'ClickHouse search failed');
-            const timingMs = Date.now() - startTime;
-            return res.json(
-                buildDegradedResult('Database search failed', timingMs)
-            );
-        }
+        // Determine search mode based on config
+        const useTwoPhase = config.rollout.enableTwoPhase;
+        let response;
+        let searchMode = 'two-phase';
 
-        // Build response
-        const timingMs = Date.now() - startTime;
-        const response = buildBranchResult(results, timingMs, false);
+        if (useTwoPhase) {
+            // Two-Phase Search: compare against attack AND safe patterns
+            let twoPhaseResult;
+            try {
+                twoPhaseResult = await searchTwoPhase(embedding, config.search.topK);
+            } catch (e) {
+                const errorId = Date.now().toString(36);
+                logger.error({
+                    errorId,
+                    error: e.message,
+                    fallback_type: 'single-table'
+                }, 'two-phase failed, fallback=single-table');
+
+                // Fallback to single-table search (legacy mode) - raises FP risk
+                try {
+                    const singleTableResults = await searchSimilar(embedding, config.search.topK);
+                    const timingMs = Date.now() - startTime;
+                    response = buildBranchResult(singleTableResults, timingMs, false);
+                    response.features.fallback_mode = true;
+                    response.features.fallback_reason = 'Two-Phase search temporarily unavailable';
+                    response.features.fallback_error_id = errorId;
+                    searchMode = 'single-table-fallback';
+
+                    logger.info({
+                        request_id,
+                        score: response.score,
+                        threat_level: response.threat_level,
+                        timing_ms: timingMs,
+                        search_mode: searchMode
+                    }, 'fallback ok');
+
+                    if (request_id) {
+                        response.request_id = request_id;
+                    }
+                    return res.json(response);
+                } catch (fallbackError) {
+                    logger.error({ errorId, error: fallbackError.message }, 'Single-table fallback also failed');
+                    const timingMs = Date.now() - startTime;
+                    return res.json(
+                        buildDegradedResult('Database search failed (both Two-Phase and fallback)', timingMs)
+                    );
+                }
+            }
+
+            // Build Two-Phase response
+            const timingMs = Date.now() - startTime;
+            response = buildTwoPhaseResult(twoPhaseResult, timingMs);
+
+            logger.info({
+                request_id,
+                score: response.score,
+                threat_level: response.threat_level,
+                classification: twoPhaseResult.classification,
+                delta: twoPhaseResult.delta?.toFixed(3),
+                timing_ms: timingMs,
+                search_mode: searchMode
+            }, 'two-phase ok');
+        } else {
+            // Single-table search (legacy mode or Two-Phase disabled)
+            try {
+                const results = await searchSimilar(embedding, config.search.topK);
+                const timingMs = Date.now() - startTime;
+                response = buildBranchResult(results, timingMs, false);
+                searchMode = 'single-table';
+
+                logger.info({
+                    request_id,
+                    score: response.score,
+                    threat_level: response.threat_level,
+                    timing_ms: timingMs,
+                    search_mode: searchMode
+                }, 'single-table ok');
+            } catch (e) {
+                const errorId = Date.now().toString(36);
+                logger.error({ errorId, error: e.message, stack: e.stack }, 'Single-table search failed');
+                const timingMs = Date.now() - startTime;
+                return res.json(
+                    buildDegradedResult('Database search failed', timingMs)
+                );
+            }
+        }
 
         // Add request_id if provided
         if (request_id) {
             response.request_id = request_id;
         }
-
-        logger.info({
-            request_id,
-            score: response.score,
-            threat_level: response.threat_level,
-            timing_ms: timingMs
-        }, 'Analysis complete');
 
         res.json(response);
 
@@ -201,12 +380,17 @@ app.get('/health', async (req, res) => {
     // Deep health check if requested
     if (req.query.deep === 'true') {
         try {
-            // Check ClickHouse
+            // Check ClickHouse with detailed error info
             const chHealth = await clickhouseClient.healthCheck();
-            health.checks.clickhouse_live = chHealth;
+            health.checks.clickhouse_live = chHealth.healthy;
+            health.checks.clickhouse_latency_ms = chHealth.latencyMs;
+            if (!chHealth.healthy) {
+                health.checks.clickhouse_error = chHealth.error;
+                health.checks.clickhouse_error_type = chHealth.errorType;
+            }
 
-            // Check embedding health
-            if (chHealth) {
+            // Check embedding health only if ClickHouse is healthy
+            if (chHealth.healthy) {
                 const embHealth = await checkEmbeddingHealth();
                 health.checks.embeddings = embHealth;
             }
@@ -266,20 +450,23 @@ app.get('/metrics', async (req, res) => {
 app.get('/', (req, res) => {
     res.json({
         service: 'semantic-service',
-        version: '1.0.0',
+        version: '2.1.0',
         branch: config.branch,
-        description: 'Semantic similarity detection using MiniLM embeddings',
+        description: 'Semantic similarity detection using E5 multilingual embeddings',
         endpoints: {
-            'POST /analyze': 'Analyze text for semantic similarity (branch_result)',
+            'POST /analyze': 'Analyze text (legacy single-table or gradual Two-Phase rollout)',
+            'POST /analyze-v2': 'Analyze text with Two-Phase Search (attack + safe patterns)',
             'GET /health': 'Health check',
             'GET /metrics': 'Service metrics'
+        },
+        rollout: {
+            two_phase_enabled: config.rollout?.enableTwoPhase || false,
+            two_phase_percent: config.rollout?.twoPhasePercent || 0
         }
     });
 });
 
-// ============================================================================
 // Startup
-// ============================================================================
 
 /**
  * Wait for ClickHouse with retry and exponential backoff
@@ -290,15 +477,30 @@ app.get('/', (req, res) => {
 async function waitForClickHouse(maxRetries = 10, initialDelayMs = 1000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const isHealthy = await clickhouseClient.healthCheck();
-            if (isHealthy) {
+            const healthResult = await clickhouseClient.healthCheck();
+            if (healthResult.healthy) {
                 const tableInfo = await clickhouseClient.checkTable();
                 logger.info({
                     attempt,
                     table_exists: tableInfo.exists,
-                    pattern_count: tableInfo.count
-                }, 'ClickHouse connected');
+                    pattern_count: tableInfo.count,
+                    latency_ms: healthResult.latencyMs
+                }, 'clickhouse ok');
                 return true;
+            } else {
+                // healthCheck returned unhealthy but didn't throw
+                const delay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), 30000);
+                logger.warn({
+                    attempt,
+                    maxRetries,
+                    error: healthResult.error,
+                    errorType: healthResult.errorType,
+                    nextRetryMs: delay
+                }, 'ClickHouse not ready, retrying...');
+
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
         } catch (e) {
             const delay = Math.min(initialDelayMs * Math.pow(2, attempt - 1), 30000);
@@ -325,11 +527,19 @@ function startPeriodicHealthCheck(intervalMs = 30000) {
     setInterval(async () => {
         if (!clickhouseReady) {
             try {
-                const isHealthy = await clickhouseClient.healthCheck();
-                if (isHealthy) {
+                const healthResult = await clickhouseClient.healthCheck();
+                if (healthResult.healthy) {
                     clickhouseReady = true;
                     serviceReady = modelReady && clickhouseReady;
-                    logger.info('ClickHouse connection recovered');
+                    logger.info({
+                        latency_ms: healthResult.latencyMs
+                    }, 'clickhouse recovered');
+                } else {
+                    logger.warn({
+                        error: healthResult.error,
+                        errorType: healthResult.errorType,
+                        latency_ms: healthResult.latencyMs
+                    }, 'ClickHouse still unhealthy');
                 }
             } catch (error) {
                 logger.error({ error: error.message }, 'Periodic health check failed');
@@ -354,12 +564,18 @@ async function startup() {
     }
 
     // Check ClickHouse connection with retry
-    logger.info('Waiting for ClickHouse connection...');
-    clickhouseReady = await waitForClickHouse(10, 2000);
+    // Skip in CI smoke tests (SKIP_CLICKHOUSE_WAIT=true) - service runs in degraded mode
+    if (process.env.SKIP_CLICKHOUSE_WAIT === 'true') {
+        logger.info('SKIP_CLICKHOUSE_WAIT=true - skipping ClickHouse connection check');
+        clickhouseReady = false;
+    } else {
+        logger.info('Waiting for ClickHouse connection...');
+        clickhouseReady = await waitForClickHouse(10, 2000);
 
-    if (!clickhouseReady) {
-        startupError = 'ClickHouse connection failed after retries';
-        logger.error(startupError);
+        if (!clickhouseReady) {
+            startupError = 'ClickHouse connection failed after retries';
+            logger.error(startupError);
+        }
     }
 
     // Set service ready status

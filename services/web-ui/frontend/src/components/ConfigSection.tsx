@@ -303,7 +303,7 @@ export default function ConfigSection() {
                                   <div className="flex-1">
                                     {v.type === "select" && v.options ? (
                                       <Select
-                                        value={String(res?.mappings?.[0]?.value ?? "")}
+                                        value={String(getCurrentValue(v.map[0].file, v.map[0], res?.mappings?.[0]?.value) ?? "")}
                                         onChange={(value) => {
                                           const m = v.map[0];
                                           onFieldChange(v.name, 0, m.file, "json", { path: m.path, value: value });

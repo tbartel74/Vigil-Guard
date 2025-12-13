@@ -108,7 +108,7 @@ SETTINGS index_granularity = 8192;
 -- ============================================================================
 -- TABLE 3: retention_config (TTL Policy Management)
 -- Source: 05-retention-config.sql
--- NOTE: pattern_embeddings intentionally has NO retention (permanent data)
+-- NOTE: pattern_embeddings_v2 and semantic_safe_embeddings have 90-day TTL
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS n8n_logs.retention_config

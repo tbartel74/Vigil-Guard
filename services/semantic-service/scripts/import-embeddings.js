@@ -27,11 +27,29 @@ const CONFIG = {
         database: process.env.CLICKHOUSE_DATABASE || 'n8n_logs',
         user: process.env.CLICKHOUSE_USER || 'admin',
         password: process.env.CLICKHOUSE_PASSWORD || '',
-        table: 'pattern_embeddings'
+        table: 'pattern_embeddings_v2'  // Will be overridden by --table argument
     },
     batchSize: parseInt(process.env.BATCH_SIZE || '100', 10),
     timeout: parseInt(process.env.TIMEOUT || '30000', 10)
 };
+
+// Table schema flags - auto-detected based on table name
+let useV2Schema = false;
+let useSafeSchema = false;
+
+// Valid table names whitelist (SQL injection prevention)
+const VALID_TABLES = [
+    'pattern_embeddings',
+    'pattern_embeddings_v2',
+    'semantic_safe_embeddings'
+];
+
+function validateTableName(table) {
+    if (!VALID_TABLES.includes(table)) {
+        throw new Error(`Invalid table name: ${table}. Allowed: ${VALID_TABLES.join(', ')}`);
+    }
+    return table;
+}
 
 // ============================================================================
 // ClickHouse Client
@@ -77,8 +95,11 @@ class ClickHouseClient {
                     } else {
                         try {
                             resolve(format === 'JSON' ? JSON.parse(data) : data);
-                        } catch {
-                            resolve(data);
+                        } catch (parseError) {
+                            console.error(`[ERROR] ClickHouse JSON parse failed: ${parseError.message}`);
+                            console.error(`[ERROR] Raw response (first 200 chars): ${data.substring(0, 200)}`);
+                            // Reject instead of resolve with wrong data type
+                            reject(new Error(`ClickHouse returned invalid JSON: ${parseError.message}`));
                         }
                     }
                 });
@@ -98,61 +119,124 @@ class ClickHouseClient {
     async insertBatch(records) {
         if (!records.length) return;
 
-        const values = records.map(r => {
-            const embedding = Array.isArray(r.embedding)
-                ? `[${r.embedding.join(',')}]`
-                : r.embedding;
+        if (useSafeSchema) {
+            return this.insertBatchSafe(records);
+        }
 
-            return `(
-                '${this.escape(r.pattern_id)}',
-                '${this.escape(r.category)}',
-                '${this.escape(r.pattern_text)}',
-                '${this.escape(r.pattern_norm || '')}',
-                ${embedding},
-                '${this.escape(r.embedding_model || 'all-MiniLM-L6-v2-int8')}',
-                '${this.escape(r.source_dataset || '')}',
-                ${r.source_index || 0},
-                now(),
-                now()
-            )`;
-        }).join(',\n');
+        if (useV2Schema) {
+            return this.insertBatchV2(records);
+        }
 
-        const sql = `
-            INSERT INTO ${this.config.table} (
-                pattern_id, category, pattern_text, pattern_norm,
-                embedding, embedding_model, source_dataset, source_index,
-                created_at, updated_at
-            ) VALUES ${values}
-        `;
+        // Legacy schema - use JSONEachRow for SQL injection prevention
+        validateTableName(this.config.table);
 
+        const jsonLines = records.map(r => JSON.stringify({
+            pattern_id: r.pattern_id || '',
+            category: r.category || '',
+            pattern_text: r.pattern_text || '',
+            pattern_norm: r.pattern_norm || '',
+            embedding: Array.isArray(r.embedding) ? r.embedding : [],
+            embedding_model: r.embedding_model || 'multilingual-e5-small-int8',
+            source_dataset: r.source_dataset || '',
+            source_index: r.source_index || 0
+        })).join('\n');
+
+        const sql = `INSERT INTO ${this.config.table} FORMAT JSONEachRow\n${jsonLines}`;
         return this.query(sql, 'text');
     }
 
+    async insertBatchV2(records) {
+        // V2 schema: pattern_embeddings_v2 with E5-specific fields
+        // Uses JSONEachRow format for SQL injection prevention
+        validateTableName(this.config.table);
+
+        const jsonLines = records.map(r => JSON.stringify({
+            category: r.category || '',
+            pattern_text: r.pattern_text || '',
+            embedding: Array.isArray(r.embedding) ? r.embedding : [],
+            embedding_model: r.embedding_model || 'multilingual-e5-small-int8',
+            model_revision: r.model_revision || '',
+            prefix_type: r.prefix_type === 'query' ? 'query' : 'passage',
+            source_dataset: r.source_dataset || '',
+            source_index: r.source_index || 0
+        })).join('\n');
+
+        const sql = `INSERT INTO ${this.config.table} FORMAT JSONEachRow\n${jsonLines}`;
+        return this.query(sql, 'text');
+    }
+
+    async insertBatchSafe(records) {
+        // SAFE patterns table: semantic_safe_embeddings with subcategory, source, language
+        // Uses JSONEachRow format for SQL injection prevention
+        validateTableName(this.config.table);
+
+        const jsonLines = records.map(r => JSON.stringify({
+            category: r.category || 'SAFE',
+            subcategory: r.subcategory || r.source_dataset || 'unknown',
+            pattern_text: r.pattern_text || '',
+            embedding: Array.isArray(r.embedding) ? r.embedding : [],
+            embedding_model: r.embedding_model || 'multilingual-e5-small-int8',
+            model_revision: r.model_revision || '',
+            prefix_type: r.prefix_type === 'query' ? 'query' : 'passage',
+            source_dataset: r.source_dataset || '',
+            source: r.source || '',
+            language: r.language || 'en',
+            source_index: r.source_index || 0
+        })).join('\n');
+
+        const sql = `INSERT INTO ${this.config.table} FORMAT JSONEachRow\n${jsonLines}`;
+        return this.query(sql, 'text');
+    }
+
+    /**
+     * @deprecated No longer needed - JSONEachRow handles escaping natively
+     */
     escape(str) {
-        if (!str) return '';
+        if (str === null || str === undefined) return '';
         return String(str)
             .replace(/\\/g, '\\\\')
             .replace(/'/g, "\\'")
             .replace(/\n/g, '\\n')
             .replace(/\r/g, '\\r')
-            .replace(/\t/g, '\\t');
+            .replace(/\t/g, '\\t')
+            .replace(/\0/g, '');
     }
 
     async truncate() {
+        validateTableName(this.config.table);
         return this.query(`TRUNCATE TABLE ${this.config.table}`, 'text');
     }
 
     async count() {
+        validateTableName(this.config.table);
         const result = await this.query(`SELECT count() as cnt FROM ${this.config.table}`);
-        return result.data[0].cnt;
+        if (result && result.data && result.data[0] && 'cnt' in result.data[0]) {
+            return result.data[0].cnt;
+        }
+        throw new Error(`Unexpected count response from ${this.config.table}`);
     }
 
     async healthCheck() {
+        const startTime = Date.now();
         try {
             await this.query('SELECT 1', 'text');
-            return true;
-        } catch {
-            return false;
+            return {
+                healthy: true,
+                latencyMs: Date.now() - startTime
+            };
+        } catch (error) {
+            const errorType = error.code === 'ECONNREFUSED' ? 'CONNECTION_REFUSED'
+                : error.code === 'ENOTFOUND' ? 'DNS_ERROR'
+                : error.message?.includes('auth') ? 'AUTH_FAILED'
+                : error.message?.includes('timeout') ? 'TIMEOUT'
+                : 'UNKNOWN';
+
+            return {
+                healthy: false,
+                error: error.message,
+                errorType,
+                latencyMs: Date.now() - startTime
+            };
         }
     }
 }
@@ -176,11 +260,19 @@ async function importEmbeddings(inputPath, options = {}) {
 
     // Health check
     console.log('\nChecking ClickHouse connection...');
-    if (!await client.healthCheck()) {
-        console.error('ERROR: Cannot connect to ClickHouse');
+    const health = await client.healthCheck();
+    if (!health.healthy) {
+        console.error(`ERROR: Cannot connect to ClickHouse: ${health.error} (${health.errorType})`);
+        if (health.errorType === 'CONNECTION_REFUSED') {
+            console.error('Hint: Is ClickHouse container running? docker ps | grep clickhouse');
+        } else if (health.errorType === 'AUTH_FAILED') {
+            console.error('Hint: Check CLICKHOUSE_PASSWORD environment variable');
+        } else if (health.errorType === 'DNS_ERROR') {
+            console.error('Hint: Check CLICKHOUSE_HOST environment variable');
+        }
         process.exit(1);
     }
-    console.log('Connected to ClickHouse');
+    console.log(`Connected to ClickHouse (${health.latencyMs}ms)`);
 
     // Truncate if requested
     if (options.truncate) {
@@ -206,6 +298,7 @@ async function importEmbeddings(inputPath, options = {}) {
     let totalImported = 0;
     let totalSkipped = 0;
     let lineNumber = 0;
+    const errorsByType = {};
 
     for await (const line of rl) {
         lineNumber++;
@@ -236,8 +329,18 @@ async function importEmbeddings(inputPath, options = {}) {
                 batch = [];
             }
         } catch (e) {
-            console.warn(`\nLine ${lineNumber}: JSON parse error: ${e.message}`);
+            const errorType = e instanceof SyntaxError ? 'JSON_PARSE' : 'PROCESSING';
+            console.error(`[ERROR] Line ${lineNumber} (${errorType}): ${e.message}`);
+            errorsByType[errorType] = (errorsByType[errorType] || 0) + 1;
             totalSkipped++;
+        }
+    }
+
+    // Print error breakdown if any errors occurred
+    if (Object.keys(errorsByType).length > 0) {
+        console.log('\n⚠️  Error breakdown:');
+        for (const [type, count] of Object.entries(errorsByType)) {
+            console.log(`   ${type}: ${count}`);
         }
     }
 
@@ -350,6 +453,11 @@ async function main() {
             truncate = true;
         } else if (arg === '--batch' || arg === '-b') {
             CONFIG.batchSize = parseInt(args[++i], 10);
+        } else if (arg === '--table') {
+            CONFIG.clickhouse.table = args[++i];
+            // Auto-detect schema type
+            useSafeSchema = CONFIG.clickhouse.table.includes('_safe_');
+            useV2Schema = CONFIG.clickhouse.table.includes('_v2') && !useSafeSchema;
         }
     }
 

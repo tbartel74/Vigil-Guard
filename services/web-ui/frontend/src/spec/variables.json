@@ -451,8 +451,8 @@
       "label": "Semantic Weight (Branch B)",
       "type": "number",
       "required": true,
-      "help": "Weight for embedding similarity analysis (0.0-1.0). Default: 0.35",
-      "default": 0.35,
+      "help": "Weight for embedding similarity analysis (0.0-1.0). Default: 0.40 (v2.1.0: increased for better recall)",
+      "default": 0.40,
       "map": [
         {
           "file": "unified_config.json",
@@ -466,8 +466,8 @@
       "label": "LLM Safety Engine Analysis Weight (Branch C)",
       "type": "number",
       "required": true,
-      "help": "Weight for the LLM Safety Engine classifier (Llama Guard-based, 0.0-1.0). Default: 0.35",
-      "default": 0.35,
+      "help": "Weight for the LLM Safety Engine classifier (Llama Guard-based, 0.0-1.0). Default: 0.30 (v2.1.0: reduced to prevent solo-PG false positives)",
+      "default": 0.30,
       "map": [
         {
           "file": "unified_config.json",
@@ -532,6 +532,51 @@
         {
           "file": "unified_config.json",
           "path": "arbiter.priority_boosts.CONSERVATIVE_OVERRIDE.min_score"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_CONSERVATIVE_EXCEPTION_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "Solo-PG Exception",
+      "type": "boolean",
+      "required": true,
+      "help": "Skip conservative override when only PG is high (H<15, S<15). Reduces false positives on educational content. Default: enabled (v2.1.0)",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.CONSERVATIVE_OVERRIDE.exception.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_CORROBORATION_ENABLED",
+      "groupId": "arbiter_boosts",
+      "label": "Semantic Corroboration",
+      "type": "boolean",
+      "required": true,
+      "help": "Reduce solo-PG detections (PG≥70, H<15, S<15) from BLOCK to ALLOW (score=45, below threshold 50). Prevents FP on security education queries. Default: enabled (v2.1.0)",
+      "default": true,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.SEMANTIC_CORROBORATION.enabled"
+        }
+      ]
+    },
+    {
+      "name": "ARBITER_BOOST_CORROBORATION_SCORE",
+      "groupId": "arbiter_boosts",
+      "label": "Corroboration Reduced Score",
+      "type": "number",
+      "required": true,
+      "help": "Score assigned to solo-PG detections (0-100). Must be < block_score (50) for ALLOW. Default: 45",
+      "default": 45,
+      "map": [
+        {
+          "file": "unified_config.json",
+          "path": "arbiter.priority_boosts.SEMANTIC_CORROBORATION.new_score"
         }
       ]
     },

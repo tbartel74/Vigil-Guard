@@ -15,8 +15,17 @@ RUN pip install --no-cache-dir -r requirements.lock
 # Keep requirements.txt for reference (development dependencies)
 COPY requirements.txt .
 
+# Create non-root user (Golden Rule: never run containers as root)
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Skopiuj kod
 COPY app.py .
+
+# Change ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 # Port
 EXPOSE 8000

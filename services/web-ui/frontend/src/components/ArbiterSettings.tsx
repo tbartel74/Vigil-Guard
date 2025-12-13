@@ -269,10 +269,10 @@ export default function ArbiterSettings() {
     );
   }
 
-  // Get current weight values for visualization
+  // Get current weight values for visualization (v2.1.0 defaults: H=30%, S=40%, PG=30%)
   const heuristicsWeight = Number(getValue("ARBITER_WEIGHT_HEURISTICS")) || 0.3;
-  const semanticWeight = Number(getValue("ARBITER_WEIGHT_SEMANTIC")) || 0.35;
-  const llmGuardWeight = Number(getValue("ARBITER_WEIGHT_LLM_GUARD")) || 0.35;
+  const semanticWeight = Number(getValue("ARBITER_WEIGHT_SEMANTIC")) || 0.40;
+  const llmGuardWeight = Number(getValue("ARBITER_WEIGHT_LLM_GUARD")) || 0.30;
   const blockThreshold = Number(getValue("ARBITER_BLOCK_SCORE")) || 50;
 
   return (
@@ -304,9 +304,9 @@ export default function ArbiterSettings() {
         <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4">
           <p className="text-sm text-slate-300 leading-relaxed">
             The Arbiter combines scores from all 3 detection branches using weighted voting.
-            Configure branch weights (default: Heuristics 30%, Semantic 35%, LLM Safety Engine Analysis 35%),
+            Configure branch weights (v2.1.0 default: Heuristics 30%, Semantic 40%, LLM Safety Engine Analysis 30%),
             priority boosts for edge cases, and thresholds for ALLOW/BLOCK decisions.
-            Degraded weights are used when branches are offline.
+            Solo-PG detections (PG high, H&S low) are reduced to SANITIZE instead of BLOCK to prevent false positives on educational content.
           </p>
         </div>
       </div>
@@ -514,31 +514,38 @@ export default function ArbiterSettings() {
 
         {/* Boost Explanations */}
         <div className="mt-6 bg-slate-900/50 border border-slate-700 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-slate-300 mb-3">Boost Priority Order</h3>
+          <h3 className="text-sm font-medium text-slate-300 mb-3">Boost Priority Order (v2.1.0)</h3>
           <div className="space-y-2 text-xs">
             <div className="flex items-start gap-2">
               <span className="text-red-400 font-semibold">1.</span>
               <div>
                 <span className="text-white font-medium">CONSERVATIVE_OVERRIDE</span>
-                <span className="text-text-secondary ml-2">— Block if ANY branch reports HIGH threat (&ge;70)</span>
+                <span className="text-text-secondary ml-2">— Block if ANY branch HIGH (&ge;70), <span className="text-amber-400">EXCEPT solo-PG (H&lt;15, S&lt;15)</span></span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-red-400 font-semibold">2.</span>
+              <span className="text-amber-400 font-semibold">2.</span>
+              <div>
+                <span className="text-white font-medium">SEMANTIC_CORROBORATION</span>
+                <span className="text-text-secondary ml-2">— Solo-PG detections (PG&ge;70, H&lt;15, S&lt;15) reduced to score=45 (SANITIZE)</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-red-400 font-semibold">3.</span>
               <div>
                 <span className="text-white font-medium">LLM_GUARD_VETO</span>
-                <span className="text-text-secondary ml-2">— Force BLOCK if LLM Safety Engine analysis score &gt; 90</span>
+                <span className="text-text-secondary ml-2">— Force BLOCK if PG &gt; 90 <span className="text-amber-400">AND corroborated by H or S (&ge;15)</span></span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-emerald-400 font-semibold">3.</span>
+              <span className="text-emerald-400 font-semibold">4.</span>
               <div>
                 <span className="text-white font-medium">UNANIMOUS_LOW</span>
                 <span className="text-text-secondary ml-2">— Force ALLOW if all 3 branches report LOW (&le;30)</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-yellow-400 font-semibold">4.</span>
+              <span className="text-yellow-400 font-semibold">5.</span>
               <div>
                 <span className="text-white font-medium">SEMANTIC_HIGH_SIMILARITY</span>
                 <span className="text-text-secondary ml-2">— Add +15 boost when similarity &gt; 0.85</span>

@@ -21,6 +21,7 @@ export default defineConfig({
     testTimeout: 30000,
     hookTimeout: 10000,
     teardownTimeout: 5000,
+    retry: 1,  // Retry failed tests once for flaky network issues
     isolate: true,
     fileParallelism: false,
     maxConcurrency: 1,

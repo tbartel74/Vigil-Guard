@@ -112,7 +112,7 @@ export async function getExternalDomain(): Promise<string> {
  */
 async function generateWebhookUrl(): Promise<string> {
   const domain = await getExternalDomain();
-  return `http://${domain}:5678/webhook/vigil-guard-2`;
+  return `http://${domain}:5678/webhook/vigil-guard-v2-webhook`;
 }
 
 /**

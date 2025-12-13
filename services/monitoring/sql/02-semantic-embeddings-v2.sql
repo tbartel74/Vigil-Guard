@@ -1,42 +1,70 @@
 -- ============================================================================
--- Semantic Service - Vector Embeddings for Branch B
--- Pattern matching via HNSW cosine similarity search
--- Source: services/semantic-service/sql/01-create-tables.sql
+-- Semantic Service - Vector Embeddings Schema (v2.0.0)
+-- ============================================================================
+-- Creates embedding tables and auxiliary structures for Two-Phase Search.
+-- Tables: pattern_embeddings_v2 (attack), semantic_safe_embeddings (safe)
 -- ============================================================================
 
--- TABLE: pattern_embeddings (3000 malicious prompt patterns)
--- NOTE: NO TTL - permanent data, never expires
-CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
-    -- Primary identifiers
-    pattern_id String COMMENT 'Format: category_index',
-    category String COMMENT 'Threat category (29 types)',
-
-    -- Pattern content
-    pattern_text String COMMENT 'Original malicious prompt',
-    pattern_norm String DEFAULT '' COMMENT 'Normalized text',
-
-    -- Embedding vector (384-dim MiniLM)
-    embedding Array(Float32) COMMENT '384-dim from all-MiniLM-L6-v2-int8',
-
-    -- Metadata
-    embedding_model String DEFAULT 'all-MiniLM-L6-v2-int8',
-    source_dataset String DEFAULT '',
+-- ============================================================================
+-- TABLE: pattern_embeddings_v2 (Attack Patterns - E5 Model)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings_v2 (
+    pattern_id UUID DEFAULT generateUUIDv4(),
+    category LowCardinality(String),
+    pattern_text String CODEC(ZSTD(3)),
+    pattern_hash UInt64 MATERIALIZED cityHash64(pattern_text),
+    embedding Array(Float32),
+    embedding_model LowCardinality(String) DEFAULT 'multilingual-e5-small-int8',
+    model_revision String DEFAULT '761b726dd34fb83930e26aab4e9ac3899aa1fa78',
+    prefix_type Enum8('passage' = 1, 'query' = 2) DEFAULT 'passage',
+    source_dataset String DEFAULT 'enterprise_prompt_dataset_small_reclassified',
     source_index UInt32 DEFAULT 0,
+    created_at DateTime64(3) DEFAULT now64(3),
+    updated_at DateTime64(3) DEFAULT now64(3),
 
-    -- Timestamps
-    created_at DateTime DEFAULT now(),
-    updated_at DateTime DEFAULT now(),
-
-    -- Vector similarity index for fast cosine search
-    -- Note: vector_similarity requires ClickHouse 24.1+
-    -- Arguments: method, distance_function, dimensions (384 = all-MiniLM-L6-v2 output)
-    INDEX embedding_idx embedding TYPE vector_similarity('hnsw', 'cosineDistance', 384)
+    INDEX embedding_hnsw_idx embedding
+        TYPE vector_similarity('hnsw', 'cosineDistance', 384)
+        GRANULARITY 100000000
 )
 ENGINE = MergeTree()
-ORDER BY (category, pattern_id)
+PARTITION BY category
+ORDER BY (category, pattern_hash, pattern_id)
+TTL created_at + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 
+-- ============================================================================
+-- TABLE: semantic_safe_embeddings (Safe Patterns - Contrastive Search)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS n8n_logs.semantic_safe_embeddings (
+    pattern_id UUID DEFAULT generateUUIDv4(),
+    category LowCardinality(String) DEFAULT 'SAFE',
+    subcategory LowCardinality(String),
+    pattern_text String CODEC(ZSTD(3)),
+    pattern_hash UInt64 MATERIALIZED cityHash64(pattern_text),
+    embedding Array(Float32),
+    embedding_model LowCardinality(String) DEFAULT 'multilingual-e5-small-int8',
+    model_revision String DEFAULT '761b726dd34fb83930e26aab4e9ac3899aa1fa78',
+    prefix_type Enum8('passage' = 1, 'query' = 2) DEFAULT 'passage',
+    source_dataset String DEFAULT 'safe_patterns_small',
+    source LowCardinality(String),
+    language LowCardinality(String) DEFAULT 'en',
+    source_index UInt32 DEFAULT 0,
+    created_at DateTime64(3) DEFAULT now64(3),
+    updated_at DateTime64(3) DEFAULT now64(3),
+
+    INDEX embedding_hnsw_idx embedding
+        TYPE vector_similarity('hnsw', 'cosineDistance', 384)
+        GRANULARITY 100000000
+)
+ENGINE = MergeTree()
+PARTITION BY subcategory
+ORDER BY (subcategory, pattern_hash, pattern_id)
+TTL created_at + INTERVAL 90 DAY
+SETTINGS index_granularity = 8192;
+
+-- ============================================================================
 -- TABLE: embedding_metadata (track database state)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS n8n_logs.embedding_metadata (
     id UInt64,
     key String,
@@ -47,7 +75,9 @@ CREATE TABLE IF NOT EXISTS n8n_logs.embedding_metadata (
 ENGINE = ReplacingMergeTree(created_at)
 ORDER BY (key);
 
+-- ============================================================================
 -- TABLE: embedding_audit_log (track changes)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS n8n_logs.embedding_audit_log (
     id UUID DEFAULT generateUUIDv4(),
     action String COMMENT 'INSERT, UPDATE, DELETE, REBUILD, TRUNCATE',
@@ -64,28 +94,42 @@ ENGINE = MergeTree()
 ORDER BY (timestamp, id)
 TTL timestamp + INTERVAL 90 DAY;
 
--- Initial metadata
+-- Initial metadata (v2.1.0 - E5 model)
 INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
-    (1, 'schema_version', '1.0.0'),
-    (2, 'embedding_model', 'all-MiniLM-L6-v2-int8'),
+    (1, 'schema_version', '2.1.0'),
+    (2, 'embedding_model', 'multilingual-e5-small-int8'),
     (3, 'embedding_dim', '384'),
     (4, 'hnsw_m', '16'),
     (5, 'hnsw_ef_construction', '200'),
     (6, 'hnsw_ef_search', '100'),
     (7, 'created_at', toString(now())),
-    (8, 'pattern_count', '0'),
-    (9, 'last_rebuild', ''),
-    (10, 'last_import', '');
+    (8, 'attack_pattern_count', '0'),
+    (9, 'safe_pattern_count', '0'),
+    (10, 'last_rebuild', ''),
+    (11, 'last_import', ''),
+    (12, 'two_phase_enabled', 'true');
 
--- Views
+-- ============================================================================
+-- VIEWS (require tables above to exist first)
+-- ============================================================================
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_category_stats AS
 SELECT
     category,
     count() AS pattern_count,
     min(created_at) AS first_added,
     max(updated_at) AS last_updated
-FROM n8n_logs.pattern_embeddings
+FROM n8n_logs.pattern_embeddings_v2
 GROUP BY category
+ORDER BY pattern_count DESC;
+
+CREATE VIEW IF NOT EXISTS n8n_logs.v_safe_embedding_stats AS
+SELECT
+    subcategory,
+    count() AS pattern_count,
+    min(created_at) AS first_added,
+    max(updated_at) AS last_updated
+FROM n8n_logs.semantic_safe_embeddings
+GROUP BY subcategory
 ORDER BY pattern_count DESC;
 
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_recent_audit AS

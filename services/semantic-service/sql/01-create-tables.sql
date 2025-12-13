@@ -1,43 +1,14 @@
 -- ============================================================================
 -- Semantic Service - ClickHouse DDL
 -- Branch B: Pattern Embeddings with HNSW Vector Search
--- Version: 1.0.0
--- Date: 2025-11-23
+-- Version: 2.0.0 (E5 model - Two-Phase Search)
+-- Date: 2025-12-12
 -- ============================================================================
-
--- Table: pattern_embeddings
--- Purpose: Store MiniLM INT8 embeddings (384-dim) for malicious prompt patterns
--- Index: HNSW usearch for fast cosine similarity search
+-- NOTE: This file creates auxiliary tables only.
+-- Main embedding tables are created by:
+--   - 04-semantic-embeddings-v2.sql (pattern_embeddings_v2 - ATTACK patterns)
+--   - 05-semantic-safe-embeddings.sql (semantic_safe_embeddings - SAFE patterns)
 -- ============================================================================
-
-CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
-    -- Primary identifiers
-    pattern_id String COMMENT 'Unique identifier for the pattern (format: category_index)',
-    category String COMMENT 'Threat category (e.g., SQL_INJECTION, JAILBREAK)',
-
-    -- Pattern content
-    pattern_text String COMMENT 'Original malicious prompt text',
-    pattern_norm String DEFAULT '' COMMENT 'Normalized text (lowercase, stripped)',
-
-    -- Embedding vector (384-dimensional MiniLM)
-    embedding Array(Float32) COMMENT '384-dim vector from MiniLM-L6-v2-INT8',
-
-    -- Metadata
-    embedding_model String DEFAULT 'all-MiniLM-L6-v2-int8' COMMENT 'Model used for embedding',
-    source_dataset String DEFAULT '' COMMENT 'Source dataset (e.g., malicious_3k)',
-    source_index UInt32 DEFAULT 0 COMMENT 'Original index in source file',
-
-    -- Timestamps
-    created_at DateTime DEFAULT now() COMMENT 'When embedding was created',
-    updated_at DateTime DEFAULT now() COMMENT 'Last update timestamp',
-
-    -- HNSW index for fast similarity search
-    -- Parameters: M=16 (connections), efConstruction=200 (build quality), efSearch=100 (search quality)
-    INDEX embedding_idx embedding TYPE usearch('cosine', 'M=16,efConstruction=200,efSearch=100')
-)
-ENGINE = MergeTree()
-ORDER BY (category, pattern_id)
-SETTINGS index_granularity = 8192;
 
 -- ============================================================================
 -- Table: embedding_metadata
@@ -77,34 +48,47 @@ ORDER BY (timestamp, id)
 TTL timestamp + INTERVAL 90 DAY;
 
 -- ============================================================================
--- Initial metadata entries
+-- Initial metadata entries (E5 model - Two-Phase Search)
 -- ============================================================================
 
 INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
-    (1, 'schema_version', '1.0.0'),
-    (2, 'embedding_model', 'all-MiniLM-L6-v2-int8'),
+    (1, 'schema_version', '2.0.0'),
+    (2, 'embedding_model', 'multilingual-e5-small-int8'),
     (3, 'embedding_dim', '384'),
     (4, 'hnsw_m', '16'),
     (5, 'hnsw_ef_construction', '200'),
     (6, 'hnsw_ef_search', '100'),
     (7, 'created_at', toString(now())),
-    (8, 'pattern_count', '0'),
-    (9, 'last_rebuild', ''),
-    (10, 'last_import', '');
+    (8, 'attack_pattern_count', '0'),
+    (9, 'safe_pattern_count', '0'),
+    (10, 'last_rebuild', ''),
+    (11, 'last_import', ''),
+    (12, 'two_phase_enabled', 'true');
 
 -- ============================================================================
 -- Views for common queries
 -- ============================================================================
 
--- Category statistics view
+-- Category statistics view (ATTACK patterns)
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_category_stats AS
 SELECT
     category,
     count() AS pattern_count,
     min(created_at) AS first_added,
     max(updated_at) AS last_updated
-FROM n8n_logs.pattern_embeddings
+FROM n8n_logs.pattern_embeddings_v2
 GROUP BY category
+ORDER BY pattern_count DESC;
+
+-- Safe embeddings statistics view
+CREATE VIEW IF NOT EXISTS n8n_logs.v_safe_embedding_stats AS
+SELECT
+    subcategory,
+    count() AS pattern_count,
+    min(created_at) AS first_added,
+    max(updated_at) AS last_updated
+FROM n8n_logs.semantic_safe_embeddings
+GROUP BY subcategory
 ORDER BY pattern_count DESC;
 
 -- Recent audit log view
@@ -124,23 +108,43 @@ LIMIT 100;
 -- Useful queries (for reference, not executed)
 -- ============================================================================
 
--- Top-K similar patterns query:
+-- Top-K similar ATTACK patterns query:
 -- SELECT
 --     pattern_id,
 --     category,
 --     pattern_text,
 --     cosineDistance(embedding, [/* 384 floats */]) AS distance,
 --     1 - cosineDistance(embedding, [/* 384 floats */]) AS similarity
--- FROM n8n_logs.pattern_embeddings
+-- FROM n8n_logs.pattern_embeddings_v2
 -- ORDER BY distance ASC
 -- LIMIT 5;
 
--- Category distribution:
--- SELECT category, count() AS cnt FROM n8n_logs.pattern_embeddings GROUP BY category ORDER BY cnt DESC;
+-- Top-K similar SAFE patterns query (for false positive check):
+-- SELECT
+--     subcategory,
+--     pattern_text,
+--     cosineDistance(embedding, [/* 384 floats */]) AS distance,
+--     1 - cosineDistance(embedding, [/* 384 floats */]) AS similarity
+-- FROM n8n_logs.semantic_safe_embeddings
+-- ORDER BY distance ASC
+-- LIMIT 5;
 
--- Embedding health check:
+-- Category distribution (ATTACK):
+-- SELECT category, count() AS cnt FROM n8n_logs.pattern_embeddings_v2 GROUP BY category ORDER BY cnt DESC;
+
+-- Subcategory distribution (SAFE):
+-- SELECT subcategory, count() AS cnt FROM n8n_logs.semantic_safe_embeddings GROUP BY subcategory ORDER BY cnt DESC;
+
+-- Embedding health check (ATTACK):
 -- SELECT
 --     count() AS total_patterns,
 --     countIf(length(embedding) = 384) AS valid_embeddings,
 --     countIf(length(embedding) != 384) AS invalid_embeddings
--- FROM n8n_logs.pattern_embeddings;
+-- FROM n8n_logs.pattern_embeddings_v2;
+
+-- Embedding health check (SAFE):
+-- SELECT
+--     count() AS total_patterns,
+--     countIf(length(embedding) = 384) AS valid_embeddings,
+--     countIf(length(embedding) != 384) AS invalid_embeddings
+-- FROM n8n_logs.semantic_safe_embeddings;

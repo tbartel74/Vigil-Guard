@@ -940,6 +940,187 @@ In the Configuration section, the "Version History" button opens a modal with:
 - History: `TARGET_DIR/version_history.json`
 - Backups: `TARGET_DIR/{filename}__{timestamp}__{changeTag}.{ext}.bak`
 
+## PII Detection API
+
+Endpoints for PII (Personally Identifiable Information) detection using Microsoft Presidio with dual-language support (Polish + English).
+
+**Rate Limiting**: 50 requests per minute per IP address.
+
+### `GET /api/pii-detection/status`
+
+Returns Presidio service health status.
+
+**Authorization**: Required (JWT)
+
+**Response (online):**
+```json
+{
+  "status": "online",
+  "version": "2.2.351",
+  "recognizers_loaded": 15,
+  "spacy_models": ["en_core_web_lg", "pl_core_news_lg"]
+}
+```
+
+**Response (offline):**
+```json
+{
+  "status": "offline",
+  "fallback": "regex",
+  "error": "Connection refused"
+}
+```
+
+### `GET /api/pii-detection/entity-types`
+
+Returns list of supported PII entity types.
+
+**Authorization**: Required (JWT)
+
+**Response:**
+```json
+{
+  "entities": [
+    {
+      "id": "EMAIL_ADDRESS",
+      "name": "Email Address",
+      "category": "contact",
+      "description": "Email addresses in standard format"
+    },
+    {
+      "id": "PL_PESEL",
+      "name": "PESEL (Polish National ID)",
+      "category": "identity",
+      "description": "11-digit Polish identification number with checksum validation"
+    }
+  ],
+  "total": 11,
+  "categories": ["contact", "identity", "business", "financial", "technical"]
+}
+```
+
+### `POST /api/pii-detection/analyze`
+
+Analyzes text for PII entities using dual-language detection (Polish + English).
+
+**Authorization**: Required (JWT)
+
+**Request:**
+```json
+{
+  "text": "Mój PESEL to 44051401359, email: jan@example.com",
+  "entities": ["EMAIL_ADDRESS", "PL_PESEL"],
+  "return_decision_process": true
+}
+```
+
+**Parameters:**
+- `text` (required): Text to analyze (max 20,000 characters)
+- `entities` (optional): List of entity types to detect (max 50)
+- `return_decision_process` (optional): Include detailed analysis info
+
+**Response:**
+```json
+{
+  "entities": [
+    {
+      "type": "PL_PESEL",
+      "start": 14,
+      "end": 25,
+      "score": 0.95,
+      "source": "presidio_pl"
+    },
+    {
+      "type": "EMAIL_ADDRESS",
+      "start": 34,
+      "end": 49,
+      "score": 0.85,
+      "source": "presidio_en"
+    }
+  ],
+  "detected_language": "pl",
+  "processing_time_ms": 45,
+  "language_stats": {
+    "pl": 1,
+    "en": 1,
+    "regex": 0
+  }
+}
+```
+
+**Query Parameters:**
+- `mode=legacy`: Use single-language Presidio proxy instead of dual-language
+
+### `POST /api/pii-detection/analyze-full`
+
+Same as `/analyze` but always uses dual-language workflow with full statistics.
+
+**Authorization**: Required (JWT)
+
+### `POST /api/pii-detection/save-config`
+
+Saves PII detection configuration.
+
+**Authorization**: Required (JWT, `can_view_configuration`)
+
+**Request:**
+```json
+{
+  "enabledEntities": ["EMAIL_ADDRESS", "PL_PESEL", "CREDIT_CARD"],
+  "etags": {
+    "unified_config.json": "a1b2c3d4"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "etags": {
+    "unified_config.json": "e5f6g7h8"
+  }
+}
+```
+
+**Errors:**
+- `400` — Validation error
+- `412` — ETag mismatch (concurrent modification)
+
+### `GET /api/pii-detection/validate-config`
+
+Validates consistency between unified_config.json and pii.conf.
+
+**Authorization**: Required (JWT, `can_view_configuration`)
+
+**Response (consistent):**
+```json
+{
+  "consistent": true,
+  "unified_config": {
+    "count": 11,
+    "entities": ["EMAIL_ADDRESS", "PL_PESEL", ...]
+  },
+  "pii_conf": {
+    "count": 8,
+    "entities": ["EMAIL_ADDRESS", "PL_PESEL", ...]
+  },
+  "discrepancies": null,
+  "presidio_only_entities": ["PERSON", "LOCATION", "ORGANIZATION"]
+}
+```
+
+**Response (inconsistent):**
+```json
+{
+  "consistent": false,
+  "discrepancies": {
+    "in_unified_only": ["NEW_ENTITY"],
+    "in_pii_conf_only": ["REMOVED_ENTITY"]
+  }
+}
+```
+
 ## Health Checks
 
 - `GET /health` – backend Web UI
