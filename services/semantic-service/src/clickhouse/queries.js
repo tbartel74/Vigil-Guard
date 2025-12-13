@@ -247,131 +247,84 @@ async function searchTwoPhase(embedding, topK = 5, options = {}) {
     // Delta: positive means more similar to attacks, negative means more similar to safe
     const delta = attackMaxSim - safeMaxSim;
 
-    // Multi-tier classification v2.3 - "Confident-Only" Strategy
-    // Philosophy: Semantic service only signals HIGH CONFIDENCE decisions
-    // Ambiguous cases → UNCERTAIN → score=0 → Arbiter uses other branches
-    //
-    // Key insight: Embeddings are STATIC and cannot understand INTENT
-    // So we should only claim ATTACK when we're very confident
-    // Let Heuristics + LLM Guard handle ambiguous cases
-    //
+    // Classification v2.3: SAFE/ATTACK/UNCERTAIN (confident-only approach)
     let classification;
 
-    // Check SAFE subcategory - instruction/technical patterns are lexically similar to attacks
-    // security_education_query patterns are questions ABOUT security (defensive learning)
+    // Subcategory detection for threshold adjustments
     const topSafeSubcat = safeMatches[0]?.subcategory || '';
-
-    // Standard instruction-type patterns (code, alpaca, general prompts)
     const safeIsInstructionType = topSafeSubcat.includes('programming') ||
                                   topSafeSubcat.includes('instruction') ||
                                   topSafeSubcat.includes('alpaca') ||
                                   topSafeSubcat.includes('code') ||
                                   topSafeSubcat.includes('general');
-
-    // Security education patterns are PRECISE - they match specific educational queries
-    // They only protect when similarity is very high (>0.90), not for borderline cases
     const safeIsSecurityEducation = topSafeSubcat.includes('security_education');
 
-    // Adjusted delta: instruction-type SAFE matches need extra protection (+0.05)
-    // Security education does NOT get bonus - patterns are precise
+    // Instruction-type matches get +0.05 delta bonus (security_education excluded)
     const adjustedDelta = safeIsInstructionType && !safeIsSecurityEducation
         ? delta + 0.05
         : delta;
 
-    // === SAFE CLASSIFICATION (check first to reduce FP) ===
-
-    // S1: Clear safe winner - safe_sim significantly higher than attack_sim
-    // Exception: security_education patterns need higher threshold (0.04) to prevent FN
-    // For instruction-type matches, require even more margin (0.05) since they match attacks lexically
+    // === SAFE RULES (S1-S4) ===
+    // S1: safe > attack + margin, attack < 0.85
     const s1Threshold = safeIsSecurityEducation ? 0.04 : (safeIsInstructionType ? 0.05 : 0.02);
     if (safeMaxSim >= attackMaxSim + s1Threshold && attackMaxSim < 0.85) {
         classification = 'SAFE';
     }
-    // S2: Security education match - requires VERY high similarity (>0.92) and clear delta
-    // These patterns match broadly, so we need high confidence to classify as SAFE
+    // S2: security_education with high safe (>=0.92) and strong delta (<-0.07)
     else if (safeIsSecurityEducation && safeMaxSim >= 0.92 && delta < -0.07) {
         classification = 'SAFE';
     }
-    // S3: Standard instruction-type safe match with VERY negative delta
-    // Only classify as SAFE when attack_sim is low AND delta is strongly negative
-    // This prevents Polish attacks from being misclassified due to lexical similarity
+    // S3: instruction-type with delta <-0.05 and attack <0.82
     else if (safeIsInstructionType && delta < -0.05 && attackMaxSim < 0.82) {
         classification = 'SAFE';
     }
-    // S4: High SAFE match with negative delta (non-instruction types only)
-    // Instruction types should NOT use this rule due to lexical similarity with attacks
+    // S4: non-instruction with safe >=0.88, delta <-0.01, attack <0.85
     else if (!safeIsInstructionType && safeMaxSim >= 0.88 && delta < -0.01 && attackMaxSim < 0.85) {
         classification = 'SAFE';
     }
 
-    // === ATTACK CLASSIFICATION ===
-    // Note: SAFE rules (S1-S4) are checked BEFORE attack rules
-    // These attack rules handle cases where safe_sim didn't win decisively
-
-    // A1: Very high attack similarity - but not if safe_sim is overwhelming
-    // GD-SAFE-005 has attack=0.91, safe=0.94 - safe wins clearly
+    // === ATTACK RULES (A1-A6) ===
+    // A1: attack >=0.88, unless safe overwhelms (safe >=0.92 && delta <-0.02)
     else if (attackMaxSim >= 0.88 && !(safeMaxSim >= 0.92 && delta < -0.02)) {
         classification = 'ATTACK';
     }
-    // A2: High attack similarity (>=0.865) with instruction-type - almost always attack
-    // GD-PL-004: attack=0.8660 → ATTACK (despite delta=-0.0224)
-    // GD-EDGE-008: attack=0.8725 → ATTACK (despite delta=-0.0305)
-    // GD-SAFE-008: attack=0.8609 (<0.865) → handled elsewhere
-    // Exception 1: Inherited from A1 - safe overwhelms (>=0.92 with delta < -0.02)
-    // Exception 2: High safe (>=0.91) with very negative delta (< -0.04)
-    // GD-SAFE-005: safe=0.9425, delta=-0.0323 → Exception 1 fires
-    // GD-SAFE-007: safe=0.9107, delta=-0.0451 → Exception 2 fires
+    // A2: attack >=0.865 + instruction-type, exceptions for high safe
     else if (attackMaxSim >= 0.865 && safeIsInstructionType
              && !(safeMaxSim >= 0.92 && delta < -0.02)
              && !(safeMaxSim >= 0.91 && delta < -0.04)) {
         classification = 'ATTACK';
     }
-    // A3: High attack similarity with instruction-type (0.85-0.866) with small negative delta
-    // GD-PL-002: attack=0.8587, delta=-0.0212 → ATTACK
-    // GD-PL-005: attack=0.8596, delta=-0.0170 → ATTACK
-    // GD-SAFE-008: attack=0.8609, delta=-0.0228 → needs protection
-    // Key: GD-SAFE-008 has delta more negative AND similar attack_sim
-    // Use -0.022 threshold: catches -0.0212 and -0.0170, excludes -0.0228
+    // A3: attack >=0.85 + instruction-type + delta >-0.022
     else if (attackMaxSim >= 0.85 && safeIsInstructionType && delta > -0.022 && !(safeMaxSim >= 0.91 && delta < -0.03)) {
         classification = 'ATTACK';
     }
-    // A4: High attack similarity with positive or near-zero delta (non-instruction types)
+    // A4a: attack >=0.85 + delta >-0.02 (non-instruction)
     else if (attackMaxSim >= 0.85 && delta > -0.02) {
         classification = 'ATTACK';
     }
-    // A4: Good attack similarity with instruction-type safe match
-    // Even with negative delta, instruction-type safe matches are often false alarms
-    // BUT: Respect cases where safe wins (delta < -0.02)
+    // A4b: attack >=0.82 + instruction-type + delta >-0.02
     else if (attackMaxSim >= 0.82 && safeIsInstructionType && delta > -0.02 && !(safeMaxSim >= 0.88 && delta < -0.04)) {
         classification = 'ATTACK';
     }
-    // A5: Good attack similarity with positive delta
+    // A5: attack >=0.82 + delta >0.02
     else if (attackMaxSim >= 0.82 && delta > 0.02) {
         classification = 'ATTACK';
     }
-    // A6: Lower attack similarity but clear delta advantage
+    // A6: attack >=0.78 + delta >0.08
     else if (attackMaxSim >= 0.78 && delta > 0.08) {
         classification = 'ATTACK';
     }
 
-    // === BORDERLINE CASES ===
-
-    // B1: Security education match with low similarity (<0.92) - not a real education query
-    // If attack_sim is decent (>=0.82), classify as ATTACK
+    // === BORDERLINE RULES (B1-B2) ===
+    // B1: security_education with safe <0.92 and attack >=0.82
     else if (safeIsSecurityEducation && safeMaxSim < 0.92 && attackMaxSim >= 0.82) {
         classification = 'ATTACK';
     }
-    // B2: Moderate attack similarity (0.78-0.85) with instruction-type and small negative delta
-    // Polish attacks often match polish instruction patterns lexically
-    // BUT: If attack_sim < 0.85 AND safe significantly wins (delta < -0.02), classify as SAFE
-    // GD-SAFE-008: attack=0.8609 (<0.85), safe=0.8836, delta=-0.0228 → SAFE
-    // GD-PL-002: attack=0.8587 (<0.85), delta=-0.0212 → need to catch
-    // Solution: B2 only for attackMaxSim >= 0.78 AND attackMaxSim < 0.85 range
-    // Higher attackMaxSim (>=0.85) is already handled by A2-A4
+    // B2: attack 0.78-0.85 + instruction-type + delta >-0.03
     else if (attackMaxSim >= 0.78 && attackMaxSim < 0.85 && safeIsInstructionType && delta > -0.03) {
         classification = 'ATTACK';
     }
-    // Default: Safe (borderline cases default to safe to reduce FP)
+    // Default: SAFE (borderline cases default to safe)
     else {
         classification = 'SAFE';
     }

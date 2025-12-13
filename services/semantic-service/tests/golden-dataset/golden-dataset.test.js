@@ -1,22 +1,9 @@
 /**
  * Golden Dataset Validation Tests
- * Semantic Service - E5 Model Migration
  *
- * PRD Reference: VG-SEM-PRD-001 v1.1.1, Section 6
- *
- * This test suite validates the semantic detection accuracy against
- * a curated golden dataset of 55 examples covering:
- * - Polish attacks (15 examples)
- * - English attacks (15 examples)
- * - Mixed language attacks (5 examples)
- * - Safe "tricky" inputs (10 examples)
- * - Edge cases (10 examples)
- *
- * Go/No-Go Criteria:
- * - Polish accuracy ≥80%
- * - English accuracy ≥85%
- * - Golden Dataset: 100% correct for BLOCK cases
- * - FP rate ≤5% (SAFE cases incorrectly blocked)
+ * Validates semantic detection against 55 curated examples:
+ * - 15 Polish attacks, 15 English attacks, 5 mixed
+ * - 10 safe "tricky" inputs, 10 edge cases
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -33,7 +20,6 @@ const CONFIG = {
         user: process.env.CLICKHOUSE_USER || 'admin',
         password: process.env.CLICKHOUSE_PASSWORD || ''
     },
-    // Similarity thresholds (PRD Section 9)
     thresholds: {
         block: 0.70,    // HIGH threat - score >= 70
         sanitize: 0.40, // MEDIUM threat - score >= 40
@@ -127,8 +113,7 @@ async function searchSimilarPatterns(embedding, topK = CONFIG.topK) {
     return result.data || [];
 }
 
-// Two-Phase Search: Use production implementation from queries.js (v2.3)
-// This ensures tests use the same classification logic as production
+// Two-Phase Search via production queries.js
 async function searchTwoPhase(embedding, topK = 5, deltaThreshold = 0.05) {
     // Dynamic import to handle CommonJS module
     const queries = await import('../../src/clickhouse/queries.js');
@@ -426,65 +411,30 @@ describe('Golden Dataset Validation', () => {
 
     describe('Metrics Summary', () => {
         it('should output test metrics', () => {
-            console.log('\n' + '='.repeat(60));
-            console.log('GOLDEN DATASET VALIDATION METRICS');
-            console.log('='.repeat(60));
-            console.log(`Total examples: ${goldenDataset.length}`);
-            console.log(`By language: PL=${goldenDataset.filter(e => e.language === 'pl').length}, EN=${goldenDataset.filter(e => e.language === 'en').length}, Mixed=${goldenDataset.filter(e => e.language === 'mixed').length}`);
-            console.log(`By action: BLOCK=${goldenDataset.filter(e => e.expected_action === 'BLOCK').length}, ALLOW=${goldenDataset.filter(e => e.expected_action === 'ALLOW').length}`);
-            console.log('='.repeat(60));
+            console.log('\n--- Golden Dataset Metrics ---');
+            console.log(`Total: ${goldenDataset.length}, PL=${goldenDataset.filter(e => e.language === 'pl').length}, EN=${goldenDataset.filter(e => e.language === 'en').length}`);
+            console.log(`BLOCK=${goldenDataset.filter(e => e.expected_action === 'BLOCK').length}, ALLOW=${goldenDataset.filter(e => e.expected_action === 'ALLOW').length}`);
 
-            // Score distribution analysis
-            if (metrics.attackScores && metrics.attackScores.length > 0) {
-                const attackScoresSorted = metrics.attackScores.map(s => s.score).sort((a, b) => a - b);
-                console.log('\nATTACK SCORE DISTRIBUTION:');
-                console.log(`  Min: ${attackScoresSorted[0]}`);
-                console.log(`  Max: ${attackScoresSorted[attackScoresSorted.length - 1]}`);
-                console.log(`  Median: ${attackScoresSorted[Math.floor(attackScoresSorted.length / 2)]}`);
-
-                // Show lowest attack scores (potential false negatives if threshold raised)
-                console.log('\n  Lowest attack scores (at risk if threshold raised):');
-                metrics.attackScores
-                    .sort((a, b) => a.score - b.score)
-                    .slice(0, 5)
-                    .forEach(s => console.log(`    ${s.id}: ${s.score} (${s.lang})`));
+            if (metrics.attackScores?.length > 0) {
+                const sorted = metrics.attackScores.map(s => s.score).sort((a, b) => a - b);
+                console.log(`\nAttack scores: min=${sorted[0]}, max=${sorted[sorted.length - 1]}, median=${sorted[Math.floor(sorted.length / 2)]}`);
             }
 
-            if (metrics.safeScores && metrics.safeScores.length > 0) {
-                const safeScoresSorted = metrics.safeScores.map(s => s.score).sort((a, b) => a - b);
-                console.log('\nSAFE INPUT SCORE DISTRIBUTION:');
-                console.log(`  Min: ${safeScoresSorted[0]}`);
-                console.log(`  Max: ${safeScoresSorted[safeScoresSorted.length - 1]}`);
-                console.log(`  Median: ${safeScoresSorted[Math.floor(safeScoresSorted.length / 2)]}`);
-
-                // Show highest safe scores (false positives)
-                console.log('\n  Highest safe scores (causing false positives):');
-                metrics.safeScores
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 5)
-                    .forEach(s => console.log(`    ${s.id}: ${s.score} (${s.lang})`));
+            if (metrics.safeScores?.length > 0) {
+                const sorted = metrics.safeScores.map(s => s.score).sort((a, b) => a - b);
+                console.log(`Safe scores: min=${sorted[0]}, max=${sorted[sorted.length - 1]}, median=${sorted[Math.floor(sorted.length / 2)]}`);
             }
 
-            // Threshold analysis
             if (metrics.attackScores && metrics.safeScores) {
-                console.log('\n' + '='.repeat(60));
-                console.log('THRESHOLD CALIBRATION ANALYSIS');
-                console.log('='.repeat(60));
-
-                const allAttackScores = metrics.attackScores.map(s => s.score);
-                const allSafeScores = metrics.safeScores.map(s => s.score);
-
-                // Find optimal threshold
-                for (const threshold of [70, 75, 80, 85, 90, 92, 95]) {
-                    const attacksBlocked = allAttackScores.filter(s => s >= threshold).length;
-                    const safesBlocked = allSafeScores.filter(s => s >= threshold).length;
-                    const detectionRate = (attacksBlocked / allAttackScores.length * 100).toFixed(1);
-                    const fpRate = (safesBlocked / allSafeScores.length * 100).toFixed(1);
-                    console.log(`  Threshold ${threshold}: Detection=${detectionRate}% (${attacksBlocked}/${allAttackScores.length}), FP=${fpRate}% (${safesBlocked}/${allSafeScores.length})`);
+                console.log('\nThreshold analysis:');
+                const allAttack = metrics.attackScores.map(s => s.score);
+                const allSafe = metrics.safeScores.map(s => s.score);
+                for (const t of [70, 80, 90]) {
+                    const dr = (allAttack.filter(s => s >= t).length / allAttack.length * 100).toFixed(0);
+                    const fp = (allSafe.filter(s => s >= t).length / allSafe.length * 100).toFixed(0);
+                    console.log(`  ${t}: detect=${dr}%, fp=${fp}%`);
                 }
             }
-
-            console.log('='.repeat(60));
             expect(true).toBe(true);
         });
     });
