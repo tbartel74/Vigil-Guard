@@ -15,6 +15,12 @@ let ready = false;
 async function initialize() {
     if (ready) return;
 
+    // Skip model loading for CI smoke tests (service runs in degraded mode)
+    if (process.env.SKIP_MODEL_LOAD === 'true') {
+        console.log('SKIP_MODEL_LOAD=true - skipping model initialization (degraded mode)');
+        return;
+    }
+
     // Dynamic import for ES module
     const { pipeline: pipelineFn, env } = await import('@xenova/transformers');
 

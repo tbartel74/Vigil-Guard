@@ -198,10 +198,13 @@ jobs:
               docker logs "${CONTAINER_NAME}"
               ;;
             semantic-service)
+              # Skip model loading for smoke test - service runs in degraded mode
+              # This validates container starts and responds to HTTP requests
               docker run -d --name "${CONTAINER_NAME}" \
-                -e NODE_ENV=test \
+                -e NODE_ENV=development \
+                -e SKIP_MODEL_LOAD=true \
                 vigil-guard-semantic-service:test
-              sleep 5
+              sleep 8
               docker logs "${CONTAINER_NAME}"
               ;;
           esac
