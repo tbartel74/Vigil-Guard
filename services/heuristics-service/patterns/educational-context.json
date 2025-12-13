@@ -1,0 +1,88 @@
+{
+  "version": "1.0.0",
+  "description": "Educational context indicators to reduce false positives from security keywords",
+  "patterns": [
+    {
+      "pattern": "explain\\s+(?:how|why|what|the\\s+)?(?:\\w+\\s+)*(?:work|function|process|mechanism)",
+      "dampening": 0.3,
+      "category": "explanation",
+      "examples": ["explain how XSS works", "explain why SQL injection is dangerous"]
+    },
+    {
+      "pattern": "(?:from\\s+(?:a|the)\\s+)?(?:defensive|security|protective|prevention|educational)\\s+(?:perspective|point\\s+of\\s+view|angle|context|standpoint)",
+      "dampening": 0.2,
+      "category": "defensive_context",
+      "examples": ["from a defensive perspective", "from a security point of view"]
+    },
+    {
+      "pattern": "(?:how\\s+(?:to|can\\s+I|do\\s+I)\\s+)?(?:prevent|defend|protect|mitigate|secure|avoid|guard|block)\\s+(?:against|from|yourself)?",
+      "dampening": 0.25,
+      "category": "defensive_intent",
+      "examples": ["how to prevent XSS attacks", "protect against SQL injection"]
+    },
+    {
+      "pattern": "(?:common|typical|known|popular)\\s+(?:\\w+\\s+)?(?:attack|vulnerability|weakness|exploit|pattern).*(?:to\\s+(?:watch|know|avoid|understand|look\\s+for)|awareness)",
+      "dampening": 0.3,
+      "category": "awareness",
+      "examples": ["common SQL injection patterns to watch for", "typical XSS vulnerabilities"]
+    },
+    {
+      "pattern": "\\bOWASP\\s+(?:Top\\s+)?(?:10|ten)\\b",
+      "dampening": 0.2,
+      "category": "security_framework",
+      "examples": ["OWASP Top 10", "What is OWASP Top 10"]
+    },
+    {
+      "pattern": "(?:best\\s+practice|security\\s+best\\s+practice|industry\\s+standard|recommended\\s+approach)",
+      "dampening": 0.25,
+      "category": "best_practice",
+      "examples": ["secure password hashing best practices", "security best practice for APIs"]
+    },
+    {
+      "pattern": "(?:teach|educate|train|learn|understand|study)\\s+(?:me\\s+)?(?:about|how|the)?",
+      "dampening": 0.3,
+      "category": "learning",
+      "examples": ["teach me about secure coding", "learn how attacks work"]
+    },
+    {
+      "pattern": "what\\s+(?:are|is)\\s+(?:the\\s+)?(?:\\w+\\s+)*(?:attack|vulnerability|weakness|threat)",
+      "dampening": 0.3,
+      "category": "questioning",
+      "examples": ["What is XSS?", "What are common vulnerabilities?"]
+    },
+    {
+      "pattern": "(?:tutorial|guide|documentation|course|lesson|training)\\s+(?:on|about|for)?",
+      "dampening": 0.25,
+      "category": "educational_material",
+      "examples": ["security tutorial", "guide on preventing injection"]
+    },
+    {
+      "pattern": "(?:secure|safe|proper)\\s+(?:way|method|approach|practice)\\s+(?:to|for|of)",
+      "dampening": 0.25,
+      "category": "secure_guidance",
+      "examples": ["secure way to handle input", "proper method for authentication"]
+    },
+    {
+      "pattern": "(?:why|how)\\s+(?:is|are|does|do)\\s+(?:\\w+\\s+)*(?:dangerous|harmful|risky|vulnerable)",
+      "dampening": 0.3,
+      "category": "risk_understanding",
+      "examples": ["why is SQL injection dangerous", "how is XSS harmful"]
+    },
+    {
+      "pattern": "(?:difference|comparison)\\s+between\\s+(?:\\w+\\s+)+(?:attack|vulnerability|threat)",
+      "dampening": 0.3,
+      "category": "comparison",
+      "examples": ["difference between XSS and CSRF", "comparison of injection types"]
+    }
+  ],
+  "malicious_override_patterns": [
+    {
+      "pattern": "(?:how\\s+to|steps\\s+to|guide\\s+to)\\s+(?:perform|execute|conduct|carry\\s+out|do)\\s+(?:an?\\s+)?(?:attack|exploit|hack|injection)",
+      "description": "Requests for attack execution guidance - educational exemption does not apply"
+    },
+    {
+      "pattern": "(?:give|provide|show)\\s+(?:me\\s+)?(?:an?\\s+)?(?:working|real|actual|functional)\\s+(?:exploit|payload|attack)",
+      "description": "Requests for working exploits"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { Outlet, NavLink } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
 import TopBar from "./components/TopBar";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { useAuth } from "./context/AuthContext";
 
 export default function App() {
@@ -26,7 +27,9 @@ export default function App() {
           </nav>
         }
       >
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </Layout>
     </>
   );

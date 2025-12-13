@@ -1,8 +1,8 @@
 # unified_config.json – guide
 
-Last updated: 2025-11-26
+Last updated: 2025-12-12
 
-File: `services/workflow/config/unified_config.json`. Used by workflow v2.0.0 as the central configuration for pipeline, sanitization, PII, and arbiter.
+File: `services/workflow/config/unified_config.json`. Used by workflow v2.1.0 as the central configuration for pipeline, sanitization, PII, and arbiter.
 
 ## Key sections
 - `version` – config version.
@@ -33,10 +33,14 @@ File: `services/workflow/config/unified_config.json`. Used by workflow v2.0.0 as
     "redaction_tokens": { "URL": "[URL]" }
   },
   "arbiter": {
-    "version": "2.0.0",
-    "weights": { "heuristics": 0.3, "semantic": 0.35, "llm_guard": 0.35 },
+    "version": "2.1.0",
+    "weights": { "heuristics": 0.3, "semantic": 0.40, "llm_guard": 0.30 },
     "thresholds": { "block_score": 50 },
-    "priority_boosts": { "LLM_GUARD_VETO": { "threshold": 90 } },
+    "priority_boosts": {
+      "CONSERVATIVE_OVERRIDE": { "min_score": 70, "exception": { "enabled": true } },
+      "SEMANTIC_CORROBORATION": { "enabled": true, "new_score": 45 },
+      "LLM_GUARD_VETO": { "threshold": 90, "requires_corroboration": true }
+    },
     "degraded_weights": { "heuristics": 0.5, "semantic": 0.5, "llm_guard": 0 }
   },
   "prompt_guard_policy": { "enabled": true }

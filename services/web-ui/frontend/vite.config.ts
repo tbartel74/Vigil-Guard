@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -7,6 +8,18 @@ const backendTarget = process.env.BACKEND_PROXY_TARGET ?? "http://localhost:8787
 export default defineConfig({
   base: "/ui/",
   plugins: [react(), tailwindcss()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/components/**/*.tsx'],
+      exclude: ['src/test/**', '**/*.d.ts']
+    }
+  },
   server: {
     port: 5173,
     host: true,

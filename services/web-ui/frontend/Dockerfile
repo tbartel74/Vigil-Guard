@@ -45,9 +45,9 @@ COPY services/web-ui/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Expose port
 EXPOSE 80
 
-# Healthcheck disabled - nginx starts instantly and responds on port 80
-# Docker metadata caching issues prevent reliable healthcheck updates
-# Service is verified working via external endpoint tests
+# Healthcheck - verify nginx is responding
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

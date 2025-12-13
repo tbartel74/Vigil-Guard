@@ -1,3 +1,9 @@
+"""
+Prompt Guard API - Binary classifier for prompt injection detection.
+TODO: Add rate limiting middleware
+TODO: Add optional auth header validation
+"""
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import pipeline
@@ -21,8 +27,8 @@ async def load_model():
     global classifier
 
     if mock_mode:
-        logger.warning("⚠️  MOCK_MODEL=true - Running in mock mode for testing")
-        logger.warning("⚠️  Mock classifier will return dummy responses")
+        logger.warning("MOCK_MODEL=true - Running in mock mode for testing")
+        logger.warning("Mock classifier will return dummy responses")
         classifier = "mock"  # Signal that we're in mock mode
         return
 
@@ -71,12 +77,7 @@ def detect(request: DetectRequest):
 
     # LABEL_0 = SAFE, LABEL_1 = ATTACK
     is_attack = result['label'] == 'LABEL_1'
-
-    # risk_score: high for attacks (0.95), very low for safe (0.01)
-    if is_attack:
-        risk_score = 0.95  # CRITICAL - matches unified_config threshold
-    else:
-        risk_score = 0.01  # MINIMAL - safe content
+    risk_score = 0.95 if is_attack else 0.01
 
     return {
         "text": request.text[:100],

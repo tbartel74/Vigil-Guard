@@ -289,6 +289,24 @@
     "impact": "High",
     "category": "Arbiter Boosts"
   },
+  "ARBITER_BOOST_CONSERVATIVE_EXCEPTION_ENABLED": {
+    "title": "Solo-PG Exception (v2.1.0)",
+    "description": "Skip conservative override when only LLM Guard (Prompt Guard) detects a threat while Heuristics and Semantic branches report low scores (H<15, S<15). This prevents false positives on security education content that LLM Guard may flag but other branches correctly identify as benign. When enabled, solo-PG detections result in ALLOW instead of BLOCK.",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_CORROBORATION_ENABLED": {
+    "title": "Semantic Corroboration (v2.1.0)",
+    "description": "Reduce score for solo-PG detections where PG≥70 but both Heuristics and Semantic are low (<15). Instead of BLOCK, the score is reduced to allow the request (score=45, below BLOCK threshold of 50). This prevents false positives on educational security queries that trigger only the ML-based Prompt Guard but not pattern-based detection.",
+    "impact": "High",
+    "category": "Arbiter Boosts"
+  },
+  "ARBITER_BOOST_CORROBORATION_SCORE": {
+    "title": "Corroboration Reduced Score",
+    "description": "Score assigned to solo-PG detections when corroboration is enabled (0-100). Must be below BLOCK threshold (50) for ALLOW action. When PG≥70 but H<15 and S<15, the final score is set to this value instead of the calculated weighted score. Default: 45 (just below BLOCK threshold, results in ALLOW).",
+    "impact": "Medium",
+    "category": "Arbiter Boosts"
+  },
   "PLUGIN_WEBHOOK_URL": {
     "title": "Browser Extension Webhook URL",
     "description": "API endpoint where browser extension sends prompts for validation. Extension makes POST requests to this URL with user input and receives ALLOW/BLOCK/SANITIZE decisions. Must be accessible from user browsers. Auto-refreshes every 5 minutes. Example: http://localhost/ui/api/browser-filter",

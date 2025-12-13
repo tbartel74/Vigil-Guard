@@ -1,6 +1,6 @@
 # Threat Detection
 
-Last updated: 2025-11-26
+Last updated: 2025-12-12
 
 ## Branch A – Heuristics
 - Obfuscation: zero-width, homoglyphs, mixed scripts, base64/hex, spacing anomalies.
@@ -11,11 +11,13 @@ Last updated: 2025-11-26
 
 ## Branch B – Semantic
 - Embedding similarity to known attacks; `high_similarity` signal can trigger arbiter boost.
+- Two-Phase search: attack embeddings + SAFE embeddings for educational content.
 
 ## Branch C – LLM Safety Engine
 - Llama Guard-based threat classifier, returns `is_attack` or `risk_score`.
 
-## Arbiter
-- Weights: A 0.30, B 0.35, C 0.35; BLOCK threshold 50.
-- Boosts: conservative override (C attack + high confidence), semantic high similarity, heuristics critical, llm_guard_high_confidence, unanimous_high.
+## Arbiter (v2.1.0)
+- Weights: A 0.30, B 0.40, C 0.30; BLOCK threshold 50.
+- Solo-PG exception: When only PG is high (≥70) and H<15 AND S<15, reduce to score=45 (SANITIZE).
+- Boosts: CONSERVATIVE_OVERRIDE (with solo-PG exception), SEMANTIC_CORROBORATION, LLM_GUARD_VETO (requires corroboration), UNANIMOUS_LOW, SEMANTIC_HIGH_SIMILARITY.
 - Degradation: offline branches down-weighted; all degraded → BLOCK.

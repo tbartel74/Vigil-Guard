@@ -1,9 +1,9 @@
 # Vigil Guard Documentation
 
-<!-- GUI-HELP: Documentation hub for Vigil Guard v2.0.0 -->
+<!-- GUI-HELP: Documentation hub for Vigil Guard v2.1.0 -->
 <!-- GUI-SECTION: docs-hub -->
 
-**Version:** 2.0.0 | **Last Updated:** 2025-11-28
+**Version:** 2.1.0 | **Last Updated:** 2025-12-12
 
 ---
 
@@ -104,7 +104,7 @@ Input → Validation → 3-Branch Executor → Arbiter → Decision
                                         Output
 ```
 
-**Arbiter:** Weights A=0.30, B=0.35, C=0.35 | Block threshold: 50
+**Arbiter:** Weights A=0.30, B=0.40, C=0.30 | Block threshold: 50
 
 ---
 
@@ -112,6 +112,7 @@ Input → Validation → 3-Branch Executor → Arbiter → Decision
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 2.1.0 | 2025-12 | Solo-PG exception, optimized arbiter weights (S:40%, PG:30%) |
 | 2.0.0 | 2025-11 | 3-branch architecture, Arbiter v2 |
 | 1.8.1 | 2025-11 | Hybrid language detection |
 | 1.7.0 | 2025-11 | Sanitization integrity |

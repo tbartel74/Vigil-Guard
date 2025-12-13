@@ -1,5 +1,5 @@
 {
-  "generated": "2025-12-01T20:37:10.965Z",
+  "generated": "2025-12-13T14:07:20.797Z",
   "count": 41,
   "documents": [
     {
@@ -19,8 +19,8 @@
       "url": "/ui/docs/API.md",
       "title": "Vigil Guard API Reference",
       "category": "root",
-      "size": 22017,
-      "modified": "2025-12-01T20:29:28.710Z"
+      "size": 25677,
+      "modified": "2025-12-13T13:55:27.719Z"
     },
     {
       "path": "api/events_v2.md",
@@ -57,10 +57,10 @@
       "file": "ARCHITECTURE",
       "directory": ".",
       "url": "/ui/docs/ARCHITECTURE.md",
-      "title": "Vigil Guard v2.0.0 - Technical Architecture",
+      "title": "Vigil Guard v2.1.0 - Technical Architecture",
       "category": "root",
-      "size": 34742,
-      "modified": "2025-11-29T11:51:58.514Z"
+      "size": 35069,
+      "modified": "2025-12-12T17:02:12.660Z"
     },
     {
       "path": "AUTHENTICATION.md",
@@ -119,8 +119,8 @@
       "url": "/ui/docs/config/unified-config.md",
       "title": "unified_config.json – guide",
       "category": "config",
-      "size": 2530,
-      "modified": "2025-11-29T11:52:30.397Z"
+      "size": 2728,
+      "modified": "2025-12-12T17:02:56.296Z"
     },
     {
       "path": "FAQ.md",
@@ -309,8 +309,8 @@
       "url": "/ui/docs/README.md",
       "title": "Vigil Guard Documentation",
       "category": "root",
-      "size": 4309,
-      "modified": "2025-11-29T11:51:45.735Z"
+      "size": 4392,
+      "modified": "2025-12-12T17:02:39.154Z"
     },
     {
       "path": "SECURITY.md",
@@ -349,8 +349,8 @@
       "url": "/ui/docs/security/threat-detection.md",
       "title": "Threat Detection",
       "category": "security",
-      "size": 1183,
-      "modified": "2025-11-29T11:52:33.234Z"
+      "size": 1385,
+      "modified": "2025-12-12T17:03:12.562Z"
     },
     {
       "path": "security/WEBHOOK_TOKEN_SECURITY_ASSESSMENT.md",

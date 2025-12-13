@@ -27,7 +27,6 @@ const Monitoring = () => {
   const [stats, setStats] = useState({ requests_processed: 0, threats_blocked: 0, content_sanitized: 0 });
   const [fpStats, setFpStats] = useState({ total_reports: 0, unique_events: 0, last_7_days: 0, top_reason: 'N/A' });
   const [statsLoading, setStatsLoading] = useState(true);
-  const [promptGuardStatus, setPromptGuardStatus] = useState<'active' | 'down' | 'checking'>('checking');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [containerStatus, setContainerStatus] = useState<any>(null);
   const [containerLoading, setContainerLoading] = useState(true);
@@ -63,12 +62,6 @@ const Monitoring = () => {
     }
   };
 
-  // Check Prompt Guard health
-  const checkPromptGuard = async () => {
-    const isHealthy = await api.checkPromptGuardHealth();
-    setPromptGuardStatus(isHealthy ? 'active' : 'down');
-  };
-
   // Fetch container status
   const fetchContainerStatus = async () => {
     try {
@@ -88,7 +81,6 @@ const Monitoring = () => {
     setIsRefreshing(true);
     try {
       await Promise.all([fetchStats(), fetchFPStats(), fetchContainerStatus()]);
-      await checkPromptGuard();
     } catch (error) {
       console.error('Error during manual refresh:', error);
     } finally {
@@ -100,14 +92,12 @@ const Monitoring = () => {
   React.useEffect(() => {
     fetchStats();
     fetchFPStats();
-    checkPromptGuard();
     fetchContainerStatus();
 
     if (refreshInterval > 0) {
       const interval = setInterval(() => {
         fetchStats();
         fetchFPStats();
-        checkPromptGuard();
         fetchContainerStatus();
       }, refreshInterval * 1000);
       return () => clearInterval(interval);
@@ -342,16 +332,6 @@ const Monitoring = () => {
             </div>
           ) : (
             <div className="space-y-3" aria-labelledby="quick-stats-heading">
-              <div className="flex justify-between items-center">
-                <span id="stat-prompt-guard" className="text-sm text-slate-300">Prompt Guard Status</span>
-                {promptGuardStatus === 'checking' ? (
-                  <span className="text-text-secondary font-semibold" aria-labelledby="stat-prompt-guard">⏳ Checking...</span>
-                ) : promptGuardStatus === 'active' ? (
-                  <span className="text-emerald-400 font-semibold" aria-labelledby="stat-prompt-guard">✓ Active</span>
-                ) : (
-                  <span className="text-red-400 font-semibold" aria-labelledby="stat-prompt-guard">✗ Down</span>
-                )}
-              </div>
               <div className="flex justify-between items-center">
                 <span id="stat-requests" className="text-sm text-slate-300">Requests Processed</span>
                 <span className="text-blue-400 font-mono" aria-labelledby="stat-requests">{stats.requests_processed.toLocaleString()}</span>

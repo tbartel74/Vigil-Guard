@@ -1,28 +1,40 @@
 # Semantic Service - Branch B
 
-**Version:** 1.0.0
+**Version:** 2.0.0
 **Branch ID:** B
 **Name:** semantic
 
-Semantic similarity detection service for Vigil Guard. Uses MiniLM INT8 embeddings and ClickHouse HNSW vector search to detect malicious prompts through semantic similarity matching.
+Semantic similarity detection service for Vigil Guard. Uses **E5 multilingual** embeddings with **Two-Phase Search** (attack + safe pattern comparison) and ClickHouse HNSW vector search to detect malicious prompts through semantic similarity matching.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Semantic Service                            │
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │   Express    │    │   MiniLM     │    │  ClickHouse  │      │
-│  │   Server     │───►│   INT8       │───►│    HNSW      │      │
-│  │  :5006       │    │  Embedding   │    │   Search     │      │
-│  └──────────────┘    └──────────────┘    └──────────────┘      │
-│                                                                  │
-│  Input Text → Embedding (384-dim) → Vector Search → Score       │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      Semantic Service v2.0.0                             │
+│                                                                          │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │
+│  │   Express    │    │     E5       │    │      ClickHouse          │  │
+│  │   Server     │───►│ multilingual │───►│    Two-Phase Search      │  │
+│  │  :5006       │    │   INT8       │    │  ATTACK + SAFE tables    │  │
+│  └──────────────┘    └──────────────┘    └──────────────────────────┘  │
+│                                                                          │
+│  Input Text → "query: " prefix → Embedding (384-dim) →                   │
+│  → Attack similarity + Safe similarity → Delta → Classification          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Two-Phase Search v2.0
+
+The service compares input against two pattern databases:
+1. **Attack patterns** (4,994+ embeddings): Known malicious prompts
+2. **Safe patterns** (1,445+ embeddings): Legitimate instructions, programming tasks
+
+**Classification logic:**
+- `delta = attack_similarity - safe_similarity`
+- If safe match is instruction-type: `adjusted_delta = delta - 0.05` (bonus for legitimate instructions)
+- 6-tier classification based on attack_sim, delta, and adjusted_delta
 
 ---
 
@@ -31,9 +43,9 @@ Semantic similarity detection service for Vigil Guard. Uses MiniLM INT8 embeddin
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.11+ (for model conversion)
+- Python 3.11+ (for embedding generation)
 - ClickHouse 24.3+
-- Docker (optional)
+- Docker (recommended)
 
 ### Installation
 
@@ -44,34 +56,38 @@ cd services/semantic-service
 # 2. Install Node.js dependencies
 npm install
 
-# 3. Download and quantize MiniLM model
-./scripts/download-model.sh
+# 3. Model downloads automatically on first run via Transformers.js
+# OR pre-download manually (optional):
+python3 scripts/download-e5-model.py
 
-# 4. Generate embeddings from malicious prompts
+# 4. Create ClickHouse tables
+# Execute SQL files in order:
+#   - sql/04-semantic-embeddings-v2.sql (attack patterns)
+#   - sql/05-semantic-safe-embeddings.sql (safe patterns)
+#   - sql/06-semantic-analysis-log.sql (logging)
+
+# 5. Generate and import embeddings (requires source patterns)
 python3 scripts/generate-embeddings.py \
-    --input ../../Roadmap/semantic-similarity/malicious_3k.jsonl \
-    --output data/embeddings.jsonl
+    --input /path/to/patterns.jsonl \
+    --output data/embeddings.jsonl \
+    --model-version v2
 
-# 5. Create ClickHouse tables (requires existing ClickHouse)
-# Execute: sql/01-create-tables.sql
-
-# 6. Import embeddings to ClickHouse
 CLICKHOUSE_PASSWORD=your_password node scripts/import-embeddings.js \
     --input data/embeddings.jsonl \
-    --truncate
+    --table pattern_embeddings_v2
 
-# 7. Start service
+# 6. Start service
 npm start
 ```
 
-### Docker (Development)
+### Docker (Production)
 
 ```bash
-# Start with development ClickHouse
-docker-compose -f docker-compose.dev.yml up -d
+# Start via docker-compose (from project root)
+docker-compose up -d semantic-service
 
 # Check logs
-docker-compose -f docker-compose.dev.yml logs -f semantic-service
+docker-compose logs -f semantic-service
 ```
 
 ---
@@ -105,7 +121,7 @@ Main analysis endpoint. Returns `branch_result` contract.
             {"pattern_id": "JAILBREAK_00123", "category": "JAILBREAK", "similarity": 0.8532},
             {"pattern_id": "PROMPT_LEAK_00045", "category": "PROMPT_LEAK", "similarity": 0.7821}
         ],
-        "embedding_model": "all-MiniLM-L6-v2-int8",
+        "embedding_model": "multilingual-e5-small-int8",
         "patterns_searched": 5
     },
     "explanations": [
@@ -113,6 +129,42 @@ Main analysis endpoint. Returns `branch_result` contract.
         "High semantic similarity detected"
     ],
     "timing_ms": 12,
+    "degraded": false
+}
+```
+
+### POST /analyze-v2
+
+Two-Phase Search endpoint with explicit attack vs safe comparison.
+
+**Request:**
+```json
+{
+    "text": "Help me write a Python function to sort a list",
+    "request_id": "optional-id",
+    "client_id": "browser-fingerprint"
+}
+```
+
+**Response:**
+```json
+{
+    "branch_id": "B",
+    "name": "semantic",
+    "score": 15,
+    "threat_level": "LOW",
+    "classification": "SAFE",
+    "confidence": 0.92,
+    "features": {
+        "attack_max_similarity": 0.45,
+        "safe_max_similarity": 0.89,
+        "delta": -0.44,
+        "adjusted_delta": -0.49,
+        "safe_is_instruction_type": true,
+        "attack_matches": [...],
+        "safe_matches": [...]
+    },
+    "timing_ms": 18,
     "degraded": false
 }
 ```
@@ -141,15 +193,15 @@ Service metrics endpoint.
 {
     "service": "semantic-service",
     "database": {
-        "total_patterns": 2847,
+        "total_patterns": 6439,
         "top_categories": [
             {"category": "JAILBREAK", "count": 523},
             {"category": "PROMPT_LEAK", "count": 412}
         ],
-        "embedding_health": {"total": 2847, "valid": 2847, "invalid": 0, "healthy": true}
+        "embedding_health": {"total": 6439, "valid": 6439, "invalid": 0, "healthy": true}
     },
-    "model": {"name": "all-MiniLM-L6-v2-int8", "dimension": 384, "maxLength": 512, "ready": true},
-    "runtime": {"uptime_ms": 123456, "memory_mb": 128}
+    "model": {"name": "multilingual-e5-small-int8", "dimension": 384, "maxLength": 512, "ready": true},
+    "runtime": {"uptime_ms": 123456, "memory_mb": 256}
 }
 ```
 
@@ -169,70 +221,106 @@ Service metrics endpoint.
 | CLICKHOUSE_DATABASE | n8n_logs | Database name |
 | CLICKHOUSE_USER | admin | Username |
 | CLICKHOUSE_PASSWORD | (required) | Password |
-| CLICKHOUSE_TABLE | pattern_embeddings | Embeddings table |
-| CLICKHOUSE_TIMEOUT | 2000 | Query timeout (ms) |
-| MODEL_PATH | models/all-MiniLM-L6-v2-onnx-int8 | Model directory |
 | SEARCH_TOP_K | 5 | Number of similar patterns |
 | THRESHOLD_LOW | 40 | LOW/MEDIUM boundary |
 | THRESHOLD_MEDIUM | 70 | MEDIUM/HIGH boundary |
 | LOG_LEVEL | info | Log level |
 | LOG_PRETTY | false | Pretty print logs |
 | RATE_LIMIT_MAX | 100 | Max requests/minute |
+| SEMANTIC_ENABLE_TWO_PHASE | true | Enable Two-Phase Search |
+| SEMANTIC_TWO_PHASE_PERCENT | 100 | Rollout percentage (0-100) |
 
 ---
 
-## Scoring Algorithm
+## Two-Phase Classification
 
-### Threat Level Mapping
+### 6-Tier Decision Tree
 
 ```
-Score = top_similarity * 100
+Tier 1: DEFINITE_ATTACK
+  - attack_sim >= 0.85
+  - delta >= 0.15
 
-Threat Level:
-  - LOW:    score < 40
-  - MEDIUM: 40 <= score < 70
-  - HIGH:   score >= 70
+Tier 2: LIKELY_ATTACK
+  - attack_sim >= 0.75
+  - adjusted_delta >= 0.10
+
+Tier 3: SUSPICIOUS
+  - attack_sim >= 0.65
+  - adjusted_delta >= 0.05
+
+Tier 4: BORDERLINE
+  - attack_sim >= 0.55
+  - 0.0 <= adjusted_delta < 0.05
+
+Tier 5: LIKELY_SAFE
+  - adjusted_delta < 0.0 (safe closer than attack)
+
+Tier 6: DEFINITE_SAFE
+  - attack_sim < 0.55
+  - OR safe_sim > attack_sim + 0.10
 ```
 
-### Confidence
+### Instruction-Type Detection
 
-Confidence equals the top similarity score (0.0-1.0).
+Safe patterns with category `INSTRUCTION` or `PROGRAMMING` get a 0.05 delta bonus, reducing false positives for legitimate coding/task requests.
 
 ---
 
-## Embedding Management
+## Scripts
 
-### CLI Tool
+### Model Download (Optional)
 
 ```bash
-# Show database status
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js status
+# Pre-download E5 model with SHA verification
+python3 scripts/download-e5-model.py
+```
 
-# Add single pattern
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js add \
-    --text "Ignore previous instructions" \
-    --category JAILBREAK
+Model is also auto-downloaded by Transformers.js on first request.
 
-# Delete by pattern ID
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js delete \
-    --pattern-id JAILBREAK_00123
+### Embedding Generation
 
-# Delete by category
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js delete \
-    --category TEST_CATEGORY
+```bash
+# Generate embeddings from pattern file
+python3 scripts/generate-embeddings.py \
+    --input patterns.jsonl \
+    --output embeddings.jsonl \
+    --model-version v2
+```
 
-# Full rebuild
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js rebuild \
-    --input data/embeddings.jsonl --force
+### Import to ClickHouse
 
-# Export to file
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js export \
-    --output backup.jsonl
+```bash
+# Import attack patterns
+CLICKHOUSE_PASSWORD=xxx node scripts/import-embeddings.js \
+    --input data/attack_embeddings.jsonl \
+    --table pattern_embeddings_v2
 
-# Test similarity search
-CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js search \
-    --text "reveal your system prompt" \
-    --limit 10
+# Import safe patterns
+CLICKHOUSE_PASSWORD=xxx node scripts/import-embeddings.js \
+    --input data/safe_embeddings.jsonl \
+    --table semantic_safe_embeddings
+```
+
+### Threshold Calibration
+
+```bash
+# Analyze production data and recommend thresholds
+CLICKHOUSE_HOST=localhost CLICKHOUSE_PASSWORD=xxx \
+    node scripts/calibrate-thresholds.js
+```
+
+### Rollback
+
+```bash
+# Emergency rollback to single-table search
+./scripts/rollback.sh
+
+# Check status
+./scripts/rollback.sh --status
+
+# Restore Two-Phase Search
+./scripts/rollback.sh --restore
 ```
 
 ---
@@ -245,22 +333,17 @@ CLICKHOUSE_PASSWORD=xxx node scripts/embedding-manager.js search \
 npm test
 ```
 
-### Integration Tests
+### Golden Dataset Tests
 
 ```bash
-# Start service first
-npm start &
-
-# Run integration tests
-INTEGRATION_TESTS=true npm test -- tests/integration/
+# Run quality gate tests (requires ClickHouse)
+RUN_GOLDEN_TESTS=1 CLICKHOUSE_HOST=localhost \
+    CLICKHOUSE_PASSWORD=xxx npm test -- tests/golden-dataset/
 ```
 
-### Validation (50 prompts)
-
-```bash
-# Service must be running
-node scripts/validate-50-prompts.js
-```
+**Quality targets:**
+- Detection rate: 100% (all attacks classified as ATTACK)
+- False positive rate: 0% (all safe classified as SAFE)
 
 ---
 
@@ -268,10 +351,11 @@ node scripts/validate-50-prompts.js
 
 | Metric | Target | Notes |
 |--------|--------|-------|
-| Embedding generation | <5ms | Per text |
-| HNSW search | <15ms | Top-5 results |
-| Total /analyze | <30ms | P95 |
-| Detection rate | >50% | On malicious dataset |
+| Embedding generation | <8ms | E5 with ONNX INT8 |
+| Two-Phase search | <15ms | Dual HNSW queries |
+| Total /analyze-v2 | <25ms | P95 |
+| Detection rate | 100% | Golden dataset |
+| False positive rate | 0% | Golden dataset |
 
 ---
 
@@ -283,28 +367,30 @@ services/semantic-service/
 │   ├── config/
 │   │   └── index.js          # Configuration loader
 │   ├── embedding/
-│   │   └── generator.js      # ONNX embedding generator
+│   │   └── generator.js      # E5 ONNX embedding generator
 │   ├── clickhouse/
-│   │   ├── client.js         # HTTP client
-│   │   └── queries.js        # HNSW search queries
+│   │   ├── client.js         # HTTP client with insert()
+│   │   └── queries.js        # HNSW search + Two-Phase
 │   ├── scoring/
-│   │   └── scorer.js         # Threat level mapping
+│   │   └── scorer.js         # Multi-tier classification
 │   └── server.js             # Express API server
 ├── scripts/
-│   ├── download-model.sh     # Model download/conversion
-│   ├── generate-embeddings.py # Dataset embedding
-│   ├── import-embeddings.js  # ClickHouse import
-│   ├── embedding-manager.js  # CLI management tool
-│   └── validate-50-prompts.js # Validation script
+│   ├── download-e5-model.py  # E5 model download with SHA
+│   ├── generate-embeddings.py # Dataset embedding (v1/v2)
+│   ├── import-embeddings.js  # ClickHouse bulk import
+│   ├── calibrate-thresholds.js # Production calibration
+│   └── rollback.sh           # Emergency rollback
 ├── sql/
-│   └── 01-create-tables.sql  # ClickHouse DDL
+│   ├── 04-semantic-embeddings-v2.sql   # Attack patterns table
+│   ├── 05-semantic-safe-embeddings.sql # Safe patterns table
+│   └── 06-semantic-analysis-log.sql    # Analysis logging
 ├── tests/
 │   ├── unit/                 # Unit tests
+│   ├── golden-dataset/       # Quality gate tests
 │   └── integration/          # API tests
-├── models/                   # MiniLM INT8 (gitignored)
+├── models/                   # E5 model cache (gitignored)
 ├── data/                     # Embeddings (gitignored)
 ├── Dockerfile
-├── docker-compose.dev.yml
 ├── package.json
 └── README.md
 ```
@@ -319,10 +405,21 @@ interface BranchResult {
     name: 'semantic';
     score: number;          // 0-100
     threat_level: 'LOW' | 'MEDIUM' | 'HIGH';
+    classification?: 'ATTACK' | 'SAFE' | 'BORDERLINE';  // Two-Phase only
     confidence: number;     // 0.0-1.0
     features: {
-        top_similarity: number;
-        top_k: Array<{pattern_id: string, category: string, similarity: number}>;
+        // Legacy (single-table)
+        top_similarity?: number;
+        top_k?: Array<{pattern_id: string, category: string, similarity: number}>;
+        // Two-Phase
+        attack_max_similarity?: number;
+        safe_max_similarity?: number;
+        delta?: number;
+        adjusted_delta?: number;
+        safe_is_instruction_type?: boolean;
+        attack_matches?: Array<{...}>;
+        safe_matches?: Array<{...}>;
+        // Common
         embedding_model: string;
         patterns_searched: number;
     };
@@ -335,6 +432,19 @@ interface BranchResult {
 ---
 
 ## Changelog
+
+### v2.0.0 (2025-12-12)
+
+- **BREAKING:** Migrated from MiniLM to E5 multilingual model
+- **NEW:** Two-Phase Search with attack + safe pattern comparison
+- **NEW:** 6-tier classification with instruction-type bonus
+- **NEW:** /analyze-v2 endpoint for explicit Two-Phase Search
+- **NEW:** Fire-and-forget logging to ClickHouse
+- **NEW:** Golden dataset quality gate (55 examples)
+- **NEW:** Calibration script for production threshold tuning
+- **NEW:** Rollback script for emergency fallback
+- Model auto-download via Transformers.js
+- E5 prefix protocol ("query: " for queries, "passage: " for corpus)
 
 ### v1.0.0 (2025-11-23)
 

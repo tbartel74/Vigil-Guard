@@ -1,122 +1,194 @@
 # Semantic Service Setup Guide
 
-## Quick Start (Production) - RECOMMENDED
+## Quick Start (v2.0.0) - RECOMMENDED
 
-The production-ready embeddings are already in `data/embeddings_categorized.jsonl` (32 MB, 3000 patterns, 29 categories). Just import them:
+The E5 multilingual model downloads automatically on first run via Transformers.js.
+Embeddings must be generated and imported from source patterns.
 
 ```bash
 cd services/semantic-service
 
-# Create tables (if first time)
+# 1. Create ClickHouse tables
 docker exec -i vigil-clickhouse clickhouse-client \
     --password $CLICKHOUSE_PASSWORD \
-    < sql/01-create-tables.sql
+    < sql/04-semantic-embeddings-v2.sql
 
-# Import to ClickHouse
-CLICKHOUSE_PASSWORD=xxx node scripts/import-embeddings.js \
-    --input data/embeddings_categorized.jsonl \
-    --truncate
-```
-
-**This is the recommended method.** The embeddings were categorized by LLM with 29 proper threat categories.
-
-## Full Regeneration (From Scratch)
-
-### Step 1: Download Model
-
-```bash
-./scripts/download-model.sh
-```
-
-This downloads `all-MiniLM-L6-v2-onnx-int8` (~23 MB) for runtime inference.
-
-### Step 2: Generate Embeddings
-
-Requires Python with sentence-transformers:
-
-```bash
-# Install dependencies
-pip install sentence-transformers tqdm
-
-# Generate embeddings from source data
-python scripts/generate-embeddings.py \
-    --input ../../Roadmap/semantic-similarity/malicious_3k.jsonl \
-    --output data/embeddings.jsonl
-```
-
-This creates `embeddings.jsonl` with 3000 embeddings (~32 MB).
-
-### Step 3: (Optional) Categorize with LLM
-
-The raw embeddings have poor categories (`MODEL_INCORRECT`). For better results,
-use an LLM to categorize them:
-
-```bash
-# See Roadmap/semantic-similarity/ for categorization prompts
-# Output: data/embeddings_categorized.jsonl with proper threat categories
-```
-
-### Step 4: Import to ClickHouse
-
-```bash
-# Ensure ClickHouse is running
-docker-compose up -d clickhouse
-
-# Create tables (if not exists)
 docker exec -i vigil-clickhouse clickhouse-client \
     --password $CLICKHOUSE_PASSWORD \
-    < sql/01-create-tables.sql
+    < sql/05-semantic-safe-embeddings.sql
 
-# Import embeddings
+docker exec -i vigil-clickhouse clickhouse-client \
+    --password $CLICKHOUSE_PASSWORD \
+    < sql/06-semantic-analysis-log.sql
+
+# 2. Generate embeddings from source patterns (requires Python + sentence-transformers)
+python3 scripts/generate-embeddings.py \
+    --input /path/to/attack_patterns.jsonl \
+    --output data/attack_embeddings.jsonl \
+    --model-version v2
+
+python3 scripts/generate-embeddings.py \
+    --input /path/to/safe_patterns.jsonl \
+    --output data/safe_embeddings.jsonl \
+    --model-version v2
+
+# 3. Import to ClickHouse
 CLICKHOUSE_PASSWORD=xxx node scripts/import-embeddings.js \
-    --input data/embeddings_categorized.jsonl \
-    --truncate
-```
+    --input data/attack_embeddings.jsonl \
+    --table pattern_embeddings_v2
 
-### Step 5: Start Service
+CLICKHOUSE_PASSWORD=xxx node scripts/import-embeddings.js \
+    --input data/safe_embeddings.jsonl \
+    --table semantic_safe_embeddings
 
-```bash
+# 4. Start service
 docker-compose up -d semantic-service
 
-# Verify
+# 5. Verify
 curl http://localhost:5006/health
 ```
 
-## Data Files
+## Model Setup
 
-| File | Size | Description |
-|------|------|-------------|
-| `data/embeddings_categorized.jsonl` | 32 MB | Production embeddings with 29 categories |
-| `Roadmap/semantic-similarity/malicious_3k.jsonl` | 7 MB | Source malicious prompts |
-| `models/all-MiniLM-L6-v2-onnx-int8/` | 23 MB | INT8 quantized model |
+### Automatic Download (Recommended)
 
-## Category Distribution (3000 embeddings)
+The E5 model downloads automatically on first request via `@xenova/transformers`.
+No manual action required.
 
-```
-MILD_SUSPICIOUS          1089 (36.3%)
-FORMAT_COERCION           826 (27.5%)
-GODMODE_JAILBREAK         228 (7.6%)
-CREDENTIAL_HARVESTING     189 (6.3%)
-ENCODING_SUSPICIOUS       182 (6.1%)
-CRITICAL_INJECTION        108 (3.6%)
-NESTED_COMMANDS           103 (3.4%)
-... (29 categories total)
+### Manual Pre-Download (Optional)
+
+```bash
+# Pre-download with SHA verification
+python3 scripts/download-e5-model.py
 ```
 
-## API Endpoints
+This downloads `Xenova/multilingual-e5-small` (~129 MB) to `models/` directory.
 
-- `GET /health` - Health check
-- `POST /analyze` - Analyze text, returns branch_result v2.1
-- `GET /stats` - Database statistics
+## Two-Phase Search Setup
+
+v2.0.0 uses Two-Phase Search comparing queries against two pattern databases:
+
+1. **Attack patterns** (`pattern_embeddings_v2`): Known malicious prompts
+2. **Safe patterns** (`semantic_safe_embeddings`): Legitimate instructions
+
+Both tables must be populated for Two-Phase Search to work correctly.
+
+### Embedding Generation
+
+```bash
+# Install Python dependencies
+pip install sentence-transformers tqdm
+
+# Generate E5 embeddings (v2 format with "passage: " prefix)
+python scripts/generate-embeddings.py \
+    --input source_patterns.jsonl \
+    --output embeddings.jsonl \
+    --model-version v2
+```
+
+Input format (JSONL):
+```json
+{"text": "Ignore previous instructions", "category": "JAILBREAK", "pattern_id": "JB_001"}
+```
+
+Output includes 384-dimensional E5 embeddings with "passage: " prefix applied.
+
+## SQL Schema Files
+
+| File | Purpose |
+|------|---------|
+| `sql/04-semantic-embeddings-v2.sql` | Attack patterns table (HNSW index) |
+| `sql/05-semantic-safe-embeddings.sql` | Safe patterns table (HNSW index) |
+| `sql/06-semantic-analysis-log.sql` | Analysis logging (30-day TTL) |
 
 ## Environment Variables
 
 ```bash
+# Server
 PORT=5006
+HOST=0.0.0.0
+NODE_ENV=production
+
+# ClickHouse
 CLICKHOUSE_HOST=clickhouse
 CLICKHOUSE_PORT=8123
 CLICKHOUSE_USER=admin
 CLICKHOUSE_PASSWORD=xxx
 CLICKHOUSE_DATABASE=n8n_logs
-CLICKHOUSE_TABLE=pattern_embeddings
+
+# Search
+SEARCH_TOP_K=5
+THRESHOLD_LOW=40
+THRESHOLD_MEDIUM=70
+
+# Two-Phase Search (v2.0.0)
+SEMANTIC_ENABLE_TWO_PHASE=true
+SEMANTIC_TWO_PHASE_PERCENT=100
+```
+
+## Verification
+
+```bash
+# Health check
+curl http://localhost:5006/health
+
+# Test Two-Phase Search
+curl -X POST http://localhost:5006/analyze-v2 \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Help me write a Python function"}'
+
+# Run golden dataset tests
+RUN_GOLDEN_TESTS=1 CLICKHOUSE_HOST=localhost \
+    CLICKHOUSE_PASSWORD=xxx npm test -- tests/golden-dataset/
+```
+
+## Troubleshooting
+
+### Model not loading
+
+```bash
+# Check model download
+docker logs vigil-semantic | grep 'multilingual-e5'
+
+# Verify model cache
+ls -la models/Xenova/multilingual-e5-small/
+```
+
+### Empty results
+
+```bash
+# Check embedding counts
+docker exec vigil-clickhouse clickhouse-client \
+    --password $CLICKHOUSE_PASSWORD \
+    -q "SELECT count() FROM n8n_logs.pattern_embeddings_v2"
+
+docker exec vigil-clickhouse clickhouse-client \
+    --password $CLICKHOUSE_PASSWORD \
+    -q "SELECT count() FROM n8n_logs.semantic_safe_embeddings"
+```
+
+### Rollback to single-table search
+
+```bash
+# Disable Two-Phase Search
+./scripts/rollback.sh
+
+# Restore Two-Phase Search
+./scripts/rollback.sh --restore
+```
+
+## Migration from v1.0.0
+
+If upgrading from MiniLM (v1.0.0):
+
+1. **Regenerate all embeddings** - E5 embeddings are incompatible with MiniLM
+2. **Create new tables** - v2.0.0 uses `pattern_embeddings_v2` and `semantic_safe_embeddings`
+3. **Update environment** - Add `SEMANTIC_ENABLE_TWO_PHASE=true`
+4. **Remove legacy table** - Drop the old `pattern_embeddings` table (no longer used)
+
+```bash
+# Drop legacy MiniLM table
+docker exec vigil-clickhouse clickhouse-client \
+    --password $CLICKHOUSE_PASSWORD \
+    -q "DROP TABLE IF EXISTS n8n_logs.pattern_embeddings"
 ```

@@ -1,13 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Heuristics Service (Branch A) - v2.0.0
- *
- * Detection mechanisms:
- * - Obfuscation (zero-width, homoglyphs, base64/hex, mixed scripts)
- * - Structure (boundaries, code fences, newlines)
- * - Whisper/Narrative (phrases, dividers, role-play)
- * - Entropy (Shannon entropy, bigram anomalies)
+ * Heuristics Service (Branch A) - Pattern-based threat detection.
+ * TODO: Add hot-reload for pattern config files
+ * TODO: Add metrics endpoint with histogram latencies
  */
 
 import express from 'express';
