@@ -564,12 +564,18 @@ async function startup() {
     }
 
     // Check ClickHouse connection with retry
-    logger.info('Waiting for ClickHouse connection...');
-    clickhouseReady = await waitForClickHouse(10, 2000);
+    // Skip in CI smoke tests (SKIP_CLICKHOUSE_WAIT=true) - service runs in degraded mode
+    if (process.env.SKIP_CLICKHOUSE_WAIT === 'true') {
+        logger.info('SKIP_CLICKHOUSE_WAIT=true - skipping ClickHouse connection check');
+        clickhouseReady = false;
+    } else {
+        logger.info('Waiting for ClickHouse connection...');
+        clickhouseReady = await waitForClickHouse(10, 2000);
 
-    if (!clickhouseReady) {
-        startupError = 'ClickHouse connection failed after retries';
-        logger.error(startupError);
+        if (!clickhouseReady) {
+            startupError = 'ClickHouse connection failed after retries';
+            logger.error(startupError);
+        }
     }
 
     // Set service ready status
