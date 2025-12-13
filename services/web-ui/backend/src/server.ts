@@ -148,7 +148,7 @@ app.use("/api/retention", retentionRoutes);
 app.use("/api/events-v2", eventsV2Routes);
 
 // Branch health checking endpoints
-app.use("/api/branch", branchHealthRoutes);
+app.use("/api/branches", branchHealthRoutes);
 
 // PII Detection endpoints (Presidio integration)
 app.use("/api/pii-detection", piiDetectionRoutes);
