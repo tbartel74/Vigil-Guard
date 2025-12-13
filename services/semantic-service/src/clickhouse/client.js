@@ -68,8 +68,11 @@ class ClickHouseClient {
                             } else {
                                 resolve(data);
                             }
-                        } catch (e) {
-                            resolve(data);
+                        } catch (parseError) {
+                            const preview = data.substring(0, 200);
+                            console.error(`ClickHouse JSON parse failed: ${parseError.message}`);
+                            console.error(`Response preview: ${preview}`);
+                            reject(new Error(`Invalid JSON from ClickHouse: ${parseError.message}. Response: ${preview}`));
                         }
                     }
                 });
@@ -104,17 +107,33 @@ class ClickHouseClient {
     }
 
     /**
-     * Health check
+     * Health check with detailed error information
+     * @returns {Promise<{healthy: boolean, error?: string, errorType?: string, latencyMs?: number}>}
      */
     async healthCheck() {
+        const startTime = Date.now();
         try {
             await this.query('SELECT 1', 'text');
-            return true;
+            return {
+                healthy: true,
+                latencyMs: Date.now() - startTime
+            };
         } catch (error) {
-            // Note: Logger not available in client class, would need to be injected
-            // For now, use console.warn for visibility
-            console.warn('ClickHouse health check failed:', error.message);
-            return false;
+            const latencyMs = Date.now() - startTime;
+            const errorType = error.code === 'ECONNREFUSED' ? 'CONNECTION_REFUSED' :
+                              error.code === 'ETIMEDOUT' ? 'TIMEOUT' :
+                              error.message?.includes('authentication') ? 'AUTH_FAILED' :
+                              error.message?.includes('ENOTFOUND') ? 'DNS_ERROR' :
+                              'UNKNOWN';
+
+            console.error(`ClickHouse health check failed [${errorType}]:`, error.message);
+
+            return {
+                healthy: false,
+                error: error.message,
+                errorType: errorType,
+                latencyMs: latencyMs
+            };
         }
     }
 

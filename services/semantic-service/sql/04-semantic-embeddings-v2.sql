@@ -6,8 +6,8 @@
 -- Source: Vigil-Roadmap/semantic-mod/SEMANTIC_MIGRATION_PLAN.md
 -- ============================================================================
 
--- Shadow table for V2 embeddings (E5 model)
--- Runs parallel to pattern_embeddings (V1) during migration
+-- Primary table for attack pattern embeddings (E5 model)
+-- Part of Two-Phase Search: ATTACK patterns vs SAFE patterns
 CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings_v2 (
     -- Primary identifier
     pattern_id UUID DEFAULT generateUUIDv4(),

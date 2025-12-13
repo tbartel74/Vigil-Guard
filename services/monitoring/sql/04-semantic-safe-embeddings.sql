@@ -63,7 +63,7 @@ SETTINGS index_granularity = 8192;
 --
 -- 1. Count total records:
 --    SELECT count() FROM n8n_logs.semantic_safe_embeddings;
---    -- Expected: 1192
+--    -- Expected: ~1545 (safe_patterns: 1445 + security_education: 100)
 --
 -- 2. Verify subcategory distribution:
 --    SELECT subcategory, count() as cnt
@@ -75,7 +75,7 @@ SETTINGS index_granularity = 8192;
 --    SELECT length(embedding) as dim, count()
 --    FROM n8n_logs.semantic_safe_embeddings
 --    GROUP BY dim;
---    -- Expected: dim=384, count=1192
+--    -- Expected: dim=384, count=~1545
 --
 -- 4. Sample contrastive search:
 --    WITH [0.1, 0.2, ...] AS query_vec  -- 384-dim vector

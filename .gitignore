@@ -70,6 +70,7 @@ docker-compose.override.yml
 *.backup
 *__*
 backup/
+Backup/
 .version-sweep-backup-*/
 
 # PII Modernization - Never sync to repo

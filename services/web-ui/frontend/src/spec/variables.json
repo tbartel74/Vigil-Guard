@@ -556,7 +556,7 @@
       "label": "Semantic Corroboration",
       "type": "boolean",
       "required": true,
-      "help": "Reduce solo-PG detections (PG≥70, H<15, S<15) from BLOCK to SANITIZE (score=45). Prevents FP on security education queries. Default: enabled (v2.1.0)",
+      "help": "Reduce solo-PG detections (PG≥70, H<15, S<15) from BLOCK to ALLOW (score=45, below threshold 50). Prevents FP on security education queries. Default: enabled (v2.1.0)",
       "default": true,
       "map": [
         {
@@ -571,7 +571,7 @@
       "label": "Corroboration Reduced Score",
       "type": "number",
       "required": true,
-      "help": "Score assigned to solo-PG detections (0-100). Must be < block_score (50) for SANITIZE. Default: 45",
+      "help": "Score assigned to solo-PG detections (0-100). Must be < block_score (50) for ALLOW. Default: 45",
       "default": 45,
       "map": [
         {

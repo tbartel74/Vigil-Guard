@@ -1,6 +1,6 @@
 /**
- * ClickHouse Query Functions
- * HNSW vector similarity search using cosineDistance
+ * ClickHouse Query Functions - HNSW vector similarity search.
+ * Two-phase reduces FP; needs attack+safe tables.
  */
 
 const client = require('./client');

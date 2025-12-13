@@ -1,11 +1,6 @@
 /**
- * Semantic Service - Express API Server
- * Branch B: Semantic similarity detection using E5 multilingual embeddings
- *
- * Endpoints:
- *   POST /analyze - Main analysis endpoint (branch_result contract)
- *   GET /health - Health check
- *   GET /metrics - Service metrics
+ * Semantic Service (Branch B) - E5 embedding similarity detection.
+ * NOTE: Degraded responses return HTTP 200 with degraded:true (Arbiter contract).
  */
 
 const express = require('express');
@@ -280,7 +275,7 @@ app.post('/analyze', async (req, res) => {
                     fallback_type: 'single-table'
                 }, 'two-phase failed, fallback=single-table');
 
-                // Fallback to single-table search (legacy mode)
+                // Fallback to single-table search (legacy mode) - raises FP risk
                 try {
                     const singleTableResults = await searchSimilar(embedding, config.search.topK);
                     const timingMs = Date.now() - startTime;

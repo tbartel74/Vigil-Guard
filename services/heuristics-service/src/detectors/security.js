@@ -18,19 +18,36 @@ let educationalPatterns = null;
 
 function loadPatterns() {
   if (!securityPatterns) {
+    const patternsPath = path.join(__dirname, '../../patterns/security-keywords.json');
+
+    // FAIL-SECURE: Patterns are CRITICAL for security detection
+    // Service MUST NOT start without valid patterns
+    if (!fs.existsSync(patternsPath)) {
+      const errorMsg = `FATAL: Security patterns file not found: ${patternsPath}`;
+      console.error(errorMsg);
+      patternLoadingError = errorMsg;
+      throw new Error(errorMsg);
+    }
+
     try {
-      const patternsPath = path.join(__dirname, '../../patterns/security-keywords.json');
       securityPatterns = JSON.parse(fs.readFileSync(patternsPath, 'utf8'));
+
+      // Validate minimum pattern counts to detect corrupted files
+      const sqlPatterns = (securityPatterns.sql_injection?.high_confidence?.length || 0) +
+                          (securityPatterns.sql_injection?.medium_confidence?.length || 0);
+      if (sqlPatterns < 5) {
+        const errorMsg = `FATAL: Insufficient SQL injection patterns (${sqlPatterns}). Possible corrupted patterns file.`;
+        console.error(errorMsg);
+        patternLoadingError = errorMsg;
+        throw new Error(errorMsg);
+      }
+
+      console.log(`Security patterns loaded successfully: SQL=${sqlPatterns}, XSS=${securityPatterns.xss?.high_confidence?.length || 0}`);
     } catch (error) {
-      console.error('CRITICAL: Failed to load security patterns:', error.message);
+      const errorMsg = `FATAL: Cannot parse security patterns: ${error.message}`;
+      console.error(errorMsg);
       patternLoadingError = error.message;
-      // Return empty patterns structure to prevent crashes
-      securityPatterns = {
-        sql_injection: { high_confidence: [], medium_confidence: [] },
-        xss: { high_confidence: [] },
-        command_injection: { high_confidence: [] },
-        privilege_escalation: { high_confidence: [] }
-      };
+      throw new Error(errorMsg);
     }
   }
   return securityPatterns;

@@ -184,5 +184,11 @@ If upgrading from MiniLM (v1.0.0):
 1. **Regenerate all embeddings** - E5 embeddings are incompatible with MiniLM
 2. **Create new tables** - v2.0.0 uses `pattern_embeddings_v2` and `semantic_safe_embeddings`
 3. **Update environment** - Add `SEMANTIC_ENABLE_TWO_PHASE=true`
+4. **Remove legacy table** - Drop the old `pattern_embeddings` table (no longer used)
 
-Old `pattern_embeddings` table (MiniLM) can be kept for comparison/rollback.
+```bash
+# Drop legacy MiniLM table
+docker exec vigil-clickhouse clickhouse-client \
+    --password $CLICKHOUSE_PASSWORD \
+    -q "DROP TABLE IF EXISTS n8n_logs.pattern_embeddings"
+```

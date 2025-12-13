@@ -1,49 +1,14 @@
 -- ============================================================================
--- Semantic Service - Vector Embeddings for Branch B (LEGACY)
+-- Semantic Service - Vector Embeddings Schema (v2.0.0)
 -- ============================================================================
--- DEPRECATED: This file is for v1.0.0 (MiniLM model)
---
--- For v2.0.0 (E5 model + Two-Phase Search), use the authoritative schema files:
+-- IMPORTANT: Main embedding tables are defined in semantic-service:
 --   - services/semantic-service/sql/04-semantic-embeddings-v2.sql (attack patterns)
 --   - services/semantic-service/sql/05-semantic-safe-embeddings.sql (safe patterns)
 --   - services/semantic-service/sql/06-semantic-analysis-log.sql (logging)
 --
--- v2.0.0 uses:
---   - Model: multilingual-e5-small (Xenova/ONNX INT8)
---   - Two-Phase Search: attack + safe pattern comparison
---   - Tables: pattern_embeddings_v2, semantic_safe_embeddings
+-- This file creates auxiliary tables only (metadata, audit log, views).
+-- See: services/semantic-service/SETUP.md for complete setup instructions.
 -- ============================================================================
-
--- LEGACY TABLE: pattern_embeddings (v1.0.0 - MiniLM)
--- Kept for backward compatibility / rollback scenarios
--- New deployments should use pattern_embeddings_v2 (E5 model)
-CREATE TABLE IF NOT EXISTS n8n_logs.pattern_embeddings (
-    -- Primary identifiers
-    pattern_id String COMMENT 'Format: category_index',
-    category String COMMENT 'Threat category',
-
-    -- Pattern content
-    pattern_text String COMMENT 'Original malicious prompt',
-    pattern_norm String DEFAULT '' COMMENT 'Normalized text',
-
-    -- Embedding vector (384-dim, legacy MiniLM)
-    embedding Array(Float32) COMMENT '384-dim from MiniLM (v1.0.0 LEGACY)',
-
-    -- Metadata
-    embedding_model String DEFAULT 'all-MiniLM-L6-v2-int8' COMMENT 'LEGACY: v2.0.0 uses multilingual-e5-small-int8',
-    source_dataset String DEFAULT '',
-    source_index UInt32 DEFAULT 0,
-
-    -- Timestamps
-    created_at DateTime DEFAULT now(),
-    updated_at DateTime DEFAULT now(),
-
-    -- Vector similarity index
-    INDEX embedding_idx embedding TYPE vector_similarity('hnsw', 'cosineDistance', 384)
-)
-ENGINE = MergeTree()
-ORDER BY (category, pattern_id)
-SETTINGS index_granularity = 8192;
 
 -- TABLE: embedding_metadata (track database state)
 CREATE TABLE IF NOT EXISTS n8n_logs.embedding_metadata (
@@ -73,29 +38,40 @@ ENGINE = MergeTree()
 ORDER BY (timestamp, id)
 TTL timestamp + INTERVAL 90 DAY;
 
--- Initial metadata (LEGACY - v1.0.0)
--- For v2.0.0, use pattern_embeddings_v2 with E5 model
+-- Initial metadata (v2.0.0 - E5 model)
 INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
-    (1, 'schema_version', '1.0.0'),
-    (2, 'embedding_model', 'all-MiniLM-L6-v2-int8'),
+    (1, 'schema_version', '2.0.0'),
+    (2, 'embedding_model', 'multilingual-e5-small-int8'),
     (3, 'embedding_dim', '384'),
     (4, 'hnsw_m', '16'),
     (5, 'hnsw_ef_construction', '200'),
     (6, 'hnsw_ef_search', '100'),
     (7, 'created_at', toString(now())),
-    (8, 'pattern_count', '0'),
-    (9, 'last_rebuild', ''),
-    (10, 'last_import', '');
+    (8, 'attack_pattern_count', '0'),
+    (9, 'safe_pattern_count', '0'),
+    (10, 'last_rebuild', ''),
+    (11, 'last_import', ''),
+    (12, 'two_phase_enabled', 'true');
 
--- Views (LEGACY - reference pattern_embeddings v1.0.0)
+-- Views for v2.0.0 tables
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_category_stats AS
 SELECT
     category,
     count() AS pattern_count,
     min(created_at) AS first_added,
     max(updated_at) AS last_updated
-FROM n8n_logs.pattern_embeddings
+FROM n8n_logs.pattern_embeddings_v2
 GROUP BY category
+ORDER BY pattern_count DESC;
+
+CREATE VIEW IF NOT EXISTS n8n_logs.v_safe_embedding_stats AS
+SELECT
+    subcategory,
+    count() AS pattern_count,
+    min(created_at) AS first_added,
+    max(updated_at) AS last_updated
+FROM n8n_logs.semantic_safe_embeddings
+GROUP BY subcategory
 ORDER BY pattern_count DESC;
 
 CREATE VIEW IF NOT EXISTS n8n_logs.v_embedding_recent_audit AS
@@ -109,24 +85,3 @@ SELECT
 FROM n8n_logs.embedding_audit_log
 ORDER BY timestamp DESC
 LIMIT 100;
-
--- ============================================================================
--- MIGRATION NOTE
--- ============================================================================
--- To migrate to v2.0.0 (E5 model + Two-Phase Search):
---
--- 1. Create new tables:
---    docker exec -i vigil-clickhouse clickhouse-client \
---        --password $CLICKHOUSE_PASSWORD \
---        < services/semantic-service/sql/04-semantic-embeddings-v2.sql
---
---    docker exec -i vigil-clickhouse clickhouse-client \
---        --password $CLICKHOUSE_PASSWORD \
---        < services/semantic-service/sql/05-semantic-safe-embeddings.sql
---
--- 2. Generate E5 embeddings from source patterns
--- 3. Import to new tables (pattern_embeddings_v2, semantic_safe_embeddings)
--- 4. Enable Two-Phase Search: SEMANTIC_ENABLE_TWO_PHASE=true
---
--- See: services/semantic-service/SETUP.md
--- ============================================================================

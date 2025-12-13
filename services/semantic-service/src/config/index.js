@@ -25,7 +25,7 @@ const config = {
         database: process.env.CLICKHOUSE_DATABASE || 'n8n_logs',
         user: process.env.CLICKHOUSE_USER || 'admin',
         password: process.env.CLICKHOUSE_PASSWORD || '',
-        table: process.env.CLICKHOUSE_TABLE || 'pattern_embeddings',
+        table: process.env.CLICKHOUSE_TABLE || 'pattern_embeddings_v2',
         timeout: parseInt(process.env.CLICKHOUSE_TIMEOUT || '5000', 10),
         keepAlive: process.env.CLICKHOUSE_KEEPALIVE !== 'false',
         maxSockets: parseInt(process.env.CLICKHOUSE_MAX_SOCKETS || '10', 10)
@@ -121,13 +121,15 @@ const config = {
 };
 
 /**
- * Validate configuration
+ * Validate configuration at startup.
  */
 function validateConfig() {
     const errors = [];
 
-    if (!config.clickhouse.password && process.env.NODE_ENV === 'production') {
-        errors.push('CLICKHOUSE_PASSWORD is required in production');
+    // ClickHouse password required to avoid empty-auth startup
+    if (!config.clickhouse.password) {
+        console.error('FATAL: CLICKHOUSE_PASSWORD not set');
+        process.exit(1);
     }
 
     if (config.model.dimension !== 384) {
@@ -149,9 +151,6 @@ function validateConfig() {
     }
 }
 
-// Validate on load in production
-if (process.env.NODE_ENV === 'production') {
-    validateConfig();
-}
+validateConfig();
 
 module.exports = config;

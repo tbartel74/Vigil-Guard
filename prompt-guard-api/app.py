@@ -1,3 +1,9 @@
+"""
+Prompt Guard API - Binary classifier for prompt injection detection.
+TODO: Add rate limiting middleware
+TODO: Add optional auth header validation
+"""
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import pipeline

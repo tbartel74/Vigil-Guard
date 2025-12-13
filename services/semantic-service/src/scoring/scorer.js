@@ -158,15 +158,8 @@ function buildBranchResult(results, timingMs, degraded = false) {
 }
 
 /**
- * Build branch_result from Two-Phase Search results (v2.0)
- *
- * Two-Phase Search v2.0 compares similarity to ATTACK vs SAFE patterns:
- * - Multi-tier classification calibrated on Golden Dataset (55 examples)
- * - Achieves: 100% detection rate, 0% false positive rate
- * - Handles Polish SAFE patterns with instruction-type detection
- *
- * This is the RECOMMENDED method for production use as it significantly
- * reduces false positives while maintaining attack detection accuracy.
+ * Build branch_result from Two-Phase Search (attack vs safe pattern comparison).
+ * Calibrated on 55-example dataset; real-world accuracy may vary.
  *
  * @param {Object} twoPhaseResult - Result from searchTwoPhase()
  * @param {number} timingMs - Processing time in milliseconds

@@ -1,10 +1,6 @@
 /**
- * Embedding Generator using Transformers.js
- * Generates 384-dimensional embeddings using multilingual-e5-small
- *
- * E5 Model requires prefixes:
- * - "query: " for user input (text being analyzed)
- * - "passage: " for database patterns (malicious examples)
+ * Embedding Generator - multilingual-e5-small (384 dim), cached in models/.
+ * E5 requires "query:" prefix for input, "passage:" for patterns.
  */
 
 const config = require('../config');

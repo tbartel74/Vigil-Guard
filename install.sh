@@ -1055,7 +1055,7 @@ EOF
         "events_v2"
         "false_positive_reports"
         "retention_config"
-        "pattern_embeddings"
+        "pattern_embeddings_v2"
         "embedding_metadata"
         "embedding_audit_log"
         "semantic_safe_embeddings"
@@ -1421,142 +1421,255 @@ initialize_heuristics_service() {
     echo ""
 }
 
-# Import Semantic Embeddings to ClickHouse
+# Import Attack Embeddings to ClickHouse (pattern_embeddings_v2)
+# v2.1.0: Uses E5 multilingual embeddings for Two-Phase Search
+# NOTE: Attack embeddings are generated from external dataset (Vigil-Dataset/semantic-dataset-enterprise)
+#       and must be pre-generated before installation. The file enterprise_attack_embeddings.jsonl
+#       should contain ~5000 E5 embeddings for attack pattern detection.
 import_semantic_embeddings() {
-    local EMBEDDINGS_FILE="services/semantic-service/data/embeddings_categorized.jsonl"
+    # v2.1.0: Attack embeddings use pattern_embeddings_v2 table (E5 model)
+    # Source: Vigil-Dataset/semantic-dataset-enterprise/enterprise_prompt_dataset_small_reclassified.jsonl
+    local EMBEDDINGS_FILE="services/semantic-service/data/datasets/enterprise_attack_embeddings.jsonl"
 
     if [ ! -f "$EMBEDDINGS_FILE" ]; then
-        log_warning "Embeddings file not found: $EMBEDDINGS_FILE"
-        log_info "Semantic detection will work but with reduced accuracy"
-        return 1
+        log_warning "Attack embeddings file not found: $EMBEDDINGS_FILE"
+        log_warning "Two-Phase Search will NOT function without attack embeddings"
+
+        if [ "${ALLOW_MISSING_EMBEDDINGS:-false}" = "true" ]; then
+            log_warning "ALLOW_MISSING_EMBEDDINGS=true set, continuing without embeddings"
+            log_info "Two-Phase Search will operate in safe-patterns-only mode (DEGRADED)"
+            return 0
+        else
+            log_error "Installation cannot continue without attack embeddings"
+            log_error "To proceed anyway (NOT RECOMMENDED): ALLOW_MISSING_EMBEDDINGS=true ./install.sh"
+            log_info ""
+            log_info "To generate embeddings:"
+            log_info "  1. docker exec vigil-semantic node /app/scripts/generate-attack-embeddings.js \\"
+            log_info "     --input /external/enterprise_prompt_dataset_small_reclassified.jsonl \\"
+            log_info "     --output /app/data/enterprise_attack_embeddings.jsonl"
+            log_info "  2. Re-run: ./install.sh"
+            return 1  # FAIL
+        fi
     fi
 
     local TOTAL_LINES=$(wc -l < "$EMBEDDINGS_FILE" | tr -d ' ')
-    log_info "Importing $TOTAL_LINES semantic embeddings to ClickHouse (3300 expected)..."
+    log_info "Importing $TOTAL_LINES attack embeddings to ClickHouse (pattern_embeddings_v2)..."
     log_info "This may take 1-2 minutes..."
 
-    # Import using ClickHouse-native JSONEachRow format (v2.0.2: single bulk transaction)
-    # CRITICAL: JSONEachRow is the ONLY reliable method for 3300+ embeddings with special chars
-    # Previous method (row-by-row HTTP) had 5 problems:
-    #   1. Missing columns (only inserted 4/10 columns)
-    #   2. Silent errors (bare except blocks)
-    #   3. 3300 individual HTTP requests (slow, unreliable)
-    #   4. Fragile escaping (SQL injection payloads broke it)
-    #   5. Non-idempotent (created duplicates on re-run)
+    # Import using ClickHouse-native JSONEachRow format
     log_info "Using ClickHouse JSONEachRow format for atomic bulk import..."
 
     # Step 1: Truncate existing embeddings for idempotency
-    docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+    if ! docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
-        -q "TRUNCATE TABLE pattern_embeddings" 2>/dev/null
+        -q "TRUNCATE TABLE pattern_embeddings_v2" 2>&1; then
+        log_warning "TRUNCATE TABLE pattern_embeddings_v2 failed (table may not exist yet)"
+    fi
 
     # Step 2: Bulk import via JSONEachRow HTTP interface (single atomic transaction)
-    # ClickHouse HTTP: POST data in JSONEachRow format to ?query=INSERT...&input_format_skip_unknown_fields=1
-    # - JSONEachRow: Each line is a JSON object (JSONL format)
-    # - skip_unknown_fields: Ignore extra fields in JSONL (forward compatibility)
-    # - Atomic: All 3300 rows in single transaction (all-or-nothing)
-    # - No escaping: ClickHouse JSON parser handles special chars natively
     local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_import_result.txt \
         --user "admin:$CLICKHOUSE_PASSWORD" \
         --data-binary "@$EMBEDDINGS_FILE" \
         --max-time 120 \
-        "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.pattern_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
+        "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.pattern_embeddings_v2%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
 
     if [ "$IMPORT_HTTP_CODE" = "200" ]; then
         log_success "JSONEachRow bulk import completed (HTTP 200)"
     else
         log_error "ClickHouse import failed (HTTP $IMPORT_HTTP_CODE)"
-        log_error "Response: $(cat /tmp/clickhouse_import_result.txt)"
+        log_error "Response: $(cat /tmp/clickhouse_import_result.txt 2>/dev/null)"
         rm -f /tmp/clickhouse_import_result.txt
-        return 1
+
+        if [ "${ALLOW_MISSING_EMBEDDINGS:-false}" = "true" ]; then
+            log_warning "ALLOW_MISSING_EMBEDDINGS=true set, continuing despite import failure"
+            return 0
+        else
+            log_error "Attack embeddings import failed - cannot continue"
+            return 1  # FAIL
+        fi
     fi
     rm -f /tmp/clickhouse_import_result.txt
 
-    local IMPORT_RESULT=$?
+    # Set IMPORT_RESULT based on HTTP code check above (not rm exit code)
+    local IMPORT_RESULT=0
+    if [ "$IMPORT_HTTP_CODE" != "200" ]; then
+        IMPORT_RESULT=1
+    fi
+
     local IMPORTED_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
-        -q "SELECT COUNT(*) FROM pattern_embeddings" \
-        2>/dev/null | tr -d ' ')
+        -q "SELECT COUNT(*) FROM pattern_embeddings_v2" \
+        2>&1 | tr -d ' ')
 
-    # Verify minimum embedding count (3000+ required for full coverage)
-    local MIN_EMBEDDINGS=3000
+    # Validate IMPORTED_COUNT is a number
+    if ! [[ "$IMPORTED_COUNT" =~ ^[0-9]+$ ]]; then
+        log_error "Failed to get embedding count: $IMPORTED_COUNT"
+        IMPORTED_COUNT=0
+    fi
+
+    # Verify minimum embedding count (4500+ required for full coverage, dataset has ~5000)
+    local MIN_EMBEDDINGS=4500
 
     if [ "$IMPORT_RESULT" -eq 0 ] && [ "$IMPORTED_COUNT" -ge "$MIN_EMBEDDINGS" ]; then
-        log_success "Imported $IMPORTED_COUNT semantic embeddings (verified: >= $MIN_EMBEDDINGS)"
+        log_success "Imported $IMPORTED_COUNT attack embeddings (verified: >= $MIN_EMBEDDINGS)"
     elif [ "$IMPORTED_COUNT" -eq 0 ]; then
-        log_error "Embedding import failed completely (0 embeddings imported)"
-        log_error "Semantic detection service will not function without embeddings"
-        echo ""
-        log_info "To recover manually, run:"
-        log_info "  1. Check ClickHouse is running: docker ps | grep clickhouse"
-        log_info "  2. Verify embeddings file exists: ls -lh services/semantic-service/data/embeddings_categorized.jsonl"
-        log_info "  3. Re-run import: ./scripts/import-embeddings.sh"
-        log_info "  4. Or re-run full installation: ./install.sh"
-        echo ""
-        exit 1
+        log_error "CRITICAL: No attack embeddings imported"
+        log_error "Two-Phase Search will NOT function correctly"
+        log_info "Debug: docker exec vigil-clickhouse clickhouse-client -q \"SELECT COUNT(*) FROM n8n_logs.pattern_embeddings_v2\""
+        if [ "${ALLOW_MISSING_EMBEDDINGS:-false}" != "true" ]; then
+            return 1
+        fi
+        log_warning "ALLOW_MISSING_EMBEDDINGS=true - continuing in degraded mode"
     elif [ "$IMPORTED_COUNT" -lt "$MIN_EMBEDDINGS" ]; then
-        log_error "Embedding import incomplete: $IMPORTED_COUNT < $MIN_EMBEDDINGS required"
-        log_error "Semantic detection will have degraded accuracy"
-        echo ""
-        log_info "To fix, re-run installation: ./install.sh"
-        echo ""
-        exit 1
+        log_warning "Embedding import incomplete: $IMPORTED_COUNT < $MIN_EMBEDDINGS expected"
+        log_info "Semantic detection will still work but with reduced coverage"
+        # Graceful fallback
     else
         log_warning "Embedding import had issues. Imported: $IMPORTED_COUNT"
         log_info "Semantic detection will still work but may have reduced coverage"
     fi
 }
 
+# Generate SAFE pattern embeddings for Two-Phase Search (v2.1.0)
+# Must be called BEFORE import_safe_embeddings()
+generate_safe_embeddings() {
+    local PATTERNS_FILE="services/semantic-service/data/datasets/security_education_patterns.json"
+    local OUTPUT_FILE="services/semantic-service/data/datasets/security_education_embeddings.jsonl"
+
+    # Check if patterns file exists
+    if [ ! -f "$PATTERNS_FILE" ]; then
+        log_warning "Security education patterns file not found: $PATTERNS_FILE"
+        log_info "Skipping safe embeddings generation"
+        return 1
+    fi
+
+    # Check if output already exists with sufficient size
+    if [ -f "$OUTPUT_FILE" ]; then
+        local EXISTING_LINES=$(wc -l < "$OUTPUT_FILE" | tr -d ' ')
+        if [ "$EXISTING_LINES" -ge 50 ]; then
+            log_info "Safe embeddings file already exists with $EXISTING_LINES patterns"
+            return 0
+        fi
+        log_info "Existing embeddings file has only $EXISTING_LINES patterns, regenerating..."
+    fi
+
+    log_info "Generating security education embeddings..."
+    log_info "This requires the semantic service to be running (for embedding model)..."
+
+    # Wait for semantic service to be ready
+    local RETRY_COUNT=0
+    local MAX_RETRIES=10
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if curl -s http://localhost:5006/health | grep -q '"ready":true'; then
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            log_info "Waiting for semantic service... (attempt $RETRY_COUNT/$MAX_RETRIES)"
+            sleep 3
+        else
+            log_warning "Semantic service not ready, skipping embeddings generation"
+            log_info "Run manually later: docker exec vigil-semantic node /app/scripts/generate-security-education-embeddings.js"
+            return 1
+        fi
+    done
+
+    # Run generation script inside semantic service container
+    log_info "Running embedding generation script inside semantic container..."
+    if docker exec vigil-semantic node /app/scripts/generate-security-education-embeddings.js 2>&1 | tee -a "$INSTALL_LOG"; then
+        if [ -f "$OUTPUT_FILE" ]; then
+            local GENERATED_LINES=$(wc -l < "$OUTPUT_FILE" | tr -d ' ')
+            log_success "Safe embeddings generated: $GENERATED_LINES patterns → $OUTPUT_FILE"
+            return 0
+        else
+            log_warning "Script completed but output file not found"
+            return 1
+        fi
+    else
+        log_error "Failed to generate safe embeddings"
+        log_info "Try running manually: docker exec vigil-semantic node /app/scripts/generate-security-education-embeddings.js"
+        return 1
+    fi
+}
+
 # Import SAFE pattern embeddings for Two-Phase Search (v2.1.0)
 # These embeddings reduce false positives by comparing against benign patterns
+# Sources: safe_embeddings.jsonl (1445) + security_education_embeddings.jsonl (100)
 import_safe_embeddings() {
-    local SAFE_EMBEDDINGS_FILE="services/semantic-service/data/security_education_embeddings.jsonl"
+    local SAFE_EMBEDDINGS_FILE="services/semantic-service/data/datasets/safe_embeddings.jsonl"
+    local SECURITY_EDUCATION_FILE="services/semantic-service/data/datasets/security_education_embeddings.jsonl"
+    local TOTAL_IMPORTED=0
 
+    # Check if primary safe embeddings file exists
     if [ ! -f "$SAFE_EMBEDDINGS_FILE" ]; then
         log_warning "Safe embeddings file not found: $SAFE_EMBEDDINGS_FILE"
-        log_info "Two-Phase Search will work with reduced FP filtering"
-        return 1
+        log_info "Attempting to generate safe embeddings first..."
+        if ! generate_safe_embeddings; then
+            log_warning "Two-Phase Search will work with reduced FP filtering"
+        fi
     fi
 
-    local TOTAL_LINES=$(wc -l < "$SAFE_EMBEDDINGS_FILE" | tr -d ' ')
-    log_info "Importing $TOTAL_LINES safe pattern embeddings for Two-Phase Search..."
-
-    # Import using ClickHouse-native JSONEachRow format
-    log_info "Using ClickHouse JSONEachRow format for atomic bulk import..."
-
-    # Step 1: Truncate existing safe embeddings for idempotency
-    docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
+    # Truncate table for idempotency
+    log_info "Truncating semantic_safe_embeddings for idempotent import..."
+    if ! docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
-        -q "TRUNCATE TABLE semantic_safe_embeddings" 2>/dev/null
-
-    # Step 2: Bulk import via JSONEachRow HTTP interface
-    local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_safe_import_result.txt \
-        --user "admin:$CLICKHOUSE_PASSWORD" \
-        --data-binary "@$SAFE_EMBEDDINGS_FILE" \
-        --max-time 60 \
-        "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.semantic_safe_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
-
-    if [ "$IMPORT_HTTP_CODE" = "200" ]; then
-        log_success "Safe embeddings import completed (HTTP 200)"
-    else
-        log_error "Safe embeddings import failed (HTTP $IMPORT_HTTP_CODE)"
-        log_error "Response: $(cat /tmp/clickhouse_safe_import_result.txt)"
-        rm -f /tmp/clickhouse_safe_import_result.txt
-        return 1
+        -q "TRUNCATE TABLE semantic_safe_embeddings" 2>&1; then
+        log_warning "TRUNCATE TABLE semantic_safe_embeddings failed (table may not exist yet)"
     fi
-    rm -f /tmp/clickhouse_safe_import_result.txt
 
+    # Import primary safe embeddings (1445 patterns)
+    if [ -f "$SAFE_EMBEDDINGS_FILE" ]; then
+        local SAFE_LINES=$(wc -l < "$SAFE_EMBEDDINGS_FILE" | tr -d ' ')
+        log_info "Importing $SAFE_LINES safe pattern embeddings..."
+
+        local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_safe_import_result.txt \
+            --user "admin:$CLICKHOUSE_PASSWORD" \
+            --data-binary "@$SAFE_EMBEDDINGS_FILE" \
+            --max-time 60 \
+            "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.semantic_safe_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
+
+        if [ "$IMPORT_HTTP_CODE" = "200" ]; then
+            log_success "Safe embeddings import completed (HTTP 200)"
+        else
+            log_warning "Safe embeddings import failed (HTTP $IMPORT_HTTP_CODE)"
+            cat /tmp/clickhouse_safe_import_result.txt 2>/dev/null
+        fi
+        rm -f /tmp/clickhouse_safe_import_result.txt
+    fi
+
+    # Append security education embeddings (100 patterns)
+    if [ -f "$SECURITY_EDUCATION_FILE" ]; then
+        local SEC_LINES=$(wc -l < "$SECURITY_EDUCATION_FILE" | tr -d ' ')
+        log_info "Appending $SEC_LINES security education embeddings..."
+
+        local IMPORT_HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/clickhouse_sec_import_result.txt \
+            --user "admin:$CLICKHOUSE_PASSWORD" \
+            --data-binary "@$SECURITY_EDUCATION_FILE" \
+            --max-time 30 \
+            "http://localhost:8123/?query=INSERT%20INTO%20n8n_logs.semantic_safe_embeddings%20FORMAT%20JSONEachRow&input_format_skip_unknown_fields=1")
+
+        if [ "$IMPORT_HTTP_CODE" = "200" ]; then
+            log_success "Security education embeddings appended (HTTP 200)"
+        else
+            log_warning "Security education import failed (HTTP $IMPORT_HTTP_CODE)"
+        fi
+        rm -f /tmp/clickhouse_sec_import_result.txt
+    fi
+
+    # Verify total count
     local IMPORTED_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
         -q "SELECT COUNT(*) FROM semantic_safe_embeddings" \
         2>/dev/null | tr -d ' ')
 
-    if [ "$IMPORTED_COUNT" -gt 0 ]; then
-        log_success "Imported $IMPORTED_COUNT safe pattern embeddings"
+    if [ "$IMPORTED_COUNT" -gt 1000 ]; then
+        log_success "Imported $IMPORTED_COUNT total safe pattern embeddings"
+    elif [ "$IMPORTED_COUNT" -gt 0 ]; then
+        log_warning "Imported only $IMPORTED_COUNT safe embeddings (expected ~1545)"
     else
         log_warning "No safe embeddings imported. Two-Phase Search will have reduced FP filtering"
     fi
@@ -1625,48 +1738,48 @@ initialize_semantic_service() {
     # Verify ClickHouse connection for embeddings
     log_info "Verifying ClickHouse integration..."
 
-    # Check if pattern_embeddings table exists
+    # Check if pattern_embeddings_v2 table exists (E5 model, Two-Phase Search)
     EMBEDDINGS_TABLE_EXISTS=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
-        -q "EXISTS TABLE pattern_embeddings" \
+        -q "EXISTS TABLE pattern_embeddings_v2" \
         2>/dev/null | tr -d ' ')
 
-    local MIN_EMBEDDINGS=3000
+    local MIN_EMBEDDINGS=4500
 
     if [ "$EMBEDDINGS_TABLE_EXISTS" = "1" ]; then
-        log_success "Vector embeddings table ready"
+        log_success "Attack embeddings table ready (pattern_embeddings_v2)"
 
         # Count existing embeddings
         EMBEDDING_COUNT=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
             --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
             --database "$CLICKHOUSE_DB" \
-            -q "SELECT COUNT(*) FROM pattern_embeddings" \
+            -q "SELECT COUNT(*) FROM pattern_embeddings_v2" \
             2>/dev/null | tr -d ' ')
 
         if [ "$EMBEDDING_COUNT" -ge "$MIN_EMBEDDINGS" ]; then
-            log_success "Existing embeddings: $EMBEDDING_COUNT vectors (verified: >= $MIN_EMBEDDINGS)"
+            log_success "Existing attack embeddings: $EMBEDDING_COUNT vectors (verified: >= $MIN_EMBEDDINGS)"
         elif [ "$EMBEDDING_COUNT" -gt 0 ]; then
-            log_warning "Incomplete embeddings: $EMBEDDING_COUNT < $MIN_EMBEDDINGS required"
+            log_warning "Incomplete attack embeddings: $EMBEDDING_COUNT < $MIN_EMBEDDINGS required"
             log_info "Re-importing from seed data..."
             import_semantic_embeddings
         else
-            log_info "No embeddings found. Importing from seed data..."
+            log_info "No attack embeddings found. Importing from seed data..."
             import_semantic_embeddings
         fi
     else
-        log_error "pattern_embeddings table not found in ClickHouse"
+        log_error "pattern_embeddings_v2 table not found in ClickHouse"
         log_info "This table should have been created by 02-semantic-embeddings-v2.sql"
         log_info "Semantic detection may not work until table is created"
         return 1
     fi
 
-    # Verify HNSW index
+    # Verify HNSW index for pattern_embeddings_v2
     log_info "Checking vector similarity index..."
     INDEX_CHECK=$(docker exec "$CLICKHOUSE_CONTAINER_NAME" clickhouse-client \
         --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" \
         --database "$CLICKHOUSE_DB" \
-        -q "SELECT COUNT(*) FROM system.data_skipping_indices WHERE table = 'pattern_embeddings' AND name = 'embedding_idx'" \
+        -q "SELECT COUNT(*) FROM system.data_skipping_indices WHERE table = 'pattern_embeddings_v2' AND name = 'embedding_idx'" \
         2>/dev/null | tr -d ' ')
 
     if [ "$INDEX_CHECK" = "1" ]; then
@@ -1704,10 +1817,21 @@ initialize_semantic_service() {
         elif [ "$SAFE_EMBEDDING_COUNT" -gt 0 ]; then
             log_warning "Incomplete safe embeddings: $SAFE_EMBEDDING_COUNT < $MIN_SAFE_EMBEDDINGS"
             log_info "Re-importing safe patterns..."
-            import_safe_embeddings
+            if ! import_safe_embeddings; then
+                log_warning "=============================================="
+                log_warning "WARNING: Safe embeddings import incomplete"
+                log_warning "Two-Phase Search FP reduction may be limited"
+                log_warning "=============================================="
+            fi
         else
-            log_info "No safe embeddings found. Importing..."
-            import_safe_embeddings
+            log_info "No safe embeddings found. Generating and importing..."
+            if ! import_safe_embeddings; then
+                log_warning "=============================================="
+                log_warning "WARNING: SAFE EMBEDDINGS IMPORT FAILED"
+                log_warning "Two-Phase Search FP reduction is DISABLED"
+                log_warning "To retry: ./scripts/import-safe-embeddings.sh"
+                log_warning "=============================================="
+            fi
         fi
     else
         log_warning "semantic_safe_embeddings table not found"

@@ -9,6 +9,7 @@ import {
     calculateScore,
     generateExplanations,
     buildBranchResult,
+    buildTwoPhaseResult,
     buildDegradedResult
 } from '../../src/scoring/scorer.js';
 
@@ -182,6 +183,236 @@ describe('Scorer Module', () => {
             expect(result.score).toBe(0);
             expect(result.threat_level).toBe(ThreatLevel.LOW);
             expect(result.degraded).toBe(true);
+        });
+
+    });
+
+    // ============================================================
+    // buildTwoPhaseResult Tests (v2.1.0 - Two-Phase Search)
+    // ============================================================
+    describe('buildTwoPhaseResult', () => {
+
+        it('should return score=0 for SAFE classification', () => {
+            const twoPhaseResult = {
+                classification: 'SAFE',
+                attack_max_similarity: 0.75,
+                safe_max_similarity: 0.85,
+                delta: -0.10,
+                confidence: 0.8,
+                attack_matches: [{ pattern_id: 'A1', category: 'SQL_INJECTION', similarity: 0.75 }],
+                safe_matches: [{ pattern_id: 'S1', category: 'CODE_SAMPLE', similarity: 0.85 }],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            expect(result.score).toBe(0);
+            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            expect(result.critical_signals.two_phase_safe).toBe(true);
+            expect(result.features.classification).toBe('SAFE');
+        });
+
+        it('should return score=0 for UNCERTAIN classification', () => {
+            const twoPhaseResult = {
+                classification: 'UNCERTAIN',
+                attack_max_similarity: 0.80,
+                safe_max_similarity: 0.79,
+                delta: 0.01,
+                confidence: 0.2,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            expect(result.score).toBe(0);
+            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            expect(result.critical_signals.two_phase_uncertain).toBe(true);
+        });
+
+        it('should return score=0 for UNCERTAIN with low similarities (U1 rule)', () => {
+            // U1: Both attack and safe are low - no confident match
+            const twoPhaseResult = {
+                classification: 'UNCERTAIN',
+                attack_max_similarity: 0.72,
+                safe_max_similarity: 0.70,
+                delta: 0.02,
+                confidence: 0.1,
+                attack_matches: [{ pattern_id: 'A1', category: 'UNKNOWN', similarity: 0.72 }],
+                safe_matches: [{ pattern_id: 'S1', category: 'GENERAL', similarity: 0.70 }],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 25);
+
+            expect(result.score).toBe(0);
+            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            expect(result.critical_signals.two_phase_uncertain).toBe(true);
+            expect(result.critical_signals.high_similarity).toBe(false);
+            expect(result.explanations).toContain('Two-Phase v2.3: UNCERTAIN (delta 2.0%)');
+        });
+
+        it('should return score=0 for UNCERTAIN with ambiguous delta (U2 rule)', () => {
+            // U2: Very small delta with moderate similarities - truly ambiguous
+            const twoPhaseResult = {
+                classification: 'UNCERTAIN',
+                attack_max_similarity: 0.78,
+                safe_max_similarity: 0.77,
+                delta: 0.01, // < 0.02 threshold
+                confidence: 0.15,
+                attack_matches: [{ pattern_id: 'A1', category: 'SQL_INJECTION', similarity: 0.78 }],
+                safe_matches: [{ pattern_id: 'S1', category: 'CODE_SAMPLE', similarity: 0.77 }],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 30);
+
+            expect(result.score).toBe(0);
+            expect(result.threat_level).toBe(ThreatLevel.LOW);
+            expect(result.critical_signals.two_phase_uncertain).toBe(true);
+            expect(result.features.classification).toBe('UNCERTAIN');
+            expect(result.features.two_phase_search).toBe(true);
+        });
+
+        it('should not set two_phase_safe or high_similarity for UNCERTAIN', () => {
+            const twoPhaseResult = {
+                classification: 'UNCERTAIN',
+                attack_max_similarity: 0.76,
+                safe_max_similarity: 0.78,
+                delta: -0.02,
+                confidence: 0.2,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            expect(result.critical_signals.two_phase_safe).toBeUndefined();
+            expect(result.critical_signals.high_similarity).toBe(false);
+            expect(result.critical_signals.two_phase_uncertain).toBe(true);
+        });
+
+        it('should return elevated score for ATTACK classification', () => {
+            const twoPhaseResult = {
+                classification: 'ATTACK',
+                attack_max_similarity: 0.88,
+                safe_max_similarity: 0.75,
+                delta: 0.13,
+                confidence: 0.9,
+                attack_matches: [
+                    { pattern_id: 'A1', category: 'JAILBREAK', similarity: 0.88 }
+                ],
+                safe_matches: [],
+                delta_threshold: 0.05,
+                safe_is_instruction_type: false
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            // ATTACK classification should result in score based on attack_max_similarity
+            expect(result.score).toBeGreaterThan(0);
+            expect(result.score).toBeLessThanOrEqual(100);
+            expect(result.features.classification).toBe('ATTACK');
+        });
+
+        it('should reduce score when delta is small for ATTACK', () => {
+            const twoPhaseResult = {
+                classification: 'ATTACK',
+                attack_max_similarity: 0.85,
+                safe_max_similarity: 0.82,
+                delta: 0.03, // Small delta
+                confidence: 0.5,
+                attack_matches: [{ pattern_id: 'A1', category: 'SQL_INJECTION', similarity: 0.85 }],
+                safe_matches: [{ pattern_id: 'S1', category: 'CODE_SAMPLE', similarity: 0.82 }],
+                delta_threshold: 0.05,
+                safe_is_instruction_type: false
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            // Score should be reduced due to small delta (ambiguity)
+            expect(result.score).toBeLessThan(88);
+            expect(result.score).toBeGreaterThan(0);
+        });
+
+        it('should apply extra dampening for instruction-type safe matches', () => {
+            const twoPhaseResult = {
+                classification: 'ATTACK',
+                attack_max_similarity: 0.85,
+                safe_max_similarity: 0.83,
+                delta: 0.02,
+                confidence: 0.5,
+                attack_matches: [{ pattern_id: 'A1', category: 'SQL_INJECTION', similarity: 0.85 }],
+                safe_matches: [{ pattern_id: 'S1', category: 'CODE_INSTRUCTION', similarity: 0.83 }],
+                delta_threshold: 0.05,
+                safe_is_instruction_type: true // Educational/code context
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            // Score should be extra dampened for instruction-type matches
+            expect(result.score).toBeLessThan(70);
+            expect(result.features.safe_is_instruction_type).toBe(true);
+        });
+
+        it('should include classification_version in features', () => {
+            const twoPhaseResult = {
+                classification: 'SAFE',
+                attack_max_similarity: 0.50,
+                safe_max_similarity: 0.70,
+                delta: -0.20,
+                confidence: 0.9,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            expect(result.features.classification_version).toBe('2.3');
+            expect(result.features.two_phase_search).toBe(true);
+        });
+
+        it('should include timing_ms in result', () => {
+            const twoPhaseResult = {
+                classification: 'SAFE',
+                attack_max_similarity: 0.40,
+                safe_max_similarity: 0.60,
+                delta: -0.20,
+                confidence: 0.8,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 123);
+
+            expect(result.timing_ms).toBe(123);
+        });
+
+        it('should mark degraded if specified', () => {
+            const twoPhaseResult = {
+                classification: 'SAFE',
+                attack_max_similarity: 0.40,
+                safe_max_similarity: 0.60,
+                delta: -0.20,
+                confidence: 0.8,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50, true);
+
+            expect(result.degraded).toBe(true);
+        });
+
+        it('should have branch_id B for semantic service', () => {
+            const twoPhaseResult = {
+                classification: 'SAFE',
+                attack_max_similarity: 0.40,
+                safe_max_similarity: 0.60,
+                delta: -0.20,
+                confidence: 0.8,
+                attack_matches: [],
+                safe_matches: [],
+                delta_threshold: 0.05
+            };
+            const result = buildTwoPhaseResult(twoPhaseResult, 50);
+
+            expect(result.branch_id).toBe('B');
+            expect(result.name).toBe('semantic');
         });
 
     });

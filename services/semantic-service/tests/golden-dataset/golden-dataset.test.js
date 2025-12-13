@@ -1,9 +1,7 @@
 /**
- * Golden Dataset Validation Tests
- *
- * Validates semantic detection against 55 curated examples:
- * - 15 Polish attacks, 15 English attacks, 5 mixed
- * - 10 safe "tricky" inputs, 10 edge cases
+ * Golden Dataset Validation Tests (55 examples, internal curation).
+ * Limitations: Small sample, biased toward known attack patterns.
+ * Not representative of production traffic distribution.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -134,10 +132,12 @@ async function classifyText(text, useTwoPhase = true) {
 
             const { classification, attack_max_similarity, safe_max_similarity, delta, attack_matches, safe_matches } = twoPhaseResult;
 
-            // Debug: Log Two-Phase results for analysis
-            const safeSubcat = twoPhaseResult.safe_matches?.[0]?.subcategory || 'n/a';
-            const adjDelta = twoPhaseResult.adjusted_delta?.toFixed(4) || delta.toFixed(4);
-            console.log(`Two-Phase: attack=${attack_max_similarity.toFixed(4)}, safe=${safe_max_similarity.toFixed(4)}, delta=${delta.toFixed(4)}, adjDelta=${adjDelta}, safeType=${safeSubcat}, class=${classification}`);
+            // Debug output (set DEBUG=1 to enable)
+            if (process.env.DEBUG) {
+                const safeSubcat = twoPhaseResult.safe_matches?.[0]?.subcategory || 'n/a';
+                const adjDelta = twoPhaseResult.adjusted_delta?.toFixed(4) || delta.toFixed(4);
+                console.log(`Two-Phase: attack=${attack_max_similarity.toFixed(4)}, safe=${safe_max_similarity.toFixed(4)}, delta=${delta.toFixed(4)}, adjDelta=${adjDelta}, safeType=${safeSubcat}, class=${classification}`);
+            }
 
             // If classified as SAFE by two-phase, return ALLOW
             if (classification === 'SAFE') {
