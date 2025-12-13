@@ -240,7 +240,7 @@ describe('E5 Embedding Generator', () => {
 
         it('should have pinned model revision SHA (REQ-SEC-001)', () => {
             // PRD Requirement: Pin HuggingFace commit SHA
-            expect(config.model.revision).toBe('fce5169d6bd6e56c54b0ef02ae54b24ee5b44ed5');
+            expect(config.model.revision).toBe('761b726dd34fb83930e26aab4e9ac3899aa1fa78');
             // Should be exactly 40 hex characters (SHA-1)
             expect(config.model.revision).toMatch(/^[a-f0-9]{40}$/);
         });
