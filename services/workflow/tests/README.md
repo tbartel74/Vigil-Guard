@@ -29,14 +29,14 @@ npm test
 ## Test Structure
 
 - **API Tests**: 12 tests for Web UI backend endpoints
-- **E2E Tests**: 150+ tests for complete workflow execution
+- **E2E Tests**: 160+ tests for complete workflow execution
   - Bypass scenarios (25 tests)
   - PII detection (30+ tests)
-  - Language detection (50 tests) **NEW v1.8.1**
+  - Language detection (50 tests)
   - False positives (15 tests)
   - Input validation (10 tests)
   - OWASP AITG (50+ tests)
-- **Expected Results**: 160+/165 tests passing
+- **Expected Results**: 170+ tests passing
 
 ## Test Suites
 

@@ -25,7 +25,7 @@ Vigil Guard protects LLM applications from prompt injection attacks, jailbreak a
 | **Investigation Panel** | Advanced prompt search with decision analysis |
 | **Dynamic Configuration** | Web-based GUI for security policies |
 | **Browser Extension** | Chrome/Edge protection for ChatGPT/Claude.ai |
-| **270+ Tests** | E2E suite with OWASP AITG coverage |
+| **170+ Tests** | E2E suite with OWASP AITG coverage |
 
 ## Architecture
 
@@ -92,7 +92,7 @@ vigil-guard/
 ├── services/
 │   ├── workflow/           # n8n detection engine
 │   │   ├── config/        # Detection rules (use Web UI!)
-│   │   ├── tests/         # 270+ E2E tests
+│   │   ├── tests/         # 170+ E2E tests
 │   │   └── workflows/     # Vigil Guard v2.1.0.json
 │   ├── web-ui/            # React + Express
 │   ├── presidio-pii-api/  # Dual-language PII
