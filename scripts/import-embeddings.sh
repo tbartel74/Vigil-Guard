@@ -1,6 +1,10 @@
 #!/bin/bash
 #
+<<<<<<< HEAD
 # Import Semantic Embeddings to ClickHouse (v2.1.0)
+=======
+# Import Semantic Embeddings to ClickHouse (v2.0.0)
+>>>>>>> origin/main
 # Standalone script for manual recovery (production-ready, idempotent)
 #
 # Usage:
@@ -11,7 +15,11 @@
 # This script uses ClickHouse-native JSONEachRow format for atomic bulk import.
 # Safe to run multiple times (idempotent via TRUNCATE).
 #
+<<<<<<< HEAD
 # v2.1.0: Uses pattern_embeddings_v2 (E5 model) and semantic_safe_embeddings
+=======
+# v2.0.0: Uses pattern_embeddings_v2 (E5 model) and semantic_safe_embeddings
+>>>>>>> origin/main
 
 set -euo pipefail
 IFS=$'\n\t'
