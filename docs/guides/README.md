@@ -3,7 +3,7 @@
 <!-- GUI-HELP: Navigation hub for all user documentation -->
 <!-- GUI-SECTION: guides -->
 
-**Version:** 2.0.0 | **Last Updated:** 2025-11-28
+**Version:** 2.1.0 | **Last Updated:** 2025-12-14
 
 ---
 
@@ -56,7 +56,7 @@
 │ • Settings                                          │
 │          │                                          │
 ├──────────┴──────────────────────────────────────────┤
-│  Footer: Version 2.0.0 │ Built with Llama           │
+│  Footer: Version 2.1.0 │ Built with Llama           │
 └─────────────────────────────────────────────────────┘
 ```
 

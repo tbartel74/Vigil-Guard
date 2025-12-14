@@ -1,5 +1,5 @@
 /**
- * Events V2 Routes - 3-Branch Detection Architecture v2.0.0
+ * Events V2 Routes - 3-Branch Detection Architecture v2.1.0
  * Extracted from server.ts as part of Sprint 2 refactoring
  */
 

@@ -1,4 +1,4 @@
-# Heuristics Service (Branch A) - v2.0.0
+# Heuristics Service (Branch A) - v2.1.0
 FROM node:20-alpine AS builder
 
 # Security: Update npm to fix CVE-2024-21538 (cross-spawn) and CVE-2025-64756 (glob)

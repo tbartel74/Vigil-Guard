@@ -1,4 +1,4 @@
-# Vigil Guard v2.0.0 Test Suite
+# Vigil Guard v2.1.0 Test Suite
 
 Complete test suite for Vigil Guard 3-Branch Detection Architecture.
 
@@ -58,7 +58,7 @@ npm test
 ### Run Specific Test Suites
 
 ```bash
-# v2.0.0 Core Tests
+# v2.1.0 Core Tests
 npm test -- system-decisions.test.js     # Final decision tests
 npm test -- events-v2-schema.test.js     # Schema validation
 
@@ -119,7 +119,7 @@ ClickHouse table: `n8n_logs.events_v2`
 
 ### `assertSystemDecision(event, expected)`
 
-Primary assertion function for v2.0.0 tests.
+Primary assertion function for v2.1.0 tests.
 
 ```javascript
 import { assertSystemDecision } from '../helpers/webhook.js';
@@ -198,7 +198,7 @@ WEB_UI_ADMIN_PASSWORD=<24 chars>
 
 ## Webhook URL
 
-v2.0.0 webhook: `http://localhost:5678/webhook/vigil-guard-2`
+v2.1.0 webhook: `http://localhost:5678/webhook/vigil-guard-2`
 
 ## CI/CD Jobs
 

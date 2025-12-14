@@ -1,5 +1,5 @@
 /**
- * InvestigationV2 - Investigation panel for Vigil Guard v2.0.0
+ * InvestigationV2 - Investigation panel for Vigil Guard v2.1.0
  * Displays events from events_v2 table with 3-branch detection architecture
  *
  * Sprint 3.1 Refactoring: Split from 651 lines to modular components
@@ -140,7 +140,7 @@ export default function InvestigationV2() {
         <div>
           <h1 className="text-2xl font-bold text-white">Investigation Panel</h1>
           <p className="text-text-secondary mt-1">
-            Analyze detection events from 3-branch architecture (v2.0.0)
+            Analyze detection events from 3-branch architecture (v2.1.0)
           </p>
         </div>
         <div className="flex gap-3">

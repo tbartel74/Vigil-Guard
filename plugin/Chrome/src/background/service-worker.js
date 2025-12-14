@@ -282,7 +282,7 @@ async function fetchConfigFromGUI() {
         n8nEndpoint: data.webhookUrl || DEFAULT_CONFIG.n8nEndpoint,
         customWebhook: '',
         guiUrl: data.guiUrl || DEFAULT_GUI_URL,
-        version: data.version || '2.0.0',
+        version: data.version || '2.1.0',
         endpoint: DEFAULT_CONFIG.endpoint,
         apiKey: '',
         mode: 'monitor',

@@ -1,4 +1,4 @@
-# Heuristics Service (Branch A) - v2.0.0
+# Heuristics Service (Branch A) - v2.1.0
 
 Fast, lightweight heuristics-based detection service for Vigil Guard's 3-Branch architecture.
 
@@ -126,7 +126,7 @@ Health check endpoint.
   "status": "ok",
   "service": "heuristics-service",
   "branch_id": "A",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "timestamp": "2025-11-20T21:00:00.000Z"
 }
 ```

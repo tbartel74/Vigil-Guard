@@ -7,7 +7,7 @@ n8n-based detection engine with 3-branch parallel architecture.
 ```
 services/workflow/
 ├── workflows/
-│   └── Vigil Guard v2.0.0.json  # Main workflow
+│   └── Vigil Guard v2.1.0.json  # Main workflow
 ├── config/
 │   ├── unified_config.json      # Detection settings
 │   ├── rules.config.json        # Pattern definitions
@@ -49,7 +49,7 @@ Input → Validation → Language Detection
 
 1. Open n8n: http://localhost:5678
 2. Menu → Import from File
-3. Select `workflows/Vigil Guard v2.0.0.json`
+3. Select `workflows/Vigil Guard v2.1.0.json`
 4. Configure ClickHouse credentials
 5. Activate workflow (toggle ON)
 

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Semantic Service - ClickHouse DDL
 -- Branch B: Pattern Embeddings with HNSW Vector Search
--- Version: 2.0.0 (E5 model - Two-Phase Search)
+-- Version: 2.1.0 (E5 model - Two-Phase Search)
 -- Date: 2025-12-12
 -- ============================================================================
 -- NOTE: This file creates auxiliary tables only.
@@ -52,7 +52,7 @@ TTL timestamp + INTERVAL 90 DAY;
 -- ============================================================================
 
 INSERT INTO n8n_logs.embedding_metadata (id, key, value) VALUES
-    (1, 'schema_version', '2.0.0'),
+    (1, 'schema_version', '2.1.0'),
     (2, 'embedding_model', 'multilingual-e5-small-int8'),
     (3, 'embedding_dim', '384'),
     (4, 'hnsw_m', '16'),

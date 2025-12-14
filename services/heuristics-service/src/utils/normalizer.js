@@ -5,7 +5,7 @@
  * This allows the Arbiter to send original text to all 3 branches,
  * while Heuristics normalizes internally for pattern matching.
  *
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 import fs from 'fs';

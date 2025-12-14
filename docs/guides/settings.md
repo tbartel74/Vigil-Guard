@@ -3,7 +3,7 @@
 <!-- GUI-HELP: User preferences, timezone, and password management -->
 <!-- GUI-SECTION: settings -->
 
-**Version:** 2.0.0 | **Last Updated:** 2025-11-28
+**Version:** 2.1.0 | **Last Updated:** 2025-12-14
 
 ---
 

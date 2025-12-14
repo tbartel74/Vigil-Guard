@@ -1,6 +1,6 @@
 -- 08-events-v2-3branch.sql
 -- Schema: n8n_logs
--- Purpose: ClickHouse table for Vigil Guard v2.0.0 with 3-Branch Detection Architecture
+-- Purpose: ClickHouse table for Vigil Guard v2.1.0 with 3-Branch Detection Architecture
 --
 -- Key Changes from events_processed:
 -- - 3 branch scores (heuristics, semantic, llm_guard/LLM Safety Engine analysis) instead of single threat_score
@@ -24,12 +24,12 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_v2
     result                  String CODEC(ZSTD(3)),
     detected_language       LowCardinality(String) DEFAULT 'unknown',
 
-    -- 3-Branch Scores (NEW in v2.0.0)
+    -- 3-Branch Scores (NEW in v2.1.0)
     branch_a_score          UInt8 DEFAULT 0,       -- Heuristics (0-100)
     branch_b_score          UInt8 DEFAULT 0,       -- Semantic (0-100)
     branch_c_score          UInt8 DEFAULT 0,       -- LLM Safety Engine analysis (0-100)
 
-    -- Arbiter Decision (NEW in v2.0.0)
+    -- Arbiter Decision (NEW in v2.1.0)
     threat_score            UInt8 DEFAULT 0,       -- Combined weighted score (0-100)
     confidence              Float32 DEFAULT 0,     -- Arbiter confidence (0.0-1.0)
     boosts_applied          Array(String),         -- Priority boosts that affected decision
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_v2
     os_name                 LowCardinality(String) DEFAULT 'unknown',
 
     -- Pipeline Metadata
-    pipeline_version        LowCardinality(String) DEFAULT 'v2.0.0',
+    pipeline_version        LowCardinality(String) DEFAULT 'v2.1.0',
     config_version          LowCardinality(String) DEFAULT 'unknown',
     processing_time_ms      UInt32 DEFAULT 0,      -- Total pipeline processing time
 

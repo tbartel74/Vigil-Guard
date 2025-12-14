@@ -312,7 +312,7 @@ jobs:
 
       - name: Check Markdown files exist
         run: |
-          # v2.0.0 documentation structure
+          # v2.1.0 documentation structure
           required_docs=(
             "README.md"
             "docs/README.md"
@@ -410,7 +410,7 @@ jobs:
           [ -x install.sh ] || (echo "install.sh not executable" && exit 1)
           [ -x scripts/download-llama-model.sh ] || (echo "download-llama-model.sh not executable" && exit 1)
 
-  # Heuristics Service - Unit Tests (v2.0.0)
+  # Heuristics Service - Unit Tests (v2.1.0)
   heuristics-service-tests:
     name: Heuristics Service - Unit Tests
     runs-on: ubuntu-latest
@@ -440,7 +440,7 @@ jobs:
         working-directory: services/heuristics-service
         run: npm test -- tests/unit/
 
-  # Semantic Service - Unit Tests (v2.0.0)
+  # Semantic Service - Unit Tests (v2.1.0)
   semantic-service-tests:
     name: Semantic Service - Unit Tests
     runs-on: ubuntu-latest
@@ -641,7 +641,7 @@ jobs:
           echo "  ✓ Documentation checked"
           echo "  ✓ Security audit completed"
           echo "  ✓ Installation scripts validated"
-          echo "  ✓ Heuristics Service unit tests (v2.0.0)"
-          echo "  ✓ Semantic Service unit tests (v2.0.0)"
+          echo "  ✓ Heuristics Service unit tests (v2.1.0)"
+          echo "  ✓ Semantic Service unit tests (v2.1.0)"
           echo "  ✓ Golden Dataset Quality Gate (E5 Migration v2.0)"
           echo ""

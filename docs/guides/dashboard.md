@@ -3,7 +3,7 @@
 <!-- GUI-HELP: Real-time security analytics and Grafana integration -->
 <!-- GUI-SECTION: monitoring -->
 
-**Version:** 2.0.0 | **Last Updated:** 2025-11-28
+**Version:** 2.1.0 | **Last Updated:** 2025-12-14
 
 ---
 

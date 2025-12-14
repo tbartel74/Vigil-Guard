@@ -215,7 +215,7 @@ app.post('/analyze-v2', async (req, res) => {
 /**
  * POST /analyze
  * Main analysis endpoint - returns branch_result
- * Uses Two-Phase Search (v2.0.0) by default for better accuracy
+ * Uses Two-Phase Search (v2.1.0) by default for better accuracy
  */
 app.post('/analyze', async (req, res) => {
     const startTime = Date.now();

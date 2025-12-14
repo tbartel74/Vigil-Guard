@@ -1,7 +1,7 @@
 {
   "name": "heuristics-service",
-  "version": "2.0.0",
-  "description": "Heuristics Detection Service (Branch A) for Vigil Guard v2.0",
+  "version": "2.1.0",
+  "description": "Heuristics Detection Service (Branch A) for Vigil Guard v2.1",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

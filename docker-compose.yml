@@ -288,7 +288,7 @@ services:
   heuristics-service:
     build: ./services/heuristics-service
     container_name: vigil-heuristics
-    image: vigil-heuristics:2.0.0
+    image: vigil-heuristics:2.1.0
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - LOG_LEVEL=${HEURISTICS_LOG_LEVEL:-info}

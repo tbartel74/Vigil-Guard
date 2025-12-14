@@ -1,6 +1,6 @@
 # Semantic Service Setup Guide
 
-## Quick Start (v2.0.0) - RECOMMENDED
+## Quick Start (v2.1.0) - RECOMMENDED
 
 The E5 multilingual model downloads automatically on first run via Transformers.js.
 Embeddings must be generated and imported from source patterns.
@@ -66,7 +66,7 @@ This downloads `Xenova/multilingual-e5-small` (~129 MB) to `models/` directory.
 
 ## Two-Phase Search Setup
 
-v2.0.0 uses Two-Phase Search comparing queries against two pattern databases:
+v2.1.0 uses Two-Phase Search comparing queries against two pattern databases:
 
 1. **Attack patterns** (`pattern_embeddings_v2`): Known malicious prompts
 2. **Safe patterns** (`semantic_safe_embeddings`): Legitimate instructions
@@ -121,7 +121,7 @@ SEARCH_TOP_K=5
 THRESHOLD_LOW=40
 THRESHOLD_MEDIUM=70
 
-# Two-Phase Search (v2.0.0)
+# Two-Phase Search (v2.1.0)
 SEMANTIC_ENABLE_TWO_PHASE=true
 SEMANTIC_TWO_PHASE_PERCENT=100
 ```
@@ -182,7 +182,7 @@ docker exec vigil-clickhouse clickhouse-client \
 If upgrading from MiniLM (v1.0.0):
 
 1. **Regenerate all embeddings** - E5 embeddings are incompatible with MiniLM
-2. **Create new tables** - v2.0.0 uses `pattern_embeddings_v2` and `semantic_safe_embeddings`
+2. **Create new tables** - v2.1.0 uses `pattern_embeddings_v2` and `semantic_safe_embeddings`
 3. **Update environment** - Add `SEMANTIC_ENABLE_TWO_PHASE=true`
 4. **Remove legacy table** - Drop the old `pattern_embeddings` table (no longer used)
 

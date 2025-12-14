@@ -1,7 +1,7 @@
 # Heuristics Service - E2E Test Results & Tuning Report
 
 **Date:** 2025-11-23
-**Version:** 2.0.0 (Docker Container: vigil-heuristics-dev)
+**Version:** 2.1.0 (Docker Container: vigil-heuristics-dev)
 **Test Suite:** 68 test cases across 10 categories
 
 ---

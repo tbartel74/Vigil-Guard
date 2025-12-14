@@ -34,7 +34,7 @@ This document provides a comprehensive technical overview of Vigil Guard's v2.1.
 
 ## Overview
 
-Vigil Guard v2.0.0 introduces a **3-branch parallel detection architecture** that replaces the previous sequential 40-node pipeline. The new system achieves:
+Vigil Guard v2.1.0 introduces a **3-branch parallel detection architecture** that replaces the previous sequential 40-node pipeline. The new system achieves:
 
 - **Parallel Processing**: All 3 branches execute simultaneously using Promise.all()
 - **Binary Decisions**: ALLOW or BLOCK (sanitization reserved for PII only)
@@ -47,7 +47,7 @@ Vigil Guard v2.0.0 introduces a **3-branch parallel detection architecture** tha
 
 ```
 v1.x: Input → 40 Sequential Nodes → Score → Decision → Output
-v2.0: Input → 3 Parallel Branches → Arbiter → Decision → PII (if ALLOW) → Output
+v2.1: Input → 3 Parallel Branches → Arbiter → Decision → PII (if ALLOW) → Output
 ```
 
 ---
@@ -60,7 +60,7 @@ v2.0: Input → 3 Parallel Branches → Arbiter → Decision → PII (if ALLOW) 
 - **Decisions:** ALLOW (0-29), SANITIZE_LIGHT (30-64), SANITIZE_HEAVY (65-84), BLOCK (85-100)
 - **Latency:** 15-30s typical (sequential processing)
 
-### v2.0.0 (3-Branch Parallel + Arbiter)
+### v2.1.0 (3-Branch Parallel + Arbiter)
 - **Nodes:** 24 total (11 Code nodes)
 - **Flow:** Input Validation → 3-Branch Executor → Arbiter → Decision Router → PII Redaction (ALLOW only)
 - **Decisions:** ALLOW or BLOCK (binary)
@@ -75,7 +75,7 @@ v2.0: Input → 3 Parallel Branches → Arbiter → Decision → PII (if ALLOW) 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        Vigil Guard v2.0.0 Pipeline                      │
+│                        Vigil Guard v2.1.0 Pipeline                      │
 └─────────────────────────────────────────────────────────────────────────┘
 
   [Webhook v2] / [Chat Trigger]
@@ -706,7 +706,7 @@ const finalDecision = finalScore >= 50 ? 'BLOCK' : 'ALLOW';
 
 ## PII Redaction (Post-Detection)
 
-**Critical Change in v2.0.0:**
+**Critical Change in v2.1.0:**
 
 PII redaction is applied **ONLY for ALLOW decisions**, **AFTER** the Arbiter decision.
 
@@ -1122,6 +1122,6 @@ stateDiagram-v2
 
 ---
 
-**Document Version:** 2.0.0
-**Last Reviewed:** 2025-11-27
+**Document Version:** 2.1.0
+**Last Reviewed:** 2025-12-14
 **Maintainer:** Vigil Guard Team
