@@ -28,10 +28,10 @@ Score multiplier applied when a branch reports high confidence. Ensures dangerou
 Pattern-based detection using Aho-Corasick prefilter and regex patterns. Port 5005. Weight: 0.30.
 
 ### Branch B (Semantic)
-Embedding-based detection using sentence transformers. Measures cosine similarity to known threat categories. Port 5006. Weight: 0.35.
+Embedding-based detection using sentence transformers. Measures cosine similarity to known threat categories. Port 5006. Weight: 0.40.
 
 ### Branch C (LLM Safety Engine)
-Machine learning classification using Meta Llama Guard 2 model. Detects novel attacks that bypass pattern matching. Port 8000. Weight: 0.35.
+Machine learning classification using Meta Llama Guard 2 model. Detects novel attacks that bypass pattern matching. Port 8000. Weight: 0.30.
 
 ## C
 
@@ -119,7 +119,7 @@ ClickHouse table engine. Optimized for high-volume inserts and aggregation queri
 ## N
 
 ### n8n
-Workflow automation platform hosting the detection pipeline. Contains 40+ nodes for processing.
+Workflow automation platform hosting the detection pipeline. Contains 24 nodes for processing.
 
 ### NIP (Numer Identyfikacji Podatkowej)
 Polish tax identification number. 10-digit format with checksum validation.
@@ -138,7 +138,7 @@ Polish national identification number. 11-digit format encoding birth date and g
 Data that can identify an individual: names, emails, phone numbers, government IDs.
 
 ### Pipeline
-The 40-node detection workflow processing input from webhook to final decision.
+The 24-node detection workflow processing input from webhook to final decision.
 
 ### Presidio
 Microsoft's PII detection framework. Supports 50+ entity types with ML and rule-based recognizers.
@@ -193,7 +193,7 @@ Main configuration file. Contains thresholds, weights, category settings, PII op
 The complete prompt injection detection and defense platform.
 
 ### vigil-net
-Docker network connecting all 9 services. Internal DNS resolution for container communication.
+Docker network connecting all 11 services. Internal DNS resolution for container communication.
 
 ## W
 
@@ -201,7 +201,7 @@ Docker network connecting all 9 services. Internal DNS resolution for container 
 HTTP endpoint receiving prompts for analysis: `/webhook/vigil-guard-2`
 
 ### Weight
-Branch contribution to final score. A=0.30, B=0.35, C=0.35.
+Branch contribution to final score. A=0.30, B=0.40, C=0.30.
 
 ### Workflow
 n8n automation containing the detection pipeline. File: `Vigil Guard v2.1.0.json`

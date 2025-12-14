@@ -101,7 +101,7 @@ export default function FileManager() {
   };
 
   const configFiles = [
-    { name: 'unified_config.json', description: 'Main configuration file with detection settings, Arbiter weights, bloom filter, and sanitization policies (v2.0.0)' },
+    { name: 'unified_config.json', description: 'Main configuration file with detection settings, Arbiter weights, bloom filter, and sanitization policies (v2.1.0)' },
     { name: 'pii.conf', description: 'PII redaction patterns for sensitive data detection and removal' },
     { name: 'allowlist.schema.json', description: 'JSON Schema for allowlist validation and structure definition' },
   ];

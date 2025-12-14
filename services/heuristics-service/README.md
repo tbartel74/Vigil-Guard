@@ -126,7 +126,7 @@ Health check endpoint.
   "status": "ok",
   "service": "heuristics-service",
   "branch_id": "A",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "timestamp": "2025-11-20T21:00:00.000Z"
 }
 ```

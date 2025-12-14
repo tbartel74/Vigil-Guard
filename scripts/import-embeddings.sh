@@ -36,7 +36,7 @@ fi
 
 source .env
 
-# Configuration v2.0.0
+# Configuration v2.1.0
 ATTACK_EMBEDDINGS_FILE="services/semantic-service/data/datasets/enterprise_attack_embeddings.jsonl"
 SAFE_EMBEDDINGS_FILE="services/semantic-service/data/datasets/safe_embeddings.jsonl"
 SECURITY_EDUCATION_FILE="services/semantic-service/data/datasets/security_education_embeddings.jsonl"

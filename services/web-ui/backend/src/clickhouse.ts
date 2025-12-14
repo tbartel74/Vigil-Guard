@@ -1,5 +1,5 @@
 /**
- * ClickHouse Module - Events V2 Schema (v2.0.0+)
+ * ClickHouse Module - Events V2 Schema (v2.1.0+)
  *
  * This module handles all ClickHouse queries for the events_v2 table.
  * Schema includes: 3-branch scores, arbiter decisions, PII detection.
