@@ -204,7 +204,7 @@ HTTP endpoint receiving prompts for analysis: `/webhook/vigil-guard-2`
 Branch contribution to final score. A=0.30, B=0.35, C=0.35.
 
 ### Workflow
-n8n automation containing the detection pipeline. File: `Vigil Guard v2.0.0.json`
+n8n automation containing the detection pipeline. File: `Vigil Guard v2.1.0.json`
 
 ---
 

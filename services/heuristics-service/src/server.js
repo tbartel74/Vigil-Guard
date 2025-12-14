@@ -108,7 +108,7 @@ app.get('/health', (req, res) => {
     status,
     service: 'heuristics-service',
     branch_id: 'A',
-    version: '2.0.0',
+    version: '2.1.0',
     timestamp: new Date().toISOString(),
     components: {
       patterns: {
@@ -333,8 +333,8 @@ app.listen(PORT, '0.0.0.0', () => {
     };
   }
 
-  logger.info(`Heuristics Service (Branch A) v2.0.0 listening on port ${PORT}`);
+  logger.info(`Heuristics Service (Branch A) v2.1.0 listening on port ${PORT}`);
   logger.info(`Target latency: ${config.performance.target_latency_ms}ms`);
   logger.info(`Weights: Obf=${config.detection.weights.obfuscation}, Struct=${config.detection.weights.structure}, Whisper=${config.detection.weights.whisper}, Entropy=${config.detection.weights.entropy}, Security=${config.detection.weights.security}`);
-  logger.info('Internal normalization: ENABLED (v2.0 architecture)');
+  logger.info('Internal normalization: ENABLED (v2.1 architecture)');
 });

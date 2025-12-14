@@ -1,6 +1,6 @@
 # Semantic Service - Branch B
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Branch ID:** B
 **Name:** semantic
 
@@ -12,7 +12,7 @@ Semantic similarity detection service for Vigil Guard. Uses **E5 multilingual** 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                      Semantic Service v2.0.0                             │
+│                      Semantic Service v2.1.0                             │
 │                                                                          │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │
 │  │   Express    │    │     E5       │    │      ClickHouse          │  │
@@ -433,7 +433,7 @@ interface BranchResult {
 
 ## Changelog
 
-### v2.0.0 (2025-12-12)
+### v2.1.0 (2025-12-14)
 
 - **BREAKING:** Migrated from MiniLM to E5 multilingual model
 - **NEW:** Two-Phase Search with attack + safe pattern comparison

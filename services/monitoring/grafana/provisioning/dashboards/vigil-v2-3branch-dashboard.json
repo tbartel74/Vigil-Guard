@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Vigil Guard v2.0.0 - 3-Branch Detection Architecture monitoring",
+  "description": "Vigil Guard v2.1.0 - 3-Branch Detection Architecture monitoring",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -686,7 +686,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["vigil", "v2.0.0", "3-branch", "arbiter"],
+  "tags": ["vigil", "v2.1.0", "3-branch", "arbiter"],
   "templating": {
     "list": []
   },
@@ -696,7 +696,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Vigil Guard v2.0.0 - 3-Branch Detection",
+  "title": "Vigil Guard v2.1.0 - 3-Branch Detection",
   "uid": "vigil-v2-3branch",
   "version": 2,
   "weekStart": ""

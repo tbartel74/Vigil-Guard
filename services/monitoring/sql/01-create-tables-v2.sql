@@ -1,5 +1,5 @@
 -- ============================================================================
--- Vigil Guard v2.0.0 - Core Tables
+-- Vigil Guard v2.1.0 - Core Tables
 -- Fresh installation (NO backward compatibility with v1.8.1)
 -- ============================================================================
 
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_v2
     result                  String CODEC(ZSTD(3)),
     detected_language       LowCardinality(String) DEFAULT 'unknown',
 
-    -- 3-Branch Scores (v2.0.0)
+    -- 3-Branch Scores (v2.1.0)
     branch_a_score          UInt8 DEFAULT 0,
     branch_b_score          UInt8 DEFAULT 0,
     branch_c_score          UInt8 DEFAULT 0,
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS n8n_logs.events_v2
     os_name                 LowCardinality(String) DEFAULT 'unknown',
 
     -- Pipeline Metadata
-    pipeline_version        LowCardinality(String) DEFAULT 'v2.0.0',
+    pipeline_version        LowCardinality(String) DEFAULT 'v2.1.0',
     config_version          LowCardinality(String) DEFAULT 'unknown',
     processing_time_ms      UInt32 DEFAULT 0,
 

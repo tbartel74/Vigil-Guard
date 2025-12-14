@@ -93,7 +93,7 @@ vigil-guard/
 │   ├── workflow/           # n8n detection engine
 │   │   ├── config/        # Detection rules (use Web UI!)
 │   │   ├── tests/         # 160+ E2E tests
-│   │   └── workflows/     # Vigil Guard v2.0.0.json
+│   │   └── workflows/     # Vigil Guard v2.1.0.json
 │   ├── web-ui/            # React + Express
 │   ├── presidio-pii-api/  # Dual-language PII
 │   ├── language-detector/ # PL/EN detection

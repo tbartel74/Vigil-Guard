@@ -3,7 +3,7 @@
 <!-- GUI-HELP: Quick reference for all Vigil Guard microservices -->
 <!-- GUI-SECTION: services -->
 
-**Version:** 2.0.0 | **Last Updated:** 2025-11-28
+**Version:** 2.1.0 | **Last Updated:** 2025-12-14
 
 ---
 
@@ -188,7 +188,7 @@ Which service handles it?
 
 ## Workflow (n8n)
 
-**File:** `services/workflow/workflows/Vigil Guard v2.0.0.json`
+**File:** `services/workflow/workflows/Vigil Guard v2.1.0.json`
 
 **Webhook:** `POST /webhook/vigil-guard-2`
 

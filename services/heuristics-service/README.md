@@ -1,4 +1,4 @@
-# Heuristics Service (Branch A) - v2.0.0
+# Heuristics Service (Branch A) - v2.1.0
 
 Fast, lightweight heuristics-based detection service for Vigil Guard's 3-Branch architecture.
 

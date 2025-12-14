@@ -1,5 +1,5 @@
 /**
- * InvestigationV2 - Investigation panel for Vigil Guard v2.0.0
+ * InvestigationV2 - Investigation panel for Vigil Guard v2.1.0
  * Displays events from events_v2 table with 3-branch detection architecture
  *
  * Sprint 3.1 Refactoring: Split from 651 lines to modular components

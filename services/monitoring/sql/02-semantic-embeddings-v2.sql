@@ -1,5 +1,5 @@
 -- ============================================================================
--- Semantic Service - Vector Embeddings Schema (v2.0.0)
+-- Semantic Service - Vector Embeddings Schema (v2.1.0)
 -- ============================================================================
 -- Creates embedding tables and auxiliary structures for Two-Phase Search.
 -- Tables: pattern_embeddings_v2 (attack), semantic_safe_embeddings (safe)
